@@ -1,11 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './Header.css';
 import placeholderAvatar from '../assets/placeholder-profile.jpg';
 import NotificationDropdown from './NotificationDropdown';
 import { authAPI } from '@/services/api';
+import ThemeToggle from './ThemeToggle'; 
 
-const Header = ({ currentUser, notifications, appLevelHandlers }) => {
+const Header = ({ currentUser, notifications, appLevelHandlers, theme }) => {
   const router = useNavigate();
 
   const handleLogout = async (e) => {
@@ -27,6 +28,8 @@ const Header = ({ currentUser, notifications, appLevelHandlers }) => {
     <header className="app-header">
       <div className="header-left"></div>
       <div className="header-right">
+        <ThemeToggle theme={theme} onToggle={appLevelHandlers.toggleTheme} />
+
         <NotificationDropdown notifications={notifications} handlers={appLevelHandlers} />
         <div className="dropdown user-profile-menu">
           <div 
@@ -52,8 +55,8 @@ const Header = ({ currentUser, notifications, appLevelHandlers }) => {
               <div className="text-muted small">ID: {displayEmployeeId}</div>
             </li>
             <li><hr className="dropdown-divider" /></li>
-            <li><a className="dropdown-item" href="#"><i className="bi bi-person-fill"></i> My Profile</a></li>
-            <li><a className="dropdown-item" href="#"><i className="bi bi-gear-fill"></i> Account Settings</a></li>
+            <li><Link className="dropdown-item" to="/dashboard/my-profile"><i className="bi bi-person-fill"></i> My Profile</Link></li>
+            <li><Link className="dropdown-item" to="/dashboard/account-settings"><i className="bi bi-gear-fill"></i> Settings</Link></li>
             <li><hr className="dropdown-divider" /></li>
             <li>
               <button className="dropdown-item text-danger" onClick={handleLogout}>

@@ -1,3 +1,15 @@
+/* --- Tab Navigation --- */
+.employee-data-tabs .nav-link {
+    font-weight: 500;
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+.employee-data-tabs .nav-link.active {
+    font-weight: 600;
+    color: var(--app-success-color);
+}
+
+/* --- Controls Bar (For "All Employees" Tab) --- */
 .page-controls-bar {
   display: flex;
   flex-wrap: wrap;
@@ -5,7 +17,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background-color: #fff;
+  background-color: var(--bg-primary);
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
   box-shadow: var(--card-shadow);
@@ -29,13 +41,14 @@
     gap: 0.75rem;
 }
 
+/* --- Employee Card Grid View --- */
 .employee-grid-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 .employee-card-v2 {
-  background-color: #fff;
+  background-color: var(--bg-primary);
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
   box-shadow: var(--card-shadow);
@@ -50,18 +63,26 @@
   box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
   border-color: var(--app-success-color);
 }
+.employee-card-v2.inactive {
+    filter: grayscale(90%);
+    opacity: 0.7;
+}
+.employee-card-v2.inactive:hover {
+    filter: grayscale(0);
+    opacity: 1;
+}
 .employee-card-header-v2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 1rem;
-  background-color: var(--light-gray);
+  background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
 }
 .employee-card-header-v2 .employee-id {
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--secondary-color);
+  color: var(--text-secondary);
 }
 .employee-card-body-v2 {
   padding: 1.25rem;
@@ -76,7 +97,7 @@
   height: 90px;
   object-fit: cover;
   border-radius: 50%;
-  border: 4px solid #fff;
+  border: 4px solid var(--bg-primary);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   margin-bottom: 1rem;
 }
@@ -84,21 +105,23 @@
   font-size: 1.2rem;
   font-weight: 600;
   margin: 0;
-  color: var(--dark-gray);
+  color: var(--text-primary);
 }
 .employee-position-v2 {
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--app-success-color);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 .employee-details-v2 {
   font-size: 0.85rem;
-  color: var(--secondary-color);
+  color: var(--text-secondary);
   text-align: left;
   width: 100%;
   border-top: 1px solid var(--border-color);
-  padding-top: 1rem;
+  padding: 1rem;
+  margin-top: auto;
+  background-color: var(--bg-secondary);
 }
 .employee-details-v2 .detail-item {
   display: flex;
@@ -106,21 +129,8 @@
   gap: 0.75rem;
   margin-bottom: 0.5rem;
 }
-.employee-details-v2 .detail-item i {
-  color: var(--secondary-color);
-  width: 16px;
-  text-align: center;
-}
-.employee-details-v2 .detail-item a {
-  color: var(--secondary-color);
-  text-decoration: none;
-  word-break: break-all;
-}
-.employee-details-v2 .detail-item a:hover {
-  color: var(--app-success-color);
-  text-decoration: underline;
-}
 
+/* --- Table View --- */
 .employee-avatar-table {
   width: 30px;
   height: 30px;
@@ -128,11 +138,95 @@
   border-radius: 50%;
   vertical-align: middle;
 }
-.action-dropdown-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+
+/* --- Status Badges --- */
+.status-badge-employee {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3em 0.6em;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
-.action-dropdown-toggle i {
-  font-size: 0.8em;
+.status-badge-active {
+    color: var(--app-success-color);
+    background-color: rgba(var(--app-success-rgb), 0.1);
+}
+.status-badge-inactive {
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+}
+.status-badge-complete {
+    color: var(--app-success-color);
+    background-color: rgba(var(--app-success-rgb), 0.1);
+}
+.status-badge-incomplete {
+    color: var(--warning-color);
+    background-color: rgba(var(--warning-rgb), 0.15);
+}
+.dark-theme .status-badge-incomplete {
+    color: var(--warning-color);
+}
+
+
+/* --- Requirements Checklist --- */
+.requirements-header-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 1.5rem;
+    align-items: stretch;
+    margin-bottom: 1.5rem;
+}
+.requirements-filter-panel .card-header,
+.completeness-chart-container .card-header {
+    background-color: var(--bg-secondary);
+}
+.requirements-filter-panel .card-header h6,
+.completeness-chart-container .card-header h6 {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.filter-group-overall {
+    max-width: 280px;
+}
+.individual-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.5rem;
+}
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+.filter-group .filter-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+.completeness-chart-container .card-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+}
+.requirements-table thead {
+    background-color: var(--thead-bg);
+}
+.requirements-table .missing-value {
+    color: var(--danger-color);
+    font-style: italic;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+@media (max-width: 992px) {
+    .requirements-header-grid {
+        grid-template-columns: 1fr;
+    }
 }

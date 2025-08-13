@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import 'bootstrap-icons/font/bootstrap-icons.css';
-import placeholderAvatar from '../../../assets/placeholder-profile.jpg';
+import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import './MyTeamPage.css';
 
 const MyTeamPage = ({ currentUser, employees, positions }) => {
@@ -23,11 +23,18 @@ const MyTeamPage = ({ currentUser, employees, positions }) => {
 
     const currentPositionId = self.positionId;
     const posTitle = positionMap.get(currentPositionId) || 'Unassigned';
-    const colleagues = employees.filter(e => e.positionId === currentPositionId);
-    const leader = colleagues.find(e => e.isTeamLeader);
-    const members = colleagues.filter(e => !e.isTeamLeader);
     
-    return { teamRoster: members, teamLeader: leader, currentPositionTitle: posTitle };
+    // Only team leaders should see their team members
+    // Regular employees should not see team data
+    if (currentUser.role === 'TEAM_LEADER') {
+      const colleagues = employees.filter(e => e.positionId === currentPositionId);
+      const leader = colleagues.find(e => e.isTeamLeader);
+      const members = colleagues.filter(e => !e.isTeamLeader);
+      return { teamRoster: members, teamLeader: leader, currentPositionTitle: posTitle };
+    } else {
+      // Regular employees don't see team data
+      return { teamRoster: [], teamLeader: null, currentPositionTitle: posTitle };
+    }
   }, [currentUser, employees, positions, positionMap]);
 
   const sortedAndFilteredTeam = useMemo(() => {

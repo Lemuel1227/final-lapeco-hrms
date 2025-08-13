@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ScheduleManagementPage.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -6,10 +6,17 @@ import CreateTemplateModal from '../../modals/CreateTemplateModal';
 import EditScheduleModal from '../../modals/EditScheduleModal';
 import SelectDateForScheduleModal from '../../modals/SelectDateForScheduleModal';
 import Layout from '@/layout/Layout';
+import { scheduleAPI } from '../../services/api';
 
 const ScheduleManagementPage = (props) => {
   const [activeView, setActiveView] = useState('daily');
   const [previewData, setPreviewData] = useState(null);
+  const [schedules, setSchedules] = useState([]);
+  const [basicSchedules, setBasicSchedules] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // View-specific state
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
@@ -27,39 +34,115 @@ const ScheduleManagementPage = (props) => {
   const [showSelectDateModal, setShowSelectDateModal] = useState(false);
   const [creationSource, setCreationSource] = useState(null);
   
+  // Fetch basic schedule data for list view
+  useEffect(() => {
+    const fetchBasicSchedules = async () => {
+      try {
+        setLoading(true);
+        const basicSchedulesResponse = await scheduleAPI.getAllBasic();
+        
+        // Set basic schedule data for list view
+         console.log('Basic schedules response:', basicSchedulesResponse.data);
+         setBasicSchedules(basicSchedulesResponse.data || []);
+        
+        // Also fetch detailed data for the current date if needed
+        const detailedResponse = await scheduleAPI.getAll();
+        
+        // Transform the detailed data for daily view
+        const transformedSchedules = [];
+        if (detailedResponse.data && detailedResponse.data.schedules) {
+          detailedResponse.data.schedules.forEach(schedule => {
+            schedule.assignments.forEach(assignment => {
+              transformedSchedules.push({
+                id: assignment.id,
+                date: schedule.date,
+                name: schedule.name,
+                user_name: assignment.user_name,
+                employee_id: assignment.employee_id,
+                position_name: assignment.position_name,
+                start_time: assignment.start_time,
+                end_time: assignment.end_time,
+                notes: assignment.notes
+              });
+            });
+          });
+        }
+        
+        setSchedules(transformedSchedules);
+        setTemplates(detailedResponse.data.templates || []);
+        setEmployees(detailedResponse.data.employees || []);
+        setPositions(detailedResponse.data.positions || []);
+      } catch (error) {
+        console.error('Error fetching schedule data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBasicSchedules();
+  }, []);
+  
   const formatTimeToAMPM = (timeString) => {
     if (!timeString) return '---';
     try {
-      const [hours, minutes] = timeString.split(':');
+      // Handle ISO datetime strings by extracting time portion
+      let timeOnly = timeString;
+      if (timeString.includes('T')) {
+        // Extract time from ISO datetime (e.g., '2025-08-13T07:00:00.000000Z' -> '07:00:00')
+        timeOnly = timeString.split('T')[1].split('.')[0];
+      }
+      
+      const [hours, minutes] = timeOnly.split(':');
       const hour = parseInt(hours);
       const ampm = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      let displayHour = hour;
+      if (hour === 0) {
+        displayHour = 12; // 00:xx becomes 12:xx AM
+      } else if (hour > 12) {
+        displayHour = hour - 12; // 13:xx becomes 1:xx PM, 14:xx becomes 2:xx PM, etc.
+      }
       return `${displayHour}:${minutes} ${ampm}`;
     } catch (error) {
+      console.error('Error in formatTimeToAMPM:', error);
       return timeString; // Return original if parsing fails
     }
   };
 
   // --- MEMOIZED DATA & DERIVED STATE ---
-  // No need for employeeMap or positionMap, use schedule fields directly
+  // Use basicSchedules for list view with correct employee counts
   const schedulesByDate = useMemo(() => {
-    const grouped = (props.schedules || []).reduce((acc, sch) => {
-      (acc[sch.date] = acc[sch.date] || []).push(sch);
-      return acc;
-    }, {});
-    Object.keys(grouped).forEach(date => {
-        const entries = grouped[date];
-        grouped[date].info = {
-            name: entries[0]?.name || `Schedule for ${new Date(date + 'T00:00:00').toLocaleDateString()}`,
-            date: date,
-            employeeCount: entries.length,
-        };
+    console.log('Processing basicSchedules:', basicSchedules);
+    const grouped = {};
+    
+    // Create grouped data from basicSchedules for list view
+    (basicSchedules || []).forEach(schedule => {
+      console.log('Processing schedule:', schedule);
+      const normalizedDate = schedule.date instanceof Date ? schedule.date.toISOString().split('T')[0] : schedule.date.split('T')[0];
+      grouped[normalizedDate] = {
+        info: {
+          id: schedule.id,
+          name: schedule.name,
+          date: normalizedDate,
+          employeeCount: schedule.employees_count
+        }
+      };
+      console.log('Created schedule info:', grouped[normalizedDate].info);
     });
+    
+    // Add detailed schedule data for daily view
+    (schedules || []).forEach(sch => {
+      const normalizedDate = sch.date instanceof Date ? sch.date.toISOString().split('T')[0] : sch.date.split('T')[0];
+      if (!grouped[normalizedDate]) {
+        grouped[normalizedDate] = { info: { name: sch.name, date: normalizedDate, employeeCount: 0 } };
+      }
+      (grouped[normalizedDate].assignments = grouped[normalizedDate].assignments || []).push(sch);
+    });
+    
     return grouped;
-  }, [props.schedules]);
+  }, [schedules, basicSchedules]);
   
   const scheduledEmployeesForDate = useMemo(() => {
-    return (schedulesByDate[currentDate] || []).map(schedule => ({ ...schedule }));
+    return (schedulesByDate[currentDate]?.assignments || []).map(schedule => ({ ...schedule }));
   }, [currentDate, schedulesByDate]);
   
   const sortedAndFilteredDailyEmployees = useMemo(() => {
@@ -109,10 +192,9 @@ const ScheduleManagementPage = (props) => {
   }, [listSortConfig]);
 
   const filteredTemplates = useMemo(() => {
-    const templates = props.templates || [];
     if (!templateSearchTerm) return templates;
     return templates.filter(tpl => tpl.name.toLowerCase().includes(templateSearchTerm.toLowerCase()));
-  }, [props.templates, templateSearchTerm]);
+  }, [templates, templateSearchTerm]);
 
   // No dynamic columns needed, we know the fields
   const dailyViewColumns = [
@@ -133,13 +215,102 @@ const ScheduleManagementPage = (props) => {
   // --- HANDLERS ---
   const handleOpenCreateTemplateModal = (template = null) => { setEditingTemplate(template); setShowCreateTemplateModal(true); };
   const handleCloseCreateTemplateModal = () => { setShowCreateTemplateModal(false); setEditingTemplate(null); };
-  const handleSaveAndCloseTemplateModal = (formData, templateId) => {
-    if (props.handlers && props.handlers.createTemplate) {
-      props.handlers.createTemplate(formData, templateId);
-    } else {
-      console.warn('Template creation handler not available');
+  const handleSaveAndCloseTemplateModal = async (formData, templateId) => {
+    try {
+      // TODO: Implement template API when available
+      console.log('Template save:', formData, templateId);
+      // await templateAPI.create(formData) or templateAPI.update(templateId, formData)
+    } catch (error) {
+      console.error('Error saving template:', error);
     }
     handleCloseCreateTemplateModal();
+  };
+  
+  const handleCreateSchedule = async (scheduleData) => {
+    try {
+      await scheduleAPI.create(scheduleData);
+      // Refresh data after creation
+      const response = await scheduleAPI.getAll();
+      const transformedSchedules = [];
+      if (response.data && response.data.schedules) {
+        response.data.schedules.forEach(schedule => {
+        schedule.assignments.forEach(assignment => {
+          transformedSchedules.push({
+            id: assignment.id,
+            date: schedule.date,
+            name: schedule.name,
+            user_name: assignment.user_name,
+            employee_id: assignment.employee_id,
+            position_name: assignment.position_name,
+            start_time: assignment.start_time,
+            end_time: assignment.end_time,
+            notes: assignment.notes
+          });
+          });
+        });
+      }
+      setSchedules(transformedSchedules);
+    } catch (error) {
+      console.error('Error creating schedule:', error);
+    }
+  };
+  
+  const handleUpdateSchedule = async (scheduleId, scheduleData) => {
+    try {
+      await scheduleAPI.update(scheduleId, scheduleData);
+      // Refresh data after update
+      const response = await scheduleAPI.getAll();
+      const transformedSchedules = [];
+      if (response.data && response.data.schedules) {
+        response.data.schedules.forEach(schedule => {
+        schedule.assignments.forEach(assignment => {
+          transformedSchedules.push({
+            id: assignment.id,
+            date: schedule.date,
+            name: schedule.name,
+            user_name: assignment.user_name,
+            employee_id: assignment.employee_id,
+            position_name: assignment.position_name,
+            start_time: assignment.start_time,
+            end_time: assignment.end_time,
+            notes: assignment.notes
+          });
+          });
+        });
+      }
+      setSchedules(transformedSchedules);
+    } catch (error) {
+      console.error('Error updating schedule:', error);
+    }
+  };
+  
+  const handleDeleteSchedule = async (scheduleId) => {
+    try {
+      await scheduleAPI.delete(scheduleId);
+      // Refresh data after deletion
+      const response = await scheduleAPI.getAll();
+      const transformedSchedules = [];
+      if (response.data && response.data.schedules) {
+        response.data.schedules.forEach(schedule => {
+        schedule.assignments.forEach(assignment => {
+          transformedSchedules.push({
+            id: assignment.id,
+            date: schedule.date,
+            name: schedule.name,
+            user_name: assignment.user_name,
+            employee_id: assignment.employee_id,
+            position_name: assignment.position_name,
+            start_time: assignment.start_time,
+            end_time: assignment.end_time,
+            notes: assignment.notes
+          });
+          });
+        });
+      }
+      setSchedules(transformedSchedules);
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+    }
   };
 
   const handleOpenEditScheduleModal = (date) => { setEditingScheduleDate(date); setShowEditScheduleModal(true); };
@@ -279,10 +450,6 @@ const ScheduleManagementPage = (props) => {
                         </tbody>
                     </table>
                 </div></div></div>
-                <div className="text-center p-5 bg-light rounded">
-                    <i className="bi bi-calendar2-x fs-1 text-muted mb-3 d-block"></i>
-                    <h4 className="text-muted">{scheduledEmployeesForDate.length > 0 && positionFilter ? 'No employees match the filter.' : `No schedule created for ${new Date(currentDate + 'T00:00:00').toLocaleDateString()}.`}</h4>
-                </div>
               </>
             ) : (
                 <div className="text-center p-5 bg-light rounded">
@@ -320,7 +487,7 @@ const ScheduleManagementPage = (props) => {
                     <div key={scheduleInfo.date} className="schedule-item-card type-schedule">
                         <div className="card-header"><h5 className="card-title">{scheduleInfo.name}</h5></div>
                         <div className="card-body">
-                            <div className="info-row"><span className="info-label">Date:</span><span className="info-value">{new Date(scheduleInfo.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+                            <div className="info-row"><span className="info-label">Date:</span><span className="info-value">{new Date(scheduleInfo.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
                             <div className="info-row"><span className="info-label">Employees Scheduled:</span><span className="info-value">{scheduleInfo.employeeCount}</span></div>
                         </div>
                         <div className="card-footer">
@@ -368,6 +535,18 @@ const ScheduleManagementPage = (props) => {
   };
 
   // --- Main Component Return ---
+  if (loading) {
+    return (
+      <div className="container-fluid page-module-container p-lg-4 p-md-3 p-2">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="container-fluid page-module-container p-lg-4 p-md-3 p-2">
       {previewData ? renderPreviewScreen() : (
@@ -394,8 +573,8 @@ const ScheduleManagementPage = (props) => {
       )}
 
       {/* --- MODALS --- */}
-      {showCreateTemplateModal && ( <CreateTemplateModal show={showCreateTemplateModal} onClose={handleCloseCreateTemplateModal} onSave={handleSaveAndCloseTemplateModal} positions={props.positions} templateData={editingTemplate} /> )}
-      {showEditScheduleModal && editingScheduleDate && ( <EditScheduleModal show={showEditScheduleModal} onClose={handleCloseEditScheduleModal} onSave={handleSaveAndCloseEditModal} scheduleDate={editingScheduleDate} initialScheduleEntries={props.schedules.filter(s => s.date === editingScheduleDate)} allEmployees={props.employees} positions={props.positions} /> )}
+      {showCreateTemplateModal && ( <CreateTemplateModal show={showCreateTemplateModal} onClose={handleCloseCreateTemplateModal} onSave={handleSaveAndCloseTemplateModal} positions={[]} templateData={editingTemplate} /> )}
+      {showEditScheduleModal && editingScheduleDate && ( <EditScheduleModal show={showEditScheduleModal} onClose={handleCloseEditScheduleModal} onSave={handleSaveAndCloseEditModal} scheduleId={schedulesByDate[editingScheduleDate]?.info?.id} scheduleDate={editingScheduleDate} allEmployees={employees} positions={positions} /> )}
       {showSelectDateModal && ( <SelectDateForScheduleModal show={showSelectDateModal} onClose={() => setShowSelectDateModal(false)} onProceed={handleProceedToBuilder} existingScheduleDates={existingScheduleDatesSet} />)}
     </div>
   );

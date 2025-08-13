@@ -10,16 +10,24 @@ class Schedule extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
         'name',
         'date',
-        'start_time',
-        'end_time',
-        'notes',
+        'description',
     ];
 
-    public function user()
+    protected $casts = [
+        'date' => 'date',
+    ];
+
+    public function assignments()
     {
-        return $this->belongsTo(User::class);
+        return $this->hasMany(ScheduleAssignment::class);
     }
-} 
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'schedule_assignments')
+                    ->withPivot(['start_time', 'end_time', 'notes'])
+                    ->withTimestamps();
+    }
+}

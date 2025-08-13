@@ -30,6 +30,26 @@ const calculateHoursWorked = (signIn, signOut, breakOut, breakIn) => {
 };
 
 const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
+  // Use stored user if currentUser prop is not provided
+  const storedUser = (() => {
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+  })();
+  
+  const user = currentUser || storedUser;
+  
+  // Mock data for schedules and logs if not provided
+  const schedules = allSchedules || [
+    { empId: user?.id, date: '2023-06-01', shift: '09:00 - 17:00' },
+    { empId: user?.id, date: '2023-06-02', shift: '09:00 - 17:00' },
+    { empId: user?.id, date: '2023-06-05', shift: '09:00 - 17:00' },
+    { empId: user?.id, date: '2023-06-06', shift: '09:00 - 17:00' },
+    { empId: user?.id, date: '2023-06-07', shift: '09:00 - 17:00' },
+  ];
+  
+  const logs = attendanceLogs || [
+    { empId: user?.id, date: '2023-06-01', signIn: '08:55', signOut: '17:05', breakOut: '12:00', breakIn: '13:00' },
+    { empId: user?.id, date: '2023-06-02', signIn: '09:10', signOut: '17:15', breakOut: '12:00', breakIn: '13:00' },
+  ];
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const myAttendanceData = useMemo(() => {

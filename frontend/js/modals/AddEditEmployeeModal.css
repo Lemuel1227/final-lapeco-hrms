@@ -5,6 +5,7 @@
 }
 .employee-form-container {
   display: flex;
+  height: 75vh; 
 }
 
 .employee-form-left-column {
@@ -20,6 +21,9 @@
   width: 120px;
   height: 120px;
   margin: 0 auto 1rem auto;
+}
+.employee-profile-img-container.editable {
+  cursor: pointer;
 }
 .employee-profile-img-form {
   width: 100%;
@@ -41,9 +45,8 @@
   font-size: 1.5rem;
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
-  cursor: pointer;
 }
-.employee-profile-img-container:hover .employee-profile-img-overlay {
+.employee-profile-img-container.editable:hover .employee-profile-img-overlay {
   opacity: 1;
 }
 
@@ -56,16 +59,28 @@
   font-weight: 500;
   color: var(--secondary-color);
 }
+.employee-form-left-column .form-control,
+.employee-form-left-column .form-select {
+    text-align: left !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+.employee-form-left-column input[type="date"].form-control:disabled {
+    justify-content: flex-start;
+}
 
 .employee-form-right-column {
   flex-grow: 1;
   padding: 0;
-  overflow-y: auto; 
-  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; 
 }
 .employee-form-right-column .nav-tabs {
   padding: 1rem 1.5rem 0 1.5rem;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 .employee-form-right-column .nav-tabs .nav-link {
   font-weight: 500;
@@ -77,7 +92,44 @@
 }
 .employee-form-right-column .tab-content {
   padding: 1.5rem;
+  flex-grow: 1;
+  overflow-y: auto;
 }
+.resume-tab-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%; 
+}
+.resume-viewer {
+  flex-grow: 1; 
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+.resume-viewer iframe {
+  border: none;
+}
+.resume-placeholder {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--secondary-color);
+  text-align: center;
+}
+.resume-placeholder i {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+.resume-placeholder p {
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
 .form-section-title {
   font-size: 1.1rem;
   font-weight: 600;
@@ -104,6 +156,6 @@
 .invalid-feedback { font-size: 0.75rem; }
 
 .modal-footer {
-  background-color: var(--modal-footer-bg);
+  background-color: var(--light-gray);
   border-top: 1px solid var(--border-color);
 }

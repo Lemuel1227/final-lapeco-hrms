@@ -43,6 +43,7 @@ export const authAPI = {
   register: (userData) => api.post('/register', userData),
   logout: () => api.post('/logout'),
   getUser: () => api.get('/user'),
+  updateThemePreference: (theme) => api.put('/user/theme-preference', { theme_preference: theme }),
 };
 
 // Dashboard API calls
@@ -72,6 +73,8 @@ export const positionAPI = {
 // Schedule API calls
 export const scheduleAPI = {
   getAll: () => api.get('/schedules'),
+  getAllBasic: () => api.get('/schedules/basic'),
+  getById: (id) => api.get(`/schedules/${id}`),
   create: (data) => api.post('/schedules', data),
   update: (id, data) => api.put(`/schedules/${id}`, data),
   delete: (id) => api.delete(`/schedules/${id}`),
@@ -123,6 +126,18 @@ export const trainingAPI = {
   createProgram: (data) => api.post('/training/programs', data),
   updateProgram: (id, data) => api.put(`/training/programs/${id}`, data),
   deleteProgram: (id) => api.delete(`/training/programs/${id}`),
+};
+
+// Disciplinary Cases API calls
+export const disciplinaryCaseAPI = {
+  getAll: () => api.get('/disciplinary-cases'),
+  getById: (id) => api.get(`/disciplinary-cases/${id}`),
+  create: (data) => api.post('/disciplinary-cases', data),
+  update: (id, data) => api.put(`/disciplinary-cases/${id}`, data),
+  delete: (id) => api.delete(`/disciplinary-cases/${id}`),
+  getByEmployee: (employeeId) => api.get(`/disciplinary-cases/employee/${employeeId}`),
+  getByStatus: (status) => api.get(`/disciplinary-cases/status/${status}`),
+  getStatistics: () => api.get('/disciplinary-cases-statistics'),
 };
 
 // Reports API calls

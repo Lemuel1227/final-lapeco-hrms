@@ -19,6 +19,7 @@ class LeaveController extends Controller
                 $q->where('position_id', $user->position_id);
             })->latest()->get();
         } else {
+            // Regular employees can only see their own leave requests
             $leaves = Leave::with('user')->where('user_id', $user->id)->latest()->get();
         }
         return response()->json($leaves);

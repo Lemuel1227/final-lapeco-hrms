@@ -7,7 +7,7 @@
 .app-layout {
   position: relative;
   min-height: 100vh;
-  background-color: #f4f6f8;
+  background-color: var(--bg-secondary);
 }
 
 .content-wrapper {
@@ -42,20 +42,20 @@
   height: 32px;
   border-radius: 50%;
   background-color: var(--app-success-color);
-  color: #fff;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  color: var(--text-on-success);
+  border: 2px solid var(--bg-primary);
+  box-shadow: var(--card-shadow);
   
   display: flex;
   align-items: center;
   justify-content: center;
   
   cursor: pointer;
-  transition: left 0.3s ease-in-out, background-color 0.2s;
+  transition: left 0.3s ease-in-out, background-color 0.2s, filter 0.2s;
 }
 
 .sidebar-toggle-button:hover {
-    background-color: #146c43;
+  filter: var(--app-primary-hover-filter);
 }
 
 .sidebar-toggle-button.collapsed {

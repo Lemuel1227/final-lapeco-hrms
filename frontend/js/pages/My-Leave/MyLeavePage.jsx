@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { leaveAPI } from '../../services/api';
 import RequestLeaveModal from '../../modals/RequestLeaveModal';
 import LeaveHistoryModal from '../../modals/LeaveHistoryModal';
@@ -36,7 +36,13 @@ const MyLeavePage = () => {
           status: l.status,
           reason: l.reason,
         }));
-        setLeaveRequests(mapped);
+        
+        // The backend should already filter to only show the current user's leaves
+        // This is an extra safety check to ensure only the current user's leaves are displayed
+        const currentUserId = JSON.parse(localStorage.getItem('user'))?.id;
+        const filteredLeaves = currentUserId ? mapped.filter(leave => leave.empId === currentUserId) : mapped;
+        
+        setLeaveRequests(filteredLeaves);
         setError(null);
       } catch (err) {
         console.error('Error fetching leaves:', err);

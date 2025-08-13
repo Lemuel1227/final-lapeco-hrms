@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import AddColumnModal from './AddColumnModal';
+import { scheduleAPI } from '../services/api';
 import '../pages/Schedule-Management/ScheduleManagementPage.css';
 
-const EditScheduleModal = ({ show, onClose, onSave, scheduleDate, initialScheduleEntries, allEmployees = [], positions }) => {
+const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, allEmployees = [], positions }) => {
   const [scheduleName, setScheduleName] = useState('');
   const [columns, setColumns] = useState([
     { key: 'start_time', name: 'Start Time' },
@@ -11,41 +12,75 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleDate, initialSchedul
   ]);
   const [gridData, setGridData] = useState([]);
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const employeeOptions = useMemo(() => (allEmployees || []).map(e => ({ value: e.id, label: `${e.name} (${e.id})` })), [allEmployees]);
   const positionsMap = useMemo(() => new Map((positions || []).map(p => [p.id, p.title])), [positions]);
   
   useEffect(() => {
-    if (show && initialScheduleEntries) {
-      setScheduleName(initialScheduleEntries[0]?.name || `Schedule for ${scheduleDate}`);
-      // Always include start_time and end_time columns
-      const existingColumns = new Set(['start_time', 'end_time']);
-      initialScheduleEntries.forEach(entry => {
-        Object.keys(entry).forEach(key => {
-          if (!['scheduleId', 'empId', 'employee_id', 'date', 'name', 'start_time', 'end_time', 'user_name', 'position_name'].includes(key)) {
-            existingColumns.add(key);
-          }
-        });
-      });
-      const dynamicColumns = Array.from(existingColumns).map(key => ({ key, name: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') }));
-      setColumns(dynamicColumns);
-      
-      // Map the data correctly - backend sends employee_id, frontend expects empId
-      const initialGrid = initialScheduleEntries.map(entry => {
-        const row = { 
-          empId: entry.employee_id || entry.empId, // Handle both backend and frontend field names
-          employeeName: entry.user_name || '',
-          employeeId: entry.employee_id || '',
-          positionName: entry.position_name || ''
-        };
-        dynamicColumns.forEach(col => { 
-          row[col.key] = entry[col.key] || ''; 
-        });
-        return row;
-      });
-      setGridData(initialGrid);
-    }
-  }, [show, initialScheduleEntries, scheduleDate]);
+    const loadScheduleData = async () => {
+      if (show && scheduleId) {
+        setLoading(true);
+        try {
+          console.log('Loading schedule with ID:', scheduleId);
+          const response = await scheduleAPI.getById(scheduleId);
+          console.log('Schedule API response:', response);
+          const scheduleData = response.data;
+          console.log('Schedule data:', scheduleData);
+          
+          setScheduleName(scheduleData.name || `Schedule for ${scheduleDate}`);
+          
+          // Set default columns for start_time, end_time, and notes
+          const defaultColumns = [
+            { key: 'start_time', name: 'Start Time' },
+            { key: 'end_time', name: 'End Time' },
+            { key: 'notes', name: 'Notes' }
+          ];
+          console.log('Schedule assignments:', scheduleData.assignments);
+          setColumns(defaultColumns);
+          
+          // Helper function to format datetime to time
+          const formatTime = (datetime) => {
+            if (!datetime) return '--:--';
+            const date = new Date(datetime);
+            return date.toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false 
+            });
+          };
+          
+          // Map the assignments to grid data
+          console.log('All employees:', allEmployees);
+          const initialGrid = scheduleData.assignments.map(assignment => {
+            console.log('Processing assignment:', assignment);
+            const row = { 
+              empId: assignment.employee_id,
+              employeeName: assignment.user_name || '',
+              employeeId: assignment.employee_id || '',
+              positionName: assignment.position_name || '',
+              start_time: formatTime(assignment.start_time),
+              end_time: formatTime(assignment.end_time),
+              notes: assignment.notes || ''
+            };
+            console.log('Created row:', row);
+            console.log('Looking for employee with ID:', assignment.employee_id);
+            const foundEmployee = allEmployees.find(e => e.id === assignment.employee_id);
+            console.log('Found employee:', foundEmployee);
+            return row;
+          });
+          console.log('Initial grid data:', initialGrid);
+          setGridData(initialGrid);
+        } catch (error) {
+          console.error('Error loading schedule data:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadScheduleData();
+  }, [show, scheduleId, scheduleDate]);
 
   const addEmployeeRow = () => {
     const newRow = columns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), { empId: '' });
@@ -111,7 +146,16 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleDate, initialSchedul
               <button type="button" className="btn-close ms-2" onClick={onClose}></button>
             </div>
             <div className="modal-body">
-              <div className="mb-3"><label className="form-label">Schedule Name (Optional)</label><input type="text" className="form-control" value={scheduleName} onChange={e => setScheduleName(e.target.value)} /></div>
+              {loading ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-2">Loading schedule data...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-3"><label className="form-label">Schedule Name (Optional)</label><input type="text" className="form-control" value={scheduleName} onChange={e => setScheduleName(e.target.value)} /></div>
               <div className="table-responsive schedule-builder-table">
                 <table className="table table-bordered table-sm">
                   <thead>
@@ -174,6 +218,8 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleDate, initialSchedul
                 </table>
               </div>
               <button type="button" className="btn btn-sm btn-outline-secondary mt-2" onClick={addEmployeeRow}><i className="bi bi-plus-lg"></i> Add Row</button>
+                </>
+              )}
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>

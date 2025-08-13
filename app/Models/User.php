@@ -36,6 +36,8 @@ class User extends Authenticatable
         'pag_ibig_no',
         'philhealth_no',
         'resume_file',
+        'theme_preference',
+        'account_status',
     ];
 
     /**
@@ -64,5 +66,17 @@ class User extends Authenticatable
     public function position()
     {
         return $this->belongsTo(Position::class);
+    }
+
+    public function scheduleAssignments()
+    {
+        return $this->hasMany(ScheduleAssignment::class);
+    }
+
+    public function schedules()
+    {
+        return $this->belongsToMany(Schedule::class, 'schedule_assignments')
+                    ->withPivot(['start_time', 'end_time', 'notes'])
+                    ->withTimestamps();
     }
 }

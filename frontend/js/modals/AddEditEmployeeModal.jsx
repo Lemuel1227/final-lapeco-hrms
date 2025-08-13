@@ -3,19 +3,20 @@ import './AddEditEmployeeModal.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import placeholderImage from '../assets/placeholder-profile.jpg';
 
-const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }) => {
+const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, viewOnly, onSwitchToEdit }) => {
   const initialFormState = {
     name: '', email: '', positionId: '',
     joiningDate: new Date().toISOString().split('T')[0],
     birthday: '', gender: '', address: '', contactNumber: '',
     imageUrl: null, imagePreviewUrl: placeholderImage,
     sssNo: '', tinNo: '', pagIbigNo: '', philhealthNo: '',
-    resumeFile: null, 
+    status: 'Active', resumeFile: null, resumeUrl: null,
   };
 
   const [formData, setFormData] = useState(initialFormState);
   const [formErrors, setFormErrors] = useState({});
   const [activeTab, setActiveTab] = useState('personal');
+  const [isViewMode, setIsViewMode] = useState(viewOnly);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -23,18 +24,26 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
 
   useEffect(() => {
     if (show) {
+      setIsViewMode(viewOnly);
       if (isEditMode && employeeData) {
         setFormData({
-          name: employeeData.name || '', email: employeeData.email || '',
+          name: employeeData.name || '',
+          email: employeeData.email || '',
           positionId: employeeData.positionId || '',
           joiningDate: employeeData.joiningDate || new Date().toISOString().split('T')[0],
-          birthday: employeeData.birthday || '', gender: employeeData.gender || '',
-          address: employeeData.address || '', contactNumber: employeeData.contactNumber || '',
+          birthday: employeeData.birthday || '',
+          gender: employeeData.gender || '',
+          address: employeeData.address || '',
+          contactNumber: employeeData.contactNumber || '',
           imageUrl: employeeData.imageUrl || null,
           imagePreviewUrl: employeeData.imageUrl || placeholderImage,
-          sssNo: employeeData.sssNo || '', tinNo: employeeData.tinNo || '',
-          pagIbigNo: employeeData.pagIbigNo || '', philhealthNo: employeeData.philhealthNo || '',
-          resumeFile: null, 
+          sssNo: employeeData.sssNo || '',
+          tinNo: employeeData.tinNo || '',
+          pagIbigNo: employeeData.pagIbigNo || '',
+          philhealthNo: employeeData.philhealthNo || '',
+          status: employeeData.status || 'Active',
+          resumeFile: null,
+          resumeUrl: employeeData.resumeUrl || null,
         });
       } else {
         setFormData(initialFormState);
@@ -43,18 +52,18 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
       setFormErrors({});
       setIsSubmitting(false);
     }
-  }, [employeeData, show]);
+  }, [employeeData, show, isEditMode, viewOnly]);
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     if (type === 'file') {
+      const file = files[0];
       if (name === 'imageUrl') {
-        const file = files[0];
         if (file) {
           setFormData({ ...formData, imageUrl: file, imagePreviewUrl: URL.createObjectURL(file) });
         }
       } else if (name === 'resumeFile') {
-        setFormData({ ...formData, resumeFile: files[0] });
+        setFormData({ ...formData, resumeFile: file, resumeUrl: file ? URL.createObjectURL(file) : employeeData?.resumeUrl || null });
       }
     } else {
       setFormData({ ...formData, [name]: value });
@@ -95,32 +104,34 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
     return null;
   }
 
+  const modalTitle = isViewMode ? 'View Employee Details' : (isEditMode ? 'Edit Employee Details' : 'Add New Employee');
+
   return (
     <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
       <div className="modal-dialog modal-dialog-centered modal-xl">
         <div className="modal-content">
           <form onSubmit={handleSubmit} noValidate>
             <div className="modal-header">
-              <h5 className="modal-title">{isEditMode ? 'Edit Employee Details' : 'Add New Employee'}</h5>
+              <h5 className="modal-title">{modalTitle}</h5>
               <button type="button" className="btn-close" onClick={onClose} aria-label="Close"></button>
             </div>
             <div className="modal-body employee-form-modal-body">
               <div className="employee-form-container">
                 <div className="employee-form-left-column">
-                  <div className="employee-profile-img-container" onClick={() => fileInputRef.current.click()}>
+                  <div className={`employee-profile-img-container ${isViewMode ? '' : 'editable'}`} onClick={() => !isViewMode && fileInputRef.current.click()}>
                     <img src={formData.imagePreviewUrl} alt="Profile Preview" className="employee-profile-img-form" onError={(e) => { e.target.src = placeholderImage; }} />
-                    <div className="employee-profile-img-overlay"><i className="bi bi-camera-fill"></i></div>
+                    {!isViewMode && <div className="employee-profile-img-overlay"><i className="bi bi-camera-fill"></i></div>}
                   </div>
-                  <input type="file" ref={fileInputRef} name="imageUrl" accept="image/*" onChange={handleChange} className="d-none" />
+                  <input type="file" ref={fileInputRef} name="imageUrl" accept="image/*" onChange={handleChange} className="d-none" disabled={isViewMode} />
 
                   <div className="form-group">
                     <label htmlFor="name" className="form-label">Full Name*</label>
-                    <input type="text" className={`form-control ${formErrors.name ? 'is-invalid' : ''}`} id="name" name="name" value={formData.name} onChange={handleChange} required />
+                    <input type="text" className={`form-control ${formErrors.name ? 'is-invalid' : ''}`} id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isViewMode} />
                     {formErrors.name && <div className="invalid-feedback">{formErrors.name}</div>}
                   </div>
                   <div className="form-group">
                     <label htmlFor="positionId" className="form-label">Position*</label>
-                    <select className={`form-select ${formErrors.positionId ? 'is-invalid' : ''}`} id="positionId" name="positionId" value={formData.positionId} onChange={handleChange} required={!isEditMode}>
+                    <select className={`form-select ${formErrors.positionId ? 'is-invalid' : ''}`} id="positionId" name="positionId" value={formData.positionId} onChange={handleChange} required disabled={isViewMode}>
                         <option value="">Select a position...</option>
                         {(positions || []).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                     </select>
@@ -128,8 +139,15 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
                   </div>
                   <div className="form-group">
                     <label htmlFor="joiningDate" className="form-label">Joining Date*</label>
-                    <input type="date" className={`form-control ${formErrors.joiningDate ? 'is-invalid' : ''}`} id="joiningDate" name="joiningDate" value={formData.joiningDate} onChange={handleChange} required={!isEditMode} />
+                    <input type="date" className={`form-control ${formErrors.joiningDate ? 'is-invalid' : ''}`} id="joiningDate" name="joiningDate" value={formData.joiningDate} onChange={handleChange} required disabled={isViewMode} />
                     {formErrors.joiningDate && <div className="invalid-feedback">{formErrors.joiningDate}</div>}
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="status" className="form-label">Status*</label>
+                    <select className="form-select" id="status" name="status" value={formData.status} onChange={handleChange} disabled={isViewMode}>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
                   </div>
                 </div>
 
@@ -139,7 +157,10 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
                       <button type="button" className={`nav-link ${activeTab === 'personal' ? 'active' : ''}`} onClick={() => setActiveTab('personal')}>Personal Details</button>
                     </li>
                     <li className="nav-item">
-                      <button type="button" className={`nav-link ${activeTab === 'statutory' ? 'active' : ''}`} onClick={() => setActiveTab('statutory')}>Statutory</button>
+                      <button type="button" className={`nav-link ${activeTab === 'statutory' ? 'active' : ''}`} onClick={() => setActiveTab('statutory')}>Government Requirements</button>
+                    </li>
+                    <li className="nav-item">
+                      <button type="button" className={`nav-link ${activeTab === 'resume' ? 'active' : ''}`} onClick={() => setActiveTab('resume')}>Resume</button>                      
                     </li>
                   </ul>
                   <div className="tab-content">
@@ -148,26 +169,26 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label htmlFor="email" className="form-label">Email Address*</label>
-                            <input type="email" className={`form-control ${formErrors.email ? 'is-invalid' : ''}`} id="email" name="email" value={formData.email} onChange={handleChange} required />
+                            <input type="email" className={`form-control ${formErrors.email ? 'is-invalid' : ''}`} id="email" name="email" value={formData.email} onChange={handleChange} required disabled={isViewMode} />
                             {formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="contactNumber" className="form-label">Contact Number</label>
-                            <input type="tel" className="form-control" id="contactNumber" name="contactNumber" value={formData.contactNumber} onChange={handleChange} />
+                            <input type="tel" className="form-control" id="contactNumber" name="contactNumber" value={formData.contactNumber} onChange={handleChange} disabled={isViewMode} />
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="birthday" className="form-label">Birthday</label>
-                            <input type="date" className="form-control" id="birthday" name="birthday" value={formData.birthday} onChange={handleChange} />
+                            <input type="date" className="form-control" id="birthday" name="birthday" value={formData.birthday} onChange={handleChange} disabled={isViewMode} />
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="gender" className="form-label">Gender</label>
-                            <select className="form-select" id="gender" name="gender" value={formData.gender} onChange={handleChange}>
+                            <select className="form-select" id="gender" name="gender" value={formData.gender} onChange={handleChange} disabled={isViewMode}>
                               <option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
                             </select>
                           </div>
                           <div className="col-12">
                             <label htmlFor="address" className="form-label">Address</label>
-                            <textarea className="form-control" id="address" name="address" rows="3" value={formData.address} onChange={handleChange}></textarea>
+                            <textarea className="form-control" id="address" name="address" rows="3" value={formData.address} onChange={handleChange} disabled={isViewMode}></textarea>
                           </div>
                         </div>
                       </div>
@@ -175,16 +196,38 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
                     {activeTab === 'statutory' && (
                       <div>
                         <div className="row g-3">
-                          <div className="col-md-6"><label htmlFor="sssNo" className="form-label">SSS No.</label><input type="text" className="form-control" id="sssNo" name="sssNo" value={formData.sssNo} onChange={handleChange} /></div>
-                          <div className="col-md-6"><label htmlFor="tinNo" className="form-label">TIN No.</label><input type="text" className="form-control" id="tinNo" name="tinNo" value={formData.tinNo} onChange={handleChange} /></div>
-                          <div className="col-md-6"><label htmlFor="pagIbigNo" className="form-label">Pag-IBIG No.</label><input type="text" className="form-control" id="pagIbigNo" name="pagIbigNo" value={formData.pagIbigNo} onChange={handleChange} /></div>
-                          <div className="col-md-6"><label htmlFor="philhealthNo" className="form-label">PhilHealth No.</label><input type="text" className="form-control" id="philhealthNo" name="philhealthNo" value={formData.philhealthNo} onChange={handleChange} /></div>
-                          <div className="col-md-12">
-                              <label htmlFor="resumeFile" className="form-label">Resume (PDF/Doc)</label>
-                              <input type="file" className="form-control" id="resumeFile" name="resumeFile" accept=".pdf,.doc,.docx" onChange={handleChange} />
-                              {formData.resumeFile && <small className="text-muted d-block mt-1">{formData.resumeFile.name}</small>}
-                          </div>
+                          <div className="col-md-6"><label htmlFor="sssNo" className="form-label">SSS No.</label><input type="text" className="form-control" id="sssNo" name="sssNo" value={formData.sssNo} onChange={handleChange} disabled={isViewMode} /></div>
+                          <div className="col-md-6"><label htmlFor="tinNo" className="form-label">TIN No.</label><input type="text" className="form-control" id="tinNo" name="tinNo" value={formData.tinNo} onChange={handleChange} disabled={isViewMode} /></div>
+                          <div className="col-md-6"><label htmlFor="pagIbigNo" className="form-label">Pag-IBIG No.</label><input type="text" className="form-control" id="pagIbigNo" name="pagIbigNo" value={formData.pagIbigNo} onChange={handleChange} disabled={isViewMode} /></div>
+                          <div className="col-md-6"><label htmlFor="philhealthNo" className="form-label">PhilHealth No.</label><input type="text" className="form-control" id="philhealthNo" name="philhealthNo" value={formData.philhealthNo} onChange={handleChange} disabled={isViewMode} /></div>
                         </div>
+                      </div>
+                    )}
+                    {activeTab === 'resume' && (
+                      <div className="resume-tab-container">
+                        {!isViewMode && (
+                          <div className="mb-3">
+                            <label htmlFor="resumeFile" className="form-label">Upload New Resume (PDF)</label>
+                            <input type="file" className="form-control" id="resumeFile" name="resumeFile" accept=".pdf" onChange={handleChange} />
+                          </div>
+                        )}
+
+                        {formData.resumeUrl ? (
+                          <div className="resume-viewer">
+                            <iframe
+                                src={formData.resumeUrl}
+                                title={`${formData.name}'s Resume`}
+                                width="100%"
+                                height="100%"
+                            />
+                          </div>
+                        ) : (
+                          <div className="resume-placeholder">
+                            <i className="bi bi-file-earmark-person-fill"></i>
+                            <p>No Resume on File</p>
+                            {!isViewMode && <small className="text-muted">Upload a new resume using the field above.</small>}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -192,10 +235,27 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions }
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={isSubmitting}>Cancel</button>
-              <button type="submit" className="btn btn-success" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Add Employee')}
-              </button>
+               {isViewMode ? (
+                <>
+                    <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Close</button>
+                    <button type="button" className="btn btn-primary" onClick={onSwitchToEdit}>
+                        <i className="bi bi-pencil-fill me-2"></i>Edit
+                    </button>
+                </>
+              ) : (
+                <>
+                    <button 
+                        type="button" 
+                        className="btn btn-outline-secondary" 
+                        onClick={() => viewOnly ? onSwitchToEdit() : onClose()}
+                    >
+                        Cancel
+                    </button>
+                    <button type="submit" className="btn btn-success">
+                        {isEditMode ? 'Save Changes' : 'Add Employee'}
+                    </button>
+                </>
+              )}
             </div>
           </form>
         </div>

@@ -18,9 +18,10 @@ class EmployeeController extends Controller
         if ($role === 'HR_PERSONNEL') {
             $employees = User::all();
         } elseif ($role === 'TEAM_LEADER') {
-            // TODO: Replace with real team logic
+            // Team leaders can only see employees with the same position_id
             $employees = User::where('position_id', $user->position_id)->get();
         } else {
+            // Regular employees can only see themselves
             $employees = User::where('id', $user->id)->get();
         }
         
@@ -48,6 +49,7 @@ class EmployeeController extends Controller
                 'pag_ibig_no' => $user->pag_ibig_no,
                 'philhealth_no' => $user->philhealth_no,
                 'resume_file' => $user->resume_file,
+                'account_status' => $user->account_status,
             ];
         });
         
@@ -77,6 +79,7 @@ class EmployeeController extends Controller
             'pag_ibig_no' => 'nullable|string|max:20',
             'philhealth_no' => 'nullable|string|max:20',
             'resume_file' => 'nullable|string',
+            'account_status' => 'nullable|string|in:Active,Deactivated',
         ]);
 
         // Ensure required database fields are provided
@@ -105,6 +108,7 @@ class EmployeeController extends Controller
             'pag_ibig_no' => 'sometimes|nullable|string|max:20',
             'philhealth_no' => 'sometimes|nullable|string|max:20',
             'resume_file' => 'sometimes|nullable|string',
+            'account_status' => 'sometimes|nullable|string|in:Active,Deactivated',
         ]);
 
         $employee->update($validated);
@@ -116,4 +120,4 @@ class EmployeeController extends Controller
         $employee->delete();
         return response()->json(null, 204);
     }
-} 
+}

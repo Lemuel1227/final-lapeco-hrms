@@ -31,6 +31,8 @@ return new class extends Migration
             $table->string('pag_ibig_no')->nullable();
             $table->string('philhealth_no')->nullable();
             $table->string('resume_file')->nullable();
+            $table->enum('theme_preference', ['light', 'dark'])->default('light');
+            $table->enum('account_status', ['Active', 'Deactivated'])->default('Active');
             $table->rememberToken();
             $table->timestamps();
         });

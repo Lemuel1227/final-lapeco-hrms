@@ -45,6 +45,7 @@ class UserFactory extends Factory
             'pag_ibig_no' => fake()->numerify('####-####-####'),
             'philhealth_no' => fake()->numerify('####-#####-##-#'),
             'resume_file' => fake()->filePath(),
+            'theme_preference' => fake()->randomElement(['light', 'dark']),
         ];
     }
 

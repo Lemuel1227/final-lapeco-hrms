@@ -14,6 +14,7 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\TrainingController;
+use App\Http\Controllers\DisciplinaryCaseController;
 use App\Models\User;
 use App\Models\Position;
 
@@ -37,6 +38,22 @@ Route::middleware('auth:sanctum')->group(function () {
     // User profile
     Route::get('/user', function (Request $request) {
         return $request->user();
+    });
+    
+    // User theme preference
+    Route::put('/user/theme-preference', function (Request $request) {
+        $request->validate([
+            'theme_preference' => 'required|in:light,dark'
+        ]);
+        
+        $user = $request->user();
+        $user->theme_preference = $request->theme_preference;
+        $user->save();
+        
+        return response()->json([
+            'message' => 'Theme preference updated successfully',
+            'theme_preference' => $user->theme_preference
+        ]);
     });
     
     Route::get('/profile', [ProfileController::class, 'edit']);
@@ -76,6 +93,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Schedule Management
     Route::get('/schedules', [ScheduleController::class, 'index']);
+    Route::get('/schedules/api', [ScheduleController::class, 'apiIndex']);
+    Route::get('/schedules/basic', [ScheduleController::class, 'apiIndexBasic']);
+    Route::get('/schedules/{id}', [ScheduleController::class, 'show']);
     Route::post('/schedules', [ScheduleController::class, 'store']);
     Route::put('/schedules/{schedule}', [ScheduleController::class, 'update']);
     Route::delete('/schedules/{schedule}', [ScheduleController::class, 'destroy']);
@@ -128,6 +148,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/training/programs', [TrainingController::class, 'storeProgram']);
     Route::put('/training/programs/{program}', [TrainingController::class, 'updateProgram']);
     Route::delete('/training/programs/{program}', [TrainingController::class, 'destroyProgram']);
+
+    // Disciplinary Cases
+    Route::get('/disciplinary-cases', [DisciplinaryCaseController::class, 'index']);
+    Route::post('/disciplinary-cases', [DisciplinaryCaseController::class, 'store']);
+    Route::get('/disciplinary-cases/{disciplinaryCase}', [DisciplinaryCaseController::class, 'show']);
+    Route::put('/disciplinary-cases/{disciplinaryCase}', [DisciplinaryCaseController::class, 'update']);
+    Route::delete('/disciplinary-cases/{disciplinaryCase}', [DisciplinaryCaseController::class, 'destroy']);
+    Route::get('/disciplinary-cases/employee/{employee}', [DisciplinaryCaseController::class, 'getByEmployee']);
+    Route::get('/disciplinary-cases/status/{status}', [DisciplinaryCaseController::class, 'getByStatus']);
+    Route::get('/disciplinary-cases-statistics', [DisciplinaryCaseController::class, 'getStatistics']);
 
     // Reports
     Route::get('/reports', function () {

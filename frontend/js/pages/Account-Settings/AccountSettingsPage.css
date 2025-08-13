@@ -1,0 +1,128 @@
+/* --- Main Settings Page Layout --- */
+.account-settings-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+/* --- Settings Navigation --- */
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: sticky;
+    top: calc(var(--app-header-height) + 1.5rem); 
+}
+
+.settings-nav .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    color: var(--text-primary);
+    background-color: transparent;
+    border: none;
+    text-align: left;
+    width: 100%;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.settings-nav .nav-link:hover {
+    background-color: var(--bg-tertiary);
+}
+.settings-nav .nav-link.active {
+    background-color: var(--app-success-color);
+    color: var(--text-on-success);
+}
+.settings-nav .nav-link i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+.settings-nav .nav-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    padding: 0 1rem;
+    margin-top: 0.5rem;
+}
+
+.settings-card {
+    width: 100%; 
+}
+.settings-card .card-header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+.settings-card .card-header h5 {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+/* --- Theme Settings --- */
+.theme-selector-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.theme-selector-card {
+    cursor: pointer;
+}
+.theme-preview {
+    height: 100px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 0.5rem;
+    padding: 1rem;
+    font-weight: 600;
+    transition: border-color 0.2s ease;
+}
+.theme-preview.active {
+    border-color: var(--app-success-color);
+    box-shadow: 0 0 0 2px rgba(var(--app-success-rgb), 0.25);
+}
+
+.light-preview {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+.dark-preview {
+    background-color: #212529;
+    color: #f8f9fa;
+}
+
+/* --- Login Activity --- */
+.login-activity-item {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    gap: 1rem;
+}
+.device-icon {
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+}
+.session-info {
+    flex-grow: 1;
+}
+
+@media (max-width: 992px) {
+    .account-settings-grid {
+        grid-template-columns: 1fr; 
+    }
+    .settings-nav {
+        position: static;
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color); 
+        margin-bottom: 1.5rem;
+    }
+    .settings-nav .nav-heading {
+        display: none;
+    }
+}

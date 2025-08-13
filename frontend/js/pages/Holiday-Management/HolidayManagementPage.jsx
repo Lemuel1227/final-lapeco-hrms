@@ -4,7 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Popover } from 'bootstrap';
 import './HolidayManagementPage.css';
-import AddEditHolidayModal from '../../../../../LAPECO-HRMS/src/components/modals/AddEditHolidayModal';
+import AddEditHolidayModal from '../../../../../../LAPECO-HRMS/src/components/modals/AddEditHolidayModal';
 import HolidayCard from './HolidayCard';
 import Layout from '@/layout/Layout';
 import { holidayAPI } from '@/services/api';

@@ -1,61 +1,82 @@
-    /* --- Stat Card Styles --- */
-    .training-stats-bar {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    .training-stat-card {
-        background-color: #fff;
-        padding: 1.25rem;
-        border-radius: var(--border-radius);
-        border: 1px solid var(--border-color);
-        box-shadow: var(--card-shadow);
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .training-stat-card .stat-icon {
-        font-size: 1.5rem;
-        padding: 0.75rem;
-        border-radius: 8px;
-        color: #fff;
-    }
-    .training-stat-card .stat-icon.total-programs { background-color: var(--dark-gray); }
-    .training-stat-card .stat-icon.active-programs { background-color: var(--app-success-color); }
-    .training-stat-card .stat-icon.total-enrolled { background-color: #0d6efd; }
-    .training-stat-card .stat-value { font-size: 2rem; font-weight: 700; line-height: 1.2; }
-    .training-stat-card .stat-label { font-size: 0.9rem; color: var(--secondary-color); }
+/* --- Stat Card Styles --- */
+.training-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.training-stat-card {
+    background-color: var(--bg-primary);
+    padding: 1.25rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.training-stat-card .stat-icon {
+    font-size: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    color: #fff;
+}
+.training-stat-card .stat-icon.total-programs { background-color: var(--text-secondary); }
+.training-stat-card .stat-icon.active-programs { background-color: var(--app-success-color); }
+.training-stat-card .stat-icon.total-enrolled { background-color: #0d6efd; }
+.training-stat-card .stat-value { 
+    font-size: 2rem; 
+    font-weight: 700; 
+    line-height: 1.2; 
+    color: var(--text-primary);
+}
+.training-stat-card .stat-label { 
+    font-size: 0.9rem; 
+    color: var(--text-secondary); 
+}
 
-    /* --- Progress Bar Styles --- */
-    .progress-bar-container {
-        background-color: var(--medium-gray);
-        border-radius: 10px;
-        height: 12px;
-        overflow: hidden;
-        width: 100%;
-    }
-    .progress-bar-fill {
-        background-color: var(--app-success-color);
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.3s ease-in-out;
-    }
-    .progress-text {
-        font-size: 0.8rem;
-        font-weight: 500;
-        margin-left: 0.5rem;
-    }
+.progress-bar-container {
+    background-color: var(--bg-tertiary);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    width: 100%;
+}
+.progress-bar-fill {
+    background-color: var(--app-success-color);
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease-in-out;
+}
+.progress-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-left: 0.75rem;
+    min-width: 40px;
+    color: var(--text-secondary);
+}
 
-    /* --- Enrollment Status Badge (for detail page) --- */
-    .enrollment-status-badge {
-        font-size: 0.75rem;
-        font-weight: 500;
-        padding: 0.35em 0.7em;
-        border-radius: var(--border-radius);
-        color: #fff;
-        text-transform: uppercase;
-    }
-    .enrollment-status-badge.status-completed { background-color: var(--app-success-color); }
-    .enrollment-status-badge.status-in-progress { background-color: var(--info-color); }
-    .enrollment-status-badge.status-not-started { background-color: var(--secondary-color); }
+.enrollment-status-badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35em 0.7em;
+    border-radius: var(--border-radius);
+    color: #fff;
+    text-transform: uppercase;
+}
+.enrollment-status-badge.status-completed { 
+    background-color: var(--app-success-color); 
+    color: var(--text-on-success);
+}
+.enrollment-status-badge.status-in-progress { 
+    background-color: var(--info-color); 
+    color: var(--text-primary);
+}
+.enrollment-status-badge.status-not-started { 
+    background-color: var(--text-secondary); 
+}
+
+.data-table-card .card-header span {
+    color: var(--text-primary);
+    font-weight: 600;
+}

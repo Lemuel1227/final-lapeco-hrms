@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
-import AddEditKraModal from '../../../../../LAPECO-HRMS/src/components/modals/AddEditKraModal';
+import AddEditKraModal from '../../../../../../LAPECO-HRMS/src/components/modals/AddEditKraModal';
 import KraAccordionItem from './KraAccordionItem';
-import StartEvaluationModal from '../../../../../LAPECO-HRMS/src/components/modals/StartEvaluationModal';
-import ViewEvaluationModal from '../../../../../LAPECO-HRMS/src/components/modals/ViewEvaluationModal';
+import StartEvaluationModal from '../../../../../../LAPECO-HRMS/src/components/modals/StartEvaluationModal';
+import ViewEvaluationModal from '../../../../../../LAPECO-HRMS/src/components/modals/ViewEvaluationModal';
 import './PerformanceManagement.css';
 import Layout from '@/layout/Layout';
 

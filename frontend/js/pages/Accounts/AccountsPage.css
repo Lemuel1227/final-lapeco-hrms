@@ -1,0 +1,73 @@
+.accounts-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--bg-secondary);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.view-toggle {
+    display: inline-flex;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    padding: 0.25rem;
+    border: 1px solid var(--border-color);
+}
+.view-toggle .btn {
+    border: none;
+    font-weight: 500;
+    padding: 0.35rem 1rem;
+    color: var(--text-secondary);
+    box-shadow: none !important;
+}
+.view-toggle .btn.active {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 0.25rem;
+    box-shadow: var(--card-shadow) !important;
+}
+
+.password-cell {
+    font-family: monospace;
+    background-color: var(--bg-secondary);
+    padding: 0.2rem 0.2rem 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 120px;
+    border: 1px solid var(--border-color);
+}
+.password-cell .copy-btn {
+    border: none;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+    color: var(--text-secondary);
+    background-color: transparent;
+}
+tr:hover .password-cell .copy-btn {
+    opacity: 1;
+}
+.password-cell .copy-btn:hover {
+    color: var(--text-primary);
+}
+
+.status-badge-employee {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3em 0.6em;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.status-badge-active {
+    color: var(--app-success-color);
+    background-color: rgba(var(--app-success-rgb), 0.1);
+}
+.status-badge-deactivated {
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+}

@@ -5,7 +5,7 @@
     margin-bottom: 1.5rem;
 }
 .status-filter-card {
-    background-color: #fff;
+    background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-left-width: 4px;
     border-radius: var(--border-radius);
@@ -17,30 +17,34 @@
     transform: translateY(-2px);
     box-shadow: var(--card-shadow);
 }
+
 .status-filter-card.active {
-    background-color: var(--dark-gray);
-    color: #fff;
-    border-color: var(--dark-gray);
+    background-color: var(--app-success-color);
+    color: var(--text-on-success);
+    border-color: var(--app-success-color);
 }
-.status-filter-card.active .stat-label {
-    color: rgba(255,255,255,0.8);
+.status-filter-card.active .stat-label,
+.status-filter-card.active .stat-value {
+    color: var(--text-on-success);
 }
+
 .status-filter-card .stat-value {
     font-size: 1.75rem; 
     font-weight: 600;
     display: block;
+    color: var(--text-primary);
 }
 .status-filter-card .stat-label {
     font-size: 0.8rem; 
     font-weight: 500;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
     text-transform: uppercase;
 }
-.status-filter-card.filter-all { border-left-color: var(--dark-gray); }
+.status-filter-card.filter-all { border-left-color: var(--text-secondary); }
 .status-filter-card.filter-pending { border-left-color: var(--warning-color); }
 .status-filter-card.filter-approved { border-left-color: var(--app-success-color); }
 .status-filter-card.filter-declined { border-left-color: var(--danger-color); }
-.status-filter-card.filter-canceled { border-left-color: var(--secondary-color); }
+.status-filter-card.filter-canceled { border-left-color: var(--text-secondary); }
 
 .leave-controls-bar {
     display: flex;
@@ -61,7 +65,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    background-color: #fff;
+    background-color: var(--bg-primary);
     padding: 0.5rem 1rem;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
@@ -74,14 +78,14 @@
 }
 .leave-stat-item .stat-label {
     font-size: 0.85rem;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
 .leave-table-container { width: 100%; overflow-x: auto; }
 .leave-table .status-col, .leave-table .action-col {
     position: sticky;
-    background-color: #fff;
+    background-color: var(--bg-primary);
     z-index: 1;
 }
 .leave-table .action-col {
@@ -94,11 +98,11 @@
 }
 .leave-table thead .status-col, .leave-table thead .action-col {
     z-index: 2;
-    background-color: var(--thead-bg, #f0f3f5);
+    background-color: var(--thead-bg);
 }
 
 .status-badge {
-  color: #fff;
+  color: var(--white-color);
   padding: 0.3em 0.6em;
   font-size: 0.75rem;
   font-weight: 500;
@@ -107,9 +111,9 @@
   letter-spacing: 0.05em;
 }
 .status-approved { background-color: var(--app-success-color); }
-.status-pending { background-color: var(--warning-color); color: var(--warning-text-color) !important; }
+.status-pending { background-color: var(--warning-color); color: var(--text-primary) !important; }
 .status-declined { background-color: var(--danger-color); }
-.status-canceled { background-color: var(--secondary-color); }
+.status-canceled { background-color: var(--text-secondary); }
 
 .status-select {
     -webkit-appearance: none;
@@ -129,14 +133,17 @@
     background-position: right 0.6em center;
     background-size: 1em 1em;
 }
-
 .status-select:disabled {
     background-image: none;
     pointer-events: none;
     padding-right: 0.6em;
 }
 
-.status-select.status-approved { background-color: var(--app-success-color); }
-.status-select.status-pending { background-color: var(--warning-color); color: var(--warning-text-color) !important; }
+.status-select.status-approved { background-color: var(--app-success-color); color: var(--text-on-success); }
+.status-select.status-pending { background-color: var(--warning-color); color: var(--text-primary); }
 .status-select.status-declined { background-color: var(--danger-color); }
-.status-select.status-canceled { background-color: var(--secondary-color); }
+.status-select.status-canceled { background-color: var(--text-secondary); }
+
+.dark-theme .status-select.status-pending {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23000000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
