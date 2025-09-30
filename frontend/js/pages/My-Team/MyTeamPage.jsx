@@ -1,62 +1,136 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
+import { employeeAPI, positionAPI } from '../../services/api';
 import './MyTeamPage.css';
 
-const MyTeamPage = ({ currentUser, employees, positions }) => {
+const MyTeamPage = () => {
+  const [employees, setEmployees] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [viewMode, setViewMode] = useState('card');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
 
+  // Fetch data from API on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get current user from localStorage
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          setCurrentUser(JSON.parse(userData));
+        }
+        
+        // Fetch employees and positions from API
+        const [employeesResponse, positionsResponse] = await Promise.all([
+          employeeAPI.getAll(),
+          positionAPI.getAll()
+        ]);
+        
+        // Handle response data structure
+        const employeesData = Array.isArray(employeesResponse.data) 
+          ? employeesResponse.data 
+          : (employeesResponse.data?.data || []);
+        
+        const positionsData = Array.isArray(positionsResponse.data) 
+          ? positionsResponse.data 
+          : (positionsResponse.data?.data || []);
+        
+        // Transform employee data to match expected format
+        const transformedEmployees = employeesData.map(emp => ({
+          id: emp.id,
+          name: emp.name,
+          email: emp.email,
+          contactNumber: emp.contact_number || emp.phone,
+          positionId: emp.position_id,
+          isTeamLeader: emp.role === 'TEAM_LEADER' || emp.is_team_leader,
+          avatarUrl: emp.avatar_url || emp.profile_picture
+        }));
+        
+        // Transform position data to match expected format
+        const transformedPositions = positionsData.map(pos => ({
+          id: pos.id,
+          title: pos.title || pos.name
+        }));
+        
+        setEmployees(transformedEmployees);
+        setPositions(transformedPositions);
+        
+      } catch (err) {
+        setError('Failed to load team data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
   const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);
 
-  const { teamRoster, teamLeader, currentPositionTitle } = useMemo(() => {
+  const { teamRoster, teamLeaders, currentPositionTitle } = useMemo(() => {
     if (!currentUser || !employees || !positions) {
-      return { teamRoster: [], teamLeader: null, currentPositionTitle: 'N/A' };
+      return { teamRoster: [], teamLeaders: [], currentPositionTitle: 'Unassigned' };
     }
     
     const self = employees.find(e => e.id === currentUser.id);
     if (!self || !self.positionId) {
-      return { teamRoster: [], teamLeader: null, currentPositionTitle: 'Unassigned' };
+      return { teamRoster: [], teamLeaders: [], currentPositionTitle: 'Unassigned' };
     }
 
     const currentPositionId = self.positionId;
     const posTitle = positionMap.get(currentPositionId) || 'Unassigned';
     
-    // Only team leaders should see their team members
-    // Regular employees should not see team data
-    if (currentUser.role === 'TEAM_LEADER') {
-      const colleagues = employees.filter(e => e.positionId === currentPositionId);
-      const leader = colleagues.find(e => e.isTeamLeader);
-      const members = colleagues.filter(e => !e.isTeamLeader);
-      return { teamRoster: members, teamLeader: leader, currentPositionTitle: posTitle };
-    } else {
-      // Regular employees don't see team data
-      return { teamRoster: [], teamLeader: null, currentPositionTitle: posTitle };
-    }
+    // Show all employees in the same position
+    const colleagues = employees.filter(e => e.positionId === currentPositionId);
+    const leaders = colleagues.filter(e => e.isTeamLeader);
+    const members = colleagues.filter(e => !e.isTeamLeader);
+    
+    return { teamRoster: members, teamLeaders: leaders, currentPositionTitle: posTitle };
   }, [currentUser, employees, positions, positionMap]);
 
   const sortedAndFilteredTeam = useMemo(() => {
-    const filteredMembers = teamRoster.filter(member => 
+    // Combine all position members (leaders + regular members)
+    const allMembers = [...teamLeaders, ...teamRoster];
+    
+    // Filter based on search term
+    const filteredMembers = allMembers.filter(member => 
       member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    filteredMembers.sort((a, b) => {
+    // Sort members while keeping leaders at the top
+    const leaders = filteredMembers.filter(member => member.isTeamLeader);
+    const regularMembers = filteredMembers.filter(member => !member.isTeamLeader);
+    
+    // Sort leaders based on sortConfig
+    leaders.sort((a, b) => {
       const valA = a[sortConfig.key] || '';
       const valB = b[sortConfig.key] || '';
       if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
       if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
       return 0;
     });
-
-    if (teamLeader && (teamLeader.name.toLowerCase().includes(searchTerm.toLowerCase()) || teamLeader.id.toLowerCase().includes(searchTerm.toLowerCase()) || !searchTerm)) {
-      return [teamLeader, ...filteredMembers];
-    }
     
-    return filteredMembers;
-  }, [teamRoster, teamLeader, searchTerm, sortConfig]);
+    // Sort regular members based on sortConfig
+    regularMembers.sort((a, b) => {
+      const valA = a[sortConfig.key] || '';
+      const valB = b[sortConfig.key] || '';
+      if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+    
+    // Return leaders first, then sorted regular members
+    return [...leaders, ...regularMembers];
+  }, [teamRoster, teamLeaders, searchTerm, sortConfig]);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -158,12 +232,49 @@ const MyTeamPage = ({ currentUser, employees, positions }) => {
     </div>
   );
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="container-fluid p-0 page-module-container">
+        <div className="text-center p-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 text-muted">Loading team data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container-fluid p-0 page-module-container">
+        <div className="text-center p-5">
+          <i className="bi bi-exclamation-triangle fs-1 text-danger mb-3 d-block"></i>
+          <h4 className="text-danger">Error Loading Data</h4>
+          <p className="text-muted">{error}</p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container-fluid p-0 page-module-container">
       <header className="page-header d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 className="page-main-title">{currentPositionTitle} Team</h1>
-            {teamLeader && <p className="page-subtitle text-muted mb-0">Led by: <strong>{teamLeader.name}</strong></p>}
+            {teamLeaders.length > 0 && (
+          <p className="page-subtitle text-muted mb-0">
+            Led by: <strong>{teamLeaders.map(leader => leader.name).join(', ')}</strong>
+          </p>
+        )}
         </div>
         <div className="d-flex align-items-center gap-2">
             <div className="view-toggle-buttons btn-group">
@@ -180,7 +291,7 @@ const MyTeamPage = ({ currentUser, employees, positions }) => {
               <input 
                 type="text" 
                 className="form-control" 
-                placeholder="Search team members by name or ID..."
+                placeholder="Search position members by name or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -193,7 +304,7 @@ const MyTeamPage = ({ currentUser, employees, positions }) => {
       ) : (
         <div className="text-center p-5 bg-light rounded">
             <i className="bi bi-people-fill fs-1 text-muted mb-3 d-block"></i>
-            <h4 className="text-muted">{teamRoster.length > 0 && searchTerm ? "No team members match your search." : "You are not currently assigned to a team."}</h4>
+            <h4 className="text-muted">{teamRoster.length > 0 && searchTerm ? "No members match your search." : "You are not currently assigned to a position."}</h4>
             <p className="text-muted">{teamRoster.length > 0 && searchTerm ? "Try a different name or ID." : "Please contact HR if you believe this is an error."}</p>
         </div>
       )}

@@ -35,7 +35,6 @@ const MyProfilePage = () => {
                 setUserRole(userData.role || USER_ROLES.HR_PERSONNEL);
             }
         } catch (error) {
-            console.error('Error loading user data:', error);
         }
     }, []);
 
@@ -50,7 +49,6 @@ const MyProfilePage = () => {
                 setPositions(positionsResponse.data || []);
                 setEmployees(employeesResponse.data || []);
             } catch (error) {
-                console.error('Error fetching data:', error);
             } finally {
                 setLoading(false);
             }
@@ -117,7 +115,6 @@ const MyProfilePage = () => {
             // Update resume if provided
             if (resumeFile) {
                 // Note: Resume upload would need a separate API endpoint
-                console.log('Resume file ready for upload:', resumeFile);
             }
             
             // Update localStorage with new data
@@ -127,7 +124,6 @@ const MyProfilePage = () => {
             
             alert("Profile updated successfully!");
         } catch (error) {
-            console.error('Error updating profile:', error);
             alert("Error updating profile. Please try again.");
         }
     };

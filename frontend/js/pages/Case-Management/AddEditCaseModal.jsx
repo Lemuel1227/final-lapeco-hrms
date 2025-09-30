@@ -10,11 +10,6 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees }) => {
     description: '',
     nextSteps: '',
     status: 'Ongoing',
-    severity: 'Medium',
-    reportedBy: '',
-    investigationNotes: '',
-    actionTaken: '',
-    resolutionNotes: ''
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -45,14 +40,7 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees }) => {
       alert('Employee and Reason are required fields.');
       return;
     }
-    
-    // Map nextSteps to resolutionNotes for backend compatibility
-    const submitData = {
-      ...formData,
-      resolutionNotes: formData.nextSteps
-    };
-    
-    onSave(submitData, caseData?.caseId);
+    onSave(formData, caseData?.caseId);
     onClose();
   };
 
@@ -103,19 +91,6 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees }) => {
                         <option>Closed</option>
                     </select>
                 </div>
-                <div className="col-md-6">
-                  <label htmlFor="severity" className="form-label">Severity*</label>
-                  <select id="severity" name="severity" className="form-select" value={formData.severity} onChange={handleChange}>
-                    <option>Low</option>
-                    <option>Medium</option>
-                    <option>High</option>
-                    <option>Critical</option>
-                  </select>
-                </div>
-                <div className="col-md-6">
-                  <label htmlFor="reportedBy" className="form-label">Reported By</label>
-                  <input type="text" id="reportedBy" name="reportedBy" className="form-control" value={formData.reportedBy} onChange={handleChange} placeholder="Name of person reporting" />
-                </div>
                 <div className="col-12">
                   <label htmlFor="reason" className="form-label">Reason / Infraction*</label>
                   <input type="text" id="reason" name="reason" className="form-control" value={formData.reason} onChange={handleChange} placeholder="e.g., Tardiness, Safety Violation, Insubordination" required />
@@ -123,14 +98,6 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees }) => {
                 <div className="col-12">
                   <label htmlFor="description" className="form-label">Description of Incident</label>
                   <textarea id="description" name="description" className="form-control" rows="4" value={formData.description} onChange={handleChange} placeholder="Provide specific details about the incident..."></textarea>
-                </div>
-                <div className="col-12">
-                  <label htmlFor="investigationNotes" className="form-label">Investigation Notes</label>
-                  <textarea id="investigationNotes" name="investigationNotes" className="form-control" rows="2" value={formData.investigationNotes} onChange={handleChange} placeholder="Notes from investigation process..."></textarea>
-                </div>
-                <div className="col-12">
-                  <label htmlFor="actionTaken" className="form-label">Action Taken</label>
-                  <textarea id="actionTaken" name="actionTaken" className="form-control" rows="2" value={formData.actionTaken} onChange={handleChange} placeholder="Specific actions taken in response to this case..."></textarea>
                 </div>
                 <div className="col-12">
                   <label htmlFor="nextSteps" className="form-label">Resolution / Next Steps</label>

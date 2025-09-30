@@ -6,7 +6,7 @@
 }
 
 .my-attendance-stats-bar .stat-card {
-    background-color: #fff;
+    background-color: var(--bg-primary);
     padding: 1rem;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
@@ -19,11 +19,12 @@
     font-weight: 700;
     display: block;
     line-height: 1.1;
+    color: var(--text-primary);
 }
 
 .my-attendance-stats-bar .stat-label {
     font-size: 0.8rem;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
@@ -35,7 +36,7 @@
 }
 
 .calendar-container, .log-container {
-    background-color: #fff;
+    background-color: var(--bg-primary);
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
     box-shadow: var(--card-shadow);
@@ -50,14 +51,16 @@
     flex-direction: column;
 }
 .log-container .card-header {
-    background-color: var(--light-gray);
+    background-color: var(--bg-secondary);
     padding: 0.75rem 1rem;
     flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color);
 }
 .log-container .card-header h6 {
     font-size: 0.9rem;
     font-weight: 600;
     margin-bottom: 0;
+    color: var(--text-primary);
 }
 .log-container .table-responsive {
     flex-grow: 1;
@@ -72,6 +75,7 @@
 
 .fc .fc-toolbar-title {
     font-size: 1.25em !important;
+    color: var(--text-primary);
 }
 .fc .fc-button {
     font-size: 0.8em !important;
@@ -90,9 +94,9 @@
 }
 
 .fc-event-present { background-color: var(--app-success-color) !important; }
-.fc-event-late { background-color: var(--warning-color) !important; color: var(--dark-gray) !important; }
+.fc-event-late { background-color: var(--warning-color) !important; color: var(--text-primary) !important; }
 .fc-event-absent { background-color: var(--danger-color) !important; }
-.fc-event-scheduled { background-color: var(--secondary-color) !important; }
+.fc-event-scheduled { background-color: var(--text-secondary) !important; }
 
 .status-badge {
     color: #fff;
@@ -102,10 +106,45 @@
     border-radius: var(--border-radius);
     text-transform: uppercase;
 }
-.status-present { background-color: var(--app-success-color); }
-.status-late { background-color: var(--warning-color); color: var(--dark-gray); }
+.status-present { background-color: var(--app-success-color); color: var(--text-on-success) !important; }
+.status-late { background-color: var(--warning-color); color: var(--text-primary) !important; }
 .status-absent { background-color: var(--danger-color); }
-.status-scheduled { background-color: var(--secondary-color); }
+.status-scheduled { background-color: var(--text-secondary); }
+
+.dark-theme .fc .fc-button-primary {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+.dark-theme .fc .fc-button-primary:hover {
+    background-color: var(--bg-primary);
+}
+.dark-theme .fc .fc-button-primary:not(:disabled).fc-button-active,
+.dark-theme .fc .fc-button-primary:not(:disabled):active {
+    background-color: var(--app-success-color);
+    border-color: var(--app-success-color);
+    color: var(--text-on-success);
+}
+
+.dark-theme .fc .fc-col-header-cell {
+    background-color: var(--bg-secondary);
+}
+
+.dark-theme .fc .fc-col-header-cell-cushion { 
+    color: var(--text-secondary);
+}
+
+.dark-theme .fc .fc-daygrid-day {
+    border-color: var(--border-color); 
+}
+
+.dark-theme .fc .fc-daygrid-day-number {
+    color: var(--text-primary);
+}
+
+.dark-theme .fc .fc-day-other .fc-daygrid-day-top {
+    opacity: 0.5;
+}
 
 @media (max-width: 992px) {
     .my-attendance-grid {

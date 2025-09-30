@@ -62,7 +62,7 @@ const CaseDetailView = ({ caseInfo, employee, onBack, onSaveLog, onEdit }) => {
                   <button className="btn btn-sm btn-success w-100 mt-2" onClick={handleSaveLog} disabled={!newLogEntry.trim()}>Add to Log</button>
               </div>
               <ul className="action-log-timeline">
-                {caseInfo.actionLog.map((log, index) => (
+                {(caseInfo.actionLog || []).map((log, index) => (
                   <li key={index} className="log-item">
                     <div className="log-icon"><i className="bi bi-dot"></i></div>
                     <div className="log-date">{format(new Date(log.date), 'MMM dd, yyyy')}</div>
@@ -91,7 +91,7 @@ const CaseDetailView = ({ caseInfo, employee, onBack, onSaveLog, onEdit }) => {
              <div className="card-header"><h5><i className="bi bi-paperclip me-2"></i>Attachments</h5></div>
              <div className="card-body">
                 <ul className="attachment-list">
-                  {caseInfo.attachments.length > 0 ? caseInfo.attachments.map(file => (
+                  {(caseInfo.attachments || []).length > 0 ? (caseInfo.attachments || []).map(file => (
                     <li key={file} className="attachment-item">
                       <a href="#" className="file-info"><i className="bi bi-file-earmark-text-fill"></i><span>{file}</span></a>
                       <button className="btn btn-sm btn-outline-secondary"><i className="bi bi-download"></i></button>

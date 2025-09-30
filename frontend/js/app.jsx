@@ -4,12 +4,16 @@ import './bootstrap';
 import '../css/app.css';
 import '../css/index.css';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
+// Import components
+import ErrorBoundary from './components/ErrorBoundary';
+
 // Import pages
 import Login from './pages/Authentication/Login';
+import ForcePasswordChange from './pages/Authentication/ForcePasswordChange';
 import Dashboard from './pages/Dashboard/Dashboard';
 import EmployeeDataPage from './pages/Employee-Data/EmployeeDataPage';
 import PositionsPage from './pages/Positions/PositionsPage';
@@ -18,13 +22,17 @@ import ScheduleManagementPage from './pages/Schedule-Management/ScheduleManageme
 import ScheduleBuilderPage from './pages/Schedule-Management/ScheduleBuilderPage';
 import LeaveManagementPage from './pages/Leave-Management/LeaveManagementPage';
 import PayrollPage from './pages/Payroll-Management/PayrollPage';
+import PayrollHistoryPage from './pages/Payroll-Management/PayrollHistoryPage';
+import PayrollGenerationPage from './pages/Payroll-Management/PayrollGenerationPage';
 import HolidayManagementPage from './pages/Holiday-Management/HolidayManagementPage';
 import RecruitmentPage from './pages/Recruitment/RecruitmentPage';
 import ReportsPage from './pages/Reports/ReportsPage';
 import PerformanceManagementPage from './pages/Performance-Management/PerformanceManagementPage';
 import TrainingPage from './pages/Training-And-Development/TrainingPage';
-import ContributionsManagementPage from './pages/ContributionsManagement/ContributionsManagementPage';
-import CaseManagementPage from './pages/CaseManagement/CaseManagementPage';
+import ProgramDetailPage from './pages/Training-And-Development/ProgramDetailPage';
+import ContributionsManagementPage from './pages/Contributions-Management/ContributionsManagementPage';
+import EvaluateLeaderPage from './pages/Performance-Management/EvaluateLeaderPage';
+import CaseManagementPage from './pages/Case-Management/CaseManagementPage';
 import MyLeavePage from './pages/My-Leave/MyLeavePage';
 import MyAttendancePage from './pages/My-Attendance/MyAttendancePage';
 import MyTeamPage from './pages/My-Team/MyTeamPage';
@@ -32,21 +40,47 @@ import AccountsPage from './pages/Accounts/AccountsPage';
 import MyProfilePage from './pages/My-Profile/MyProfilePage';
 import AccountSettingsPage from './pages/Account-Settings/AccountSettingsPage';
 
-// Import layout components
+// Import layout, context, and components
 import Layout from './layout/Layout';
 import { ThemeProvider } from './contexts/ThemeContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Create the main App component
 function App() {
+  // Load initial data only if authenticated
+  useEffect(() => {
+    const loadData = async () => {
+      // Check if user is authenticated before making API calls
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        return; // Don't load data if not authenticated
+      }
+      
+      try {
+        const templatesResponse = await templateAPI.getAll();
+        
+        setTemplates(templatesResponse.data || []);
+      } catch (error) {
+        // If API calls fail due to authentication, clear the token
+        if (error.response?.status === 401) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+        }
+      }
+    };
+    loadData();
+  }, []);
+
   return (
     <ThemeProvider>
       <Router>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/force-password-change" element={<ForcePasswordChange />} />
           
           {/* Protected routes */}
-          <Route path="/" element={<Layout />}>
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           
@@ -57,12 +91,21 @@ function App() {
           <Route path="dashboard/schedule-management" element={<ScheduleManagementPage />} />
           <Route path="dashboard/schedule-management/create" element={<ScheduleBuilderPage />} />
           <Route path="dashboard/leave-management" element={<LeaveManagementPage />} />
-          <Route path="dashboard/payroll" element={<PayrollPage />} />
+          <Route path="dashboard/payroll" element={<PayrollPage />}>
+            <Route index element={<Navigate to="history" replace />} />
+            <Route path="history" element={<PayrollHistoryPage />} />
+            <Route path="generate" element={<PayrollGenerationPage />} />
+          </Route>
           <Route path="dashboard/holiday-management" element={<HolidayManagementPage />} />
           <Route path="dashboard/contributions-management" element={<ContributionsManagementPage />} />
           <Route path="dashboard/performance" element={<PerformanceManagementPage />} />
           <Route path="dashboard/training" element={<TrainingPage />} />
-          <Route path="dashboard/case-management" element={<CaseManagementPage />} />
+          <Route path="dashboard/training/:programId" element={<ProgramDetailPage />} />
+          <Route path="dashboard/case-management" element={
+            <ErrorBoundary>
+              <CaseManagementPage />
+            </ErrorBoundary>
+          } />
           <Route path="dashboard/recruitment" element={<RecruitmentPage />} />
           <Route path="dashboard/reports" element={<ReportsPage />} />
           <Route path="dashboard/my-profile" element={<MyProfilePage />} />

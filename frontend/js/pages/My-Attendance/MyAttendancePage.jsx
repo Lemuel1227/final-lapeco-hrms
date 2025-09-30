@@ -68,7 +68,17 @@ const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
 
       if (log && log.signIn) {
         const shiftStartTime = schedule.shift?.split(' - ')[0] || '00:00';
-        status = log.signIn > shiftStartTime ? 'Late' : 'Present';
+        
+        // Parse times for comparison with 15-minute late threshold
+        const [shiftHour, shiftMin] = shiftStartTime.split(':').map(Number);
+        const [signInHour, signInMin] = log.signIn.split(':').map(Number);
+        
+        // Convert to minutes for easier comparison
+        const shiftStartMinutes = shiftHour * 60 + shiftMin;
+        const signInMinutes = signInHour * 60 + signInMin;
+        const lateThresholdMinutes = shiftStartMinutes + 15; // 15 minutes late threshold
+        
+        status = signInMinutes > lateThresholdMinutes ? 'Late' : 'Present';
         statusClass = status.toLowerCase();
       } else {
         if (scheduleDate < today) {

@@ -12,20 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('disciplinary_cases', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('employee_id')->constrained('users')->onDelete('cascade');
-            $table->string('case_number')->unique();
-            $table->string('violation_type');
-            $table->text('description');
-            $table->date('incident_date');
-            $table->date('reported_date');
-            $table->string('reported_by');
-            $table->enum('severity', ['minor', 'major', 'severe']);
-            $table->enum('status', ['pending', 'under_investigation', 'resolved', 'closed']);
-            $table->text('investigation_notes')->nullable();
-            $table->string('action_taken')->nullable();
-            $table->date('resolution_date')->nullable();
-            $table->text('resolution_notes')->nullable();
+            $table->id(); // case identifier in frontend
+            $table->foreignId('employee_id')->constrained('users')->onDelete('cascade'); // Employee to be disciplined in frontend
+            $table->string('action_type'); // action_type in frontend
+            $table->text('description'); // description of incident in frontend
+            $table->date('incident_date'); // date of incident in frontend
+            $table->string('reason'); // Reason / Infraction in frontend
+            $table->string('status'); // case_status in frontend
+            $table->text('resolution_taken')->nullable(); // Resolution / Next Steps in frontend
+            $table->string('attachment')->nullable(); // PDF attachment only
             $table->timestamps();
         });
     }

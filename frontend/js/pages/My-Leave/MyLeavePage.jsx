@@ -37,15 +37,13 @@ const MyLeavePage = () => {
           reason: l.reason,
         }));
         
-        // The backend should already filter to only show the current user's leaves
-        // This is an extra safety check to ensure only the current user's leaves are displayed
-        const currentUserId = JSON.parse(localStorage.getItem('user'))?.id;
-        const filteredLeaves = currentUserId ? mapped.filter(leave => leave.empId === currentUserId) : mapped;
-        
-        setLeaveRequests(filteredLeaves);
+        // Backend already filters leaves based on user role and authentication
+        // Regular employees only see their own leaves
+        // Team leaders see their team's leaves
+        // HR personnel see all leaves
+        setLeaveRequests(mapped);
         setError(null);
       } catch (err) {
-        console.error('Error fetching leaves:', err);
         setLeaveRequests([]);
         setError('Failed to load leave requests. Please try again.');
       } finally {
@@ -81,11 +79,11 @@ const MyLeavePage = () => {
         status: l.status,
         reason: l.reason,
       }));
+      // Backend handles filtering based on user authentication
       setLeaveRequests(mapped);
       setShowRequestModal(false);
       alert('Leave request submitted successfully!');
     } catch (err) {
-      console.error('Error creating leave request:', err);
       alert('Failed to submit leave request. Please try again.');
     }
   };
@@ -105,30 +103,6 @@ const MyLeavePage = () => {
     return sortedRequests.filter(req => req.status === statusFilter);
   }, [leaveRequests, statusFilter]);
   
-  if (loading) {
-    return (
-      <div className="container-fluid p-0 page-module-container">
-        <div className="text-center p-5 bg-light rounded">
-          <div className="spinner-border text-success" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-3 mb-0">Loading your leave requests...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container-fluid p-0 page-module-container">
-        <div className="text-center p-5 bg-light rounded">
-          <p className="text-danger">{error}</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container-fluid p-0 page-module-container">
       <header className="page-header d-flex justify-content-between align-items-center mb-4">
@@ -142,6 +116,30 @@ const MyLeavePage = () => {
             </button>
         </div>
       </header>
+
+      {loading && (
+        <div className="w-100 text-center p-5 bg-light rounded">
+          <div className="spinner-border text-success" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 mb-0">Loading leave data...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="w-100 text-center p-5 bg-light rounded">
+          <div className="alert alert-danger" role="alert">
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            {error}
+          </div>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            <i className="bi bi-arrow-clockwise me-2"></i>Try Again
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
 
       <div className="my-leave-dashboard">
         <div className="leave-balances">
@@ -200,6 +198,8 @@ const MyLeavePage = () => {
           onClose={() => setShowRequestModal(false)}
           onSave={createLeaveRequest}
         />
+      )}
+        </>
       )}
 
       <LeaveHistoryModal

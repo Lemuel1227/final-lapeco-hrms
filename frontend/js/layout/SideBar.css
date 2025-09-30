@@ -13,7 +13,7 @@
   flex-direction: column;
   padding-top: 1rem;
   flex-shrink: 0;
-  transition: width 0.3s ease-in-out, background-color 0.3s ease, border-color 0.3s ease;
+  transition: width 0.3s ease-in-out, transform 0.3s ease-in-out, background-color 0.3s ease, border-color 0.3s ease;
   overflow-x: hidden;
 }
 
@@ -22,18 +22,43 @@
 }
 
 .sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 0 1.25rem 1rem 1.25rem;
   margin-bottom: 1rem;
   transition: padding 0.3s ease-in-out;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-logo-link {
+  flex-grow: 1;
 }
 
 .sidebar-logo {
   max-width: 100%;
   height: auto;
-  max-height: 50px;
+  max-height: 45px;
   display: block;
   transition: opacity 0.3s ease-in-out;
 }
+
+.sidebar-close-btn {
+  display: none;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  padding: 0.25rem 0.5rem;
+}
+.sidebar-close-btn:hover {
+  color: var(--text-primary);
+}
+.dark-theme .sidebar-close-btn {
+  color: var(--text-secondary);
+}
+.dark-theme .sidebar-close-btn:hover {
+  color: var(--text-primary);
+}
+
 
 .sidebar .nav .nav-link.sidebar-link {
   color: var(--dark-gray);
@@ -78,6 +103,7 @@
 
 .sidebar.collapsed .sidebar-header {
   padding: 0 0.5rem 1rem 0.5rem;
+  justify-content: center;
 }
 
 .sidebar.collapsed .sidebar-logo {
@@ -95,4 +121,44 @@
 
 .sidebar.collapsed .nav-link.sidebar-link .sidebar-link-text {
   display: none;
+}
+
+@media (max-width: 991.98px) {
+  .sidebar {
+    transform: translateX(-100%);
+    z-index: 1045;
+  }
+
+  .sidebar-close-btn {
+    display: block;
+  }
+
+  .sidebar.mobile-visible {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    width: var(--sidebar-width);
+  }
+
+  .sidebar.collapsed .sidebar-header {
+    justify-content: space-between;
+  }
+
+  .sidebar.collapsed .sidebar-logo {
+    opacity: 1;
+  }
+
+  .sidebar.collapsed .nav-link.sidebar-link {
+    justify-content: flex-start;
+  }
+
+  .sidebar.collapsed .nav-link.sidebar-link i {
+    margin-right: 0.85rem;
+    font-size: 1.1rem;
+  }
+
+  .sidebar.collapsed .nav-link.sidebar-link .sidebar-link-text {
+    display: inline-block;
+  }
 }

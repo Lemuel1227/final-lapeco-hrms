@@ -8,17 +8,16 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
+     * Display the user's profile information.
      */
-    public function edit(Request $request): Response
+    public function edit(Request $request)
     {
-        return Inertia::render('Profile/Edit', [
+        return response()->json([
+            'user' => $request->user(),
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);
@@ -27,7 +26,7 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request)
     {
         $request->user()->fill($request->validated());
 
@@ -37,7 +36,29 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return Redirect::route('profile.edit');
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => $request->user()
+        ]);
+    }
+
+    /**
+     * Update the user's theme preference.
+     */
+    public function updateThemePreference(Request $request)
+    {
+        $request->validate([
+            'theme' => 'required|in:light,dark'
+        ]);
+
+        $request->user()->update([
+            'theme_preference' => $request->theme
+        ]);
+
+        return response()->json([
+            'message' => 'Theme preference updated successfully',
+            'theme' => $request->theme
+        ]);
     }
 
     /**

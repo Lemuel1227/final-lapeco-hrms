@@ -5,24 +5,129 @@ import './ScheduleManagementPage.css';
 import AddColumnModal from '../../../../../../LAPECO-HRMS/src/components/modals/AddColumnModal';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import Layout from '@/layout/Layout';
+import { scheduleAPI, employeeAPI, positionAPI } from '../../services/api';
+import ToastNotification from '../../common/ToastNotification';
 
 // Default handler for saving schedules
 const defaultHandlers = {
-  createSchedules: (schedules) => {
-    // This function will be replaced by React Router useNavigate
-    // For now, it will just return true, indicating success
-    // In a real scenario, you would call an API endpoint here
-    console.log("Saving schedules:", schedules);
-    return true;
+  createSchedules: async (schedules, showToast) => {
+    try {
+      // Transform the schedule entries to match the backend API format
+      const scheduleData = {
+        name: schedules[0].name,
+        date: schedules[0].date,
+        description: null,
+        assignments: schedules.map(schedule => ({
+          empId: schedule.empId,
+          start_time: schedule.start_time,
+          end_time: schedule.end_time,
+          notes: schedule.notes || null
+        }))
+      };
+
+      const response = await scheduleAPI.create(scheduleData);
+      showToast('Schedule saved successfully!', 'success');
+      return true;
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      
+      // Handle different error types from backend
+      if (error.response?.data?.error === 'SCHEDULE_EXISTS_FOR_DATE') {
+        showToast('A schedule already exists for this date. Only one schedule per date is allowed.', 'error');
+      } else if (error.response?.data?.error === 'VALIDATION_ERROR') {
+        // Handle detailed validation errors
+        const errors = error.response.data.errors;
+        if (errors) {
+          const errorMessages = [];
+          
+          // Format validation errors into readable messages
+          Object.keys(errors).forEach(field => {
+            const fieldErrors = errors[field];
+            fieldErrors.forEach(errorMsg => {
+              // Convert field names to more user-friendly names and simplify messages
+              let friendlyField = field;
+              let simplifiedMessage = errorMsg;
+              
+              if (field.includes('assignments.')) {
+                const match = field.match(/assignments\.(\d+)\.(.+)/);
+                if (match) {
+                  const index = parseInt(match[1]) + 1;
+                  const fieldName = match[2];
+                  friendlyField = `Row ${index}`;
+                  
+                  // Simplify common validation messages
+                  if (fieldName === 'start_time' && errorMsg.includes('required')) {
+                    simplifiedMessage = 'Start time is required';
+                  } else if (fieldName === 'end_time' && errorMsg.includes('required')) {
+                    simplifiedMessage = 'End time is required';
+                  } else if (fieldName === 'end_time' && errorMsg.includes('after')) {
+                    simplifiedMessage = 'End time must be after start time';
+                  } else if (fieldName === 'empId' && errorMsg.includes('required')) {
+                    simplifiedMessage = 'Employee is required';
+                  } else if (fieldName === 'empId' && errorMsg.includes('exists')) {
+                    simplifiedMessage = 'Invalid employee selected';
+                  } else if (fieldName.includes('time') && errorMsg.includes('date_format')) {
+                    simplifiedMessage = 'Invalid time format (use HH:MM)';
+                  } else {
+                    simplifiedMessage = errorMsg.replace(/The .+? field /, '').replace(/assignments\.\d+\./, '');
+                  }
+                }
+              } else {
+                friendlyField = field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                // Simplify general field messages
+                if (errorMsg.includes('required')) {
+                  simplifiedMessage = `${friendlyField} is required`;
+                } else {
+                  simplifiedMessage = errorMsg.replace(/The .+? field /, '');
+                }
+              }
+              
+              errorMessages.push(`${friendlyField}: ${simplifiedMessage}`);
+            });
+          });
+          
+          showToast(`Validation errors:\n${errorMessages.join('\n')}`, 'error');
+        } else {
+          showToast('Please check your input data and try again.', 'error');
+        }
+      } else if (error.response?.data?.error === 'INVALID_TIME_RANGE') {
+        const assignmentIndex = error.response.data.assignment_index;
+        showToast(`Row ${assignmentIndex + 1}: Start time and end time cannot be the same.`, 'error');
+      } else if (error.response?.data?.error === 'INVALID_TIME_FORMAT') {
+        const assignmentIndex = error.response.data.assignment_index;
+        showToast(`Row ${assignmentIndex + 1}: Invalid time format. Please use HH:MM format.`, 'error');
+      } else if (error.response?.data?.error === 'INVALID_NIGHT_SHIFT') {
+        const assignmentIndex = error.response.data.assignment_index;
+        showToast(`Row ${assignmentIndex + 1}: End time cannot be before start time unless it's a night shift starting at 4 PM or later.`, 'error');
+      } else if (error.response?.data?.error === 'EXCEEDS_WORK_LIMIT') {
+        const assignmentIndex = error.response.data.assignment_index;
+        const workDuration = error.response.data.work_duration;
+        showToast(`Row ${assignmentIndex + 1}: Work duration (${workDuration} hours) exceeds the 8-hour limit per Philippine Labor Code.`, 'error');
+      } else if (error.response?.data?.message) {
+        showToast(error.response.data.message, 'error');
+      } else if (error.response?.status === 422) {
+        showToast('Please check your input data and try again.', 'error');
+      } else if (error.response?.status === 500) {
+        showToast('Server error occurred. Please try again later.', 'error');
+      } else {
+        showToast('Failed to save schedule. Please check your connection and try again.', 'error');
+      }
+      return false;
+    }
   }
 };
 
 const ScheduleBuilderPage = (props) => {
-  // Get initialDate, method, sourceData from props (passed from backend)
-  const { initialDate, method, sourceData } = props;
-  const handlers = props.handlers || defaultHandlers;
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get data from navigation state or props
+  const { date, method, sourceData } = location.state || {};
+  const { initialDate, handlers: propHandlers } = props;
+  
+  const scheduleDate = date;
+  const handlers = propHandlers || defaultHandlers;
 
-  const [scheduleDate] = useState(initialDate);
   const [scheduleName, setScheduleName] = useState('');
   const [columns, setColumns] = useState([
     { key: 'start_time', name: 'Start Time' },
@@ -30,15 +135,74 @@ const ScheduleBuilderPage = (props) => {
   ]);
   const [gridData, setGridData] = useState([]);
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-  const employeeOptions = useMemo(() => (props.employees || []).map(e => ({ value: e.id, label: `${e.name} (${e.id})` })), [props.employees]);
-  const positionsMap = useMemo(() => new Map((props.positions || []).map(p => [p.id, p.title])), [props.positions]);
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
+  const employeeOptions = useMemo(() => employees.map(e => ({ value: e.id, label: `${e.name} (${e.id})` })), [employees]);
+  const positionsMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);
+
+  // Load employees and positions data
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [employeesResponse, positionsResponse] = await Promise.all([
+          employeeAPI.getAll(),
+          positionAPI.getAll()
+        ]);
+        
+        const empData = Array.isArray(employeesResponse.data) ? employeesResponse.data : (employeesResponse.data?.data || []);
+        const posData = Array.isArray(positionsResponse.data) ? positionsResponse.data : (positionsResponse.data?.data || []);
+        
+        // Create position lookup map
+        const positionMap = {};
+        posData.forEach(p => {
+          positionMap[p.id] = p.title ?? p.name;
+        });
+        
+        // Normalize employees and add position title
+        const normalizedEmployees = empData.map(e => {
+          const normalized = {
+            id: e.id,
+            name: e.name,
+            email: e.email,
+            role: e.role,
+            positionId: e.position_id ?? e.positionId,
+            joiningDate: e.joining_date ?? e.joiningDate,
+            birthday: e.birthday,
+            gender: e.gender,
+            address: e.address,
+            contactNumber: e.contact_number ?? e.contactNumber,
+            imageUrl: e.image_url ?? e.imageUrl,
+            sssNo: e.sss_no ?? e.sssNo,
+            tinNo: e.tin_no ?? e.tinNo,
+            pagIbigNo: e.pag_ibig_no ?? e.pagIbigNo,
+            philhealthNo: e.philhealth_no ?? e.philhealthNo,
+            resumeFile: e.resume_file ?? e.resumeFile,
+            status: e.account_status ?? e.status ?? 'Active',
+            position: positionMap[e.position_id ?? e.positionId] || null
+          };
+          normalized.positionTitle = normalized.positionId ? positionMap[normalized.positionId] : null;
+          return normalized;
+        });
+        
+        setEmployees(normalizedEmployees);
+        setPositions(posData);
+        setLoading(false);
+      } catch (error) {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   useEffect(() => {
-    if (!initialDate) {
-      // This will be replaced by React Router useNavigate
-      // For now, it will just visit the dashboard
-      console.log("No initial date, visiting dashboard.");
+    if (!initialDate || loading) {
       return;
     }
 
@@ -74,7 +238,7 @@ const ScheduleBuilderPage = (props) => {
         key,
         name: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')
       }));
-      const applicableEmp = props.employees.filter(emp => sourceData.applicablePositions.includes(positionsMap.get(emp.positionId)));
+      const applicableEmp = employees.filter(emp => sourceData.applicablePositions.includes(positionsMap.get(emp.positionId)));
       const emptyRow = initialColumns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), {});
       initialGrid = applicableEmp.map(emp => ({ ...emptyRow, empId: emp.id }));
     } else {
@@ -84,7 +248,7 @@ const ScheduleBuilderPage = (props) => {
     setScheduleName(initialName);
     setColumns(initialColumns);
     setGridData(initialGrid);
-  }, [initialDate, method, sourceData, props.employees, props.positions, positionsMap]);
+  }, [initialDate, method, sourceData, employees, positions, positionsMap, loading]);
 
   const addEmployeeRow = () => {
     const newRow = columns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), { empId: '' });
@@ -116,11 +280,9 @@ const ScheduleBuilderPage = (props) => {
     setGridData(newGrid);
   };
 
-  const handleSaveSchedule = () => {
-    if (!scheduleName.trim()) {
-      alert("Please provide a name for the schedule.");
-      return;
-    }
+  const handleSaveSchedule = async () => {
+    // Auto-generate schedule name if not provided
+    const finalScheduleName = scheduleName.trim() || `Schedule for ${scheduleDate}`;
 
     const newScheduleEntries = [];
     const uniqueEmpIds = new Set();
@@ -139,26 +301,30 @@ const ScheduleBuilderPage = (props) => {
         }, {});
 
         if (Object.keys(entryData).length > 0 && entryData.start_time && entryData.end_time) {
-          newScheduleEntries.push({ empId: row.empId, date: scheduleDate, name: scheduleName, ...entryData });
+          newScheduleEntries.push({ empId: row.empId, date: scheduleDate, name: finalScheduleName, ...entryData });
         }
       }
     });
 
     if (hasDuplicates) {
-      alert("Error: Each employee can only be listed once per schedule.");
+      showToast("Error: Each employee can only be listed once per schedule.", "error");
       return;
     }
     if (newScheduleEntries.length === 0) {
-      alert("Please add at least one employee and assign a valid shift.");
+      showToast("Please add at least one employee and assign a valid shift.", "warning");
       return;
     }
 
-    const success = handlers.createSchedules(newScheduleEntries);
+    const success = await handlers.createSchedules(newScheduleEntries, showToast);
     if (success) {
-      // This will be replaced by React Router useNavigate
-      // For now, it will just visit the dashboard
-      console.log("Saving successful, visiting dashboard.");
-      // router.visit('/dashboard/schedule-management');
+      // Navigate immediately with success message
+      navigate('/dashboard/schedule-management', {
+        state: { 
+          successMessage: 'Schedule saved successfully!',
+          scheduleDate: scheduleDate,
+          scheduleName: finalScheduleName
+        }
+      });
     }
   };
 
@@ -166,10 +332,7 @@ const ScheduleBuilderPage = (props) => {
     <div className="container-fluid page-module-container p-lg-4 p-md-3 p-2">
       <header className="page-header d-flex align-items-center mb-4 detail-view-header">
         <button className="btn btn-light me-3 back-button" onClick={() => {
-          // This will be replaced by React Router useNavigate
-          // For now, it will just visit the dashboard
-          console.log("Going back to dashboard.");
-          // router.visit('/dashboard/schedule-management');
+          navigate('/dashboard/schedule-management');
         }}><i className="bi bi-arrow-left"></i></button>
         <div className="flex-grow-1">
           <h1 className="page-main-title mb-0">Schedule Builder</h1>
@@ -180,8 +343,8 @@ const ScheduleBuilderPage = (props) => {
         </div>
       </header>
       <div className="mb-3 schedule-name-input-container">
-        <label htmlFor="scheduleName" className="form-label fw-bold">Schedule Name*</label>
-        <input type="text" className="form-control form-control-lg" id="scheduleName" placeholder="e.g., Weekday Production Team" value={scheduleName} onChange={e => setScheduleName(e.target.value)} required />
+        <label htmlFor="scheduleName" className="form-label fw-bold">Schedule Name</label>
+        <input type="text" className="form-control form-control-lg" id="scheduleName" placeholder={`e.g., Weekday Production Team")`} value={scheduleName} onChange={e => setScheduleName(e.target.value)} />
       </div>
 
       <div className="card data-table-card">
@@ -199,7 +362,7 @@ const ScheduleBuilderPage = (props) => {
               </thead>
               <tbody>
                 {gridData.map((row, rowIndex) => {
-                  const selectedEmployee = props.employees.find(e => e.id === row.empId);
+                  const selectedEmployee = employees.find(e => e.id === row.empId);
                   const positionTitle = selectedEmployee ? (positionsMap.get(selectedEmployee.positionId) || 'Unassigned') : '';
                   return (
                     <tr key={rowIndex}>
@@ -248,10 +411,7 @@ const ScheduleBuilderPage = (props) => {
 
       <div className="d-flex justify-content-end mt-3 gap-2">
         <button type="button" className="btn btn-outline-secondary" onClick={() => {
-          // This will be replaced by React Router useNavigate
-          // For now, it will just visit the dashboard
-          console.log("Cancelling, visiting dashboard.");
-          // router.visit('/dashboard/schedule-management');
+          navigate('/dashboard/schedule-management');
         }}>Cancel</button>
         <button type="button" className="btn btn-success action-button-primary" onClick={handleSaveSchedule}>Save Schedule</button>
       </div>
@@ -261,6 +421,14 @@ const ScheduleBuilderPage = (props) => {
         onClose={() => setShowAddColumnModal(false)}
         onAddColumn={handleAddColumn}
       />
+
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+        />
+      )}
     </div>
   );
 };

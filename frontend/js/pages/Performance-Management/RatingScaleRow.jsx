@@ -1,24 +1,18 @@
 import React from 'react';
+import StarRating from './StarRating';
 
 const RatingScaleRow = ({ competency, scoreData, onScoreChange }) => {
-  const rating = scoreData?.score || 0;
-
   return (
     <div className="rating-scale-row">
       <div className="competency-info">
         <p className="competency-name">{competency.name}</p>
         <p className="competency-description">{competency.description}</p>
       </div>
-      <div className="rating-buttons">
-        {[1, 2, 3, 4, 5].map(value => (
-          <button
-            key={value}
-            className={`btn rating-btn ${rating === value ? 'active' : ''}`}
-            onClick={() => onScoreChange(competency.id, 'score', value)}
-          >
-            {value}
-          </button>
-        ))}
+      <div className="rating-stars">
+        <StarRating 
+          score={scoreData?.score || 0}
+          onRate={(newScore) => onScoreChange(competency.id, 'score', newScore)}
+        />
       </div>
       <div className="rating-comment">
         <input 

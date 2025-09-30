@@ -15,7 +15,7 @@ class DisciplinaryCaseController extends Controller
      */
     public function index(): JsonResponse
     {
-        $cases = DisciplinaryCase::with('employee:id,name,employee_id')
+        $cases = DisciplinaryCase::with(['employee:id,name', 'actionLogs'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -29,26 +29,19 @@ class DisciplinaryCaseController extends Controller
     {
         $validated = $request->validate([
             'employee_id' => 'required|exists:users,id',
-            'violation_type' => 'required|string|max:255',
+            'action_type' => 'required|string|max:255',
             'description' => 'required|string',
             'incident_date' => 'required|date',
-            'reported_date' => 'required|date',
-            'reported_by' => 'required|string|max:255',
-            'severity' => 'required|in:minor,major,severe',
-            'status' => 'required|in:pending,under_investigation,resolved,closed',
-            'investigation_notes' => 'nullable|string',
-            'action_taken' => 'nullable|string|max:255',
-            'resolution_date' => 'nullable|date',
-            'resolution_notes' => 'nullable|string'
+            'reason' => 'required|string|max:255',
+            'status' => 'required|string|max:255',
+            'resolution_taken' => 'nullable|string',
+            'attachment' => 'nullable|string|max:255'
         ]);
 
-        // Generate case number
-        $case = new DisciplinaryCase($validated);
-        $case->case_number = $case->generateCaseNumber();
-        $case->save();
+        $case = DisciplinaryCase::create($validated);
 
         // Load the employee relationship
-        $case->load('employee:id,name,employee_id');
+        $case->load('employee:id,name');
 
         return response()->json($case, 201);
     }
@@ -58,7 +51,7 @@ class DisciplinaryCaseController extends Controller
      */
     public function show(DisciplinaryCase $disciplinaryCase): JsonResponse
     {
-        $disciplinaryCase->load('employee:id,name,employee_id');
+        $disciplinaryCase->load(['employee:id,name', 'actionLogs']);
         return response()->json($disciplinaryCase);
     }
 
@@ -69,21 +62,17 @@ class DisciplinaryCaseController extends Controller
     {
         $validated = $request->validate([
             'employee_id' => 'sometimes|exists:users,id',
-            'violation_type' => 'sometimes|string|max:255',
+            'action_type' => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
             'incident_date' => 'sometimes|date',
-            'reported_date' => 'sometimes|date',
-            'reported_by' => 'sometimes|string|max:255',
-            'severity' => 'sometimes|in:minor,major,severe',
-            'status' => 'sometimes|in:pending,under_investigation,resolved,closed',
-            'investigation_notes' => 'nullable|string',
-            'action_taken' => 'nullable|string|max:255',
-            'resolution_date' => 'nullable|date',
-            'resolution_notes' => 'nullable|string'
+            'reason' => 'sometimes|string|max:255',
+            'status' => 'sometimes|string|max:255',
+            'resolution_taken' => 'nullable|string',
+            'attachment' => 'nullable|string|max:255'
         ]);
 
         $disciplinaryCase->update($validated);
-        $disciplinaryCase->load('employee:id,name,employee_id');
+        $disciplinaryCase->load('employee:id,name');
 
         return response()->json($disciplinaryCase);
     }
@@ -103,7 +92,7 @@ class DisciplinaryCaseController extends Controller
     public function getByEmployee(User $employee): JsonResponse
     {
         $cases = DisciplinaryCase::where('employee_id', $employee->id)
-            ->with('employee:id,name,employee_id')
+            ->with('employee:id,name')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -116,11 +105,45 @@ class DisciplinaryCaseController extends Controller
     public function getByStatus(string $status): JsonResponse
     {
         $cases = DisciplinaryCase::where('status', $status)
-            ->with('employee:id,name,employee_id')
+            ->with('employee:id,name')
             ->orderBy('created_at', 'desc')
             ->get();
 
         return response()->json($cases);
+    }
+
+    /**
+     * Get disciplinary cases grouped by employee.
+     */
+    public function getGroupedByEmployee(): JsonResponse
+    {
+        $casesGroupedByEmployee = DisciplinaryCase::with('employee:id,name')
+            ->get()
+            ->groupBy('employee_id')
+            ->map(function ($cases, $employeeId) {
+                return [
+                    'employee' => $cases->first()->employee,
+                    'total_cases' => $cases->count(),
+                    'cases' => $cases->map(function ($case) {
+                        return [
+                            'id' => $case->id,
+                            'action_type' => $case->action_type,
+                            'description' => $case->description,
+                            'incident_date' => $case->incident_date,
+                            'reason' => $case->reason,
+                            'status' => $case->status,
+                            'resolution_taken' => $case->resolution_taken,
+                            'attachment' => $case->attachment,
+                            'created_at' => $case->created_at,
+                            'updated_at' => $case->updated_at
+                        ];
+                    })->sortByDesc('incident_date')->values()
+                ];
+            })
+            ->sortBy('employee.name')
+            ->values();
+
+        return response()->json($casesGroupedByEmployee);
     }
 
     /**
@@ -130,16 +153,15 @@ class DisciplinaryCaseController extends Controller
     {
         $stats = [
             'total_cases' => DisciplinaryCase::count(),
-            'pending_cases' => DisciplinaryCase::where('status', 'pending')->count(),
-            'under_investigation' => DisciplinaryCase::where('status', 'under_investigation')->count(),
-            'resolved_cases' => DisciplinaryCase::where('status', 'resolved')->count(),
-            'closed_cases' => DisciplinaryCase::where('status', 'closed')->count(),
-            'by_severity' => [
-                'minor' => DisciplinaryCase::where('severity', 'minor')->count(),
-                'major' => DisciplinaryCase::where('severity', 'major')->count(),
-                'severe' => DisciplinaryCase::where('severity', 'severe')->count()
-            ],
-            'recent_cases' => DisciplinaryCase::with('employee:id,name,employee_id')
+            'by_status' => DisciplinaryCase::select('status')
+                ->selectRaw('count(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status'),
+            'by_action_type' => DisciplinaryCase::select('action_type')
+                ->selectRaw('count(*) as count')
+                ->groupBy('action_type')
+                ->pluck('count', 'action_type'),
+            'recent_cases' => DisciplinaryCase::with('employee:id,name')
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get()

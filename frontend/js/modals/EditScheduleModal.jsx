@@ -22,11 +22,19 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, al
       if (show && scheduleId) {
         setLoading(true);
         try {
-          console.log('Loading schedule with ID:', scheduleId);
           const response = await scheduleAPI.getById(scheduleId);
-          console.log('Schedule API response:', response);
           const scheduleData = response.data;
-          console.log('Schedule data:', scheduleData);
+          
+          // Debug: Log the raw data to see what we're receiving
+          console.log('Raw schedule data:', scheduleData);
+          if (scheduleData.assignments && scheduleData.assignments.length > 0) {
+            console.log('First assignment times:', {
+              start_time: scheduleData.assignments[0].start_time,
+              end_time: scheduleData.assignments[0].end_time,
+              start_time_type: typeof scheduleData.assignments[0].start_time,
+              end_time_type: typeof scheduleData.assignments[0].end_time
+            });
+          }
           
           setScheduleName(scheduleData.name || `Schedule for ${scheduleDate}`);
           
@@ -36,24 +44,41 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, al
             { key: 'end_time', name: 'End Time' },
             { key: 'notes', name: 'Notes' }
           ];
-          console.log('Schedule assignments:', scheduleData.assignments);
           setColumns(defaultColumns);
           
-          // Helper function to format datetime to time
-          const formatTime = (datetime) => {
-            if (!datetime) return '--:--';
-            const date = new Date(datetime);
-            return date.toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false 
-            });
+          // Helper function to format time values from database
+          const formatTime = (timeValue) => {
+            if (!timeValue) return '';
+            
+            // If it's already in HH:MM format, return as is
+            if (typeof timeValue === 'string' && timeValue.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+              return timeValue.substring(0, 5); // Return only HH:MM part
+            }
+            
+            // If it's a UTC datetime string (ISO format), extract time part without timezone conversion
+            if (typeof timeValue === 'string' && timeValue.includes('T') && timeValue.includes('Z')) {
+              // Extract time part from ISO datetime string (e.g., "2025-09-30T10:07:00.000000Z" -> "10:07")
+              const timePart = timeValue.split('T')[1].split('.')[0]; // Get "10:07:00"
+              return timePart.substring(0, 5); // Return only "10:07"
+            }
+            
+            // If it's a datetime string, extract time part
+            if (typeof timeValue === 'string') {
+              const date = new Date(timeValue);
+              if (!isNaN(date.getTime())) {
+                return date.toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: false 
+                });
+              }
+            }
+            
+            return timeValue || '';
           };
           
           // Map the assignments to grid data
-          console.log('All employees:', allEmployees);
           const initialGrid = scheduleData.assignments.map(assignment => {
-            console.log('Processing assignment:', assignment);
             const row = { 
               empId: assignment.employee_id,
               employeeName: assignment.user_name || '',
@@ -63,16 +88,10 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, al
               end_time: formatTime(assignment.end_time),
               notes: assignment.notes || ''
             };
-            console.log('Created row:', row);
-            console.log('Looking for employee with ID:', assignment.employee_id);
-            const foundEmployee = allEmployees.find(e => e.id === assignment.employee_id);
-            console.log('Found employee:', foundEmployee);
             return row;
           });
-          console.log('Initial grid data:', initialGrid);
           setGridData(initialGrid);
         } catch (error) {
-          console.error('Error loading schedule data:', error);
         } finally {
           setLoading(false);
         }

@@ -2,7 +2,7 @@
     padding: 0;
     max-height: 75vh;
     overflow-y: hidden;
-    background-color: var(--light-gray);
+    background-color: var(--bg-secondary); 
   }
   .applicant-details-container {
     display: flex;
@@ -10,7 +10,7 @@
   }
   
   .profile-sidebar {
-    background-color: #fff;
+    background-color: var(--bg-primary); 
     padding: 2rem 1.5rem;
     width: 320px;
     flex-shrink: 0;
@@ -24,14 +24,14 @@
     height: 120px;
     object-fit: cover;
     border-radius: 50%;
-    border: 4px solid #fff;
+    border: 4px solid var(--bg-primary); 
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     margin: 0 auto 1rem auto;
   }
-  .profile-name {
+  .applicant-profile-name {
     font-size: 1.4rem;
     font-weight: 600;
-    color: var(--dark-gray);
+    color: var(--text-primary); 
     margin-bottom: 0.25rem;
   }
   .profile-job-title {
@@ -58,12 +58,12 @@
   }
   .profile-key-info .info-item i {
     margin-top: 0.2rem;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
     width: 16px;
     text-align: center;
   }
   .profile-key-info .info-item a {
-    color: var(--dark-gray);
+    color: var(--text-primary); 
     text-decoration: none;
     word-break: break-all;
   }
@@ -88,27 +88,30 @@
   }
   .profile-main .nav-tabs .nav-link {
     font-weight: 500;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
   }
+
+
   .profile-main .nav-tabs .nav-link.active {
     color: var(--app-success-color);
-    border-color: var(--border-color) var(--border-color) var(--light-gray);
-    background-color: var(--light-gray);
+    border-color: var(--border-color) var(--border-color) var(--bg-secondary);
+    background-color: var(--bg-secondary);
   }
+
   .profile-main .info-section-title {
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--dark-gray);
+    color: var(--text-primary);
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--medium-gray);
+    border-bottom: 1px solid var(--border-color);
   }
   .profile-main .detail-group {
       margin-bottom: 1rem;
   }
   .profile-main .detail-label {
       font-size: 0.75rem;
-      color: var(--secondary-color);
+      color: var(--text-secondary);
       text-transform: uppercase;
       font-weight: 500;
       margin-bottom: 0.1rem;
@@ -116,5 +119,9 @@
   }
   .profile-main .detail-value {
       font-size: 0.95rem;
-      color: var(--dark-gray);
+      color: var(--text-primary);
+  }
+
+  .dark-theme .profile-avatar {
+    border-color: var(--bg-tertiary);
   }

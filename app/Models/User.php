@@ -23,7 +23,6 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'employee_id',
         'position_id',
         'joining_date',
         'birthday',
@@ -38,6 +37,10 @@ class User extends Authenticatable
         'resume_file',
         'theme_preference',
         'account_status',
+        'login_attempts',
+        'last_failed_login',
+        'locked_until',
+        'password_changed',
     ];
 
     /**
@@ -51,17 +54,18 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'last_failed_login' => 'datetime',
+        'locked_until' => 'datetime',
+        'login_attempts' => 'integer',
+    ];
+
 
     public function position()
     {
@@ -78,5 +82,40 @@ class User extends Authenticatable
         return $this->belongsToMany(Schedule::class, 'schedule_assignments')
                     ->withPivot(['start_time', 'end_time', 'notes'])
                     ->withTimestamps();
+    }
+
+    /**
+     * Create a new employee from applicant data.
+     */
+    public static function createFromApplicant($applicantData, $positionId, $employeeId = null)
+    {
+        // Map applicant data to employee data
+        $employeeData = [
+            'name' => trim($applicantData['first_name'] . ' ' . 
+                          ($applicantData['middle_name'] ? $applicantData['middle_name'] . ' ' : '') . 
+                          $applicantData['last_name']),
+            'email' => $applicantData['email'],
+            'password' => bcrypt('temporary'), // Temporary password, will be updated after creation
+            'role' => 'Employee',
+            'position_id' => $positionId,
+            'joining_date' => now()->toDateString(),
+            'birthday' => isset($applicantData['birthday']) ? date('Y-m-d', strtotime($applicantData['birthday'])) : null,
+            'gender' => $applicantData['gender'] ?? null,
+            'contact_number' => $applicantData['phone'] ?? null,
+            'resume_file' => $applicantData['resume_file'] ?? null,
+            'account_status' => 'Active',
+            'login_attempts' => 0,
+            'password_changed' => false, // New employees haven't changed their password yet
+        ];
+
+        $employee = self::create($employeeData);
+        
+        // Generate password as 'lapeco+id' after creation
+        $defaultPassword = 'lapeco' . $employee->id;
+        $employee->update([
+            'password' => bcrypt($defaultPassword)
+        ]);
+
+        return $employee;
     }
 }

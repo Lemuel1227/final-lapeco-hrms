@@ -177,43 +177,56 @@ class DatabaseSeeder extends Seeder
         $employees = User::limit(5)->get();
         
         if ($employees->count() > 0) {
-            $violationTypes = [
-                'Tardiness',
-                'Unauthorized Absence',
-                'Insubordination',
-                'Harassment',
-                'Safety Violation',
-                'Theft',
-                'Misconduct',
-                'Policy Violation'
-            ];
+            // Create sample disciplinary case for David Green (EMP004)
+            $davidGreen = $employees->where('employee_id', 'EMP004')->first() ?? $employees->first();
+            
+            $disciplinaryCase = \App\Models\DisciplinaryCase::create([
+                'employee_id' => $davidGreen->id,
+                'action_type' => 'Verbal Warning',
+                'description' => 'Employee was 25 minutes late on 2025-06-14 without prior notification.',
+                'incident_date' => '2025-06-15',
+                'reason' => 'Tardiness',
+                'status' => 'Ongoing',
+                'resolution_taken' => 'Monitor attendance for the next 30 days.',
+                'attachment' => null,
+            ]);
 
-            $severities = ['minor', 'major', 'severe'];
-            $statuses = ['pending', 'under_investigation', 'resolved', 'closed'];
-            $reporters = ['HR Manager', 'Department Head', 'Supervisor', 'Security'];
+            // Create action logs for the disciplinary case
+            \App\Models\ActionLog::create([
+                'disciplinary_case_id' => $disciplinaryCase->id,
+                'date_created' => '2025-06-15',
+                'description' => 'Case Created. Verbal warning issued by HR Manager Grace Field.',
+            ]);
 
-            foreach ($employees as $index => $employee) {
-                $case = new \App\Models\DisciplinaryCase();
-                $case->employee_id = $employee->id;
-                $case->case_number = $case->generateCaseNumber();
-                $case->violation_type = $violationTypes[array_rand($violationTypes)];
-                $case->description = 'Employee violated company policy regarding ' . strtolower($case->violation_type) . '. Detailed investigation required.';
-                $case->incident_date = now()->subDays(rand(1, 30));
-                $case->reported_date = $case->incident_date->copy()->addDays(rand(1, 3));
-                $case->reported_by = $reporters[array_rand($reporters)];
-                $case->severity = $severities[array_rand($severities)];
-                $case->status = $statuses[array_rand($statuses)];
-                
-                if ($case->status === 'resolved' || $case->status === 'closed') {
-                    $case->investigation_notes = 'Investigation completed. Evidence reviewed and statements taken.';
-                    $case->action_taken = $case->severity === 'minor' ? 'Verbal Warning' : ($case->severity === 'major' ? 'Written Warning' : 'Suspension');
-                    $case->resolution_date = $case->reported_date->copy()->addDays(rand(5, 15));
-                    $case->resolution_notes = 'Case resolved according to company policy. Employee counseled and appropriate action taken.';
-                } else {
-                    $case->investigation_notes = 'Investigation in progress. Gathering statements and evidence.';
-                }
-                
-                $case->save();
+            \App\Models\ActionLog::create([
+                'disciplinary_case_id' => $disciplinaryCase->id,
+                'date_created' => '2025-06-16',
+                'description' => 'Follow-up discussion held with employee and their team leader, Carol White.',
+            ]);
+
+            // Create additional sample cases for other employees
+            $actionTypes = ['Verbal Warning', 'Written Warning', 'Final Warning', 'Suspension'];
+            $reasons = ['Tardiness', 'Unauthorized Absence', 'Insubordination', 'Policy Violation', 'Safety Violation'];
+            $statuses = ['Ongoing', 'Under Investigation', 'Resolved', 'Closed'];
+
+            foreach ($employees->skip(1)->take(4) as $index => $employee) {
+                $case = \App\Models\DisciplinaryCase::create([
+                    'employee_id' => $employee->id,
+                    'action_type' => $actionTypes[array_rand($actionTypes)],
+                    'description' => 'Employee violated company policy. Investigation and appropriate action required.',
+                    'incident_date' => now()->subDays(rand(1, 30))->format('Y-m-d'),
+                    'reason' => $reasons[array_rand($reasons)],
+                    'status' => $statuses[array_rand($statuses)],
+                    'resolution_taken' => 'Appropriate disciplinary action taken according to company policy.',
+                    'attachment' => null,
+                ]);
+
+                // Create initial action log for each case
+                \App\Models\ActionLog::create([
+                    'disciplinary_case_id' => $case->id,
+                    'date_created' => $case->incident_date,
+                    'description' => 'Case created. Initial investigation started by HR department.',
+                ]);
             }
         }
 
@@ -271,5 +284,11 @@ class DatabaseSeeder extends Seeder
                 }
             }
         }
+
+        // Seed attendance data
+        $this->call(AttendanceSeeder::class);
+        
+        // Seed applicant data
+        $this->call(ApplicantSeeder::class);
     }
 }

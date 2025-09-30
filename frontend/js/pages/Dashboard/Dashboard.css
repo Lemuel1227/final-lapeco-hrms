@@ -2,6 +2,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
+    align-items: start;
 }
 .dashboard-grid-span-4 { grid-column: span 4; }
 .dashboard-grid-span-3 { grid-column: span 3; }
@@ -82,71 +83,39 @@
     gap: 1.5rem;
     margin-bottom: 1.5rem;
 }
-
-.my-status-card-revised {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
+.my-status-card-revised { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .my-status-card-revised .status-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
 .my-status-card-revised .status-icon.bi-calendar-check { color: var(--app-success-color); }
-.my-status-card-revised.day-off {
-    background: linear-gradient(135deg, #6c757d, #343a40);
-    color: var(--white-color);
-}
-.dark-theme .my-status-card-revised.day-off {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-}
-.my-status-card-revised.day-off .status-icon.bi-calendar-x { color: rgba(255,255,255,0.8); }
-.dark-theme .my-status-card-revised.day-off .status-icon.bi-calendar-x { color: var(--text-secondary); }
 .my-status-card-revised .status-text { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); }
-.my-status-card-revised.day-off .status-text { color: var(--white-color); }
-.dark-theme .my-status-card-revised.day-off .status-text { color: var(--text-primary); }
 .my-status-card-revised .status-detail { font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
-.my-status-card-revised.day-off .status-detail { color: rgba(255,255,255,0.7); }
-.dark-theme .my-status-card-revised.day-off .status-detail { color: var(--text-secondary); }
-
 .action-hub-card .card-body { padding: 0; }
 .action-hub-list { list-style: none; padding: 0; margin: 0; }
-.action-hub-item a {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-color);
-    text-decoration: none;
-    color: var(--text-primary);
-    transition: background-color 0.2s ease;
-}
+.action-hub-item a { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); text-decoration: none; color: var(--text-primary); transition: background-color 0.2s ease; }
 .action-hub-item:last-child a { border-bottom: none; }
 .action-hub-item a:hover { background-color: var(--bg-tertiary); }
+
+.action-item-highlight a {
+    background-color: var(--warning-color);
+    color: var(--text-primary) !important;
+}
+.dark-theme .action-item-highlight a {
+    background-color: rgba(var(--warning-rgb), 0.25);
+}
+.action-item-highlight a:hover {
+    filter: brightness(95%);
+}
+.dark-theme .action-item-highlight a:hover {
+    filter: brightness(120%);
+}
+.action-item-highlight .action-icon {
+    color: var(--text-primary) !important;
+}
+
 .action-hub-item .action-icon { font-size: 1.25rem; color: var(--text-secondary); width: 24px; text-align: center; transition: color 0.2s ease; }
 .action-hub-item a:hover .action-icon { color: var(--app-success-color); }
 .action-hub-item .action-label { font-weight: 500; flex-grow: 1; }
 .action-hub-item .action-value { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); }
 .action-hub-item .action-unit { font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.25rem; }
-
-.my-team-card .card-body, .upcoming-holidays-card .card-body {
-    padding: 0.75rem 1rem;
-    max-height: 150px;
-    overflow-y: auto;
-}
-.roster-snapshot-list, .holiday-snapshot-list { list-style: none; padding: 0; margin: 0; }
-.roster-item, .holiday-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.9rem;
-    padding: 0.4rem 0;
-}
-.roster-item .avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
-.roster-item .name { font-weight: 500; color: var(--text-primary); }
-.holiday-item i { color: var(--danger-color); }
-.holiday-item span { color: var(--text-primary); }
-
 .recent-activity-card .card-body { padding: 0.5rem 1.25rem; max-height: 280px; overflow-y: auto; }
 .activity-list { list-style: none; padding: 0; margin: 0; }
 .activity-item { display: flex; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid var(--border-color); }
@@ -155,39 +124,106 @@
 .activity-item .info .status { font-weight: 500; font-size: 0.9rem; color: var(--text-primary); }
 .activity-item .info .details { font-size: 0.8rem; display: block; color: var(--text-secondary); }
 
-.team-attendance-card .card-body,
-.whos-out-card .card-body {
-    padding: 0.5rem 1.25rem;
-    max-height: 280px;
+.whos_out-card .card-body {
+    padding: 0;
+    max-height: 320px;
     overflow-y: auto;
 }
-.attendance-list, .leave-list { list-style: none; padding: 0; margin: 0; }
-.attendance-item, .leave-item {
+.leave-list { list-style: none; padding: 0; margin: 0; }
+.leave-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1.25rem; border-bottom: 1px solid var(--border-color); }
+.leave-item:last-child { border-bottom: none; }
+.leave-item .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.leave-item .info { flex-grow: 1; }
+.leave-item .info .name { font-weight: 500; font-size: 0.9rem; color: var(--text-primary); }
+.leave-item .info .leave-type { font-size: 0.8rem; color: var(--text-secondary); }
+.leave-item .date-range { font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); flex-shrink: 0; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.status-present { background-color: var(--app-success-color); }
+.status-dot.status-late { background-color: var(--warning-color); }
+.status-dot.status-absent { background-color: var(--danger-color); }
+.status-dot.status-off { background-color: var(--text-secondary); }
+
+.manager-hub-grid { 
+    display: grid; 
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); 
+    align-items: stretch; 
+}
+.team-roster-snapshot, .actionable-reminders { 
+    padding: 1.25rem; 
+}
+.team-roster-snapshot { 
+    border-right: 1px solid var(--border-color); 
+}
+.dark-theme .team-roster-snapshot { 
+    border-right-color: var(--border-color); 
+}
+.roster-list { 
+    list-style: none; 
+    padding: 0; 
+    margin: 0; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 0.5rem; 
+}
+.roster-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 0.75rem; 
+    font-size: 0.9rem; 
+    padding: 0.4rem 0; 
+}
+.roster-item .avatar { 
+    width: 32px; 
+    height: 32px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+}
+.roster-item .name { 
+    font-weight: 500; 
+    color: var(--text-primary); 
+}
+.action-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+.action-item a {
     display: flex;
     align-items: center;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid var(--border-color);
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius);
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+    color: var(--text-secondary);
 }
-.attendance-item:last-child, .leave-item:last-child { border-bottom: none; }
-.attendance-item .info .name, .leave-item .info .name { font-weight: 500; font-size: 0.9rem; color: var(--text-primary); }
-.leave-item .date-box {
+.action-item a:hover {
     background-color: var(--bg-tertiary);
+    color: var(--text-primary);
 }
-.leave-item .date-box .day { color: var(--text-primary); }
+.action-item .action-icon { 
+    font-size: 1.1rem; 
+    width: 20px; 
+    text-align: center; 
+}
+.action-item .action-label { 
+    font-weight: 500; 
+    flex-grow: 1; 
+    color: var(--text-primary);
+}
+.action-item .action-badge { 
+    margin-left: auto; 
+}
 
-.manager-hub-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: stretch; }
-.team-roster-snapshot { padding: 1.25rem; border-right: 1px solid var(--border-color); }
-.dark-theme .team-roster-snapshot { border-right-color: var(--border-color); }
-.actionable-reminders { padding: 1.25rem; }
-.action-item a:hover { background-color: var(--bg-tertiary); }
-.action-item a:hover .action-icon, .action-item a:hover .action-label { color: var(--app-success-color); }
 
 @media (max-width: 1200px) {
     .employee-dashboard-grid-top { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 992px) {
     .dashboard-grid, .employee-dashboard-grid-top { grid-template-columns: repeat(2, 1fr); }
-    .dashboard-grid-span-4, .dashboard-grid-span-2, .dashboard-grid-span-1 { grid-column: span 2; }
+    .dashboard-grid-span-4, .dashboard-grid-span-3, .dashboard-grid-span-2, .dashboard-grid-span-1 { grid-column: span 2; }
 }
 @media (max-width: 768px) {
     .manager-hub-grid { grid-template-columns: 1fr; }
@@ -197,4 +233,21 @@
 @media (max-width: 576px) {
     .dashboard-grid, .employee-dashboard-grid-top { grid-template-columns: 1fr; }
     .dashboard-grid-span-4, .dashboard-grid-span-3, .dashboard-grid-span-2, .dashboard-grid-span-1 { grid-column: span 1; }
+}
+
+@media (max-width: 991.98px) {
+    .dashboard-stats-container {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 767.98px) {
+    .welcome-header {
+        padding: 1.25rem;
+    }
+    .welcome-header h2 {
+        font-size: 1.5rem;
+    }
+    .dashboard-stats-container {
+        grid-template-columns: 1fr;
+    }
 }

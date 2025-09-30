@@ -1,67 +1,61 @@
+// src/hooks/useReportGenerator.js (UPDATED)
+
 import { useState } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import logo from '../assets/logo.png';
+import { createPdfDoc, addHeader } from '../utils/pdfUtils';
+import { generateChartAsImage } from '../utils/chartGenerator';
+import reportGenerators from '../reports'; // Import the registry
 
 const useReportGenerator = () => {
   const [pdfDataUri, setPdfDataUri] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const generateReport = (reportId, params, dataSources) => {
+  const generateReport = async (reportId, params, dataSources) => {
     setIsLoading(true);
     setError(null);
     setPdfDataUri('');
 
-    const { employees, positions } = dataSources;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageTitle = "HRMS Report";
-    const generationDate = new Date().toLocaleDateString();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 40;
-
-    const addHeader = (title) => {
-      doc.addImage(logo, 'PNG', margin, 20, 80, 26);
-      doc.setFontSize(18);
-      doc.setFont(undefined, 'bold');
-      doc.text(title, pageWidth - margin, 40, { align: 'right' });
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.text(`Generated on: ${generationDate}`, pageWidth - margin, 55, { align: 'right' });
-      doc.setLineWidth(1);
-      doc.line(margin, 70, pageWidth - margin, 70);
-    };
-
     try {
-      switch (reportId) {
-        case 'employee_masterlist': {
-          addHeader("Employee Masterlist");
-          const positionMap = new Map(positions.map(p => [p.id, p.title]));
-          const tableColumns = ['ID', 'Name', 'Position', 'Email', 'Joining Date'];
-          const tableRows = employees.map(emp => [
-            emp.id,
-            emp.name,
-            positionMap.get(emp.positionId) || 'Unassigned',
-            emp.email,
-            emp.joiningDate
-          ]);
-          autoTable(doc, {
-            head: [tableColumns], body: tableRows, startY: 85, theme: 'striped', headStyles: { fillColor: [25, 135, 84] }
-          });
-          break;
-        }
-
-        case 'attendance_summary': {
-          addHeader("Attendance Summary");
-          doc.text("Attendance report logic would go here.", margin, 95);
-          doc.text(`Parameters received: Start: ${params.startDate}, End: ${params.endDate}`, margin, 110);
-          break;
-        }
-
-        default:
-          throw new Error('Unknown report type requested.');
+      const generator = reportGenerators[reportId];
+      if (!generator) {
+        throw new Error(`Report generator for ID "${reportId}" not found.`);
       }
+
+      // 1. Initialize Document
+      const { doc, pageWidth, margin } = createPdfDoc();
       
+      // 2. Add Header (except for payslip which has a custom layout)
+      let startY = margin;
+      if (reportId !== 'payslip') {
+        // Dynamically import config to avoid issues if it's not available server-side
+        const reportConfigModule = await import('../config/reports.config.js');
+        const reportConfig = reportConfigModule.reportsConfig;
+        const title = reportConfig.find(r => r.id === reportId)?.title || "Report";
+        startY = addHeader(doc, title, { pageWidth, margin });
+      }
+
+      // 3. Create a helper function to pass to generators that need charts
+      const addChartAndTitle = async (title, chartConfig) => {
+        const chartImage = await generateChartAsImage(chartConfig);
+        const chartHeight = 150;
+        if (startY + chartHeight + 35 > doc.internal.pageSize.getHeight()) {
+            doc.addPage();
+            startY = margin;
+        }
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text(title, margin, startY);
+        startY += 15;
+        doc.addImage(chartImage, 'PNG', margin, startY, pageWidth - (margin * 2), chartHeight);
+        startY += chartHeight + 20;
+        return startY;
+      };
+
+      // 4. Delegate to the specific report generator
+      const finalParams = { ...params, startY, pageWidth, margin };
+      await generator(doc, finalParams, dataSources, addChartAndTitle);
+
+      // 5. Finalize and set state
       const pdfBlob = doc.output('blob');
       setPdfDataUri(URL.createObjectURL(pdfBlob));
 
@@ -69,6 +63,7 @@ const useReportGenerator = () => {
       console.error("Error generating report:", e);
       setError(e.message);
     } finally {
+      // THE FIX: Ensure isLoading is always reset
       setIsLoading(false);
     }
   };

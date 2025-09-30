@@ -18,7 +18,17 @@ const TeamAttendanceCard = ({ teamMembers, schedules, attendanceLogs }) => {
       }
 
       const shiftStartTime = schedule.shift ? schedule.shift.split(' - ')[0] : '09:00';
-      if (log.signIn > shiftStartTime) {
+      
+      // Parse times for comparison with 15-minute late threshold
+      const [shiftHour, shiftMin] = shiftStartTime.split(':').map(Number);
+      const [signInHour, signInMin] = log.signIn.split(':').map(Number);
+      
+      // Convert to minutes for easier comparison
+      const shiftStartMinutes = shiftHour * 60 + shiftMin;
+      const signInMinutes = signInHour * 60 + signInMin;
+      const lateThresholdMinutes = shiftStartMinutes + 15; // 15 minutes late threshold
+      
+      if (signInMinutes > lateThresholdMinutes) {
         return { ...member, status: 'Late', statusClass: 'late', time: log.signIn };
       }
 

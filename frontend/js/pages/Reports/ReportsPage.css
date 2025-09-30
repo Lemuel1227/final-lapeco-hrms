@@ -1,54 +1,114 @@
-.reports-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
-  }
-  
-  .report-card {
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    display: flex;
-    flex-direction: column;
-    transition: all 0.2s ease-in-out;
-  }
-  
-  .report-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-    border-color: var(--app-success-color);
-  }
-  
-  .report-card-icon {
-    padding: 1.5rem;
-    text-align: center;
-    font-size: 3rem;
-    color: var(--app-success-color);
-    background-color: var(--light-gray);
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  .report-card-body {
-    padding: 1rem 1.25rem;
-    flex-grow: 1;
-  }
-  
-  .report-card-title {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--dark-gray);
-  }
-  
-  .report-card-description {
-    font-size: 0.85rem;
-    color: var(--secondary-color);
-    margin-bottom: 0;
-  }
-  
-  .report-card-footer {
-    padding: 0.75rem 1.25rem;
-    background-color: var(--light-gray);
-    border-top: 1px solid var(--border-color);
-    text-align: right;
-  }
+.reports-category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.category-filter-btn {
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-filter-btn:hover {
+  border-color: var(--app-success-color);
+  color: var(--app-success-color);
+}
+
+.category-filter-btn.active {
+  background-color: var(--app-success-color);
+  border-color: var(--app-success-color);
+  color: var(--text-on-success);
+}
+
+.category-filter-btn .badge {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+.category-filter-btn.active .badge {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    color: var(--text-on-success) !important;
+}
+
+.reports-content-area .search-bar {
+  margin-bottom: 1.5rem;
+  max-width: 500px;
+}
+
+.reports-grid-v2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.report-card-v2 {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease-in-out;
+}
+
+.report-card-v2:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  border-color: var(--app-success-color);
+}
+
+.report-card-v2-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.report-card-v2 .card-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(var(--app-success-rgb), 0.1);
+  color: var(--app-success-color);
+}
+
+.report-card-v2 .card-info {
+  flex-grow: 1;
+}
+
+.report-card-v2 .card-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+}
+
+.report-card-v2 .card-description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
+.report-card-v2-footer {
+  padding: 0.75rem 1.25rem;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  text-align: right;
+  margin-top: auto;
+}

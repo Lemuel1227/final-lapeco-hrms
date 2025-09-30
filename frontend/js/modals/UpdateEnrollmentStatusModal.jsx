@@ -14,9 +14,37 @@ const UpdateEnrollmentStatusModal = ({ show, onClose, onSave, enrollmentData }) 
   const handleStatusChange = (e) => {
     const newStatus = e.target.value;
     setStatus(newStatus);
-    if (newStatus === 'Completed') setProgress(100);
-    if (newStatus === 'Not Started') setProgress(0);
-    if (newStatus === 'In Progress' && progress === 0) setProgress(10);
+    
+    // Enforce status-progress consistency rules
+    if (newStatus === 'Completed') {
+      setProgress(100);
+    } else if (newStatus === 'Not Started') {
+      setProgress(0);
+    } else if (newStatus === 'Dropped') {
+      setProgress(0);
+    } else if (newStatus === 'In Progress' && progress === 0) {
+      setProgress(10);
+    }
+  };
+
+  const handleProgressChange = (e) => {
+    const newProgress = Number(e.target.value);
+    
+    // Validate progress based on current status
+    if (status === 'Dropped') {
+      return; // Don't allow progress changes when dropped
+    }
+    
+    setProgress(newProgress);
+    
+    // Auto-adjust status based on progress
+    if (newProgress === 0 && status !== 'Not Started') {
+      setStatus('Not Started');
+    } else if (newProgress === 100 && status !== 'Completed') {
+      setStatus('Completed');
+    } else if (newProgress > 0 && newProgress < 100 && status !== 'In Progress') {
+      setStatus('In Progress');
+    }
   };
 
   const handleSubmit = (e) => {
@@ -40,11 +68,26 @@ const UpdateEnrollmentStatusModal = ({ show, onClose, onSave, enrollmentData }) 
                   <option value="Not Started">Not Started</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Completed">Completed</option>
+                  <option value="Dropped">Dropped</option>
                 </select>
               </div>
               <div className="mb-3">
                 <label htmlFor="progress" className="form-label fw-bold">Progress (%)</label>
-                <input type="number" id="progress" className="form-control" value={progress} min="0" max="100" onChange={e => setProgress(Number(e.target.value))} />
+                <input 
+                  type="number" 
+                  id="progress" 
+                  className="form-control" 
+                  value={progress} 
+                  min="0" 
+                  max="100" 
+                  disabled={status === 'Dropped'}
+                  onChange={handleProgressChange}
+                />
+                {status === 'Dropped' && (
+                  <div className="form-text text-muted">
+                    Progress cannot be modified for dropped enrollments
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-footer"><button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary">Save Status</button></div>

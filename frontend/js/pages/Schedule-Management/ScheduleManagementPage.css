@@ -1,4 +1,3 @@
-/* === Main Layout & Controls === */
 .schedule-view-controls {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -21,7 +20,6 @@
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-/* === Daily View Header & Controls === */
 .daily-view-header {
   display: flex;
   justify-content: space-between;
@@ -59,7 +57,6 @@
   white-space: nowrap;
 }
 
-/* === Sortable Table Headers === */
 .data-table th.sortable {
   cursor: pointer;
   transition: background-color 0.2s ease-in-out;
@@ -80,8 +77,6 @@
   color: var(--app-success-color);
 }
 
-
-/* === Card List Layout === */
 .schedule-list-controls {
   margin-bottom: 1.5rem;
 }
@@ -170,7 +165,6 @@
   justify-content: flex-end;
 }
 
-/* === Schedule Preview View === */
 .schedule-preview-container {
   background-color: var(--bg-primary); 
   border: 1px solid var(--border-color);
@@ -241,17 +235,53 @@
   white-space: nowrap;
 }
 
-.dark-theme .react-select-container .react-select__control {
-    background-color: var(--input-bg);
-    border-color: var(--border-color);
+.schedule-builder-table th.editable-header {
+  position: relative;
+  padding-right: 2.5rem;
 }
-.dark-theme .react-select-container .react-select__single-value,
-.dark-theme .react-select-container .react-select__input-container {
-    color: var(--text-primary);
+
+.schedule-builder-table .delete-column-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
 }
-.dark-theme .react-select-container .react-select__menu {
-    background-color: var(--bg-primary);
+
+.schedule-builder-table th.editable-header:hover .delete-column-btn {
+  opacity: 1;
 }
-.dark-theme .react-select-container .react-select__option--is-focused {
-    background-color: var(--bg-tertiary);
+
+.schedule-builder-table .header-label {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  display: inline-block;
+  min-width: 80px;
+}
+.schedule-builder-table .header-label:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.schedule-builder-table .header-input {
+  border: 1px solid var(--app-success-color);
+  padding: 4px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.dark-theme .readonly-input {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border-color) !important;
 }

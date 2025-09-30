@@ -1,0 +1,143 @@
+.evaluation-selector-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.evaluation-selector-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.evaluation-selector-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.selector-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 1rem;
+}
+
+.selector-info {
+    flex-grow: 1;
+}
+
+.selector-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+
+.selector-position {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.status-summary-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.summary-card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.summary-card .summary-icon {
+    font-size: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 50%;
+    color: #fff;
+}
+.summary-card .summary-icon.icon-team { background-color: var(--text-secondary); }
+.summary-card .summary-icon.icon-due { background-color: var(--warning-color); color: var(--text-primary); }
+.summary-card .summary-icon.icon-completed { background-color: var(--app-success-color); }
+.summary-card .summary-info .summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+.summary-card .summary-info .summary-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.evaluation-selector-card-revised {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    padding: 1rem;
+    transition: all 0.2s ease-in-out;
+}
+.evaluation-selector-card-revised:hover {
+    border-color: var(--app-success-color);
+    box-shadow: var(--card-shadow);
+}
+.card-main-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.card-status-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background-color: var(--bg-secondary);
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius);
+}
+.status-item {
+    display: flex;
+    flex-direction: column;
+}
+.status-item .status-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.1rem;
+}
+.status-item .status-value {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+.status-badge-revised {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3em 0.7em;
+    border-radius: 20px;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.status-badge-revised.status-due {
+    background-color: var(--warning-color);
+    color: var(--text-primary);
+}
+.status-badge-revised.status-completed {
+    background-color: var(--app-success-color);
+    color: var(--text-on-success);
+}
+.card-action-button {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .evaluation-selector-card-revised {
+        grid-template-columns: 1fr;
+    }
+}   

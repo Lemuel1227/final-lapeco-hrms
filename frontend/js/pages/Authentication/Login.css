@@ -1,5 +1,5 @@
 .bg-container {
-  background-image: url('/background.png');
+  background-image: url('../../assets/background.png');
   background-size: cover;
   background-position: center;
 }
@@ -22,14 +22,14 @@
 
 .login-title {
   font-weight: 300;
-  color: #212529;
+  color: var(--text-primary);
   font-size: 1.85rem;
   margin-bottom: 1.5rem !important;
 }
 
 .login-label {
   font-weight: 500;
-  color: #495057;
+  color: var(--text-secondary);
   font-size: 0.875rem;
   margin-bottom: 0.25rem !important;
 }
@@ -55,12 +55,10 @@
 }
 
 .login-input-group-text i {
-  color: #495057;
+  color: var(--text-secondary);
 }
 
 .login-error-container {
-  min-height: 44px;
-  display: flex;
   align-items: center;
 }
 

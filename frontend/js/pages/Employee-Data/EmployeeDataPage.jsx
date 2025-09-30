@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import './EmployeeDataPage.css';
 import AddEditEmployeeModal from '../../modals/AddEditEmployeeModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import RequirementsChecklist from './RequirementsChecklist';
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import ConfirmationModal from '../../modals/ConfirmationModal';
 import placeholderImage from '../../assets/placeholder-profile.jpg';
+import useReportGenerator from '../../hooks/useReportGenerator';
 import logo from '../../assets/logo.png';
 import { employeeAPI } from '../../services/api';
 import { positionAPI } from '../../services/api';
@@ -30,8 +30,11 @@ const EmployeeDataPage = () => {
   const [viewingEmployee, setViewingEmployee] = useState(null);
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [showReportPreviewModal, setShowReportPreviewModal] = useState(false);
-  const [pdfDataUri, setPdfDataUri] = useState('');
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showReportPreview, setShowReportPreview] = useState(false);
+  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+
   const [reportTitle, setReportTitle] = useState('');
 
   const normalizeEmployee = (e) => ({
@@ -39,7 +42,6 @@ const EmployeeDataPage = () => {
     name: e.name,
     email: e.email,
     role: e.role,
-    employeeId: e.employee_id ?? e.employeeId ?? null,
     positionId: e.position_id ?? e.positionId ?? null,
     position: e.position ?? null,
     joiningDate: e.joining_date ?? e.joiningDate ?? null,
@@ -65,14 +67,27 @@ const EmployeeDataPage = () => {
           positionAPI.getAll(),
         ]);
         const empData = Array.isArray(empRes.data) ? empRes.data : (empRes.data?.data || []);
-        setEmployees(empData.map(normalizeEmployee));
-
         const posData = Array.isArray(posRes.data) ? posRes.data : (posRes.data?.data || []);
+        
+        // Create position lookup map
+        const positionMap = {};
+        posData.forEach(p => {
+          positionMap[p.id] = p.title ?? p.name;
+        });
+        
+        // Normalize employees and add position title
+        const normalizedEmployees = empData.map(e => {
+          const normalized = normalizeEmployee(e);
+          normalized.positionTitle = normalized.positionId ? positionMap[normalized.positionId] : null;
+          return normalized;
+        });
+        
+        setEmployees(normalizedEmployees);
+
         // Normalize positions to { id, title }
         setPositions(posData.map(p => ({ id: p.id, title: p.title ?? p.name })));
         setError(null);
       } catch (err) {
-        console.error('Error fetching data:', err);
         setError('Failed to load data. Please try again.');
         setEmployees([]);
         setPositions([]);
@@ -112,26 +127,77 @@ const EmployeeDataPage = () => {
         // Refresh
         const response = await employeeAPI.getAll();
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-        setEmployees(empData.map(normalizeEmployee));
+        
+        // Create position lookup map for refresh
+        const positionMap = {};
+        positions.forEach(p => {
+          positionMap[p.id] = p.title;
+        });
+        
+        // Normalize employees and add position title
+        const normalizedEmployees = empData.map(e => {
+          const normalized = normalizeEmployee(e);
+          normalized.positionTitle = normalized.positionId ? positionMap[normalized.positionId] : null;
+          return normalized;
+        });
+        
+        setEmployees(normalizedEmployees);
         setShowAddEditModal(false);
       } catch (err) {
-        console.error('Error saving employee:', err);
         const apiErrors = err?.response?.data?.errors;
         const message = apiErrors ? Object.values(apiErrors).flat().join('\n') : 'Failed to save employee. Please try again.';
         alert(message);
       }
     }, 
     deleteEmployee: async (employeeId) => {
+      if (isDeleting) return; // Prevent double-click
+      
+      setIsDeleting(true);
       try {
         await employeeAPI.delete(employeeId);
         const response = await employeeAPI.getAll();
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData.map(normalizeEmployee));
       } catch (err) {
-        console.error('Error deleting employee:', err);
-        alert('Failed to delete employee. Please try again.');
+        if (err.response?.status === 404) {
+          alert('Employee not found. It may have already been deleted.');
+          // Refresh data to sync with server state
+          try {
+            const response = await employeeAPI.getAll();
+            const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+            setEmployees(empData.map(normalizeEmployee));
+          } catch (refreshError) {
+          }
+        } else {
+          alert('Failed to delete employee. Please try again.');
+        }
+      } finally {
+        setIsDeleting(false);
       }
     } 
+  };
+
+  const handleOpenDeleteConfirm = (e, employee) => { 
+    e.stopPropagation(); 
+    setEmployeeToDelete(employee);
+  };
+  
+  const handleCloseDeleteConfirm = () => {
+    if (!isDeleting) {
+      setEmployeeToDelete(null);
+    }
+  };
+
+  const confirmDeleteEmployee = async () => {
+    if (employeeToDelete && !isDeleting) {
+      try {
+        await handlers.deleteEmployee(employeeToDelete.id);
+        setEmployeeToDelete(null);
+      } catch (error) {
+        // Error handling is done in the deleteEmployee handler
+        // Keep the modal open if there was an error
+      }
+    }
   };
 
   const uniquePositions = useMemo(() => ['All Positions', ...new Set(employees.map(emp => emp.position).filter(Boolean).sort())], [employees]);
@@ -140,7 +206,12 @@ const EmployeeDataPage = () => {
     let records = employees.map(emp => ({...emp}));
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      records = records.filter(emp => emp.name.toLowerCase().includes(lowerSearchTerm) || emp.email.toLowerCase().includes(lowerSearchTerm) || (emp.position || '').toLowerCase().includes(lowerSearchTerm) || String(emp.id).toLowerCase().includes(lowerSearchTerm) );
+      records = records.filter(emp => 
+        (emp.name || '').toLowerCase().includes(lowerSearchTerm) || 
+        (emp.email || '').toLowerCase().includes(lowerSearchTerm) || 
+        (emp.position || '').toLowerCase().includes(lowerSearchTerm) || 
+        String(emp.id || '').toLowerCase().includes(lowerSearchTerm)
+      );
     }
     if (positionFilter) { records = records.filter(emp => emp.position === positionFilter); }
     if (joiningDateFilter) { records = records.filter(emp => emp.joiningDate === joiningDateFilter); }
@@ -156,6 +227,11 @@ const EmployeeDataPage = () => {
     }
     return records;
   }, [searchTerm, positionFilter, joiningDateFilter, statusFilter, sortConfig, employees]);
+  
+  const isFiltered = searchTerm || positionFilter || statusFilter;
+  const countText = isFiltered 
+    ? `Showing ${filteredAndSortedEmployees.length} of ${employees.length} employees` 
+    : `${employees.length} total employees`;
   
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -196,13 +272,14 @@ const EmployeeDataPage = () => {
 
  const handleDeleteEmployee = (e, employeeId) => { 
     e.stopPropagation(); 
-    if (window.confirm(`Are you sure you want to delete employee ${employeeId}?`)) { 
-      handlers.deleteEmployee(employeeId); 
-    } 
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (employee) {
+      setEmployeeToDelete(employee);
+    }
   };
   
   const handleCloseReportPreview = () => { 
-    setShowReportPreviewModal(false); 
+    setShowReportPreview(false); 
     setPdfDataUri(''); 
   };
 
@@ -214,66 +291,17 @@ const EmployeeDataPage = () => {
     setIsViewOnlyMode(true);
   };
 
-  const generateEmployeeReportPdf = () => {
+  const handleGenerateReport = () => {
     if (!filteredAndSortedEmployees || filteredAndSortedEmployees.length === 0) {
         alert("No employee data to generate a report for the current filter.");
         return;
     }
-
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-    const pageTitle = "Employee Data Report";
-    const generationDate = new Date().toLocaleDateString();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 40;
-    
-    doc.addImage(logo, 'PNG', margin, 20, 80, 26);
-    doc.setFontSize(18); doc.setFont(undefined, 'bold');
-    doc.text(pageTitle, pageWidth - margin, 40, { align: 'right' });
-    doc.setFontSize(10); doc.setFont(undefined, 'normal');
-    doc.text(`Generated on: ${generationDate}`, pageWidth - margin, 55, { align: 'right' });
-    doc.setLineWidth(1);
-    doc.line(margin, 70, pageWidth - margin, 70);
-
-    const totalEmployees = filteredAndSortedEmployees.length;
-    const positionCounts = filteredAndSortedEmployees.reduce((acc, emp) => {
-        acc[emp.position || 'Unassigned'] = (acc[emp.position || 'Unassigned'] || 0) + 1;
-        return acc;
-    }, {});
-    
-    let summaryY = 95;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text('Report Summary', margin, summaryY);
-    summaryY += 18;
-    
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`- Total Employees in Report: ${totalEmployees}`, margin + 10, summaryY);
-    summaryY += 15;
-    doc.text(`- Breakdown by Position:`, margin + 10, summaryY);
-    summaryY += 15;
-    
-    Object.entries(positionCounts).forEach(([position, count]) => {
-        doc.text(`  • ${position}: ${count} employee(s)`, margin + 20, summaryY);
-        summaryY += 15;
-    });
-
-    summaryY += 10;
-
-    const tableColumns = ['ID', 'Name', 'Position', 'Email', 'Status', 'Joining Date'];
-    const tableRows = filteredAndSortedEmployees.map(emp => [
-          emp.id, emp.name, emp.positionTitle, emp.email, emp.status || 'Pending', emp.joiningDate,
-    ]);
-
-    autoTable(doc, {
-      head: [tableColumns], body: tableRows, startY: 95, theme: 'striped',
-      headStyles: { fillColor: [25, 135, 84] },
-    });
-
-    setReportTitle(pageTitle);
-    const pdfBlob = doc.output('blob');
-    setPdfDataUri(URL.createObjectURL(pdfBlob));
-    setShowReportPreviewModal(true);
+    generateReport(
+        'employee_masterlist', 
+        {}, 
+        { employees: filteredAndSortedEmployees, positions }
+    );
+    setShowReportPreview(true);
   };
   
   const renderCardView = () => (
@@ -340,7 +368,7 @@ const EmployeeDataPage = () => {
                     {emp.name}
                 </div>
               </td>
-              <td>{emp.positionTitle}</td>
+              <td>{emp.positionTitle || 'Unassigned'}</td>
               <td>{emp.joiningDate}</td>
               <td><span className={`status-badge-employee status-badge-${(emp.status || 'pending').toLowerCase()}`}>{emp.status || 'Pending'}</span></td>
               <td>
@@ -373,7 +401,7 @@ const EmployeeDataPage = () => {
       <header className="page-header d-flex justify-content-between align-items-center mb-4">
           <div className="d-flex align-items-center"><h1 className="page-main-title me-3">Employee Data</h1><span className="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">{filteredAndSortedEmployees.length === employees.length ? `${employees.length} employees` : `Showing ${filteredAndSortedEmployees.length} of ${employees.length}`}</span></div>
         <div className="header-actions d-flex align-items-center gap-2">
-            <button className="btn btn-outline-secondary" onClick={generateEmployeeReportPdf} disabled={!employees || employees.length === 0}><i className="bi bi-file-earmark-text-fill"></i> Generate Report</button>
+            <button className="btn btn-outline-secondary" onClick={handleGenerateReport} disabled={!employees || employees.length === 0}><i className="bi bi-file-earmark-text-fill"></i> Generate Report</button>
             <button className="btn btn-success" onClick={handleOpenAddModal}><i className="bi bi-person-plus-fill"></i> Add New Employee</button>
         </div>
       </header>
@@ -431,7 +459,27 @@ const EmployeeDataPage = () => {
               {activeTab === 'requirements' && (      
             <RequirementsChecklist employees={employees} />
           )}
-      
+
+          {(isLoading || pdfDataUri) && (
+            <ReportPreviewModal
+              show={showReportPreview}
+              onClose={handleCloseReportPreview}
+              pdfDataUri={pdfDataUri}
+              reportTitle="Employee Masterlist"
+            />
+          )}
+          <ConfirmationModal
+            show={!!employeeToDelete}
+            onClose={handleCloseDeleteConfirm}
+            onConfirm={confirmDeleteEmployee}
+            title="Confirm Employee Deletion"
+            confirmText={isDeleting ? 'Deleting...' : 'Yes, Delete'}
+            confirmVariant="danger"
+            disabled={isDeleting}
+          >
+            <p>Are you sure you want to permanently delete <strong>{employeeToDelete?.name} ({employeeToDelete?.id})</strong>?</p>
+            <p className="text-danger">This action cannot be undone.</p>
+          </ConfirmationModal>
           {showModal && ( 
             <AddEditEmployeeModal 
               show={showModal} 
@@ -443,8 +491,6 @@ const EmployeeDataPage = () => {
               onSwitchToEdit={handleSwitchToEditMode}
             /> 
           )}
-     
-          {showReportPreviewModal && ( <ReportPreviewModal show={showReportPreviewModal} onClose={handleCloseReportPreview} pdfDataUri={pdfDataUri} reportTitle={reportTitle} /> )}
     </div>
   );
 };

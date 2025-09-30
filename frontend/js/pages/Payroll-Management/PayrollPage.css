@@ -1,96 +1,170 @@
-.payroll-summary-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    background-color: #fff;
-    padding: 1rem;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--card-shadow);
-  }
-  .summary-stat-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding-right: 1rem;
-    border-right: 1px solid var(--medium-gray);
-  }
-  .summary-stat-item:last-child {
-    border-right: none;
-  }
-  .summary-stat-item .stat-icon {
-    font-size: 1.75rem;
-    padding: 0.5rem;
-    border-radius: 50%;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-  }
-  .summary-stat-item .stat-icon.icon-all { background-color: var(--dark-gray); }
-  .summary-stat-item .stat-icon.icon-pending { background-color: var(--warning-color); }
-  .summary-stat-item .stat-icon.icon-completed { background-color: var(--app-success-color); }
-  
-  .summary-stat-item .stat-details .stat-value {
-    font-size: 1.5rem;
-    font-weight: 600;
-    display: block;
-    line-height: 1.2;
-  }
-  .summary-stat-item .stat-details .stat-label {
-    font-size: 0.8rem;
-    color: var(--secondary-color);
-    text-transform: uppercase;
-  }
-  
-  /* === Payroll Group Card & Header === */
-  .payroll-group-card { background-color: #fff; border: 1px solid var(--border-color); border-radius: var(--border-radius); margin-bottom: 1rem; box-shadow: var(--card-shadow); overflow: hidden; }
-  .payroll-group-header { padding: 0.75rem 1.25rem; cursor: pointer; background-color: var(--light-gray); display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s ease; }
-  .payroll-group-header:hover { background-color: var(--medium-gray); }
-  .payroll-group-header .group-title-section { display: flex; align-items: center; gap: 1rem; }
-  .payroll-group-header .group-title { font-size: 1.2rem; font-weight: 600; margin: 0; }
-  .payroll-group-header .group-title i { transition: transform 0.3s ease-in-out; }
-  .payroll-group-header .group-title[aria-expanded="false"] i { transform: rotate(-90deg); }
-  .payroll-group-header .header-status-badge { font-size: 0.7rem; font-weight: 600; padding: 0.4em 0.8em; }
-  
-  /* === In-Group Filter Buttons === */
-  .record-filter-group .btn { font-size: 0.75rem; font-weight: 500; padding: 0.2rem 0.6rem; }
-  .record-filter-group .btn.active { background-color: var(--dark-gray); border-color: var(--dark-gray); color: #fff; }
-  
-  /* === Inner Data Table Styles === */
-  .payroll-group-content .data-table th { font-weight: 500; color: var(--secondary-color); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; background-color: #fff; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-  .payroll-group-content .data-table td { border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-  .payroll-group-content .data-table tr:last-child td { border-bottom: none; }
-  
-  /* Sorting styles */
-  .data-table th.sortable { cursor: pointer; }
-  .data-table th.sortable:hover { color: var(--dark-gray); }
-  .data-table .sort-icon { opacity: 0.4; transition: opacity 0.2s ease; }
-  .data-table th.sortable:hover .sort-icon { opacity: 1; }
-  .data-table .sort-icon.active { opacity: 1; color: var(--app-success-color); }
-  
-  /* Column-specific alignment and width */
-  .col-id { width: 12%; text-align: left; }
-  .col-name { width: 25%; text-align: left; }
-  .col-hours { width: 10%; text-align: right; }
-  .col-currency { width: 14%; text-align: right; }
-  .col-status { width: 8%; text-align: center; }
-  .col-action { width: 8%; text-align: center; }
-  
-  .data-table th.text-right, .data-table td.text-right { text-align: right; padding-right: 1.5rem; }
-  .data-table th.text-center, .data-table td.text-center { text-align: center; }
-  .data-table .btn-adjust { font-size: 0.85rem; padding: 0.25rem 0.75rem; }
-  
-  /* Status Badge Styles */
-  .status-badge { color: #fff; padding: 0.35em 0.7em; font-size: 0.75rem; font-weight: 500; border-radius: 6px; text-transform: uppercase; }
-  .status-paid { background-color: var(--app-success-color); }
-  .status-pending { background-color: var(--warning-color); color: var(--warning-text-color) !important; }
-
-  .table-controls-row {
+.payroll-nav-tabs {
+    margin-bottom: -1px;
+}
+.payroll-nav-tabs .nav-link {
+    font-weight: 500;
+    color: var(--text-secondary);
     padding: 0.75rem 1.25rem;
-    background-color: #f8f9fa; /* light-gray */
+    font-size: 1rem;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    border: 1px solid transparent !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+.payroll-nav-tabs .nav-link.active {
+    color: var(--app-success-color);
+    border-color: var(--border-color) var(--border-color) var(--bg-secondary) !important;
+    background-color: var(--bg-secondary);
+    font-weight: 600;
+}
+.payroll-tab-content {
+    background-color: var(--bg-secondary);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+/* --- Payroll Generation Page --- */
+.payroll-generation-summary { 
+    background-color: var(--bg-primary); 
+    border: 1px solid var(--border-color); 
+    border-radius: var(--border-radius); 
+    padding: 1.25rem; 
+}
+.summary-item { 
+    text-align: center; 
+}
+.summary-item .summary-label { 
+    font-size: 0.8rem; 
+    text-transform: uppercase; 
+    font-weight: 500; 
+    color: var(--text-secondary); 
+    margin-bottom: 0.25rem; 
+}
+.summary-item .summary-value { 
+    font-size: 1.75rem; 
+    font-weight: 700; 
+    line-height: 1.1; 
+    color: var(--text-primary);
+}
+
+/* --- Payroll History Page --- */
+.payroll-history-controls { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    gap: 1rem; 
+    flex-wrap: wrap; /* Added for responsiveness */
+}
+.payroll-history-controls .input-group { 
+    max-width: 400px;
+    flex-grow: 1; /* Added for responsiveness */
+}
+.payroll-history-controls .btn-group .btn { 
+    font-weight: 500; 
+}
+
+.payroll-run-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.payroll-run-card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+.payroll-run-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+    border-color: var(--app-success-color);
+}
+.payroll-run-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+}
+.payroll-run-card .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+.payroll-run-card .card-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+.payroll-run-card .card-body {
+    padding: 1rem;
+}
+.stats-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.stats-list .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.stats-list dt {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+.stats-list dd {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+}
+.stats-list .net-payout {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--app-success-color);
+}
+.payroll-run-card .card-footer {
+    padding: 0.75rem 1rem;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.status-badge { 
+    color: var(--white-color); 
+    padding: 0.3em 0.6em; 
+    font-size: 0.75rem; 
+    font-weight: 500; 
+    border-radius: var(--border-radius); 
+    text-transform: uppercase; 
+}
+.status-paid { 
+    background-color: var(--app-success-color); 
+}
+.status-pending { 
+    background-color: var(--warning-color); 
+    color: var(--text-primary) !important; 
+}
+
+/* Detail Modal */
+.modal-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.dark-theme .payroll-generation-container .card-title {
+    color: var(--text-primary);
 }

@@ -1,13 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
+import React, { useState, useMemo, useEffect } from 'react';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import './RecruitmentPage.css';
 import KanbanColumn from './KanbanColumn';
 import AddApplicantModal from '../../modals/AddApplicantModal';
@@ -15,7 +7,13 @@ import ViewApplicantDetailsModal from '../../modals/ViewApplicantDetailsModal';
 import ScheduleInterviewModal from '../../modals/ScheduleInterviewModal';
 import HireApplicantModal from '../../modals/HireApplicantModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
-import Layout from '@/layout/Layout';
+import AccountGeneratedModal from '../../modals/AccountGeneratedModal';
+import ConfirmationModal from '../../modals/ConfirmationModal';
+import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
+import ActionsDropdown from '../../common/ActionsDropdown';
+import { reportsConfig } from '../../config/reports.config';
+import useReportGenerator from '../../hooks/useReportGenerator';
+import { positionAPI, applicantAPI } from '../../services/api';
 
 const PIPELINE_STAGES = ['New Applicant', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
 
@@ -36,31 +34,138 @@ const formatDate = (dateString, includeTime = false) => {
   return new Date(dateString).toLocaleDateString('en-US', options);
 };
 
-const RecruitmentPage = (props) => {
-  // Defensive defaults for required props
-  const jobOpenings = props.jobOpenings || [];
-  const applicants = props.applicants || [];
-  const positions = props.positions || [];
-  const handlers = props.handlers || {};
-  
+const RecruitmentPage = () => {
   const [viewMode, setViewMode] = useState('board');
   const [showApplicantModal, setShowApplicantModal] = useState(false);
-  const [showJobOpeningModal, setShowJobOpeningModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [showHireModal, setShowHireModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [pdfDataUri, setPdfDataUri] = useState('');
+  const [showReportConfigModal, setShowReportConfigModal] = useState(false);
+  
+  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+  const [showReportPreview, setShowReportPreview] = useState(false);
   
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'applicationDate', direction: 'descending' });
+  
+  // State for positions data
+  const [positions, setPositions] = useState([]);
+  const [loadingPositions, setLoadingPositions] = useState(false);
 
-  const jobOpeningsMap = useMemo(() => new Map(jobOpenings.map(job => [job.id, job.title])), [jobOpenings]);
+  // State for applicants data
+  const [applicants, setApplicants] = useState([]);
+  const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [errorApplicants, setErrorApplicants] = useState(null);
+
+  // State for job openings (if needed later)
+  const [jobOpenings, setJobOpenings] = useState([]);
+
+  // Fetch positions data for the applicant modal
+  useEffect(() => {
+    const fetchPositions = async () => {
+      if (positions.length === 0) {
+        try {
+          setLoadingPositions(true);
+          const response = await positionAPI.getAllPublic();
+          setPositions(response.data || []);
+        } catch (error) {
+          setPositions([]);
+        } finally {
+          setLoadingPositions(false);
+        }
+      }
+    };
+
+    fetchPositions();
+  }, [positions.length]);
+
+  // Fetch applicants data
+  useEffect(() => {
+    const fetchApplicants = async () => {
+      try {
+        setLoadingApplicants(true);
+        setErrorApplicants(null);
+        const response = await applicantAPI.getAll();
+        setApplicants(response.data || []);
+      } catch (error) {
+        setErrorApplicants('Failed to load applicants. Please try again.');
+        setApplicants([]);
+      } finally {
+        setLoadingApplicants(false);
+      }
+    };
+
+    fetchApplicants();
+  }, []);
+  const [sortConfig, setSortConfig] = useState({ key: 'application_date', direction: 'descending' });
+  const [newlyGeneratedAccount, setNewlyGeneratedAccount] = useState(null);
+  const [applicantToDelete, setApplicantToDelete] = useState(null);
+  const [hireValidationErrors, setHireValidationErrors] = useState(null);
+
+  // Handlers for applicant operations
+  const handleSaveApplicant = async (applicantData) => {
+    try {
+      const response = await applicantAPI.create(applicantData);
+      setApplicants(prev => [...prev, response.data]);
+      setShowApplicantModal(false);
+    } catch (error) {
+      // Handle error (show toast, etc.)
+    }
+  };
+
+  const handleUpdateApplicantStatus = async (applicantId, newStatus) => {
+    try {
+      const response = await applicantAPI.updateStatus(applicantId, { status: newStatus });
+      setApplicants(prev => 
+        prev.map(app => 
+          app.id === applicantId 
+            ? { ...app, status: newStatus }
+            : app
+        )
+      );
+    } catch (error) {
+      // Handle error (show toast, etc.)
+    }
+  };
+
+  const handleScheduleInterview = async (applicantId, interviewData) => {
+    try {
+      const response = await applicantAPI.scheduleInterview(applicantId, interviewData);
+      setApplicants(prev => 
+        prev.map(app => 
+          app.id === applicantId 
+            ? { ...app, status: 'Interview', interview_schedule: response.data.applicant.interview_schedule }
+            : app
+        )
+      );
+      setShowInterviewModal(false);
+    } catch (error) {
+      // Handle error (show toast, etc.)
+    }
+  };
+
+  const handleDeleteApplicant = async (applicantId) => {
+    try {
+      await applicantAPI.delete(applicantId);
+      setApplicants(prev => prev.filter(app => app.id !== applicantId));
+      setApplicantToDelete(null);
+    } catch (error) {
+      // Handle error (show toast, etc.)
+    }
+  };
+
+  const jobOpeningsMap = useMemo(() => {
+    if (!jobOpenings || !Array.isArray(jobOpenings)) return new Map();
+    return new Map(jobOpenings.map(job => [job.id, job.title]));
+  }, [jobOpenings]);
+  
+  const recruitmentReportConfig = useMemo(() => reportsConfig.find(r => r.id === 'recruitment_activity'), []);
 
   const filteredApplicants = useMemo(() => {
+    if (!applicants || !Array.isArray(applicants)) return [];
+    
     let results = [...applicants];
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
@@ -68,15 +173,19 @@ const RecruitmentPage = (props) => {
     if (end) end.setHours(23, 59, 59, 999);
     if (start || end) {
         results = results.filter(app => {
-            const appDate = new Date(app.applicationDate);
-            const updateDate = new Date(app.lastStatusUpdate);
+            if (!app.application_date) return false;
+            const appDate = new Date(app.application_date);
             const inRange = (date) => (!start || date >= start) && (!end || date <= end);
-            return inRange(appDate) || inRange(updateDate);
+            return inRange(appDate);
         });
     }
     if (searchTerm) {
         const lowerSearch = searchTerm.toLowerCase();
-        results = results.filter(app => app.name.toLowerCase().includes(lowerSearch) || app.email.toLowerCase().includes(lowerSearch));
+        results = results.filter(app => {
+            const name = app.name || '';
+            const email = app.email || '';
+            return name.toLowerCase().includes(lowerSearch) || email.toLowerCase().includes(lowerSearch);
+        });
     }
     results.sort((a, b) => {
         const valA = a[sortConfig.key] || '';
@@ -89,17 +198,15 @@ const RecruitmentPage = (props) => {
   }, [applicants, searchTerm, startDate, endDate, sortConfig]);
   
   const stats = useMemo(() => {
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
-    const inRange = (date) => (!start || date >= start) && (!end || date <= end);
+    if (!filteredApplicants || !Array.isArray(filteredApplicants)) {
+        return { totalApplicants: 0, newlyHired: 0, interviewsSet: 0 };
+    }
     return {
         totalApplicants: filteredApplicants.length,
-        newlyHired: filteredApplicants.filter(a => a.status === 'Hired' && inRange(new Date(a.lastStatusUpdate))).length,
-        interviewsSet: filteredApplicants.filter(a => a.status === 'Interview' && inRange(new Date(a.lastStatusUpdate))).length
+        newlyHired: filteredApplicants.filter(a => a.status === 'Hired').length,
+        interviewsSet: filteredApplicants.filter(a => a.status === 'Interview').length
     };
-  }, [filteredApplicants, startDate, endDate]);
+  }, [filteredApplicants]);
 
   const dateRangeText = useMemo(() => {
     if (startDate && endDate) return `${formatDate(startDate)} - ${formatDate(endDate)}`;
@@ -108,19 +215,53 @@ const RecruitmentPage = (props) => {
     return 'All Time';
   }, [startDate, endDate]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
+
     const applicantId = parseInt(active.id, 10);
-    const originalStatus = active.data.current?.applicant?.status;
+    const applicantData = active.data.current?.applicant;
+    const originalStatus = applicantData?.status;
     const newStatus = over.id;
+
     if (originalStatus && newStatus && originalStatus !== newStatus && PIPELINE_STAGES.includes(newStatus)) {
-      handlers.updateApplicantStatus(applicantId, newStatus);
+      if (newStatus === 'Hired') {
+        setSelectedApplicant(applicantData);
+        setShowHireModal(true);
+      } else if (newStatus === 'Interview') {
+        setSelectedApplicant(applicantData);
+        setShowInterviewModal(true);
+      } else {
+        handleUpdateApplicantStatus(applicantId, newStatus);
+      }
     }
+  };
+  
+  const handleConfirmDelete = () => {
+    if (applicantToDelete) {
+      handlers.deleteApplicant(applicantToDelete.id);
+      setApplicantToDelete(null);
+    }
+  };
+  
+  const handleRunReport = (reportId, params) => {
+    setShowReportConfigModal(false);
+    generateReport(
+      reportId, 
+      { startDate: params.startDate, endDate: params.endDate },
+      { applicants, jobOpenings }
+    );
+    setShowReportPreview(true);
+  };
+  
+  const handleClosePreview = () => {
+    setShowReportPreview(false);
+    if (pdfDataUri) {
+        URL.revokeObjectURL(pdfDataUri);
+    }
+    setPdfDataUri('');
   };
 
   const requestSort = (key) => {
@@ -133,71 +274,60 @@ const RecruitmentPage = (props) => {
     return sortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
   };
   
-  const handleGenerateReport = () => {
-    if (!filteredApplicants || filteredApplicants.length === 0) {
-      alert("No data to generate a report for the current filters.");
-      return;
-    }
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
-    const inRange = (date) => (!start || date >= start) && (!end || date <= end);
-    const reportData = {
-        applied: filteredApplicants.filter(app => inRange(new Date(app.applicationDate))),
-        hired: filteredApplicants.filter(app => app.status === 'Hired' && inRange(new Date(app.lastStatusUpdate))),
-        rejected: filteredApplicants.filter(app => app.status === 'Rejected' && inRange(new Date(app.lastStatusUpdate))),
-        interview: filteredApplicants.filter(app => app.status === 'Interview' && inRange(new Date(app.lastStatusUpdate))),
-    };
-    const doc = new jsPDF();
-    const pageTitle = "Recruitment Activity Report";
-    const dateRange = startDate && endDate ? `${formatDate(startDate)} to ${formatDate(endDate)}` : 'All Time';
-    let finalY = 0;
-    doc.setFontSize(18); doc.text(pageTitle, 14, 22);
-    doc.setFontSize(11); doc.text(`Date Range: ${dateRange}`, 14, 30);
-    finalY = 35;
-    const createSummarySection = (label, applicants) => {
-        if (applicants.length === 0) return;
-        if (finalY > 250) { doc.addPage(); finalY = 20; }
-        finalY += 10;
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.text(`${label} (${applicants.length})`, 14, finalY);
-        finalY += 7;
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        applicants.forEach(app => {
-            if (finalY > 280) { doc.addPage(); finalY = 20; }
-            doc.text(`- ${app.name} (Applied for: ${jobOpeningsMap.get(app.jobOpeningId) || 'N/A'})`, 20, finalY);
-            finalY += 5;
-        });
-    };
-    createSummarySection('New Applications Received', reportData.applied);
-    createSummarySection('Applicants Moved to Interview', reportData.interview);
-    createSummarySection('Applicants Hired', reportData.hired);
-    createSummarySection('Applicants Rejected', reportData.rejected);
-    finalY += 10;
-    if (finalY > 260) { doc.addPage(); finalY = 20; }
-    autoTable(doc, {
-        head: [['Applicant', 'Job', 'Status', 'Applied On', 'Last Updated']],
-        body: filteredApplicants.map(app => [
-            app.name, jobOpeningsMap.get(app.jobOpeningId) || 'N/A', app.status,
-            formatDate(app.applicationDate), formatDate(app.lastStatusUpdate, true)
-        ]),
-        startY: finalY
-    });
-    setPdfDataUri(doc.output('datauristring'));
-    setShowReportModal(true);
-  };
-
   const handleAction = (action, data) => {
     switch (action) {
       case 'view': setSelectedApplicant(data); setShowViewModal(true); break;
-      case 'move': handlers.updateApplicantStatus(data.applicantId, data.newStatus); break;
+      case 'move': handleUpdateApplicantStatus(data.applicantId, data.newStatus); break;
       case 'scheduleInterview': setSelectedApplicant(data); setShowInterviewModal(true); break;
       case 'hire': setSelectedApplicant(data); setShowHireModal(true); break;
-      case 'reject': if(window.confirm("Are you sure you want to reject this applicant?")) handlers.updateApplicantStatus(data.id, 'Rejected'); break;
+      case 'reject': if(window.confirm("Are you sure you want to reject this applicant?")) handleUpdateApplicantStatus(data.id, 'Rejected'); break;
+      case 'delete': setApplicantToDelete(data); break;
       default: break;
+    }
+  };
+
+  const handleHireApplicant = async (applicantId, hireData) => {
+    try {
+      // Clear any previous validation errors
+      setHireValidationErrors(null);
+      
+      const response = await applicantAPI.hire(applicantId, hireData);
+      setApplicants(prev => 
+          prev.map(app => 
+            app.id === applicantId 
+              ? { ...app, status: 'Hired' }
+              : app
+          )
+        );
+      setShowHireModal(false);
+      // Always show account details when hiring is successful
+      if (response.data.account_details) {
+        setNewlyGeneratedAccount(response.data.account_details);
+      }
+      // Return success to indicate the operation completed successfully
+      return Promise.resolve();
+    } catch (error) {
+      
+      // Handle validation errors (422)
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        setHireValidationErrors(validationErrors);
+      } else if (error.response && error.response.status === 500) {
+        // Handle 500 errors - show them in the modal as well
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || 'An internal server error occurred';
+        
+        // Create a validation-like error structure for display in modal
+        setHireValidationErrors({
+          general: [errorMessage]
+        });
+      } else {
+        // Handle other errors - clear validation errors and show generic error
+        setHireValidationErrors(null);
+        const errorMessage = error.response?.data?.message || 'An error occurred while hiring the applicant. Please try again.';
+        alert(errorMessage);
+      }
+      // Throw the error so the modal knows the operation failed
+      throw error;
     }
   };
 
@@ -232,30 +362,39 @@ const RecruitmentPage = (props) => {
             <tr>
               <th className="sortable" onClick={() => requestSort('name')}>Applicant {getSortIcon('name')}</th>
               <th>Gender</th><th>Age</th><th>Contact</th>
-              <th className="sortable" onClick={() => requestSort('applicationDate')}>Applied On {getSortIcon('applicationDate')}</th>
-              <th className="sortable" onClick={() => requestSort('lastStatusUpdate')}>Last Updated {getSortIcon('lastStatusUpdate')}</th>
+              <th className="sortable" onClick={() => requestSort('application_date')}>Applied On {getSortIcon('application_date')}</th>
+              <th className="sortable" onClick={() => requestSort('updated_at')}>Last Updated {getSortIcon('updated_at')}</th>
               <th>Status</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredApplicants.map(applicant => (
               <tr key={applicant.id}>
-                <td><div>{applicant.name}</div><small className="text-muted">{jobOpeningsMap.get(applicant.jobOpeningId)}</small></td>
+                <td><div>{applicant.full_name || applicant.name}</div><small className="text-muted">{jobOpeningsMap.get(applicant.jobOpeningId)}</small></td>
                 <td>{applicant.gender}</td><td>{calculateAge(applicant.birthday)}</td>
-                <td>{applicant.phone}</td><td>{formatDate(applicant.applicationDate)}</td>
-                <td>{formatDate(applicant.lastStatusUpdate, true)}</td>
+                <td>{applicant.phone}</td><td>{formatDate(applicant.application_date)}</td>
+                <td>{formatDate(applicant.updated_at, true)}</td>
                 <td><span className={`applicant-status-badge status-${applicant.status.replace(/\s+/g, '-').toLowerCase()}`}>{applicant.status}</span></td>
                 <td>
-                  <div className="dropdown">
-                    <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
-                    <ul className="dropdown-menu dropdown-menu-end">
-                      <li><a className="dropdown-item" href="#" onClick={() => handleAction('view', applicant)}>View Details</a></li>
-                      <li><a className="dropdown-item" href="#" onClick={() => handleAction('scheduleInterview', applicant)}>Schedule Interview</a></li>
-                      <div className="dropdown-divider"></div>
-                      <li><a className="dropdown-item text-success" href="#" onClick={() => handleAction('hire', applicant)}>Hire</a></li>
-                      <li><a className="dropdown-item text-danger" href="#" onClick={() => handleAction('reject', applicant)}>Reject</a></li>
-                    </ul>
-                  </div>
+                  {/* THE FIX: Replace the old dropdown with our new portal-based component */}
+                  <ActionsDropdown>
+                    <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('view', applicant); }}>View Details</a>
+                    {/* Schedule Interview - Show only if not already in Interview, Offer, Hired, or Rejected status */}
+                    {!['Interview', 'Offer', 'Hired', 'Rejected'].includes(applicant.status) && (
+                      <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('scheduleInterview', applicant); }}>Schedule Interview</a>
+                    )}
+                    <div className="dropdown-divider"></div>
+                    {/* Hire - Show only if not already Hired or Rejected */}
+                    {!['Hired', 'Rejected'].includes(applicant.status) && (
+                      <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); handleAction('hire', applicant); }}>Hire</a>
+                    )}
+                    {/* Reject - Show only if not already Hired or Rejected */}
+                    {!['Hired', 'Rejected'].includes(applicant.status) && (
+                      <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleAction('reject', applicant); }}>Reject</a>
+                    )}
+                    <div className="dropdown-divider"></div>
+                    <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleAction('delete', applicant); }}>Delete Applicant</a>
+                  </ActionsDropdown>
                 </td>
               </tr>
             ))}
@@ -269,47 +408,57 @@ const RecruitmentPage = (props) => {
   return (
     <div className="container-fluid p-0 page-module-container">
       <header className="page-header d-flex justify-content-between align-items-center mb-4">
-        <h1 className="page-main-title">Recruitment Pipeline</h1>
+        <h1 className="page-main-title">Recruitment</h1>
         <div className="header-actions d-flex align-items-center gap-2">
-            <button className="btn btn-outline-secondary" onClick={handleGenerateReport}><i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report</button>
+            <button className="btn btn-outline-secondary" onClick={() => setShowReportConfigModal(true)}><i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report</button>
             <button className="btn btn-success" onClick={() => setShowApplicantModal(true)}><i className="bi bi-person-plus-fill me-2"></i>New Applicant</button>
         </div>
       </header>
 
       <div className="recruitment-stats-bar">
         <div className="recruitment-stat-card">
-            <div className="stat-main">
-                <div className="stat-icon icon-total-applicants"><i className="bi bi-people-fill"></i></div>
-                <div className="stat-info">
-                    <span className="stat-value">{stats.totalApplicants}</span>
-                    <span className="stat-label">Total Applicants</span>
-                </div>
-            </div>
+            <div className="stat-main"><div className="stat-icon icon-total-applicants"><i className="bi bi-people-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.totalApplicants}</span><span className="stat-label">Applicants in View</span></div></div>
             <div className="stat-period">{dateRangeText}</div>
         </div>
         <div className="recruitment-stat-card">
-            <div className="stat-main">
-                <div className="stat-icon icon-hired"><i className="bi bi-person-check-fill"></i></div>
-                <div className="stat-info">
-                    <span className="stat-value">{stats.newlyHired}</span>
-                    <span className="stat-label">Newly Hired</span>
-                </div>
-            </div>
+            <div className="stat-main"><div className="stat-icon icon-hired"><i className="bi bi-person-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.newlyHired}</span><span className="stat-label">Hired in View</span></div></div>
             <div className="stat-period">{dateRangeText}</div>
         </div>
         <div className="recruitment-stat-card">
-            <div className="stat-main">
-                <div className="stat-icon icon-interviews-set"><i className="bi bi-calendar2-check-fill"></i></div>
-                <div className="stat-info">
-                    <span className="stat-value">{stats.interviewsSet}</span>
-                    <span className="stat-label">Interviews Set</span>
-                </div>
-            </div>
+            <div className="stat-main"><div className="stat-icon icon-interviews-set"><i className="bi bi-calendar2-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.interviewsSet}</span><span className="stat-label">Interviews in View</span></div></div>
             <div className="stat-period">{dateRangeText}</div>
         </div>
       </div>
-      
-      <div className="recruitment-controls-bar">
+
+      {/* Loading State */}
+      {loadingApplicants && (
+        <div className="container-fluid p-0 page-module-container">
+          <div className="w-100 text-center p-5 bg-light rounded">
+            <div className="spinner-border text-success" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-3 mb-0">Loading recruitment data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {errorApplicants && !loadingApplicants && (
+        <div className="w-100 text-center p-5 bg-light rounded">
+          <div className="alert alert-danger" role="alert">
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            {errorApplicants}
+          </div>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>
+            <i className="bi bi-arrow-clockwise me-2"></i>Try Again
+          </button>
+        </div>
+      )}
+
+      {/* Main Content */}
+      {!loadingApplicants && !errorApplicants && (
+        <>
+          <div className="recruitment-controls-bar">
         <div className="filters-group">
             <div className="input-group"><span className="input-group-text"><i className="bi bi-search"></i></span><input type="text" className="form-control" placeholder="Search by name or email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/></div>
             <div className="input-group"><span className="input-group-text">From</span><input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
@@ -322,14 +471,47 @@ const RecruitmentPage = (props) => {
             </div>
         </div>
       </div>
+          
+          {viewMode === 'board' ? renderBoardView() : renderListView()}
+        </>
+      )}
       
-      {viewMode === 'board' ? renderBoardView() : renderListView()}
-
-      {pdfDataUri && <ReportPreviewModal show={showReportModal} onClose={() => {setShowReportModal(false); setPdfDataUri('')}} pdfDataUri={pdfDataUri} reportTitle="Recruitment Activity Report" />}
-      <AddApplicantModal show={showApplicantModal} onClose={() => setShowApplicantModal(false)} onSave={handlers.saveApplicant} jobOpenings={jobOpenings}/>
+      <ReportConfigurationModal 
+        show={showReportConfigModal}
+        onClose={() => setShowReportConfigModal(false)}
+        onRunReport={handleRunReport}
+        reportConfig={recruitmentReportConfig}
+      />
+      
+      {(isLoading || pdfDataUri) && (
+        <ReportPreviewModal
+            show={showReportPreview}
+            onClose={handleClosePreview}
+            pdfDataUri={pdfDataUri}
+            reportTitle="Recruitment Activity Report"
+        />
+      )}
+      
+      <AddApplicantModal show={showApplicantModal} onClose={() => setShowApplicantModal(false)} onSave={handleSaveApplicant} positions={positions}/>
       {selectedApplicant && <ViewApplicantDetailsModal show={showViewModal} onClose={() => setShowViewModal(false)} applicant={selectedApplicant} jobTitle={jobOpeningsMap.get(selectedApplicant?.jobOpeningId)}/>}
-      {selectedApplicant && <ScheduleInterviewModal show={showInterviewModal} onClose={() => setShowInterviewModal(false)} onSave={handlers.scheduleInterview} applicant={selectedApplicant}/>}
-      {selectedApplicant && <HireApplicantModal show={showHireModal} onClose={() => setShowHireModal(false)} onHire={handlers.hireApplicant} applicant={selectedApplicant} positions={positions}/>}
+      {selectedApplicant && <ScheduleInterviewModal show={showInterviewModal} onClose={() => setShowInterviewModal(false)} onSave={(data) => handleScheduleInterview(selectedApplicant.id, data)} applicant={selectedApplicant}/>}
+      {selectedApplicant && <HireApplicantModal show={showHireModal} onClose={() => { setShowHireModal(false); setHireValidationErrors(null); }} onHire={handleHireApplicant} applicant={selectedApplicant} positions={positions} validationErrors={hireValidationErrors}/>}
+      
+      <AccountGeneratedModal 
+        show={!!newlyGeneratedAccount}
+        onClose={() => setNewlyGeneratedAccount(null)}
+        accountDetails={newlyGeneratedAccount}
+      />
+
+      <ConfirmationModal
+        show={!!applicantToDelete}
+        onClose={() => setApplicantToDelete(null)}
+        onConfirm={() => handleDeleteApplicant(applicantToDelete.id)}
+        title="Delete Applicant"
+        message={`Are you sure you want to delete ${applicantToDelete?.name}? This action cannot be undone.`}
+        confirmText="Delete"
+        confirmVariant="danger"
+      />
     </div>
   );
 };

@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import './PositionsPage.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import AddEditPositionModal from '../../modals/AddEditPositionModal';
 import AddEmployeeToPositionModal from '../../modals/AddEmployeeToPositionModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
+import ConfirmationModal from '../../modals/ConfirmationModal';
+import useReportGenerator from '../../hooks/useReportGenerator';
 import Layout from '@/layout/Layout';
 import { positionAPI } from '@/services/api';
 import { employeeAPI } from '@/services/api';
@@ -20,6 +20,22 @@ const PositionsPage = (props) => {
   const [loadingPositions, setLoadingPositions] = useState(true);
   const [allEmployees, setAllEmployees] = useState([]);
   const [loadingAllEmployees, setLoadingAllEmployees] = useState(false);
+  
+  const [showReportPreview, setShowReportPreview] = useState(false);
+  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+
+  const handleCloseAddEmployeeModal = () => setShowAddEmployeeModal(false);
+  const [showAddEditPositionModal, setShowAddEditPositionModal] = useState(false);
+  const [editingPosition, setEditingPosition] = useState(null);
+  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
+  
+  // Confirmation modal states
+  const [showDeletePositionModal, setShowDeletePositionModal] = useState(false);
+  const [positionToDelete, setPositionToDelete] = useState(null);
+  const [isDeletingPosition, setIsDeletingPosition] = useState(false);
+  const [showRemoveEmployeeModal, setShowRemoveEmployeeModal] = useState(false);
+  const [employeeToRemove, setEmployeeToRemove] = useState(null);
+  const [isRemovingEmployee, setIsRemovingEmployee] = useState(false);
 
   // Load positions from API
   useEffect(() => {
@@ -105,19 +121,36 @@ const PositionsPage = (props) => {
     }
   };
   
-  const handleDeletePosition = async (e, positionId) => {
+  const handleDeletePosition = (e, position) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this position? This will unassign all employees.')) {
+    setPositionToDelete(position);
+    setShowDeletePositionModal(true);
+  };
+
+  const confirmDeletePosition = async () => {
+    if (positionToDelete && !isDeletingPosition) {
       try {
-        await positionAPI.delete(positionId);
+        setIsDeletingPosition(true);
+        await positionAPI.delete(positionToDelete.id);
         await refreshPositions();
-        if (selectedPosition?.id === positionId) {
+        if (selectedPosition?.id === positionToDelete.id) {
           setSelectedPosition(null);
           setPositionEmployees([]);
         }
       } catch (e) {
         alert('Failed to delete position.');
+      } finally {
+        setIsDeletingPosition(false);
+        setShowDeletePositionModal(false);
+        setPositionToDelete(null);
       }
+    }
+  };
+
+  const cancelDeletePosition = () => {
+    if (!isDeletingPosition) {
+      setShowDeletePositionModal(false);
+      setPositionToDelete(null);
     }
   };
 
@@ -133,17 +166,34 @@ const PositionsPage = (props) => {
     }
   };
 
-  const handleRemoveFromPosition = async (employeeId) => {
-    if(window.confirm(`Are you sure you want to remove this employee from the position?`)){
+  const handleRemoveFromPosition = (employee) => {
+    setEmployeeToRemove(employee);
+    setShowRemoveEmployeeModal(true);
+  };
+
+  const confirmRemoveEmployee = async () => {
+    if (employeeToRemove && !isRemovingEmployee) {
       try {
-        await employeeAPI.update(employeeId, { position_id: null });
+        setIsRemovingEmployee(true);
+        await employeeAPI.update(employeeToRemove.id, { position_id: null });
         if (selectedPosition) {
           await refreshPositionEmployees(selectedPosition.id);
         }
         await refreshPositions();
       } catch (e) {
         alert('Failed to remove employee from position.');
+      } finally {
+        setIsRemovingEmployee(false);
+        setShowRemoveEmployeeModal(false);
+        setEmployeeToRemove(null);
       }
+    }
+  };
+
+  const cancelRemoveEmployee = () => {
+    if (!isRemovingEmployee) {
+      setShowRemoveEmployeeModal(false);
+      setEmployeeToRemove(null);
     }
   };
 
@@ -184,71 +234,25 @@ const PositionsPage = (props) => {
       setLoadingAllEmployees(false);
     }
   };
-  const handleCloseAddEmployeeModal = () => setShowAddEmployeeModal(false);
-
-  // Modal States
-  const [showAddEditPositionModal, setShowAddEditPositionModal] = useState(false);
-  const [editingPosition, setEditingPosition] = useState(null);
-  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [pdfDataUri, setPdfDataUri] = useState('');
-  const [reportTitle, setReportTitle] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   const safeMonthlySalary = (pos) => {
     const value = pos.monthlySalary ?? pos.monthly_salary ?? 0;
     return Number(value) || 0;
   };
 
-  const generatePositionsReportPdf = () => {
+  const handleGenerateReport = () => {
     if (!positions || positions.length === 0) {
       alert("No positions available to generate a report.");
       return;
     }
+    generateReport('positions_report', {}, { employees: allEmployees, positions });
+    setShowReportPreview(true);
+  };
 
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageTitle = "Company Positions Report";
-    const generationDate = new Date().toLocaleDateString();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 40;
-
-    doc.setFontSize(18); doc.setFont(undefined, 'bold');
-    doc.text(pageTitle, pageWidth / 2, 40, { align: 'center' });
-    doc.setFontSize(11); doc.setFont(undefined, 'normal');
-    doc.text(`Generated on: ${generationDate}`, pageWidth / 2, 55, { align: 'center' });
-
-    const totalPositions = positions.length;
-    const totalAssignedEmployees = Object.values(employeeCounts).reduce((sum, count) => sum + count, 0);
-
-    let summaryY = 80;
-    doc.setFontSize(12); doc.setFont(undefined, 'bold');
-    doc.text('Report Summary', margin, summaryY);
-    summaryY += 18;
-    doc.setFontSize(10); doc.setFont(undefined, 'normal');
-    doc.text(`- Total Defined Positions: ${totalPositions}`, margin + 10, summaryY);
-    summaryY += 15;
-    doc.text(`- Total Employees with Positions: ${totalAssignedEmployees}`, margin + 10, summaryY);
-    summaryY += 25;
-
-    const tableColumns = ['Position Title', 'Description', 'Employee Count', 'Monthly Salary (₱)'];
-    const tableRows = positions.map(pos => [
-      pos.title,
-      pos.description || '',
-      employeeCounts[pos.id] || 0,
-      safeMonthlySalary(pos).toLocaleString()
-    ]);
-
-    autoTable(doc, {
-      head: [tableColumns],
-      body: tableRows,
-      startY: summaryY,
-      theme: 'grid',
-      headStyles: { fillColor: [25, 135, 84] },
-    });
-
-    setReportTitle(pageTitle);
-    setPdfDataUri(doc.output('datauristring'));
-    setShowReportModal(true);
+  const handleCloseReportPreview = () => {
+    setShowReportPreview(false);
+    if(pdfDataUri) URL.revokeObjectURL(pdfDataUri);
+    setPdfDataUri('');
   };
 
   // --- RENDER ---
@@ -295,7 +299,7 @@ const PositionsPage = (props) => {
                           <ul className="dropdown-menu dropdown-menu-end">
                             <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleToggleLeader(emp.id); }}>{emp.isTeamLeader ? 'Unset as Leader' : 'Set as Leader'}</a></li>
                             <li><hr className="dropdown-divider" /></li>
-                            <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleRemoveFromPosition(emp.id); }}>Remove from Position</a></li>
+                            <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleRemoveFromPosition(emp); }}>Remove from Position</a></li>
                           </ul>
                         </div>
                       </td>
@@ -331,7 +335,7 @@ const PositionsPage = (props) => {
             </span>
         </div>
         <div className="header-actions d-flex align-items-center gap-2">
-            <button className="btn btn-outline-secondary" onClick={generatePositionsReportPdf} disabled={!positions || positions.length === 0}>
+            <button className="btn btn-outline-secondary" onClick={handleGenerateReport} disabled={!positions || positions.length === 0}>
                 <i className="bi bi-file-earmark-text-fill"></i> Generate Report
             </button>
             <button className="btn btn-success" onClick={handleOpenAddPositionModal}>
@@ -365,7 +369,7 @@ const PositionsPage = (props) => {
                       <button className="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i className="bi bi-three-dots-vertical"></i></button>
                       <ul className="dropdown-menu dropdown-menu-end">
                           <li><a className="dropdown-item" href="#" onClick={(e) => handleOpenEditPositionModal(e, pos)}>Edit</a></li>
-                          <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleDeletePosition(e, pos.id)}>Delete</a></li>
+                          <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleDeletePosition(e, pos)}>Delete</a></li>
                       </ul>
                       </div>
                   </div>
@@ -397,12 +401,41 @@ const PositionsPage = (props) => {
       {showAddEditPositionModal && (
         <AddEditPositionModal show={showAddEditPositionModal} onClose={handleCloseAddEditPositionModal} onSave={handleSavePosition} positionData={editingPosition} />
       )}
-      <ReportPreviewModal 
-        show={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        pdfDataUri={pdfDataUri}
-        reportTitle={reportTitle}
-      />
+
+     {(isLoading || pdfDataUri) && (
+        <ReportPreviewModal 
+            show={showReportPreview}
+            onClose={handleCloseReportPreview}
+            pdfDataUri={pdfDataUri}
+            reportTitle="Company Positions Report"
+        />
+      )}
+
+      {/* Delete Position Confirmation Modal */}
+      <ConfirmationModal
+        show={showDeletePositionModal}
+        title="Delete Position"
+        onClose={cancelDeletePosition}
+        onConfirm={confirmDeletePosition}
+        confirmText={isDeletingPosition ? 'Deleting...' : 'Delete'}
+        confirmVariant="danger"
+        disabled={isDeletingPosition}
+      >
+        Are you sure you want to delete the position "{positionToDelete?.title}"? This will unassign all employees from this position.
+      </ConfirmationModal>
+
+      {/* Remove Employee Confirmation Modal */}
+      <ConfirmationModal
+        show={showRemoveEmployeeModal}
+        title="Remove Employee from Position"
+        onClose={cancelRemoveEmployee}
+        onConfirm={confirmRemoveEmployee}
+        confirmText={isRemovingEmployee ? 'Removing...' : 'Remove'}
+        confirmVariant="danger"
+        disabled={isRemovingEmployee}
+      >
+        Are you sure you want to remove "{employeeToRemove?.name}" from their current position?
+      </ConfirmationModal>
     </div>
   );
 };

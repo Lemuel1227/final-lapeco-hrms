@@ -4,29 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DisciplinaryCase extends Model
 {
     protected $fillable = [
-        'employee_id',
-        'case_number',
-        'violation_type',
-        'description',
-        'incident_date',
-        'reported_date',
-        'reported_by',
-        'severity',
-        'status',
-        'investigation_notes',
-        'action_taken',
-        'resolution_date',
-        'resolution_notes'
+        'id', // case identifier in frontend
+        'employee_id', // Employee to be disciplined in frontend
+        'action_type', // action_type in frontend
+        'description', // description of incident in frontend
+        'incident_date', // date of incident in frontend
+        'reason', // Reason / Infraction in frontend
+        'status', // case_status in frontend
+        'resolution_taken', // Resolution / Next Steps in frontend
+        'attachment' // PDF attachment only
     ];
 
     protected $casts = [
         'incident_date' => 'date',
-        'reported_date' => 'date',
-        'resolution_date' => 'date'
     ];
 
     public function employee(): BelongsTo
@@ -34,15 +29,11 @@ class DisciplinaryCase extends Model
         return $this->belongsTo(User::class, 'employee_id');
     }
 
-    public function generateCaseNumber(): string
+    /**
+     * Get the action logs for the disciplinary case.
+     */
+    public function actionLogs(): HasMany
     {
-        $year = date('Y');
-        $lastCase = self::whereYear('created_at', $year)
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $nextNumber = $lastCase ? (int)substr($lastCase->case_number, -4) + 1 : 1;
-        
-        return 'DC-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        return $this->hasMany(ActionLog::class);
     }
 }

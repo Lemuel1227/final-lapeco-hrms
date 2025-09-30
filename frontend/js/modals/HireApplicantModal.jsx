@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const HireApplicantModal = ({ show, onClose, onHire, applicant, positions }) => {
+const HireApplicantModal = ({ show, onClose, onHire, applicant, positions, validationErrors }) => {
   const [positionId, setPositionId] = useState('');
   const [joiningDate, setJoiningDate] = useState(new Date().toISOString().split('T')[0]);
-  const [employeeId, setEmployeeId] = useState(`EMP${Date.now().toString().slice(-4)}`);
   const [error, setError] = useState('');
 
-  const handleHire = () => {
+  // Reset form when modal opens
+  useEffect(() => {
+    if (show) {
+      setPositionId('');
+      setJoiningDate(new Date().toISOString().split('T')[0]);
+      setError('');
+    }
+  }, [show]);
+  
+
+  const handleHire = async () => {
     if (!positionId) {
       setError('You must assign a position.');
       return;
@@ -15,8 +24,13 @@ const HireApplicantModal = ({ show, onClose, onHire, applicant, positions }) => 
       setError('Joining date is required.');
       return;
     }
-    onHire(applicant.id, { positionId, joiningDate, employeeId });
-    onClose();
+    
+    try {
+      await onHire(applicant.id, { position_id: positionId, start_date: joiningDate });
+      // Only close the modal if the hire operation was successful
+      onClose();
+    } catch (error) {
+    }
   };
 
   if (!show) return null;
@@ -26,26 +40,52 @@ const HireApplicantModal = ({ show, onClose, onHire, applicant, positions }) => 
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
-            <h5 className="modal-title">Hire Applicant: {applicant.name}</h5>
+            <h5 className="modal-title">Hire Applicant: {applicant.full_name || applicant.name}</h5>
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
           <div className="modal-body">
             <p>Please confirm the details to onboard this applicant as an employee.</p>
             {error && <div className="alert alert-danger">{error}</div>}
-            <div className="mb-3">
-              <label htmlFor="employeeId" className="form-label">Employee ID*</label>
-              <input type="text" className="form-control" id="employeeId" value={employeeId} onChange={e => setEmployeeId(e.target.value)} />
-            </div>
+            {validationErrors && (
+              <div className="alert alert-danger">
+                {Object.keys(validationErrors).map(field => (
+                  <div key={field}>
+                    {validationErrors[field].join(', ')}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="mb-3">
               <label htmlFor="positionId" className="form-label">Assign Position*</label>
-              <select className="form-select" id="positionId" value={positionId} onChange={(e) => { setPositionId(e.target.value); setError(''); }}>
+              <select 
+                className={`form-select ${validationErrors?.position_id ? 'is-invalid' : ''}`} 
+                id="positionId" 
+                value={positionId} 
+                onChange={(e) => { setPositionId(e.target.value); setError(''); }}
+              >
                 <option value="">Select a position...</option>
-                {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                {positions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
+              {validationErrors?.position_id && (
+                <div className="invalid-feedback">
+                  {validationErrors.position_id.join(', ')}
+                </div>
+              )}
             </div>
             <div className="mb-3">
               <label htmlFor="joiningDate" className="form-label">Joining Date*</label>
-              <input type="date" className="form-control" id="joiningDate" value={joiningDate} onChange={e => setJoiningDate(e.target.value)} />
+              <input 
+                type="date" 
+                className={`form-control ${validationErrors?.start_date ? 'is-invalid' : ''}`} 
+                id="joiningDate" 
+                value={joiningDate} 
+                onChange={e => setJoiningDate(e.target.value)} 
+              />
+              {validationErrors?.start_date && (
+                <div className="invalid-feedback">
+                  {validationErrors.start_date.join(', ')}
+                </div>
+              )}
             </div>
           </div>
           <div className="modal-footer">

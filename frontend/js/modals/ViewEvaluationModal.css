@@ -1,0 +1,144 @@
+.view-evaluation-modal .modal-lg {
+  max-width: 800px;
+}
+
+.view-evaluation-modal .modal-header {
+  background-color: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+}
+
+.view-evaluation-modal .header-info {
+  flex-grow: 1;
+}
+
+.view-evaluation-modal .header-info .modal-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.view-evaluation-modal .header-info .text-muted {
+  font-size: 0.9rem;
+}
+
+.view-evaluation-modal .modal-body {
+  background-color: var(--bg-tertiary);
+  padding: 1.5rem;
+}
+
+.score-donut-chart {
+  display: block;
+}
+.score-donut-chart-bg {
+  fill: none;
+  stroke: var(--border-color);
+}
+.score-donut-chart-progress {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease-out;
+}
+.score-donut-chart-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.featured-summary-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--app-success-color);
+}
+.featured-summary-card .card-header {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.evaluation-accordion .accordion-item {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius) !important; 
+  margin-bottom: 0.75rem; 
+  box-shadow: var(--card-shadow);
+  overflow: hidden; 
+}
+.evaluation-accordion .accordion-item:last-child {
+  margin-bottom: 0;
+}
+
+.evaluation-accordion .accordion-button {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center; 
+}
+.evaluation-accordion .accordion-button:not(.collapsed) {
+  background-color: var(--bg-secondary);
+  box-shadow: none;
+  color: var(--app-success-color);
+}
+.evaluation-accordion .accordion-button:focus {
+  box-shadow: none;
+}
+.evaluation-accordion .accordion-body {
+  padding: 0; 
+}
+.section-avg-score {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.evaluation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.evaluation-item:last-child {
+  border-bottom: none;
+}
+.evaluation-item-info {
+  flex-grow: 1;
+}
+.evaluation-item-info .name {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+.evaluation-item-info .comment {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-left: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--border-color);
+}
+.evaluation-item-score {
+  flex-shrink: 0;
+}
+.evaluation-item-score .star-rating {
+  justify-content: flex-end;
+}
+.evaluation-item-score .star-rating i {
+  font-size: 1rem; 
+}
+
+.dark-theme .evaluation-accordion .accordion-button {
+    background-color: var(--bg-primary);
+}
+
+.dark-theme .evaluation-accordion .accordion-button:not(.collapsed) {
+    background-color: var(--bg-tertiary);
+}
+
+.dark-theme .accordion-button::after {
+    filter: brightness(1.5) invert(1);
+}

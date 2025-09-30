@@ -4,8 +4,9 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Popover } from 'bootstrap';
 import './HolidayManagementPage.css';
-import AddEditHolidayModal from '../../../../../../LAPECO-HRMS/src/components/modals/AddEditHolidayModal';
+import AddEditHolidayModal from '../../modals/AddEditHolidayModal';
 import HolidayCard from './HolidayCard';
+import ConfirmationModal from '../../modals/ConfirmationModal';
 import Layout from '@/layout/Layout';
 import { holidayAPI } from '@/services/api';
 
@@ -19,6 +20,8 @@ const HolidayManagementPage = (props) => {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
+  const [holidayToDelete, setHolidayToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const calendarRef = useRef(null);
   const popoverRef = useRef(null);
@@ -121,7 +124,46 @@ const HolidayManagementPage = (props) => {
   const handleOpenModal = (holiday = null) => { setEditingHoliday(holiday); setShowModal(true); };
   const handleCloseModal = () => { setEditingHoliday(null); setShowModal(false); };
   const handleSaveHoliday = (formData, holidayId) => { props.handlers?.saveHoliday?.(formData, holidayId); handleCloseModal(); };
-  const handleDeleteHoliday = (e, holidayId) => { props.handlers?.deleteHoliday?.(holidayId); };
+  const handleDeleteHoliday = (e, holidayId) => {
+    e?.preventDefault();
+    const holiday = holidays.find(h => h.id === holidayId);
+    setHolidayToDelete(holiday);
+  };
+
+  const handleCloseDeleteConfirm = () => {
+    if (!isDeleting) {
+      setHolidayToDelete(null);
+    }
+  };
+
+  const confirmDeleteHoliday = async () => {
+    if (holidayToDelete && !isDeleting) {
+      setIsDeleting(true);
+      try {
+        await holidayAPI.delete(holidayToDelete.id);
+        // Refresh holidays data after deletion
+        const res = await holidayAPI.getAll();
+        const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        setHolidays(data);
+      } catch (error) {
+        if (error.response?.status === 404) {
+          alert('Holiday not found. It may have already been deleted.');
+          // Refresh data to sync with server state
+          try {
+            const res = await holidayAPI.getAll();
+            const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+            setHolidays(data);
+          } catch (refreshError) {
+          }
+        } else {
+          alert('Failed to delete holiday. Please try again.');
+        }
+      } finally {
+        setIsDeleting(false);
+        setHolidayToDelete(null);
+      }
+    }
+  };
 
   const renderListView = () => (
     <div className="holiday-list-container">
@@ -220,6 +262,18 @@ const HolidayManagementPage = (props) => {
       </div>
 
       <AddEditHolidayModal show={showModal} onClose={handleCloseModal} onSave={handleSaveHoliday} holidayData={editingHoliday} />
+      <ConfirmationModal
+        show={!!holidayToDelete}
+        onClose={handleCloseDeleteConfirm}
+        onConfirm={confirmDeleteHoliday}
+        title="Confirm Holiday Deletion"
+        confirmText={isDeleting ? 'Deleting...' : 'Yes, Delete'}
+        confirmVariant="danger"
+        disabled={isDeleting}
+      >
+        <p>Are you sure you want to permanently delete the holiday <strong>{holidayToDelete?.title}</strong> on <strong>{holidayToDelete?.date}</strong>?</p>
+        <p className="text-danger">This action cannot be undone.</p>
+      </ConfirmationModal>
     </div>
   );
 };

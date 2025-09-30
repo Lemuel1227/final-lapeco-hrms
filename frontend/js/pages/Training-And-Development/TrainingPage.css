@@ -75,6 +75,10 @@
 .enrollment-status-badge.status-not-started { 
     background-color: var(--text-secondary); 
 }
+.enrollment-status-badge.status-dropped { 
+    background-color: var(--danger-color); 
+    color: #fff;
+}
 
 .data-table-card .card-header span {
     color: var(--text-primary);

@@ -1,467 +1,458 @@
+/* --- Main Page Tabs --- */
 .performance-nav-tabs .nav-link {
     font-size: 1rem;
     font-weight: 500;
-    color: var(--secondary-color);
 }
 .performance-nav-tabs .nav-link.active {
-    color: var(--app-success-color);
-    border-color: var(--border-color) var(--border-color) #fff;
     font-weight: 600;
 }
 
-.kra-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.kra-card {
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-}
-
-.kra-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.25rem;
-    background-color: var(--light-gray);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.kra-title {
-    margin: 0;
-    font-weight: 600;
-    font-size: 1.2rem;
-}
-
-.kra-header-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.kra-card-body {
-    padding: 1.25rem;
-}
-
-.kra-description {
-    font-size: 0.9rem;
-    color: var(--secondary-color);
-    margin-bottom: 1rem;
-}
-
-.kra-positions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.kpi-section {
-    border-top: 1px solid var(--border-color);
-}
-
-.kpi-section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1.25rem;
-    background-color: #fcfcfc;
-}
-
-.kpi-section-header h6 {
-    margin: 0;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: var(--secondary-color);
-}
-
-.kpi-list {
-    display: flex;
-    flex-direction: column;
-}
-
-.kpi-row {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1.25rem;
-    border-bottom: 1px solid var(--medium-gray);
-    gap: 1rem;
-}
-.kpi-row:last-child {
-    border-bottom: none;
-}
-.kpi-row.editing {
-    background-color: rgba(var(--app-success-rgb), 0.05);
-}
-
-.kpi-details {
-    flex-grow: 1;
-}
-.kpi-title {
-    font-weight: 500;
-}
-.kpi-weight {
-    flex-shrink: 0;
-    width: 120px;
-}
-.kpi-actions {
-    flex-shrink: 0;
-    display: flex;
-    gap: 0.5rem;
-}
-.kpi-actions .btn {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.kpi-section-footer {
-    padding: 0.75rem 1.25rem;
-    border-top: 1px solid var(--border-color);
-}
-
-/* Append to the end of PerformanceManagement.css */
-
-.evaluation-form-page {
-    padding: 1.5rem;
-    background-color: var(--light-gray);
-  }
-  
-  .evaluation-header {
-    margin-bottom: 2rem;
-  }
-  .evaluation-header h1 {
-    font-weight: 700;
-    font-size: 2.5rem;
-    color: var(--dark-gray);
-  }
-  
-  .evaluation-body {
-    padding-bottom: 100px; /* Space for the sticky footer */
-  }
-  
-  /* KRA Evaluation Section */
-  .kra-subtotal {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--secondary-color);
-  }
-  .kra-subtotal strong {
-    color: var(--dark-gray);
-  }
-  
-  .kra-card.editing-outline {
-    border-color: var(--app-success-color);
-    box-shadow: 0 0 0 3px rgba(var(--app-success-rgb), 0.15);
-}
-
-  /* KPI Scoring Row */
-  .kpi-scoring-row {
-    display: grid;
-    grid-template-columns: 1fr 180px 60px;
-    gap: 1rem;
-    align-items: center;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-color);
-    grid-template-areas: "info scoring comments";
-  }
-  .kpi-scoring-row:last-child {
-    border-bottom: none;
-  }
-  .kpi-info { grid-area: info; }
-  .kpi-scoring { grid-area: scoring; }
-  .kpi-comments { grid-area: comments; text-align: center; }
-  
-  .kpi-scoring-row .kpi-title {
-    font-weight: 600;
-    margin-bottom: 0.1rem;
-  }
-  .kpi-weight-display {
-      font-weight: 500;
-      color: var(--secondary-color);
-      font-size: 0.9em;
-  }
-  .kpi-scoring-row .kpi-description {
-    font-size: 0.85rem;
-    color: var(--secondary-color);
-    margin-bottom: 0;
-  }
-  .kpi-comment-box {
-    grid-column: 1 / -1; /* Span all columns */
-    grid-row: 2;
-    padding: 0 1.25rem 1rem 1.25rem;
-    animation: fadeIn 0.3s ease-in-out;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  
-  /* Star Rating */
-  .star-rating {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  .star-rating i {
-    font-size: 1.5rem;
-    color: var(--warning-color);
-    cursor: pointer;
-    transition: transform 0.1s ease-out;
-  }
-  .star-rating i:hover {
-    transform: scale(1.2);
-  }
-  
-  /* Evaluation Footer */
-  .evaluation-footer {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #fff;
-    border-top: 2px solid var(--border-color);
-    padding: 1rem 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 -4px 15px rgba(0,0,0,0.08);
-    z-index: 100;
-  }
-  .overall-score {
-    font-size: 1.2rem;
-    font-weight: 500;
-  }
-  .overall-score span {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--app-success-color);
-    margin-left: 0.5rem;
-  }
-  .footer-actions {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  /* --- Performance Dashboard Grid Layout --- */
-.performance-dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-areas:
-        "chart insights"
-        "history history";
-    gap: 1.5rem;
-}
-
-.dashboard-chart-card {
-    grid-area: chart;
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    display: flex;
-    flex-direction: column;
-}
-.dashboard-insights-card {
-    grid-area: insights;
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    display: flex;
-    flex-direction: column;
-}
-.dashboard-history-table {
-    grid-area: history;
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    overflow: hidden;
-}
-
-.dashboard-chart-card .card-header,
-.dashboard-insights-card .card-header,
-.dashboard-history-table .card-header {
-    font-weight: 600;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-color);
-}
-.dashboard-chart-card .card-body {
-    padding: 1.25rem;
-}
-.dashboard-insights-card .card-body {
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-.insight-item h6 {
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.insight-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-@media (max-width: 992px) {
-    .performance-dashboard-grid {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-            "chart"
-            "insights"
-            "history";
-    }
-}
-
-/* --- Competency & Rating Scale Styles --- */
-.rating-scale-row {
-    display: grid;
-    grid-template-columns: 1fr 220px 1fr;
-    gap: 1.5rem;
-    align-items: center;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-color);
-  }
-  .rating-scale-row:last-child {
-    border-bottom: none;
-  }
-  .competency-name {
-    font-weight: 600;
-    margin-bottom: 0.1rem;
-  }
-  .competency-description {
-    font-size: 0.85rem;
-    color: var(--secondary-color);
-    margin-bottom: 0;
-  }
-  .rating-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  .rating-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-weight: 600;
-    border: 1px solid var(--border-color);
-    background-color: var(--light-gray);
-    color: var(--secondary-color);
-    transition: all 0.2s ease;
-  }
-  .rating-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--card-shadow);
-    color: var(--dark-gray);
-  }
-  .rating-btn.active {
-    background-color: var(--app-success-color);
-    color: #fff;
-    border-color: var(--app-success-color);
-    box-shadow: 0 0 0 3px rgba(var(--app-success-rgb), 0.25);
-    transform: translateY(-2px);
-  }
-
-  /* Add to PerformanceManagement.css */
-
-.kpi-row .kpi-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem; /* Space between title and position badges */
-}
-
-.kpi-row-positions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-}
-
-/* --- KRA Accordion View (REVISED for FIX) --- */
+/* --- KRA & KPI Setup View --- */
 .kra-accordion-item {
     border: 1px solid var(--border-color);
-    background-color: #fff;
+    background-color: var(--bg-primary);
     border-radius: var(--border-radius) !important;
     overflow: hidden;
-  }
-  
-  .kra-accordion-item .accordion-header {
-    /* This is the key change: make the header a flex container */
+}
+.kra-accordion-item .accordion-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-  
-  .kra-accordion-item .accordion-button {
+    background-color: var(--bg-primary);
+    transition: background-color 0.15s ease-in-out;
+}
+.kra-accordion-item .accordion-button {
     font-weight: 600;
     font-size: 1.1rem;
-    color: var(--dark-gray);
-    background-color: #fff;
-    flex-grow: 1; /* Allow the button to take up available space */
-    width: auto; /* Override Bootstrap's default width: 100% */
-  }
-  
-  .kra-accordion-item .accordion-button:not(.collapsed) {
-    background-color: var(--light-gray);
-    box-shadow: none; /* Remove default shadow on expand */
-  }
-  /* Ensure the expand/collapse icon doesn't get pushed out */
-  .kra-accordion-item .accordion-button::after {
+    color: var(--text-primary);
+    background-color: transparent;
+    flex-grow: 1;
+    width: auto;
+}
+.kra-accordion-item .accordion-button:not(.collapsed) {
+    background-color: var(--bg-secondary);
+    box-shadow: none;
+}
+.kra-accordion-item .accordion-button:not(.collapsed) + .kra-accordion-actions {
+    background-color: var(--bg-secondary);
+}
+.kra-accordion-item .accordion-button::after {
     margin-left: auto;
-  }
-  
-  .kra-accordion-title-wrapper {
+}
+.kra-accordion-title-wrapper {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-  }
-  
-  .kra-accordion-summary {
+}
+.kra-accordion-summary {
     display: flex;
     gap: 0.5rem;
     font-size: 0.8rem;
     font-weight: 500;
-  }
-  
-  .kra-accordion-actions {
+}
+.kra-accordion-actions {
     padding-right: 1.25rem;
     display: flex;
     gap: 0.5rem;
     flex-shrink: 0;
-    background-color: #fff;
-  }
-  
-  .kra-accordion-item .accordion-button:not(.collapsed) + .kra-accordion-actions {
-    background-color: var(--light-gray);
-  }
+    background-color: transparent;
+}
 
-  .kpi-list-in-modal {
+/* --- KRA/KPI Modal --- */
+.kpi-list-in-modal {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    background-color: var(--light-gray);
+    background-color: var(--bg-secondary);
     padding: 1rem;
     border-radius: var(--border-radius);
-  }
-  .kpi-row-in-modal {
+}
+.kpi-row-in-modal {
     display: grid;
     grid-template-columns: 1fr 120px 40px;
     gap: 1rem;
     align-items: center;
-  }
-  .kpi-modal-fields { display: flex; flex-direction: column; gap: 0.5rem; }
-  .kpi-modal-weight { align-self: start; }
-  .kpi-modal-actions { align-self: start; }
-  .react-select-sm .react-select__control { min-height: 31px; }
-  .react-select-sm .react-select__indicators { height: 31px; }
+}
+.kpi-modal-fields { display: flex; flex-direction: column; gap: 0.5rem; }
+.kpi-modal-weight { align-self: start; }
+.kpi-modal-actions { align-self: start; }
+.react-select-sm .react-select__control { min-height: 31px; background-color: var(--input-bg); border-color: var(--border-color); }
+.react-select-sm .react-select__indicators { height: 31px; }
+.dark-theme .react-select-sm .react-select__multi-value { background-color: var(--bg-tertiary); }
+.dark-theme .react-select-sm .react-select__multi-value__label { color: var(--text-primary); }
+
+/* --- Evaluation Form Page Layout --- */
+.evaluation-form-page {
+    background-color: var(--bg-secondary);
+    padding-bottom: 100px; 
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.evaluation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-shrink: 0;
+}
+.evaluation-header .header-info {
+    flex-grow: 1;
+}
+.evaluation-header h1 {
+    font-weight: 700;
+    font-size: 2.2rem;
+    color: var(--text-primary);
+}
+.evaluation-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 0.25rem;
+    margin: -0.25rem;
+}
+.evaluation-footer {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: rgba(var(--bg-primary-rgb), 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.07);
+    z-index: 100;
+    flex-shrink: 0;
+}
+.overall-score {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+.overall-score span {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--app-success-color);
+    margin-left: 0.5rem;
+}
+.footer-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* --- Stepper Component --- */
+.evaluation-stepper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-shrink: 0;
+}
+.step-item {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.step-item .step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    background-color: var(--bg-primary);
+    transition: all 0.3s ease;
+}
+.step-item.active .step-circle {
+    border-color: var(--app-success-color);
+    background-color: var(--app-success-color);
+    color: var(--text-on-success);
+}
+.step-item.completed .step-circle {
+    border-color: var(--app-success-color);
+    background-color: var(--bg-primary);
+    color: var(--app-success-color);
+}
+.step-item.active .step-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.step-connector {
+    flex: 1;
+    height: 2px;
+    background-color: var(--border-color);
+    margin: 0 1rem;
+}
+.step-connector.completed {
+    background-color: var(--app-success-color);
+}
+
+/* --- Rating Scale Guide --- */
+.rating-scale-guide {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+}
+.rating-scale-guide .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.guide-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+.guide-grid div {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background-color: var(--bg-secondary);
+}
+.guide-grid strong {
+    color: var(--app-success-color);
+}
+
+/* --- Unified Rating Row Styles --- */
+.rating-scale-row, .kpi-scoring-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+        "info   info"
+        "rating comment";
+    gap: 0.5rem 1.5rem;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.rating-scale-row:last-child, .kpi-scoring-row:last-child {
+    border-bottom: none;
+}
+.competency-info, .kpi-info { grid-area: info; }
+.rating-stars, .kpi-scoring { grid-area: rating; }
+.rating-comment, .kpi-comments { grid-area: comment; }
+.competency-name, .kpi-title {
+    font-weight: 600;
+    margin-bottom: 0.1rem;
+    color: var(--text-primary);
+}
+.kpi-weight-display {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+.competency-description, .kpi-description {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+
+/* Star Rating Component */
+.star-rating {
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.5rem;
+}
+.star-rating i {
+    font-size: 1.5rem;
+    color: var(--bg-tertiary);
+    cursor: pointer;
+    transition: transform 0.1s ease-out, color 0.2s ease;
+}
+.star-rating:hover i {
+    color: var(--warning-color);
+}
+.star-rating i:hover ~ i {
+    color: var(--bg-tertiary);
+}
+.star-rating i.bi-star-fill {
+    color: var(--warning-color);
+}
+
+.performance-dashboard-layout-revised {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Stat Cards Grid */
+.stat-card-grid-revised {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+}
+.stat-card-revised {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+.stat-card-revised .stat-icon {
+    font-size: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    color: #fff;
+    background-color: var(--app-success-color);
+}
+.stat-card-revised .stat-info .stat-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+.stat-card-revised .stat-info .stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* Analysis Grid (Chart & Insights) */
+.analysis-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+.analysis-grid .card-body {
+    color: var(--text-primary);
+}
+
+/* Strategic Insights Card */
+.insight-card .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.insight-avatar-list {
+    display: flex;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+.insight-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--bg-primary);
+    margin-left: -12px;
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+.insight-avatar:first-child {
+    margin-left: 0;
+}
+.insight-avatar:hover {
+    transform: translateY(-4px) scale(1.1);
+    z-index: 5;
+}
+.avatar-more-count {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: -12px;
+    border: 2px solid var(--bg-primary);
+}
+.insight-card.high-potentials {
+    background: linear-gradient(135deg, #f0f9f4, var(--bg-primary));
+    border-color: var(--app-success-color);
+}
+.insight-card.turnover-risks {
+    background: linear-gradient(135deg, #fdf3f4, var(--bg-primary));
+    border-color: var(--danger-color);
+}
+.dark-theme .insight-card.high-potentials {
+    background: rgba(var(--app-success-rgb), 0.1);
+}
+.dark-theme .insight-card.turnover-risks {
+    background: rgba(var(--danger-rgb), 0.1);
+}
+
+/* History Table Section */
+.history-table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+.history-table-controls h6 {
+    margin-bottom: 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.history-table-controls .input-group {
+    max-width: 350px;
+}
+.data-table .sortable {
+    cursor: pointer;
+}
+
+/* Score Indicator in Table */
+.score-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 150px;
+}
+.score-bar-container {
+    flex-grow: 1;
+    height: 8px;
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.score-bar {
+    height: 100%;
+    border-radius: 4px;
+}
+.score-bar-danger { background-color: var(--danger-color); }
+.score-bar-warning { background-color: var(--warning-color); }
+.score-bar-success { background-color: var(--app-success-color); }
+.score-text {
+    font-weight: 600;
+    font-size: 0.9rem;
+    min-width: 55px;
+    text-align: right;
+    color: var(--text-primary);
+}
+
+.status-badge-completed {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3em 0.6em;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--app-success-color);
+    background-color: rgba(var(--app-success-rgb), 0.1);
+}
+
+.dark-theme .insight-card .card-title .badge {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+
+@media (max-width: 992px) {
+    .analysis-grid {
+        grid-template-columns: 1fr;
+    }
+}

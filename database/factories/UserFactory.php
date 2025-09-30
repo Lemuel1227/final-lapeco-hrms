@@ -32,7 +32,6 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
             'role' => fake()->randomElement($roleOptions),
-            'employee_id' => fake()->unique()->numberBetween(1000000, 9999999),
             'position_id' => null,
             'joining_date' => $this->faker->dateTimeBetween('-10 years', 'now')->format('Y-m-d'),
             'birthday' => $this->faker->dateTimeBetween('-60 years', '-18 years')->format('Y-m-d'),

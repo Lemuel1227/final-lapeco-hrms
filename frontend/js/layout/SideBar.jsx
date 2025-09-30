@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { Tooltip } from 'bootstrap';
 import './SideBar.css';
 import logo from '../assets/logo.png';
@@ -10,17 +10,17 @@ const navItemsConfig = {
     { path: '/dashboard', icon: 'bi-grid-1x2-fill', label: 'Dashboard', exact: true },
     { path: '/dashboard/employee-data', icon: 'bi-people-fill', label: 'Employee Data' },
     { path: '/dashboard/positions', icon: 'bi-diagram-3-fill', label: 'Positions' },
-    { path: '/dashboard/attendance-management', icon: 'bi-calendar-check-fill', label: 'Attendance Management' },
-    { path: '/dashboard/schedule-management', icon: 'bi-calendar-range', label: 'Schedule Management' },
-    { path: '/dashboard/leave-management', icon: 'bi-calendar-event', label: 'Leave Management' },
-    { path: '/dashboard/payroll/history', icon: 'bi-cash-coin', label: 'Payroll Management' },
-    { path: '/dashboard/holiday-management', icon: 'bi-flag-fill', label: 'Holiday Management' },
-    { path: '/dashboard/contributions-management', icon: 'bi-file-earmark-ruled-fill', label: 'Contributions Management' },
-    { path: '/dashboard/performance', icon: 'bi-graph-up-arrow', label: 'Performance Management' },
-    { path: '/dashboard/training', icon: 'bi-mortarboard-fill', label: 'Training and Development' },
-    { path: '/dashboard/case-management', icon: 'bi-briefcase-fill', label: 'Case Management' },
+    { path: '/dashboard/attendance-management', icon: 'bi-calendar-check-fill', label: 'Attendance' },
+    { path: '/dashboard/schedule-management', icon: 'bi-calendar-range', label: 'Schedules' },
+    { path: '/dashboard/leave-management', icon: 'bi-calendar-event', label: 'Leave' },
+    { path: '/dashboard/payroll/history', icon: 'bi-cash-coin', label: 'Payroll' },
+    { path: '/dashboard/holiday-management', icon: 'bi-flag-fill', label: 'Holidays' },
+    { path: '/dashboard/contributions-management', icon: 'bi-file-earmark-ruled-fill', label: 'Contributions' },
+    { path: '/dashboard/performance', icon: 'bi-graph-up-arrow', label: 'Performance' },
+    { path: '/dashboard/training', icon: 'bi-mortarboard-fill', label: 'Training' },
+    { path: '/dashboard/case-management', icon: 'bi-briefcase-fill', label: 'Cases' },
     { path: '/dashboard/recruitment', icon: 'bi-person-plus-fill', label: 'Recruitment' },
-    { path: '/dashboard/accounts', icon: 'bi-shield-lock-fill', label: 'Accounts Management' },
+    { path: '/dashboard/accounts', icon: 'bi-shield-lock-fill', label: 'Accounts' },
     { path: '/dashboard/reports', icon: 'bi-file-earmark-bar-graph-fill', label: 'Reports' },
   ],
   [USER_ROLES.TEAM_LEADER]: [
@@ -41,7 +41,7 @@ const navItemsConfig = {
   ],
 };
 
-const SideBar = ({ userRole, isCollapsed }) => {
+const SideBar = ({ userRole, isCollapsed, isMobileVisible, onMobileNavItemClick }) => {
   const navItems = navItemsConfig[userRole] || [];
   const sidebarRef = useRef(null);
 
@@ -64,25 +64,36 @@ const SideBar = ({ userRole, isCollapsed }) => {
     };
   }, [isCollapsed, navItems]);
 
+  const navLinkClasses = 'nav-link d-flex align-items-center sidebar-link';
+  const finalSidebarClass = `sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileVisible ? 'mobile-visible' : ''}`;
+
   return (
-    <div ref={sidebarRef} className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-header text-center">
-        <Link to="/dashboard">
+    <div ref={sidebarRef} className={finalSidebarClass}>
+      <div className="sidebar-header">
+        <NavLink to="/dashboard" className="sidebar-logo-link">
           <img src={logo} alt="Lapeco Logo" className="sidebar-logo" />
-        </Link>
+        </NavLink>
+        {isMobileVisible && (
+          <button className="btn btn-link sidebar-close-btn" onClick={onMobileNavItemClick}>
+            <i className="bi bi-x-lg"></i>
+          </button>
+        )}
+      
       </div>
       <nav className="nav flex-column sidebar-nav-scroll">
         {navItems.map((item) => (
-          <Link
-            key={item.label}
-            to={item.path}
-            className="nav-link d-flex align-items-center sidebar-link"
-            title={isCollapsed ? item.label : ''}
-            data-bs-toggle={isCollapsed ? 'tooltip' : ''}
-          >
-            <i className={`bi ${item.icon} sidebar-link-icon`}></i>
-            <span className="sidebar-link-text">{item.label}</span>
-          </Link>
+          <div key={item.label} onClick={isMobileVisible ? onMobileNavItemClick : undefined}>
+            <NavLink
+              to={item.path}
+              end={!!item.exact}
+              className={navLinkClasses}
+              title={isCollapsed ? item.label : ''}
+              data-bs-toggle={isCollapsed ? 'tooltip' : ''}
+            >
+              <i className={`bi ${item.icon} sidebar-link-icon`}></i>
+              <span className="sidebar-link-text">{item.label}</span>
+            </NavLink>
+          </div>
         ))}
       </nav>
     </div>

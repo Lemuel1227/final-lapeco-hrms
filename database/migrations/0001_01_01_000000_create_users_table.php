@@ -18,7 +18,6 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('role')->default('HR_PERSONNEL');
-            $table->string('employee_id')->unique();
             $table->unsignedBigInteger('position_id')->nullable();
             $table->date('joining_date')->nullable();
             $table->date('birthday')->nullable();
@@ -33,6 +32,11 @@ return new class extends Migration
             $table->string('resume_file')->nullable();
             $table->enum('theme_preference', ['light', 'dark'])->default('light');
             $table->enum('account_status', ['Active', 'Deactivated'])->default('Active');
+            $table->integer('login_attempts')->default(0);
+            $table->timestamp('last_failed_login')->nullable();
+            $table->timestamp('locked_until')->nullable();
+            $table->integer('lockout_count')->default(0);
+            $table->boolean('password_changed')->default(false);
             $table->rememberToken();
             $table->timestamps();
         });

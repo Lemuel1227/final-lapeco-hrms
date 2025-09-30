@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PositionController;
@@ -12,9 +13,11 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\RecruitmentController;
+use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\DisciplinaryCaseController;
+use App\Http\Controllers\AttendanceController;
 use App\Models\User;
 use App\Models\Position;
 
@@ -33,6 +36,12 @@ use App\Models\Position;
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 Route::post('/register', [RegisteredUserController::class, 'store']);
 
+// Public recruitment routes for testing
+Route::get('/applicants/statistics', [ApplicantController::class, 'getStats']);
+Route::get('/applicants', [ApplicantController::class, 'index']);
+Route::post('/applicants', [ApplicantController::class, 'store']); // Add public POST route for testing
+Route::get('/positions', [PositionController::class, 'publicIndex']);
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     // User profile
@@ -41,24 +50,20 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     // User theme preference
-    Route::put('/user/theme-preference', function (Request $request) {
-        $request->validate([
-            'theme_preference' => 'required|in:light,dark'
-        ]);
-        
-        $user = $request->user();
-        $user->theme_preference = $request->theme_preference;
-        $user->save();
-        
-        return response()->json([
-            'message' => 'Theme preference updated successfully',
-            'theme_preference' => $user->theme_preference
-        ]);
-    });
+    Route::put('/user/theme-preference', [ProfileController::class, 'updateThemePreference']);
     
     Route::get('/profile', [ProfileController::class, 'edit']);
     Route::patch('/profile', [ProfileController::class, 'update']);
     Route::delete('/profile', [ProfileController::class, 'destroy']);
+    
+    // Password change
+    Route::put('/password', [\App\Http\Controllers\Auth\PasswordController::class, 'update']);
+
+    // Session management routes
+    Route::middleware('web')->group(function () {
+        Route::get('/sessions', [SessionController::class, 'index']);
+        Route::delete('/sessions/{sessionId}', [SessionController::class, 'destroy']);
+    });
 
     // Dashboard
     Route::get('/dashboard', function () {
@@ -74,9 +79,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/employees', [EmployeeController::class, 'store']);
     Route::put('/employees/{employee}', [EmployeeController::class, 'update']);
     Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy']);
+    Route::post('/employees/{employee}/reset-password', [EmployeeController::class, 'resetPassword']);
+    Route::post('/employees/{employee}/deactivate', [EmployeeController::class, 'deactivateAccount']);
+    Route::post('/employees/{employee}/activate', [EmployeeController::class, 'activateAccount']);
 
-    // Positions
-    Route::get('/positions', [PositionController::class, 'index']);
+    // Positions (authenticated routes)
+    Route::get('/positions/authenticated', [PositionController::class, 'index']);
     Route::get('/positions/{position}', [PositionController::class, 'show']);
     Route::post('/positions', [PositionController::class, 'store']);
     Route::put('/positions/{position}', [PositionController::class, 'update']);
@@ -84,12 +92,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/positions/{position}/employees', [PositionController::class, 'employees']);
 
     // Attendance Management
-    Route::get('/attendance', function () {
-        return response()->json([
-            'employees' => User::all(),
-            'positions' => [],
-        ]);
-    });
+    Route::get('/attendance', [AttendanceController::class, 'index']);
+    Route::post('/attendance', [AttendanceController::class, 'store']);
+    Route::get('/attendance/{attendance}', [AttendanceController::class, 'show']);
+    Route::put('/attendance/{attendance}', [AttendanceController::class, 'update']);
+    Route::delete('/attendance/{attendance}', [AttendanceController::class, 'destroy']);
+    Route::get('/attendance-logs', [AttendanceController::class, 'getLogs']);
+    Route::post('/attendance/clock', [AttendanceController::class, 'clockAction']);
 
     // Schedule Management
     Route::get('/schedules', [ScheduleController::class, 'index']);
@@ -114,6 +123,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ]);
     });
 
+    // Schedule Templates
+    Route::get('/templates', [ScheduleController::class, 'templatesIndex']);
+    Route::post('/templates', [ScheduleController::class, 'templatesStore']);
+    Route::put('/templates/{id}', [ScheduleController::class, 'templatesUpdate']);
+    Route::delete('/templates/{id}', [ScheduleController::class, 'templatesDestroy']);
+
     // Leave Management
     Route::get('/leaves', [LeaveController::class, 'index']);
     Route::post('/leaves', [LeaveController::class, 'store']);
@@ -137,6 +152,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/recruitment/applicants/{applicant}', [RecruitmentController::class, 'updateApplicant']);
     Route::delete('/recruitment/applicants/{applicant}', [RecruitmentController::class, 'destroyApplicant']);
 
+    // Applicant Management
+    
+    // Route::post('/applicants', [ApplicantController::class, 'store']); // Commented out to avoid conflict with public route
+    Route::get('/applicants/{applicant}', [ApplicantController::class, 'show']);
+    Route::put('/applicants/{applicant}', [ApplicantController::class, 'update']);
+    Route::delete('/applicants/{applicant}', [ApplicantController::class, 'destroy']);
+    Route::put('/applicants/{applicant}/status', [ApplicantController::class, 'updateStatus']);
+    Route::post('/applicants/{applicant}/interview', [ApplicantController::class, 'scheduleInterview']);
+    Route::post('/applicants/{applicant}/hire', [ApplicantController::class, 'hire']);
+
     // Performance Management
     Route::get('/performance', [PerformanceController::class, 'index']);
     Route::post('/performance/evaluations', [PerformanceController::class, 'storeEvaluation']);
@@ -146,8 +171,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/training', [TrainingController::class, 'index']);
     Route::get('/training/programs', [TrainingController::class, 'programs']);
     Route::post('/training/programs', [TrainingController::class, 'storeProgram']);
+    Route::get('/training/programs/{program}', [TrainingController::class, 'show']);
     Route::put('/training/programs/{program}', [TrainingController::class, 'updateProgram']);
     Route::delete('/training/programs/{program}', [TrainingController::class, 'destroyProgram']);
+    
+    // Training Enrollments
+    Route::get('/training/enrollments', [TrainingController::class, 'enrollments']);
+    Route::post('/training/enroll', [TrainingController::class, 'enroll']);
+    Route::put('/training/enrollments/{enrollment}', [TrainingController::class, 'updateEnrollment']);
+    Route::delete('/training/enrollments/{enrollment}', [TrainingController::class, 'unenroll']);
 
     // Disciplinary Cases
     Route::get('/disciplinary-cases', [DisciplinaryCaseController::class, 'index']);
@@ -157,6 +189,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/disciplinary-cases/{disciplinaryCase}', [DisciplinaryCaseController::class, 'destroy']);
     Route::get('/disciplinary-cases/employee/{employee}', [DisciplinaryCaseController::class, 'getByEmployee']);
     Route::get('/disciplinary-cases/status/{status}', [DisciplinaryCaseController::class, 'getByStatus']);
+    Route::get('/disciplinary-cases-grouped-by-employee', [DisciplinaryCaseController::class, 'getGroupedByEmployee']);
     Route::get('/disciplinary-cases-statistics', [DisciplinaryCaseController::class, 'getStatistics']);
 
     // Reports

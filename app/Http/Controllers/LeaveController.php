@@ -13,14 +13,14 @@ class LeaveController extends Controller
     {
         $user = $request->user();
         if ($user->role === 'HR_PERSONNEL') {
-            $leaves = Leave::with('user')->latest()->get();
+            $leaves = Leave::with('user.position')->latest()->get();
         } elseif ($user->role === 'TEAM_LEADER') {
-            $leaves = Leave::with('user')->whereHas('user', function ($q) use ($user) {
+            $leaves = Leave::with('user.position')->whereHas('user', function ($q) use ($user) {
                 $q->where('position_id', $user->position_id);
             })->latest()->get();
         } else {
             // Regular employees can only see their own leave requests
-            $leaves = Leave::with('user')->where('user_id', $user->id)->latest()->get();
+            $leaves = Leave::with('user.position')->where('user_id', $user->id)->latest()->get();
         }
         return response()->json($leaves);
     }

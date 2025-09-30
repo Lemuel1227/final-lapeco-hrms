@@ -1,36 +1,94 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './ProgramDetailPage.css';
-import EnrollEmployeeModal from '../../../../../LAPECO-HRMS/src/components/modals/EnrollEmployeeModal';
-import UpdateEnrollmentStatusModal from '../../../../../LAPECO-HRMS/src/components/modals/UpdateEnrollmentStatusModal';
-import ReportPreviewModal from '../../../../../LAPECO-HRMS/src/components/modals/ReportPreviewModal';
+import ProgramDetailHeader from './ProgramDetailHeader';
+import EnrollEmployeeModal from '../../modals/EnrollEmployeeModal';
+import UpdateEnrollmentStatusModal from '../../modals/UpdateEnrollmentStatusModal';
+import ReportPreviewModal from '../../modals/ReportPreviewModal';
+import ConfirmationModal from '../../modals/ConfirmationModal';
+import { trainingAPI } from '../../services/api';
 import logo from '../../assets/logo.png';
 
-const ProgramDetailPage = ({ employees, trainingPrograms, enrollments, handlers }) => {
+const ProgramDetailPage = () => {
   const { programId } = useParams();
   
+  // Data state
+  const [trainingPrograms, setTrainingPrograms] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Modal state
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [pdfDataUri, setPdfDataUri] = useState('');
   const [editingEnrollment, setEditingEnrollment] = useState(null);
+  const [enrollmentToDelete, setEnrollmentToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
+  // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortConfig, setSortConfig] = useState({ key: 'employeeName', direction: 'ascending' });
 
+  // Fetch data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [programsResponse, enrollmentsResponse] = await Promise.all([
+          trainingAPI.getAll(),
+          trainingAPI.getEnrollments()
+        ]);
+        
+        setTrainingPrograms(programsResponse.data || []);
+        setEnrollments(enrollmentsResponse.data || []);
+        
+        // For now, we'll create a mock employees array from enrollments
+        // In a real app, you'd fetch this from a users/employees API
+        const uniqueEmployees = enrollmentsResponse.data?.reduce((acc, enrollment) => {
+          if (!acc.find(emp => emp.id === enrollment.user_id)) {
+            acc.push({
+              id: enrollment.user_id,
+              name: enrollment.user?.name || `User ${enrollment.user_id}`
+            });
+          }
+          return acc;
+        }, []) || [];
+        
+        setEmployees(uniqueEmployees);
+      } catch (err) {
+        console.error('Error fetching training data:', err);
+        setError('Failed to load training data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const selectedProgram = useMemo(() => {
+    if (!trainingPrograms.length) return null;
     return trainingPrograms.find(p => p.id.toString() === programId);
   }, [trainingPrograms, programId]);
 
   const enrolledInProgram = useMemo(() => {
-    if (!selectedProgram) return [];
+    if (!selectedProgram || !enrollments.length) return [];
     const employeeMap = new Map(employees.map(e => [e.id, e.name]));
     return enrollments
-      .filter(enr => enr.programId.toString() === programId)
-      .map(enr => ({ ...enr, employeeName: employeeMap.get(enr.employeeId) || 'Unknown' }));
+      .filter(enr => enr && enr.program_id && enr.program_id.toString() === programId)
+      .map(enr => ({ 
+        ...enr, 
+        employeeName: employeeMap.get(enr.user_id) || enr.user?.name || 'Unknown',
+        employeeId: enr.user_id,
+        enrollmentId: enr.id // Add enrollmentId for the modal
+      }));
   }, [selectedProgram, enrollments, employees, programId]);
 
   const displayedEnrollments = useMemo(() => {
@@ -71,13 +129,101 @@ const ProgramDetailPage = ({ employees, trainingPrograms, enrollments, handlers 
     return sortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
   };
   
-  const handleOpenStatusModal = (enrollment) => { setEditingEnrollment(enrollment); setShowStatusModal(true); };
-  const handleCloseStatusModal = () => { setEditingEnrollment(null); setShowStatusModal(false); };
-  const handleUpdateStatus = (enrollmentId, updatedData) => { handlers.updateEnrollmentStatus(enrollmentId, updatedData); handleCloseStatusModal(); };
+  // Handler functions
+  const handleEnrollEmployee = async (employeeId) => {
+    try {
+      await trainingAPI.enrollEmployee(programId, { user_id: employeeId });
+      // Refresh enrollments after enrollment
+      const enrollmentsResponse = await trainingAPI.getEnrollments();
+      setEnrollments(enrollmentsResponse.data || []);
+      setShowEnrollModal(false);
+    } catch (err) {
+      console.error('Error enrolling employee:', err);
+      setError('Failed to enroll employee. Please try again.');
+    }
+  };
 
+  const handleOpenStatusModal = (enrollment) => { 
+    setEditingEnrollment(enrollment); 
+    setShowStatusModal(true); 
+  };
+  
+  const handleCloseStatusModal = () => { 
+    setEditingEnrollment(null); 
+    setShowStatusModal(false); 
+  };
+  
+  const handleUpdateStatus = async (enrollmentId, updatedData) => { 
+    try {
+      // Ensure we have a valid enrollment ID
+      if (!enrollmentId) {
+        console.error('No enrollment ID provided');
+        setError('Invalid enrollment data. Please try again.');
+        return;
+      }
+      
+      await trainingAPI.updateEnrollment(enrollmentId, updatedData);
+      // Refresh enrollments after update
+      const enrollmentsResponse = await trainingAPI.getEnrollments();
+      setEnrollments(enrollmentsResponse.data || []);
+      handleCloseStatusModal();
+    } catch (err) {
+      console.error('Error updating enrollment status:', err);
+      setError('Failed to update enrollment status. Please try again.');
+    }
+  };
+
+  const handleDeleteProgram = async () => {
+    if (window.confirm('Are you sure you want to delete this training program? This action cannot be undone.')) {
+      try {
+        await trainingAPI.deleteProgram(programId);
+        // Navigate back to training page after successful deletion
+        window.location.href = '/dashboard/training';
+      } catch (err) {
+        console.error('Error deleting program:', err);
+        if (err.response?.status === 422) {
+          setError('Cannot delete program with existing enrollments.');
+        } else {
+          setError('Failed to delete program. Please try again.');
+        }
+      }
+    }
+  };
+
+  const handleDeleteEnrollment = async (enrollmentId, employeeName) => {
+    setEnrollmentToDelete({ id: enrollmentId, name: employeeName });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteEnrollment = async () => {
+    if (enrollmentToDelete && !isDeleting) {
+      try {
+        setIsDeleting(true);
+        await trainingAPI.unenroll(enrollmentToDelete.id);
+        // Refresh enrollments after deletion
+        const enrollmentsResponse = await trainingAPI.getEnrollments();
+        setEnrollments(enrollmentsResponse.data || []);
+        setShowDeleteModal(false);
+        setEnrollmentToDelete(null);
+      } catch (err) {
+        console.error('Error deleting enrollment:', err);
+        setError('Failed to unenroll employee. Please try again.');
+        setShowDeleteModal(false);
+        setEnrollmentToDelete(null);
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const cancelDeleteEnrollment = () => {
+    if (!isDeleting) {
+      setShowDeleteModal(false);
+      setEnrollmentToDelete(null);
+    }
+  };
   const handleGenerateReport = () => {
     const doc = new jsPDF();
-    const pageW = doc.internal.pageSize.getWidth();
 
     // Header
     doc.addImage(logo, 'PNG', 15, 12, 40, 13);
@@ -117,31 +263,59 @@ const ProgramDetailPage = ({ employees, trainingPrograms, enrollments, handlers 
     setShowReportModal(true);
   };
 
-  if (!selectedProgram) { return <div>Program Not Found</div>; }
+  // Loading state
+  if (loading) {
+    return (
+      <div className="container-fluid p-0 page-module-container">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+          <div className="spinner-border text-success" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="container-fluid p-0 page-module-container">
+        <div className="alert alert-danger" role="alert">
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          {error}
+        </div>
+        <Link to="/dashboard/training" className="btn btn-primary">
+          <i className="bi bi-arrow-left me-2"></i>Back to Training Programs
+        </Link>
+      </div>
+    );
+  }
+
+  // Program not found state
+  if (!selectedProgram) { 
+    return (
+      <div className="container-fluid p-0 page-module-container">
+        <div className="alert alert-warning" role="alert">
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          Training program not found.
+        </div>
+        <Link to="/dashboard/training" className="btn btn-primary">
+          <i className="bi bi-arrow-left me-2"></i>Back to Training Programs
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid p-0 page-module-container">
-      <header className="program-detail-header">
-        <Link to="/dashboard/training" className="btn btn-light me-3 back-button mb-3"><i className="bi bi-arrow-left"></i> Back to Programs</Link>
-        <div className="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 className="page-main-title mb-0">{selectedProgram.title}</h1>
-                <p className="page-subtitle">{selectedProgram.provider}</p>
-                <div className="program-meta">
-                    <span className="meta-item"><i className="bi bi-clock-fill"></i>{selectedProgram.duration || 'N/A'}</span>
-                    <span className="meta-item"><i className="bi bi-people-fill"></i>{enrolledInProgram.length} Enrolled</span>
-                </div>
-            </div>
-            <div className="d-flex gap-2">
-                <button className="btn btn-outline-secondary" onClick={handleGenerateReport} disabled={displayedEnrollments.length === 0}>
-                    <i className="bi bi-file-earmark-text-fill me-1"></i>Generate Report
-                </button>
-                <button className="btn btn-success" onClick={() => setShowEnrollModal(true)}>
-                    <i className="bi bi-person-plus-fill me-2"></i>Enroll Employees
-                </button>
-            </div>
-        </div>
-      </header>
+      <ProgramDetailHeader 
+        program={selectedProgram}
+        enrolledCount={enrolledInProgram.length}
+        onGenerateReport={handleGenerateReport}
+        onEnrollEmployees={() => setShowEnrollModal(true)}
+        onDeleteClick={handleDeleteProgram}
+        isGenerateReportDisabled={displayedEnrollments.length === 0}
+      />
 
       <div className="card data-table-card shadow-sm">
         <div className="enrollment-table-controls">
@@ -161,17 +335,20 @@ const ProgramDetailPage = ({ employees, trainingPrograms, enrollments, handlers 
                     <th className="sortable" onClick={() => requestSort('employeeName')}>Employee Name {getSortIcon('employeeName')}</th>
                     <th className="sortable" style={{width: '20%'}} onClick={() => requestSort('progress')}>Progress {getSortIcon('progress')}</th>
                     <th style={{width: '15%'}}>Status</th>
-                    <th className="text-center" style={{width: '15%'}}>Action</th>
+                    <th className="text-center" style={{width: '20%'}}>Actions</th>
                 </tr>
             </thead>
             <tbody>
               {displayedEnrollments.map(enr => (
-                <tr key={enr.enrollmentId}>
+                <tr key={`enrollment-${enr.id}`}>
                   <td>{enr.employeeId}</td>
                   <td>{enr.employeeName}</td>
                   <td><div className="progress-bar-cell"><div className="progress-bar-container"><div className="progress-bar-fill" style={{ width: `${enr.progress || 0}%` }}></div></div><span className="progress-text">{enr.progress || 0}%</span></div></td>
                   <td><span className={`enrollment-status-badge status-${enr.status.replace(/\s+/g, '-').toLowerCase()}`}>{enr.status}</span></td>
-                  <td className="text-center"><button className="btn btn-sm btn-outline-secondary" onClick={() => handleOpenStatusModal(enr)}>Update</button></td>
+                  <td className="text-center">
+                    <button className="btn btn-sm btn-outline-secondary me-2" onClick={() => handleOpenStatusModal(enr)}>Update</button>
+                    <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteEnrollment(enr.id, enr.employeeName)}>Remove</button>
+                  </td>
                 </tr>
               ))}
               {displayedEnrollments.length === 0 && (<tr><td colSpan="5" className="text-center p-5">No enrollments match your criteria.</td></tr>)}
@@ -180,7 +357,14 @@ const ProgramDetailPage = ({ employees, trainingPrograms, enrollments, handlers 
         </div>
       </div>
 
-      <EnrollEmployeeModal show={showEnrollModal} onClose={() => setShowEnrollModal(false)} onEnroll={handlers.enrollEmployees} program={selectedProgram} allEmployees={employees} existingEnrollments={enrolledInProgram} />
+      <EnrollEmployeeModal 
+        show={showEnrollModal} 
+        onClose={() => setShowEnrollModal(false)} 
+        onEnroll={handleEnrollEmployee} 
+        program={selectedProgram} 
+        allEmployees={employees} 
+        existingEnrollments={enrolledInProgram} 
+      />
       {editingEnrollment && <UpdateEnrollmentStatusModal show={showStatusModal} onClose={handleCloseStatusModal} onSave={handleUpdateStatus} enrollmentData={editingEnrollment} />}
       
       <ReportPreviewModal
@@ -189,6 +373,23 @@ const ProgramDetailPage = ({ employees, trainingPrograms, enrollments, handlers 
         pdfDataUri={pdfDataUri}
         reportTitle={`Training Report - ${selectedProgram.title}`}
       />
+
+      <ConfirmationModal
+        show={showDeleteModal}
+        onClose={cancelDeleteEnrollment}
+        onConfirm={confirmDeleteEnrollment}
+        title="Unenroll Employee"
+        confirmText={isDeleting ? 'Unenrolling...' : 'Unenroll'}
+        confirmVariant="danger"
+        disabled={isDeleting}
+      >
+        {enrollmentToDelete && (
+          <>
+            <p>Are you sure you want to unenroll <strong>{enrollmentToDelete.name}</strong> from this program?</p>
+            <p className="text-danger">This action cannot be undone.</p>
+          </>
+        )}
+      </ConfirmationModal>
     </div>
   );
 };

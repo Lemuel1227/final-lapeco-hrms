@@ -20,16 +20,15 @@ const AccountsPage = () => {
                 
                 // Create user accounts from employee data with real account status
                 const accounts = employeeData.map(emp => ({
-                    employeeId: emp.id, // Use emp.id to match with employeeMap
-                    employee_id: emp.employee_id, // Keep employee_id for display
+                    employeeId: emp.id, // Use emp.id as the identifier
                     name: emp.name, // Add name directly
                     username: emp.email || `${emp.name?.toLowerCase().replace(/\s+/g, '.')}@company.com`,
-                    password: '********', // Always masked for security
+                    password: !emp.password_changed ? `lapeco${emp.id}` : '**********', // Show default password or masked
+                    passwordChanged: !!emp.password_changed, // Track password change status (convert to boolean)
                     status: emp.account_status || 'Active' // Use real account status from backend
                 }));
                 setUserAccounts(accounts);
             } catch (error) {
-                console.error('Error fetching accounts data:', error);
             } finally {
                 setLoading(false);
             }
@@ -39,9 +38,26 @@ const AccountsPage = () => {
     }, []);
 
     const handlers = {
-        resetPassword: (employeeId) => {
-            console.log('Reset password for employee:', employeeId);
-            // TODO: Implement actual password reset logic
+        resetPassword: async (employeeId) => {
+            try {
+                const response = await employeeAPI.resetPassword(employeeId);
+                
+                // Show success message with the new password
+                alert(`Password reset successfully! New password: ${response.data.new_password}`);
+                
+                // Update local state to reflect password_changed = false
+                setUserAccounts(prev => 
+                    prev.map(account => 
+                        account.employeeId === employeeId 
+                            ? { ...account, passwordChanged: false, password: response.data.new_password }
+                            : account
+                    )
+                );
+                
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                alert('Failed to reset password. Please try again.');
+            }
         },
         toggleAccountStatus: async (employeeId) => {
             try {
@@ -49,15 +65,17 @@ const AccountsPage = () => {
                 const currentAccount = userAccounts.find(account => account.employeeId === employeeId);
                 if (!currentAccount) return;
                 
-                // Toggle the status
-                const newStatus = currentAccount.status === 'Active' ? 'Deactivated' : 'Active';
+                // Determine the action and call the appropriate API
+                const isActivating = currentAccount.status === 'Deactivated';
+                let response;
                 
-                // Find the employee by id (since employeeId is now emp.id)
-                const employee = employees.find(emp => emp.id === employeeId);
-                if (!employee) return;
+                if (isActivating) {
+                    response = await employeeAPI.activateAccount(employeeId);
+                } else {
+                    response = await employeeAPI.deactivateAccount(employeeId);
+                }
                 
-                // Update in backend
-                await employeeAPI.update(employee.id, { account_status: newStatus });
+                const newStatus = response.data.employee.account_status;
                 
                 // Update local state
                 setUserAccounts(prev => 
@@ -76,9 +94,17 @@ const AccountsPage = () => {
                             : emp
                     )
                 );
+                
+                // Show success message
+                alert(`Account ${newStatus.toLowerCase()} successfully!`);
+                
             } catch (error) {
                 console.error('Error updating account status:', error);
-                alert('Failed to update account status. Please try again.');
+                if (error.response?.data?.error) {
+                    alert(error.response.data.error);
+                } else {
+                    alert('Failed to update account status. Please try again.');
+                }
             }
         }
     };
@@ -100,7 +126,7 @@ const AccountsPage = () => {
             }
             return (
                 (acc.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (acc.employee_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (acc.employeeId || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (acc.username || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
         });
@@ -120,7 +146,7 @@ const AccountsPage = () => {
         setConfirmationModalState({
             isOpen: true,
             title: 'Reset Password',
-            body: `Are you sure you want to reset the password for ${employeeMap.get(account.employeeId) || account.employeeId}? A new random password will be generated.`,
+            body: `Are you sure you want to reset the password for ${employeeMap.get(account.employeeId) || account.employeeId}? The password will be reset to "lapeco${account.employeeId}".`,
             confirmText: 'Yes, Reset',
             confirmVariant: 'warning',
             onConfirm: () => {
@@ -145,22 +171,22 @@ const AccountsPage = () => {
         });
     };
 
-    if (loading) {
-        return (
-            <div className="text-center p-5">
-                <div className="spinner-border text-success" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
-                <p className="mt-3">Loading accounts...</p>
-            </div>
-        );
-    }
-
     return (
         <div className="container-fluid p-0 page-module-container">
             <header className="page-header d-flex justify-content-between align-items-center mb-4">
                 <h1 className="page-main-title">Accounts Management</h1>
             </header>
+
+            {loading && (
+                <div className="text-center p-5">
+                    <div className="spinner-border text-success" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-3">Loading accounts...</p>
+                </div>
+            )}
+
+            {!loading && (
             
             <div className="card data-table-card shadow-sm">
                 <div className="card-header accounts-card-header">
@@ -195,12 +221,12 @@ const AccountsPage = () => {
                         <tbody>
                             {filteredAccounts.map(account => (
                                 <tr key={account.employeeId}>
-                                    <td><strong>{account.employee_id}</strong></td>
+                                    <td><strong>{account.employeeId}</strong></td>
                                     <td>{account.name}</td>
                                     <td>{account.username}</td>
                                     <td>
                                         <div className="password-cell">
-                                            <span>••••••••</span>
+                                            <span>{!account.passwordChanged ? account.password : '••••••••'}</span>
                                             <button 
                                                 className="btn btn-sm btn-light copy-btn" 
                                                 title="Copy Password"
@@ -236,6 +262,7 @@ const AccountsPage = () => {
                     </table>
                 </div>
             </div>
+            )}
 
             <ConfirmationModal
                 show={confirmationModalState.isOpen}

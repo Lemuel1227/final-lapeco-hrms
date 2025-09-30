@@ -1,0 +1,16 @@
+.actions-dropdown-menu {
+  position: fixed;
+  z-index: 1056;
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px); 
+  transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out, visibility 0.15s;
+  min-width: 180px;
+}
+
+.actions-dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}

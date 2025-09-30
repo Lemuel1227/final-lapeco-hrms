@@ -10,6 +10,7 @@ class PositionController extends Controller
 {
     public function index(Request $request)
     {
+        // Enhanced version for authenticated users (web interface)
         $positions = Position::all()->map(function ($pos) {
             $employeeCount = \App\Models\User::where('position_id', $pos->id)->count();
             return [
@@ -21,6 +22,13 @@ class PositionController extends Controller
                 'employeeCount' => $employeeCount,
             ];
         });
+        return response()->json($positions);
+    }
+
+    public function publicIndex()
+    {
+        // Public version - only name and description
+        $positions = Position::select('id', 'name', 'description')->get();
         return response()->json($positions);
     }
 
@@ -74,4 +82,4 @@ class PositionController extends Controller
             });
         return response()->json(['employees' => $employees]);
     }
-} 
+}

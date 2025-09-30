@@ -1,94 +1,91 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import './AccountSettingsPage.css';
-import ChangePassword from './ChangePassword';
-import NotificationSettings from './NotificationSettings';
-import SecurityPolicies from './SecurityPolicies';
-import ThemeSettings from './ThemeSettings';
-import LoginActivity from './LoginActivity';
 import { USER_ROLES } from '../../constants/roles';
-import { useTheme } from '../../contexts/ThemeContext';
+import ChangePassword from './ChangePassword';
+import ThemeSettings from './ThemeSettings';
+import NotificationSettings from './NotificationSettings';
+import LoginActivity from './LoginActivity';
+import DataManagementSettings from './DataManagementSettings';
 
 const AccountSettingsPage = () => {
-    const { theme, toggleTheme } = useTheme();
-    const [activeSection, setActiveSection] = useState('password');
-    const [currentUser, setCurrentUser] = useState(null);
-    const [userRole, setUserRole] = useState('HR_PERSONNEL');
+  const context = useOutletContext() || {};
+  const { handlers = {}, theme = 'light' } = context;
+  const [activeSection, setActiveSection] = useState('changePassword');
+  
+  // Fallback handlers if not provided through context
+  const fallbackHandlers = {
+    toggleTheme: () => {
+      console.warn('toggleTheme handler not available');
+      alert('Theme toggle is not available. Please refresh the page.');
+    },
+    resetSelectedData: () => {
+      console.warn('resetSelectedData handler not available');
+    }
+  };
+  
+  const safeHandlers = { ...fallbackHandlers, ...handlers };
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  
+  const userRole = currentUser?.role || 'HR_PERSONNEL';
 
-    useEffect(() => {
-        // Initialize from localStorage
-        try {
-            const stored = localStorage.getItem('user');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                setCurrentUser(parsed);
-                if (parsed?.role) setUserRole(parsed.role);
-            }
-        } catch {}
-    }, []);
+  const isHrUser = userRole === USER_ROLES.HR_PERSONNEL;
 
-    const handlers = {
-        toggleTheme
-    };
-
-    const isHrUser = userRole === USER_ROLES.HR_PERSONNEL;
-
-    const renderSection = () => {
-        switch (activeSection) {
-            case 'password':
-                return <ChangePassword currentUser={currentUser} handlers={handlers} />;
-            case 'notifications':
-                return <NotificationSettings />;
-            case 'appearance':
-                return <ThemeSettings currentTheme={theme} onToggleTheme={toggleTheme} />;
-            case 'activity':
-                return <LoginActivity />;
-            case 'security':
-                return isHrUser ? <SecurityPolicies /> : null; 
-            default:
-                return <ChangePassword currentUser={currentUser} handlers={handlers} />;
-        }
-    };
+  const sections = {
+    personal: [
+      { key: 'changePassword', label: 'Change Password', icon: 'bi-key-fill' },
+      { key: 'theme', label: 'Theme & Appearance', icon: 'bi-palette-fill' },
+      { key: 'notifications', label: 'Notifications', icon: 'bi-bell-fill' },
+      { key: 'loginActivity', label: 'Login Activity', icon: 'bi-shield-check' },
+    ],
+    admin: [
+      { key: 'dataManagement', label: 'Data Management', icon: 'bi-database-fill-x' },
+    ]
+  };
 
     return (
-        <div className="container-fluid p-0 page-module-container">
-            <header className="page-header mb-4">
-                <h1 className="page-main-title">Settings</h1>
-                <p className="text-muted">Manage your personal preferences and system settings.</p>
-            </header>
+      <div className="container-fluid p-0 page-module-container">
+        <header className="page-header mb-4">
+          <h1 className="page-main-title">Account Settings</h1>
+        </header>
+        <div className="account-settings-grid">
+          <nav className="settings-nav">
+            <div className="nav-heading">Personal Settings</div>
+            {sections.personal.map(sec => (
+              <button key={sec.key} className={`nav-link ${activeSection === sec.key ? 'active' : ''}`} onClick={() => setActiveSection(sec.key)}>
+                <i className={sec.icon}></i> {sec.label}
+              </button>
+            ))}
+            
+            {isHrUser && (
+              <>
+                <div className="nav-heading">Admin Tools</div>
+                {sections.admin.map(sec => (
+                  <button key={sec.key} className={`nav-link ${activeSection === sec.key ? 'active' : ''}`} onClick={() => setActiveSection(sec.key)}>
+                    <i className={sec.icon}></i> {sec.label}
+                  </button>
+                ))}
+              </>
+            )}
+          </nav>
+          <div className="settings-content">
+              {activeSection === 'changePassword' && <ChangePassword currentUser={currentUser} handlers={safeHandlers} />}
+              {activeSection === 'theme' && <ThemeSettings theme={theme} onToggleTheme={safeHandlers.toggleTheme} />}
+              {activeSection === 'notifications' && <NotificationSettings />}
+              {activeSection === 'loginActivity' && <LoginActivity />}
 
-            <div className="account-settings-grid">
-                <nav className="settings-nav">
-                    <h6 className="nav-heading">Personal Settings</h6>
-                    <button className={`nav-link ${activeSection === 'password' ? 'active' : ''}`} onClick={() => setActiveSection('password')}>
-                        <i className="bi bi-key-fill"></i><span>Password</span>
-                    </button>
-                    <button className={`nav-link ${activeSection === 'notifications' ? 'active' : ''}`} onClick={() => setActiveSection('notifications')}>
-                        <i className="bi bi-bell-fill"></i><span>Notifications</span>
-                    </button>
-                    <button className={`nav-link ${activeSection === 'appearance' ? 'active' : ''}`} onClick={() => setActiveSection('appearance')}>
-                        <i className="bi bi-palette-fill"></i><span>Appearance</span>
-                    </button>
-                    <button className={`nav-link ${activeSection === 'activity' ? 'active' : ''}`} onClick={() => setActiveSection('activity')}>
-                        <i className="bi bi-clock-history"></i><span>Login Activity</span>
-                    </button>
-                    
-                    {isHrUser && (
-                        <>
-                            <hr className="my-2"/>
-                            <h6 className="nav-heading">Admin</h6>
-                            <button className={`nav-link ${activeSection === 'security' ? 'active' : ''}`} onClick={() => setActiveSection('security')}>
-                                <i className="bi bi-shield-lock-fill"></i><span>Security Policies</span>
-                            </button>
-                        </>
-                    )}
-                </nav>
-
-                <div className="settings-content">
-                    {renderSection()}
-                </div>
-            </div>
+              {isHrUser && activeSection === 'dataManagement' && <DataManagementSettings onReset={safeHandlers.resetSelectedData} />}
+          </div>
         </div>
+      </div>
     );
-};
+  };
 
 export default AccountSettingsPage;

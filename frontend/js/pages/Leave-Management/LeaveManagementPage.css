@@ -1,149 +1,225 @@
-.leave-status-bar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-.status-filter-card {
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-left-width: 4px;
-    border-radius: var(--border-radius);
-    padding: 0.75rem 1rem;
-    transition: all 0.2s ease-in-out;
-    cursor: pointer;
-}
-.status-filter-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--card-shadow);
-}
+/* src/components/pages/Leave-Management/LeaveManagementPage.css */
 
-.status-filter-card.active {
-    background-color: var(--app-success-color);
-    color: var(--text-on-success);
-    border-color: var(--app-success-color);
-}
-.status-filter-card.active .stat-label,
-.status-filter-card.active .stat-value {
-    color: var(--text-on-success);
-}
-
-.status-filter-card .stat-value {
-    font-size: 1.75rem; 
-    font-weight: 600;
-    display: block;
-    color: var(--text-primary);
-}
-.status-filter-card .stat-label {
-    font-size: 0.8rem; 
-    font-weight: 500;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-}
-.status-filter-card.filter-all { border-left-color: var(--text-secondary); }
-.status-filter-card.filter-pending { border-left-color: var(--warning-color); }
-.status-filter-card.filter-approved { border-left-color: var(--app-success-color); }
-.status-filter-card.filter-declined { border-left-color: var(--danger-color); }
-.status-filter-card.filter-canceled { border-left-color: var(--text-secondary); }
-
-.leave-controls-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-}
-.leave-controls-bar .filters-group {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-grow: 1;
-}
-.leave-controls-bar .input-group {
-    max-width: 350px;
-}
-.leave-stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background-color: var(--bg-primary);
-    padding: 0.5rem 1rem;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--card-shadow);
-}
-.leave-stat-item .stat-value {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--app-success-color);
-}
-.leave-stat-item .stat-label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.leave-table-container { width: 100%; overflow-x: auto; }
-.leave-table .status-col, .leave-table .action-col {
-    position: sticky;
-    background-color: var(--bg-primary);
-    z-index: 1;
-}
-.leave-table .action-col {
-    right: 0;
-    border-left: 1px solid var(--border-color);
-}
-.leave-table .status-col {
-    right: 120px;
-    border-left: 1px solid var(--border-color);
-}
-.leave-table thead .status-col, .leave-table thead .action-col {
-    z-index: 2;
-    background-color: var(--thead-bg);
-}
-
+/* === Status Badge (Shared) === */
 .status-badge {
-  color: var(--white-color);
-  padding: 0.3em 0.6em;
-  font-size: 0.75rem;
-  font-weight: 500;
-  border-radius: var(--border-radius);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+    color: #fff;
+    padding: 0.3em 0.6em;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+    text-transform: uppercase;
 }
 .status-approved { background-color: var(--app-success-color); }
 .status-pending { background-color: var(--warning-color); color: var(--text-primary) !important; }
 .status-declined { background-color: var(--danger-color); }
 .status-canceled { background-color: var(--text-secondary); }
 
-.status-select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    border: none;
-    background-color: transparent;
-    color: white;
-    padding: 0.3em 1.75em 0.3em 0.6em;
-    font-size: 0.75rem;
+
+/* === Main Page Tabs === */
+.leave-management-tabs {
+    margin-bottom: -1px;
+    border-bottom: none; /* Remove the individual border so the parent wrapper can handle it */
+}
+.leave-management-tabs .nav-link {
     font-weight: 500;
+    color: var(--text-secondary);
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    border: 1px solid transparent !important;
+    border-bottom: none !important; /* Remove the individual bottom border from the link itself */
+    background: none;
+}
+.leave-management-tabs .nav-link.active {
+    color: var(--app-success-color);
+    border-color: var(--border-color) var(--border-color) transparent !important;
+    background-color: var(--bg-primary);
+    font-weight: 600;
+}
+.leave-tab-content {
+    background-color: var(--bg-primary);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+.dark-theme .leave-management-tabs .nav-link.active,
+.dark-theme .leave-tab-content {
+    background-color: var(--bg-primary);
+}
+.dark-theme .leave-management-tabs .nav-link.active {
+    border-color: var(--border-color) var(--border-color) transparent !important;
+}
+
+
+/* === Statistics Cards (Restored) === */
+.stat-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.leave-stat-card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--border-color);
     border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.leave-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow);
+}
+.leave-stat-card.active {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow);
+}
+.leave-stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+}
+.leave-stat-card .stat-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 0.6em center;
-    background-size: 1em 1em;
 }
-.status-select:disabled {
-    background-image: none;
-    pointer-events: none;
-    padding-right: 0.6em;
+.leave-stat-card.pending, .leave-stat-card.pending.active { 
+    border-left-color: var(--warning-color); 
+}
+.leave-stat-card.pending.active {
+    background-color: rgba(var(--warning-rgb), 0.1);
+}
+.leave-stat-card.approved, .leave-stat-card.approved.active { 
+    border-left-color: var(--app-success-color); 
+}
+.leave-stat-card.approved.active {
+    background-color: rgba(var(--app-success-rgb), 0.1);
+}
+.leave-stat-card.declined, .leave-stat-card.declined.active { 
+    border-left-color: var(--danger-color); 
+}
+.leave-stat-card.declined.active {
+    background-color: rgba(var(--danger-rgb), 0.05);
+}
+.leave-stat-card.canceled, .leave-stat-card.canceled.active {
+     border-left-color: var(--text-secondary); 
+}
+.leave-stat-card.canceled.active {
+    background-color: var(--bg-tertiary);
+}
+.leave-stat-card.pending.active .stat-value {
+    color: var(--warning-color);
+}
+.leave-stat-card.approved.active .stat-value {
+    color: var(--app-success-color);
+}
+.leave-stat-card.declined.active .stat-value {
+    color: var(--danger-color);
+}
+.leave-stat-card.canceled.active .stat-value {
+    color: var(--text-secondary);
 }
 
-.status-select.status-approved { background-color: var(--app-success-color); color: var(--text-on-success); }
-.status-select.status-pending { background-color: var(--warning-color); color: var(--text-primary); }
-.status-select.status-declined { background-color: var(--danger-color); }
-.status-select.status-canceled { background-color: var(--text-secondary); }
 
-.dark-theme .status-select.status-pending {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23000000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+/* === Controls Bar (Restored) === */
+.leave-controls-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.leave-controls-bar .input-group {
+    max-width: 400px;
+}
+.on-leave-today-badge {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.on-leave-today-badge .count {
+    font-weight: 700;
+    color: var(--app-success-color);
+    margin-right: 0.5rem;
+}
+
+/* === Action Buttons (Restored) === */
+.action-btn-group {
+    display: inline-flex;
+    gap: 0.5rem;
+}
+.action-btn-group .btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+/* === Leave Credits Tab === */
+.balance-summary {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+    margin-bottom: 0.25rem;
+}
+
+/* Custom Tooltip Styling */
+.tooltip.leave-tooltip .tooltip-inner {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--modal-shadow);
+    padding: 0.75rem;
+    min-width: 200px;
+    text-align: left;
+}
+.leave-balance-tooltip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+.leave-balance-tooltip .tooltip-item {
+    display: flex;
+    justify-content: space-between;
+}
+.leave-balance-tooltip .tooltip-item .label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.leave-balance-tooltip .tooltip-item .value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Sortable Header Styles */
+.data-table th.sortable { 
+    cursor: pointer; 
+    user-select: none;
+    transition: background-color 0.2s ease-in-out;
+}
+.data-table th.sortable:hover { 
+    background-color: var(--bg-tertiary);
+}
+.sort-icon { 
+    opacity: 0.4; 
+    transition: opacity 0.2s ease-in-out;
+}
+.data-table th.sortable:hover .sort-icon { 
+    opacity: 1; 
+}
+.sort-icon.active { 
+    opacity: 1; 
+    color: var(--app-success-color); 
 }
