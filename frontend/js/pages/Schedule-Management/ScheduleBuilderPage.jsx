@@ -215,22 +215,57 @@ const ScheduleBuilderPage = (props) => {
     ];
 
     if (method === 'copy' && sourceData && Array.isArray(sourceData)) {
+      console.log('Copy method - sourceData:', sourceData);
       initialName = `Copy of ${sourceData[0]?.name || `Schedule for ${sourceData[0]?.date}`}`;
       const sourceColumns = new Set(['start_time', 'end_time']);
       sourceData.forEach(entry => {
         Object.keys(entry).forEach(key => {
           // Filter out employee-related fields that are already displayed as fixed columns
-          if (!['scheduleId', 'empId', 'date', 'name', 'start_time', 'end_time', 'user_name', 'employee_id', 'position_name', 'id', 'user_id'].includes(key)) {
+          if (!['scheduleId', 'empId', 'date', 'name', 'user_name', 'employee_id', 'position_name', 'id', 'user_id'].includes(key)) {
             sourceColumns.add(key);
           }
         });
       });
       initialColumns = Array.from(sourceColumns).map(key => ({ key, name: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') }));
+      
+      // Helper function to format time for input fields
+      const formatTimeForInput = (timeStr) => {
+        console.log('Formatting time:', timeStr);
+        if (!timeStr) return '';
+        
+        // Handle ISO datetime strings (e.g., "2025-09-30T07:00:00.000000Z")
+        if (timeStr.includes('T')) {
+          const timePart = timeStr.split('T')[1];
+          if (timePart) {
+            // Extract just the HH:MM part from the time portion
+            return timePart.substring(0, 5);
+          }
+        }
+        
+        // If it's already in HH:MM format, return as is
+        if (timeStr.match(/^\d{2}:\d{2}$/)) return timeStr;
+        // If it's in HH:MM:SS format, extract HH:MM
+        if (timeStr.match(/^\d{2}:\d{2}:\d{2}$/)) return timeStr.substring(0, 5);
+        return timeStr;
+      };
+      
       initialGrid = sourceData.map(sch => {
-        const row = { empId: sch.empId || sch.user_id };
+        console.log('Processing schedule item:', sch);
+        const row = { empId: sch.employee_id || sch.empId || sch.user_id };
+        
+        // Handle time fields directly like in template method
+        row.start_time = formatTimeForInput(sch.start_time);
+        row.end_time = formatTimeForInput(sch.end_time);
+        console.log(`start_time: ${sch.start_time} -> ${row.start_time}`);
+        console.log(`end_time: ${sch.end_time} -> ${row.end_time}`);
+        
+        // Handle other columns
         initialColumns.forEach(col => {
-          row[col.key] = sch[col.key] || '';
+          if (col.key !== 'start_time' && col.key !== 'end_time') {
+            row[col.key] = sch[col.key] || '';
+          }
         });
+        console.log('Final row:', row);
         return row;
       });
     } else if (method === 'template' && sourceData) {
@@ -256,6 +291,16 @@ const ScheduleBuilderPage = (props) => {
           // Convert time format from database (HH:MM or HH:MM:SS) to HTML time input format (HH:MM)
           const formatTimeForInput = (timeStr) => {
             if (!timeStr) return '';
+            
+            // Handle ISO datetime strings (e.g., "2025-09-30T07:00:00.000000Z")
+            if (timeStr.includes('T')) {
+              const timePart = timeStr.split('T')[1];
+              if (timePart) {
+                // Extract just the HH:MM part from the time portion
+                return timePart.substring(0, 5);
+              }
+            }
+            
             // If it's already in HH:MM format, return as is
             if (timeStr.match(/^\d{2}:\d{2}$/)) return timeStr;
             // If it's in HH:MM:SS format, extract HH:MM
