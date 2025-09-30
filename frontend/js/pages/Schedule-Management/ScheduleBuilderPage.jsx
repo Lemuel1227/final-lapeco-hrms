@@ -219,14 +219,15 @@ const ScheduleBuilderPage = (props) => {
       const sourceColumns = new Set(['start_time', 'end_time']);
       sourceData.forEach(entry => {
         Object.keys(entry).forEach(key => {
-          if (!['scheduleId', 'empId', 'date', 'name', 'start_time', 'end_time'].includes(key)) {
+          // Filter out employee-related fields that are already displayed as fixed columns
+          if (!['scheduleId', 'empId', 'date', 'name', 'start_time', 'end_time', 'user_name', 'employee_id', 'position_name', 'id', 'user_id'].includes(key)) {
             sourceColumns.add(key);
           }
         });
       });
       initialColumns = Array.from(sourceColumns).map(key => ({ key, name: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') }));
       initialGrid = sourceData.map(sch => {
-        const row = { empId: sch.empId };
+        const row = { empId: sch.empId || sch.user_id };
         initialColumns.forEach(col => {
           row[col.key] = sch[col.key] || '';
         });
@@ -234,12 +235,13 @@ const ScheduleBuilderPage = (props) => {
       });
     } else if (method === 'template' && sourceData) {
       initialName = `${sourceData.name} for ${currentDate}`;
-      const templateColumnKeys = sourceData.columns && sourceData.columns.length > 0 ? sourceData.columns : ['start_time', 'end_time'];
+      const templateColumnKeys = sourceData.columns && sourceData.columns.length > 0 ? sourceData.columns : [];
       
-      // If template has assignments, ensure we include notes column
+      // Always include start_time and end_time as base columns, then add template columns and notes if needed
+      const baseColumns = ['start_time', 'end_time'];
       const allColumnKeys = sourceData.assignments && sourceData.assignments.length > 0 
-        ? [...new Set([...templateColumnKeys, 'notes'])]
-        : templateColumnKeys;
+        ? [...new Set([...baseColumns, ...templateColumnKeys, 'notes'])]
+        : [...new Set([...baseColumns, ...templateColumnKeys])];
         
       initialColumns = allColumnKeys.map(key => ({
         key,
@@ -250,9 +252,20 @@ const ScheduleBuilderPage = (props) => {
       if (sourceData.assignments && sourceData.assignments.length > 0) {
         initialGrid = sourceData.assignments.map(assignment => {
           const row = { empId: assignment.user_id };
-          // Populate standard columns from assignment data
-          row.start_time = assignment.start_time || '';
-          row.end_time = assignment.end_time || '';
+          
+          // Convert time format from database (HH:MM or HH:MM:SS) to HTML time input format (HH:MM)
+          const formatTimeForInput = (timeStr) => {
+            if (!timeStr) return '';
+            // If it's already in HH:MM format, return as is
+            if (timeStr.match(/^\d{2}:\d{2}$/)) return timeStr;
+            // If it's in HH:MM:SS format, extract HH:MM
+            if (timeStr.match(/^\d{2}:\d{2}:\d{2}$/)) return timeStr.substring(0, 5);
+            return timeStr;
+          };
+          
+          // Populate standard columns from assignment data with proper time formatting
+          row.start_time = formatTimeForInput(assignment.start_time);
+          row.end_time = formatTimeForInput(assignment.end_time);
           row.notes = assignment.notes || '';
           
           // Populate any additional template columns with empty values
