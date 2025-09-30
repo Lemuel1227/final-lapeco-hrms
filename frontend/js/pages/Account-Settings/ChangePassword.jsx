@@ -84,21 +84,57 @@ const ChangePassword = ({ currentUser, handlers }) => {
                 </div>
             )}
             <form onSubmit={handleSaveChanges}>
+                {/* Hidden username field for accessibility */}
+                <input
+                    type="text"
+                    name="username"
+                    value={currentUser?.email || ''}
+                    autoComplete="username"
+                    style={{ display: 'none' }}
+                    readOnly
+                    tabIndex="-1"
+                    aria-hidden="true"
+                />
+                
                 <div className="card-body">
                     <p className="card-text text-muted">For your security, we recommend choosing a strong password that you don't use anywhere else.</p>
                     <div className="mb-3">
                         <label htmlFor="currentPassword" className="form-label">Current Password</label>
-                        <input type="password" className={`form-control ${errors.currentPassword ? 'is-invalid' : ''}`} id="currentPassword" name="currentPassword" value={passwordData.currentPassword} onChange={handlePasswordChange} />
+                        <input 
+                            type="password" 
+                            className={`form-control ${errors.currentPassword ? 'is-invalid' : ''}`} 
+                            id="currentPassword" 
+                            name="currentPassword" 
+                            value={passwordData.currentPassword} 
+                            onChange={handlePasswordChange}
+                            autoComplete="current-password"
+                        />
                         {errors.currentPassword && <div className="invalid-feedback">{errors.currentPassword}</div>}
                     </div>
                     <div className="mb-3">
                         <label htmlFor="newPassword" className="form-label">New Password</label>
-                        <input type="password" className={`form-control ${errors.newPassword ? 'is-invalid' : ''}`} id="newPassword" name="newPassword" value={passwordData.newPassword} onChange={handlePasswordChange} />
+                        <input 
+                            type="password" 
+                            className={`form-control ${errors.newPassword ? 'is-invalid' : ''}`} 
+                            id="newPassword" 
+                            name="newPassword" 
+                            value={passwordData.newPassword} 
+                            onChange={handlePasswordChange}
+                            autoComplete="new-password"
+                        />
                         {errors.newPassword && <div className="invalid-feedback">{errors.newPassword}</div>}
                     </div>
                     <div className="mb-3">
                         <label htmlFor="confirmPassword" className="form-label">Confirm New Password</label>
-                        <input type="password" className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`} id="confirmPassword" name="confirmPassword" value={passwordData.confirmPassword} onChange={handlePasswordChange} />
+                        <input 
+                            type="password" 
+                            className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`} 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
+                            value={passwordData.confirmPassword} 
+                            onChange={handlePasswordChange}
+                            autoComplete="new-password"
+                        />
                         {errors.confirmPassword && <div className="invalid-feedback">{errors.confirmPassword}</div>}
                     </div>
                 </div>

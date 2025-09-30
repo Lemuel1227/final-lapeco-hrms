@@ -184,6 +184,7 @@ export const trainingAPI = {
   createProgram: (data) => api.post('/training/programs', data),
   updateProgram: (id, data) => api.put(`/training/programs/${id}`, data),
   deleteProgram: (id) => api.delete(`/training/programs/${id}`),
+  forceDeleteProgram: (id) => api.delete(`/training/programs/${id}/force`),
   
   // Enrollment methods
   getEnrollments: () => api.get('/training/enrollments'),

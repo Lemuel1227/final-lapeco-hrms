@@ -15,6 +15,7 @@ class EmployeeController extends Controller
         $user = $request->user();
         $role = $user->role;
         
+        // Role-based filtering is now handled by middleware, but we still need to filter data based on role
         if ($role === 'HR_PERSONNEL') {
             $employees = User::all();
         } elseif ($role === 'TEAM_LEADER') {
@@ -73,20 +74,7 @@ class EmployeeController extends Controller
         $user = $request->user();
         $role = $user->role;
         
-        // Check if user has permission to view this employee
-        if ($role === 'HR_PERSONNEL') {
-            // HR can view any employee
-        } elseif ($role === 'TEAM_LEADER') {
-            // Team leaders can only view employees in their position
-            if ($employee->position_id !== $user->position_id) {
-                return response()->json(['error' => 'Unauthorized'], 403);
-            }
-        } else {
-            // Regular employees can only view employees in their position
-            if ($employee->position_id !== $user->position_id) {
-                return response()->json(['error' => 'Unauthorized'], 403);
-            }
-        }
+        // Authorization is now handled by middleware
         
         $data = [
             'id' => $employee->id,
@@ -124,16 +112,8 @@ class EmployeeController extends Controller
 
     public function store(Request $request)
     {
-        $user = $request->user();
+        // Authorization is now handled by middleware
         
-        // Only HR personnel can create new employees
-        if ($user->role !== 'HR_PERSONNEL') {
-            return response()->json([
-                'message' => 'Access denied. Only HR personnel can create new employees.',
-                'error_type' => 'authorization_error'
-            ], 403);
-        }
-
         try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
@@ -249,14 +229,8 @@ class EmployeeController extends Controller
     {
         $user = $request->user();
         
-        // Only HR personnel can update other employees, users can only update themselves
-        if ($user->role !== 'HR_PERSONNEL' && $employee->id !== $user->id) {
-            return response()->json([
-                'message' => 'Access denied. You can only update your own profile or contact HR for assistance.',
-                'error_type' => 'authorization_error'
-            ], 403);
-        }
-
+        // Authorization is now handled by middleware, but we still need user context for data filtering
+        
         try {
             $validated = $request->validate([
                 'name' => 'sometimes|string|max:255',

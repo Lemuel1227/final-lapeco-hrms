@@ -50,14 +50,14 @@ class TrainingController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'provider' => 'required|string|max:255',
-            'duration' => 'required|string|max:100',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'provider' => 'nullable|string|max:255',
+            'duration' => 'nullable|string|max:100',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'status' => ['required', Rule::in(['Draft', 'Active', 'Completed', 'Cancelled'])],
             'cost' => 'nullable|numeric|min:0',
             'location' => 'nullable|string|max:255',
-            'type' => 'required|string|max:100',
+            'type' => 'nullable|string|max:100',
             'max_participants' => 'nullable|integer|min:1',
             'requirements' => 'nullable|string'
         ]);
@@ -91,14 +91,14 @@ class TrainingController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'provider' => 'required|string|max:255',
-            'duration' => 'required|string|max:100',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'provider' => 'nullable|string|max:255',
+            'duration' => 'nullable|string|max:100',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'status' => ['required', Rule::in(['Draft', 'Active', 'Completed', 'Cancelled'])],
             'cost' => 'nullable|numeric|min:0',
             'location' => 'nullable|string|max:255',
-            'type' => 'required|string|max:100',
+            'type' => 'nullable|string|max:100',
             'max_participants' => 'nullable|integer|min:1',
             'requirements' => 'nullable|string'
         ]);
@@ -119,16 +119,38 @@ class TrainingController extends Controller
         $program = TrainingProgram::findOrFail($id);
         
         // Check if there are any enrollments
-        if ($program->enrollments()->count() > 0) {
+        $enrollmentCount = $program->enrollments()->count();
+        if ($enrollmentCount > 0) {
             return response()->json([
-                'message' => 'Cannot delete program with existing enrollments'
-            ], 422);
+                'message' => 'This program has existing enrollments. Deleting it will also remove all enrollment records.',
+                'warning' => true,
+                'enrollment_count' => $enrollmentCount,
+                'program_id' => $id
+            ], 200); // Changed from 422 to 200 to indicate it's a warning, not an error
         }
 
         $program->delete();
 
         return response()->json([
             'message' => 'Training program deleted successfully'
+        ]);
+    }
+
+    /**
+     * Force delete the specified training program with enrollments.
+     */
+    public function forceDestroyProgram($id): JsonResponse
+    {
+        $program = TrainingProgram::findOrFail($id);
+        
+        // Delete all enrollments first
+        $program->enrollments()->delete();
+        
+        // Then delete the program
+        $program->delete();
+
+        return response()->json([
+            'message' => 'Training program and all associated enrollments deleted successfully'
         ]);
     }
 

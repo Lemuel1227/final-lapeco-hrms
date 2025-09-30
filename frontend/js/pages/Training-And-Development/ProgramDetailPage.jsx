@@ -174,19 +174,29 @@ const ProgramDetailPage = () => {
   };
 
   const handleDeleteProgram = async () => {
-    if (window.confirm('Are you sure you want to delete this training program? This action cannot be undone.')) {
-      try {
-        await trainingAPI.deleteProgram(programId);
-        // Navigate back to training page after successful deletion
-        window.location.href = '/dashboard/training';
-      } catch (err) {
-        console.error('Error deleting program:', err);
-        if (err.response?.status === 422) {
-          setError('Cannot delete program with existing enrollments.');
-        } else {
-          setError('Failed to delete program. Please try again.');
+    try {
+      const response = await trainingAPI.deleteProgram(programId);
+      
+      // Check if it's a warning response
+      if (response.data.warning) {
+        const confirmDelete = window.confirm(
+          `This program has ${response.data.enrollment_count} existing enrollment(s). ` +
+          'Deleting this program will also permanently remove all associated enrollment records. ' +
+          'Are you sure you want to proceed?'
+        );
+        
+        if (confirmDelete) {
+          await trainingAPI.forceDeleteProgram(programId);
+          // Navigate back to training page after successful deletion
+          window.location.href = '/dashboard/training';
         }
+      } else {
+        // Normal deletion - navigate back
+        window.location.href = '/dashboard/training';
       }
+    } catch (err) {
+      console.error('Error deleting program:', err);
+      setError('Failed to delete program. Please try again.');
     }
   };
 

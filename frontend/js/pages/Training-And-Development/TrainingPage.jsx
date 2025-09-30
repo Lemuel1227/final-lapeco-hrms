@@ -14,7 +14,9 @@ const TrainingPage = () => {
   const [editingProgram, setEditingProgram] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const [programToDelete, setProgramToDelete] = useState(null);
+  const [warningData, setWarningData] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch data from API on component mount
@@ -102,25 +104,28 @@ const TrainingPage = () => {
     if (programToDelete && !isDeleting) {
       try {
         setIsDeleting(true);
-        await trainingAPI.deleteProgram(programToDelete.id);
+        const response = await trainingAPI.deleteProgram(programToDelete.id);
         
-        // Refresh data after deletion
-        const [programsResponse, enrollmentsResponse] = await Promise.all([
-          trainingAPI.getAll(),
-          trainingAPI.getEnrollments()
-        ]);
-        
-        setTrainingPrograms(programsResponse.data || []);
-        setEnrollments(enrollmentsResponse.data || []);
-        setShowDeleteModal(false);
-        setProgramToDelete(null);
+        // Check if it's a warning response
+        if (response.data.warning) {
+          setWarningData(response.data);
+          setShowDeleteModal(false);
+          setShowWarningModal(true);
+        } else {
+          // Normal deletion - refresh data
+          const [programsResponse, enrollmentsResponse] = await Promise.all([
+            trainingAPI.getAll(),
+            trainingAPI.getEnrollments()
+          ]);
+          
+          setTrainingPrograms(programsResponse.data || []);
+          setEnrollments(enrollmentsResponse.data || []);
+          setShowDeleteModal(false);
+          setProgramToDelete(null);
+        }
       } catch (err) {
         console.error('Error deleting program:', err);
-        if (err.response?.status === 422) {
-          setError('Cannot delete program with existing enrollments.');
-        } else {
-          setError('Failed to delete program. Please try again.');
-        }
+        setError('Failed to delete program. Please try again.');
         setShowDeleteModal(false);
         setProgramToDelete(null);
       } finally {
@@ -132,6 +137,43 @@ const TrainingPage = () => {
   const cancelDeleteProgram = () => {
     if (!isDeleting) {
       setShowDeleteModal(false);
+      setProgramToDelete(null);
+    }
+  };
+
+  const confirmForceDelete = async () => {
+    if (warningData && !isDeleting) {
+      try {
+        setIsDeleting(true);
+        await trainingAPI.forceDeleteProgram(warningData.program_id);
+        
+        // Refresh data after deletion
+        const [programsResponse, enrollmentsResponse] = await Promise.all([
+          trainingAPI.getAll(),
+          trainingAPI.getEnrollments()
+        ]);
+        
+        setTrainingPrograms(programsResponse.data || []);
+        setEnrollments(enrollmentsResponse.data || []);
+        setShowWarningModal(false);
+        setWarningData(null);
+        setProgramToDelete(null);
+      } catch (err) {
+        console.error('Error force deleting program:', err);
+        setError('Failed to delete program. Please try again.');
+        setShowWarningModal(false);
+        setWarningData(null);
+        setProgramToDelete(null);
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const cancelForceDelete = () => {
+    if (!isDeleting) {
+      setShowWarningModal(false);
+      setWarningData(null);
       setProgramToDelete(null);
     }
   };
@@ -252,6 +294,27 @@ const TrainingPage = () => {
         disabled={isDeleting}
       >
         Are you sure you want to delete the training program <strong>"{programToDelete?.title}"</strong>? This action cannot be undone.
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        show={showWarningModal}
+        title="Warning: Program Has Enrollments"
+        onClose={cancelForceDelete}
+        onConfirm={confirmForceDelete}
+        confirmText={isDeleting ? 'Deleting...' : 'Delete Anyway'}
+        confirmVariant="danger"
+        disabled={isDeleting}
+      >
+        <div>
+          <p className="mb-3">
+            <strong>"{programToDelete?.title}"</strong> has <strong>{warningData?.enrollment_count}</strong> existing enrollment(s).
+          </p>
+          <p className="text-warning mb-3">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            Deleting this program will also permanently remove all associated enrollment records.
+          </p>
+          <p className="mb-0">Are you sure you want to proceed?</p>
+        </div>
       </ConfirmationModal>
         </>
       )}

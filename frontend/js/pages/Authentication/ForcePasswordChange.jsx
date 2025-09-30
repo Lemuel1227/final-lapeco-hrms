@@ -20,6 +20,20 @@ const ForcePasswordChange = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Get current user's email for accessibility
+  const getCurrentUserEmail = () => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        return user.email || '';
+      }
+    } catch (error) {
+      console.error('Error getting user data:', error);
+    }
+    return '';
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -120,6 +134,18 @@ const ForcePasswordChange = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="login-form">
+              {/* Hidden username field for accessibility */}
+              <input
+                type="text"
+                name="username"
+                value={getCurrentUserEmail()}
+                autoComplete="username"
+                style={{ display: 'none' }}
+                readOnly
+                tabIndex="-1"
+                aria-hidden="true"
+              />
+              
               <div className="mb-3">
                 <label htmlFor="currentPassword" className="form-label login-label">Current Password</label>
                 <div className="input-group">

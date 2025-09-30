@@ -7,6 +7,8 @@ use App\Models\Position;
 use App\Models\Holiday;
 use App\Models\Schedule;
 use App\Models\ScheduleAssignment;
+use App\Models\TrainingProgram;
+use App\Models\TrainingEnrollment;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Arr;
@@ -290,5 +292,162 @@ class DatabaseSeeder extends Seeder
         
         // Seed applicant data
         $this->call(ApplicantSeeder::class);
+
+        // Seed training programs
+        $trainingPrograms = [
+            [
+                'title' => 'Workplace Safety Training',
+                'description' => 'Comprehensive safety training covering warehouse operations, equipment handling, and emergency procedures.',
+                'provider' => 'SafeWork Philippines',
+                'duration' => '8 hours',
+                'start_date' => now()->addDays(7)->format('Y-m-d'),
+                'end_date' => now()->addDays(7)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 2500.00,
+                'location' => 'Training Room A',
+                'type' => 'In-person',
+                'max_participants' => 25,
+                'requirements' => 'All warehouse employees must attend'
+            ],
+            [
+                'title' => 'Leadership Development Program',
+                'description' => 'Advanced leadership skills training for team leaders and supervisors.',
+                'provider' => 'Leadership Institute Manila',
+                'duration' => '16 hours (2 days)',
+                'start_date' => now()->addDays(14)->format('Y-m-d'),
+                'end_date' => now()->addDays(15)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 8500.00,
+                'location' => 'Conference Room',
+                'type' => 'In-person',
+                'max_participants' => 15,
+                'requirements' => 'Team leaders and supervisory roles'
+            ],
+            [
+                'title' => 'Forklift Operation Certification',
+                'description' => 'Certified training for forklift operation and maintenance.',
+                'provider' => 'Heavy Equipment Training Center',
+                'duration' => '12 hours',
+                'start_date' => now()->addDays(21)->format('Y-m-d'),
+                'end_date' => now()->addDays(22)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 4500.00,
+                'location' => 'Warehouse Floor',
+                'type' => 'In-person',
+                'max_participants' => 10,
+                'requirements' => 'Valid driver\'s license required'
+            ],
+            [
+                'title' => 'Customer Service Excellence',
+                'description' => 'Training focused on improving customer interaction and service quality.',
+                'provider' => 'Service Excellence Academy',
+                'duration' => '6 hours',
+                'start_date' => now()->subDays(30)->format('Y-m-d'),
+                'end_date' => now()->subDays(30)->format('Y-m-d'),
+                'status' => 'Completed',
+                'cost' => 3200.00,
+                'location' => 'Training Room B',
+                'type' => 'In-person',
+                'max_participants' => 20,
+                'requirements' => 'Customer-facing employees'
+            ],
+            [
+                'title' => 'Digital Literacy Workshop',
+                'description' => 'Basic computer skills and digital tools training for all employees.',
+                'provider' => 'TechSkills Philippines',
+                'duration' => '4 hours',
+                'start_date' => now()->subDays(15)->format('Y-m-d'),
+                'end_date' => now()->subDays(15)->format('Y-m-d'),
+                'status' => 'Completed',
+                'cost' => 1800.00,
+                'location' => 'Computer Lab',
+                'type' => 'Online',
+                'max_participants' => 30,
+                'requirements' => 'Open to all employees'
+            ]
+        ];
+
+        $createdPrograms = [];
+        foreach ($trainingPrograms as $programData) {
+            $program = TrainingProgram::create($programData);
+            $createdPrograms[] = $program;
+        }
+
+        // Seed training enrollments
+        $allUsers = User::where('account_status', 'Active')->get();
+        
+        foreach ($createdPrograms as $program) {
+            // Determine enrollment count based on program type and status
+            $enrollmentCount = match($program->type) {
+                'In-person' => rand(5, min($program->max_participants, 15)),
+                'Online' => rand(8, min($program->max_participants, 20)),
+                'Hybrid' => rand(6, min($program->max_participants, 12)),
+                default => rand(5, min($program->max_participants, 10))
+            };
+
+            // Select random users for enrollment
+            $selectedUsers = $allUsers->random($enrollmentCount);
+
+            foreach ($selectedUsers as $user) {
+                $enrollmentStatus = match($program->status) {
+                    'Completed' => ['Completed', 'Completed', 'Dropped'][rand(0, 2)],
+                    'Active' => ['In Progress', 'Not Started'][rand(0, 1)],
+                    'Draft' => 'Not Started',
+                    'Cancelled' => 'Dropped',
+                    default => 'Not Started'
+                };
+
+                $progress = match($enrollmentStatus) {
+                    'Completed' => 100,
+                    'Dropped' => rand(10, 60),
+                    'In Progress' => rand(20, 80),
+                    'Not Started' => 0,
+                    default => 0
+                };
+
+                $score = match($enrollmentStatus) {
+                    'Completed' => rand(70, 100),
+                    'Dropped' => null,
+                    default => null
+                };
+
+                $enrolledAt = match($program->status) {
+                    'Completed' => now()->subDays(rand(35, 45)),
+                    'Active' => now()->subDays(rand(1, 10)),
+                    'Draft' => now()->subDays(rand(1, 5)),
+                    'Cancelled' => now()->subDays(rand(5, 15)),
+                    default => now()->subDays(rand(1, 7))
+                };
+
+                $completedAt = ($enrollmentStatus === 'Completed') 
+                    ? $enrolledAt->copy()->addDays(rand(1, 3))
+                    : null;
+
+                TrainingEnrollment::create([
+                    'program_id' => $program->id,
+                    'user_id' => $user->id,
+                    'status' => $enrollmentStatus,
+                    'progress' => $progress,
+                    'enrolled_at' => $enrolledAt,
+                    'completed_at' => $completedAt,
+                    'score' => $score,
+                    'notes' => $this->generateEnrollmentNotes($enrollmentStatus, $user->name)
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Generate enrollment notes based on status
+     */
+    private function generateEnrollmentNotes($status, $userName)
+    {
+        return match($status) {
+            'Completed' => "Training completed successfully by {$userName}. Good participation and engagement.",
+            'In Progress' => "Currently enrolled and attending training sessions.",
+            'Not Started' => "Enrollment confirmed. Training will begin soon.",
+            'Dropped' => "Training discontinued by {$userName}. May require follow-up.",
+            default => "Standard enrollment for {$userName}."
+        };
     }
 }
