@@ -5,11 +5,13 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import RequirementsChecklist from './RequirementsChecklist';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import ConfirmationModal from '../../modals/ConfirmationModal';
+import AccountGeneratedModal from '../../modals/AccountGeneratedModal';
 import placeholderImage from '../../assets/placeholder-profile.jpg';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import logo from '../../assets/logo.png';
 import { employeeAPI } from '../../services/api';
 import { positionAPI } from '../../services/api';
+import ToastNotification from '../../common/ToastNotification';
 
 const EmployeeDataPage = () => {
   const [employees, setEmployees] = useState([]);
@@ -34,6 +36,8 @@ const EmployeeDataPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [newlyGeneratedAccount, setNewlyGeneratedAccount] = useState(null);
 
   const [reportTitle, setReportTitle] = useState('');
 
@@ -121,8 +125,15 @@ const EmployeeDataPage = () => {
 
         if (isEdit) {
           await employeeAPI.update(id, payload);
+          setToast({ show: true, message: 'Employee updated successfully!', type: 'success' });
         } else {
-          await employeeAPI.create(payload);
+          const response = await employeeAPI.create(payload);
+          setToast({ show: true, message: 'Employee created successfully!', type: 'success' });
+          
+          // Show account details modal if account_details are returned
+          if (response.data.account_details) {
+            setNewlyGeneratedAccount(response.data.account_details);
+          }
         }
         // Refresh
         const response = await employeeAPI.getAll();
@@ -144,9 +155,30 @@ const EmployeeDataPage = () => {
         setEmployees(normalizedEmployees);
         setShowAddEditModal(false);
       } catch (err) {
-        const apiErrors = err?.response?.data?.errors;
-        const message = apiErrors ? Object.values(apiErrors).flat().join('\n') : 'Failed to save employee. Please try again.';
-        alert(message);
+        // Extract user-friendly error message from backend response
+        let message = 'Failed to save employee. Please try again.';
+        
+        if (err?.response?.data?.message) {
+          // Use the user-friendly message from backend
+          message = err.response.data.message;
+        } else if (err?.response?.data?.errors) {
+          // Handle validation errors
+          const apiErrors = err.response.data.errors;
+          message = Object.values(apiErrors).flat().join('\n');
+        } else if (err?.response?.status === 403) {
+          message = 'Access denied. You do not have permission to perform this action.';
+        } else if (err?.response?.status === 422) {
+          // Check for specific error types
+          if (err?.response?.data?.error_type === 'duplicate_email_error') {
+            message = err.response.data.message || 'This email address is already registered in the system. Please use a different email address.';
+          } else {
+            message = err.response.data.message || 'Please check your input and try again.';
+          }
+        } else if (err?.response?.status >= 500) {
+          message = 'Server error occurred. Please try again later or contact support.';
+        }
+        
+        setToast({ show: true, message: message, type: 'error' });
       }
     }, 
     deleteEmployee: async (employeeId) => {
@@ -155,21 +187,36 @@ const EmployeeDataPage = () => {
       setIsDeleting(true);
       try {
         await employeeAPI.delete(employeeId);
+        setToast({ show: true, message: 'Employee deleted successfully!', type: 'success' });
         const response = await employeeAPI.getAll();
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         setEmployees(empData.map(normalizeEmployee));
       } catch (err) {
+        // Extract user-friendly error message from backend response
+        let message = 'Failed to delete employee. Please try again.';
+        
+        if (err?.response?.data?.message) {
+          // Use the user-friendly message from backend
+          message = err.response.data.message;
+        } else if (err.response?.status === 404) {
+          message = 'Employee not found. It may have already been deleted.';
+        } else if (err?.response?.status === 403) {
+          message = 'Access denied. You do not have permission to delete employees.';
+        } else if (err?.response?.status >= 500) {
+          message = 'Server error occurred. Please try again later or contact support.';
+        }
+        
+        setToast({ show: true, message: message, type: 'error' });
+        
+        // Refresh data to sync with server state if it's a 404 error
         if (err.response?.status === 404) {
-          alert('Employee not found. It may have already been deleted.');
-          // Refresh data to sync with server state
           try {
             const response = await employeeAPI.getAll();
             const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
             setEmployees(empData.map(normalizeEmployee));
           } catch (refreshError) {
+            // Silent fail on refresh error
           }
-        } else {
-          alert('Failed to delete employee. Please try again.');
         }
       } finally {
         setIsDeleting(false);
@@ -491,6 +538,20 @@ const EmployeeDataPage = () => {
               onSwitchToEdit={handleSwitchToEditMode}
             /> 
           )}
+          
+          {toast.show && (
+            <ToastNotification
+              message={toast.message}
+              type={toast.type}
+              onClose={() => setToast({ show: false, message: '', type: 'success' })}
+            />
+          )}
+          
+          <AccountGeneratedModal 
+            show={!!newlyGeneratedAccount}
+            onClose={() => setNewlyGeneratedAccount(null)}
+            accountDetails={newlyGeneratedAccount}
+          />
     </div>
   );
 };
