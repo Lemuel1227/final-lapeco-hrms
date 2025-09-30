@@ -37,16 +37,6 @@ const ViewTemplateModal = ({ template, show, onClose, onUseTemplate }) => {
                   </div>
                 </div>
               </div>
-              <div className="col-md-6">
-                 <div className="info-section">
-                  <h6 className="info-section-title">Applicable Positions</h6>
-                  <div className="d-flex flex-wrap gap-2">
-                    {(template.applicablePositions || []).map(pos => (
-                      <span key={pos} className="badge bg-dark fs-6">{pos}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
           <div className="modal-footer">

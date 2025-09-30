@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('schedule_assignments', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('schedule_id');
+            $table->unsignedBigInteger('schedule_id')->nullable();
+            $table->unsignedBigInteger('schedule_template_id')->nullable();
             $table->unsignedBigInteger('user_id');
             $table->time('start_time');
             $table->time('end_time');
@@ -21,10 +22,12 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('schedule_id')->references('id')->on('schedules')->onDelete('cascade');
+            $table->foreign('schedule_template_id')->references('id')->on('schedule_templates')->onDelete('cascade');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             
-            // Ensure unique assignment per user per schedule
+            // Ensure unique assignment per user per schedule or template
             $table->unique(['schedule_id', 'user_id']);
+            $table->unique(['schedule_template_id', 'user_id']);
         });
     }
 

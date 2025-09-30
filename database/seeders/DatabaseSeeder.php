@@ -287,11 +287,7 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // Seed attendance data
-        $this->call(AttendanceSeeder::class);
-        
-        // Seed applicant data
-        $this->call(ApplicantSeeder::class);
+
 
         // Seed training programs
         $trainingPrograms = [
@@ -449,5 +445,17 @@ class DatabaseSeeder extends Seeder
             'Dropped' => "Training discontinued by {$userName}. May require follow-up.",
             default => "Standard enrollment for {$userName}."
         };
+
+                // Seed attendance data
+        $this->call(AttendanceSeeder::class);
+        
+        // Seed applicant data
+        $this->call(ApplicantSeeder::class);
+
+                // Seed attendance data
+        $this->call(ScheduleTemplateSeeder::class);
+        
+        // Seed applicant data
+        $this->call(ScheduleAssignmentSeeder::class);
     }
 }

@@ -140,10 +140,10 @@ export const holidayAPI = {
 
 // Template API calls
 export const templateAPI = {
-  getAll: () => api.get('/templates'),
-  create: (data) => api.post('/templates', data),
-  update: (id, data) => api.put(`/templates/${id}`, data),
-  delete: (id) => api.delete(`/templates/${id}`),
+  getAll: () => api.get('/schedule-templates'),
+  create: (data) => api.post('/schedule-templates', data),
+  update: (id, data) => api.put(`/schedule-templates/${id}`, data),
+  delete: (id) => api.delete(`/schedule-templates/${id}`),
 };
 
 // Applicant API calls
