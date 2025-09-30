@@ -238,9 +238,8 @@ const ScheduleBuilderPage = (props) => {
         key,
         name: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')
       }));
-      const applicableEmp = employees.filter(emp => sourceData.applicablePositions.includes(positionsMap.get(emp.positionId)));
       const emptyRow = initialColumns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), {});
-      initialGrid = applicableEmp.map(emp => ({ ...emptyRow, empId: emp.id }));
+      initialGrid = employees.map(emp => ({ ...emptyRow, empId: emp.id }));
     } else {
       initialGrid = [{ empId: '', start_time: '', end_time: '' }];
     }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
 
 const toKey = (str) => str.trim().toLowerCase().replace(/\s+/g, '_');
 
@@ -8,7 +7,6 @@ const CreateTemplateModal = ({ show, onClose, onSave, positions, templateData })
     name: '',
     description: '',
     columns: [{ key: 'shift', name: 'Shift' }], 
-    applicablePositions: [],
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -16,11 +14,6 @@ const CreateTemplateModal = ({ show, onClose, onSave, positions, templateData })
   const [newColumnName, setNewColumnName] = useState('');
 
   const isEditMode = Boolean(templateData && templateData.id);
-
-  const positionOptions = (positions || []).map(pos => ({
-    value: pos.title,
-    label: pos.title
-  }));
 
   useEffect(() => {
     if (show) {
@@ -31,10 +24,6 @@ const CreateTemplateModal = ({ show, onClose, onSave, positions, templateData })
           columns: (templateData.columns || ['shift']).map(colKey => ({
             key: colKey,
             name: colKey.charAt(0).toUpperCase() + colKey.slice(1).replace(/_/g, ' ')
-          })),
-          applicablePositions: (templateData.applicablePositions || []).map(title => ({
-            value: title,
-            label: title,
           })),
         });
       } else {
@@ -48,10 +37,6 @@ const CreateTemplateModal = ({ show, onClose, onSave, positions, templateData })
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-  };
-  
-  const handlePositionSelectChange = (selectedOptions) => {
-    setFormData(prev => ({ ...prev, applicablePositions: selectedOptions || [] }));
   };
 
   const handleAddColumn = () => {
@@ -82,9 +67,6 @@ const CreateTemplateModal = ({ show, onClose, onSave, positions, templateData })
   const validate = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = 'Template name is required.';
-    if (formData.applicablePositions.length === 0) {
-      newErrors.applicablePositions = 'Please select at least one applicable position.';
-    }
     if (formData.columns.length === 0) {
       newErrors.columns = 'A template must have at least one column.';
     }
@@ -98,7 +80,6 @@ const CreateTemplateModal = ({ show, onClose, onSave, positions, templateData })
       const dataToSave = {
         ...formData,
         columns: formData.columns.map(c => c.key),
-        applicablePositions: formData.applicablePositions.map(opt => opt.value),
       };
       onSave(dataToSave, templateData?.id);
     }
@@ -144,12 +125,6 @@ const CreateTemplateModal = ({ show, onClose, onSave, positions, templateData })
                   ))}
                 </div>
                 {errors.columns && <div className="invalid-feedback d-block">{errors.columns}</div>}
-              </div>
-
-              <div className="mb-3">
-                <label htmlFor="applicablePositions" className="form-label">Applicable Positions*</label>
-                <Select id="applicablePositions" isMulti options={positionOptions} value={formData.applicablePositions} onChange={handlePositionSelectChange} className={`react-select-container ${errors.applicablePositions ? 'is-invalid' : ''}`} classNamePrefix="react-select" />
-                 {errors.applicablePositions && <div className="invalid-feedback d-block">{errors.applicablePositions}</div>}
               </div>
             </div>
             <div className="modal-footer">

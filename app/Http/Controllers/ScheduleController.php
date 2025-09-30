@@ -208,7 +208,7 @@ class ScheduleController extends Controller
 
     public function templatesIndex()
     {
-        $templates = ScheduleTemplate::all();
+        $templates = ScheduleTemplate::with(['assignments.user.position'])->get();
         return response()->json($templates);
     }
 
@@ -218,7 +218,6 @@ class ScheduleController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'columns' => 'required|array',
-            'applicable_positions' => 'nullable|array',
         ]);
         $template = ScheduleTemplate::create($data);
         return response()->json($template, 201);
@@ -231,7 +230,6 @@ class ScheduleController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'columns' => 'required|array',
-            'applicable_positions' => 'nullable|array',
         ]);
         $template->update($data);
         return response()->json($template);
@@ -353,5 +351,46 @@ class ScheduleController extends Controller
         $schedule->delete();
         
         return response()->json(['message' => 'Schedule deleted successfully!']);
+    }
+
+    // Template methods
+    public function getTemplates()
+    {
+        $templates = ScheduleTemplate::all();
+        return response()->json($templates);
+    }
+
+    public function createTemplate(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'columns' => 'required|array',
+        ]);
+
+        $template = ScheduleTemplate::create($data);
+        return response()->json($template, 201);
+    }
+
+    public function updateTemplate(Request $request, $id)
+    {
+        $template = ScheduleTemplate::findOrFail($id);
+        
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'columns' => 'required|array',
+        ]);
+
+        $template->update($data);
+        return response()->json($template);
+    }
+
+    public function deleteTemplate($id)
+    {
+        $template = ScheduleTemplate::findOrFail($id);
+        $template->delete();
+        
+        return response()->json(['message' => 'Template deleted successfully!']);
     }
 }

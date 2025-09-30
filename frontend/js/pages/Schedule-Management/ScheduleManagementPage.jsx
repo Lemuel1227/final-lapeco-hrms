@@ -538,7 +538,7 @@ const ScheduleManagementPage = (props) => {
     const isTemplate = previewData.type === 'template';
     const title = isTemplate ? previewData.name : previewData.info.name;
     const subtitle = isTemplate ? previewData.description : `Schedule for ${new Date(previewData.info.date + 'T00:00:00').toLocaleDateString()}`;
-    const dataForTable = isTemplate ? [] : schedulesByDate[previewData.info.date]?.assignments || [];
+    const dataForTable = isTemplate ? (previewData.assignments || []) : schedulesByDate[previewData.info.date]?.assignments || [];
     const columnsForTable = isTemplate ? previewData.columns : previewData.info.columns;
     return (
       <div className="schedule-preview-container">
@@ -557,12 +557,38 @@ const ScheduleManagementPage = (props) => {
           {isTemplate ? (
               <>
                   <h5 className="mb-3">Template Structure</h5>
-                  <div className="table-responsive">
-                      <table className="table template-preview-table">
-                          <thead><tr>{(columnsForTable || []).map(key => <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</th>)}</tr></thead>
-                          <tbody><tr><td colSpan={(columnsForTable || []).length} className="text-center">This is a template. It defines columns but contains no employee data.</td></tr></tbody>
-                      </table>
-                  </div>
+                  {dataForTable.length > 0 ? (
+                      <div className="table-responsive schedule-preview-table">
+                          <table className="table table-sm table-striped">
+                              <thead>
+                                  <tr>
+                                      <th>Employee Name</th><th>Position</th>
+                                      <th>Start Time</th><th>End Time</th><th>Notes</th>
+                                      {(columnsForTable || []).map(key => <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</th>)}
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {dataForTable.map(assignment => (
+                                      <tr key={assignment.id}>
+                                          <td>{assignment.user?.name || 'Unknown'}</td>
+                                          <td>{assignment.user?.position?.name || 'Unassigned'}</td>
+                                          <td>{formatTimeToAMPM(assignment.start_time)}</td>
+                                          <td>{formatTimeToAMPM(assignment.end_time)}</td>
+                                          <td>{assignment.notes || '-'}</td>
+                                          {(columnsForTable || []).map(key => <td key={key}>-</td>)}
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  ) : (
+                      <div className="table-responsive">
+                          <table className="table template-preview-table">
+                              <thead><tr>{(columnsForTable || []).map(key => <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</th>)}</tr></thead>
+                              <tbody><tr><td colSpan={(columnsForTable || []).length} className="text-center">This template has no assigned employees yet.</td></tr></tbody>
+                          </table>
+                      </div>
+                  )}
               </>
           ) : (
               <>
@@ -708,8 +734,8 @@ const ScheduleManagementPage = (props) => {
                         <div className="card-header"><h5 className="card-title">{tpl.name}</h5></div>
                         <div className="card-body">
                             <dl className="mb-0">
-                                <div className="template-info-section"><dt>Columns</dt><dd>{(tpl.columns || []).map(c => <span key={c} className="badge bg-secondary">{c.charAt(0).toUpperCase() + c.slice(1)}</span>)}</dd></div>
-                                <div className="template-info-section"><dt>Applies to Positions</dt><dd>{(tpl.applicablePositions || []).map(p => <span key={p} className="badge bg-dark">{p}</span>)}</dd></div>
+                                <div className="template-info-section"><dt>Description</dt><dd>{tpl.description || 'No description provided'}</dd></div>
+                                <div className="template-info-section"><dt>Assigned Employees</dt><dd>{tpl.assignments?.length || 0} employees</dd></div>
                             </dl>
                         </div>
                         <div className="card-footer">
