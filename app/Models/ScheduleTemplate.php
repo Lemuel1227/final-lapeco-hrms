@@ -44,6 +44,7 @@ class ScheduleTemplate extends Model
                 'user_id' => $assignment->user_id,
                 'start_time' => $assignment->start_time,
                 'end_time' => $assignment->end_time,
+                'ot_hours' => $assignment->ot_hours,
                 'notes' => $assignment->notes,
             ]);
         }

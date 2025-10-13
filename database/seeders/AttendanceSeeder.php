@@ -16,19 +16,70 @@ class AttendanceSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get all schedule assignments for the last 30 days
+        // Get all schedule assignments for past dates (up to today)
+        // This will work with whatever schedules exist in the database
         $scheduleAssignments = ScheduleAssignment::with(['schedule', 'user'])
             ->whereHas('schedule', function ($query) {
-                $query->where('date', '>=', now()->subDays(30))
-                      ->where('date', '<=', now());
+                $query->where('date', '<=', now()->toDateString());
             })
             ->get();
 
         foreach ($scheduleAssignments as $assignment) {
-            // Skip some assignments to simulate absences (20% absence rate)
-            if (rand(1, 100) <= 20) {
-                Attendance::create([
+            // Get existing attendance record (should exist due to ScheduleAssignment model)
+            $attendance = Attendance::where('schedule_assignment_id', $assignment->id)->first();
+            
+            if (!$attendance) {
+                // This shouldn't happen with the new logic, but create if missing
+                $attendance = Attendance::create([
                     'schedule_assignment_id' => $assignment->id,
+                    'status' => 'scheduled'
+                ]);
+            }
+            
+            // Only update if it's still in 'scheduled' status (not manually updated)
+            if ($attendance->status !== 'scheduled') {
+                continue;
+            }
+            
+            // Get the schedule date to determine absence patterns
+            $scheduleDate = Carbon::parse($assignment->schedule->date);
+            $dayOfWeek = $scheduleDate->dayOfWeek;
+            $isMonday = $dayOfWeek === 1;
+            $isFriday = $dayOfWeek === 5;
+            $isWeekend = $scheduleDate->isWeekend();
+            
+            // Variable absence rates based on day of week and season
+            $baseAbsenceRate = 15; // Base 15% absence rate
+            
+            // Mondays have higher absence rate (post-weekend effect)
+            if ($isMonday) {
+                $baseAbsenceRate = 25;
+            }
+            
+            // Fridays have slightly higher absence rate
+            if ($isFriday) {
+                $baseAbsenceRate = 20;
+            }
+            
+            // Weekend shifts have higher absence rate
+            if ($isWeekend) {
+                $baseAbsenceRate = 30;
+            }
+            
+            // Seasonal variations - higher absence in December/January (holidays)
+            $month = $scheduleDate->month;
+            if (in_array($month, [12, 1])) {
+                $baseAbsenceRate += 10;
+            }
+            
+            // Summer months (April-June) might have higher absence due to vacations
+            if (in_array($month, [4, 5, 6])) {
+                $baseAbsenceRate += 5;
+            }
+            
+            // Skip some assignments to simulate absences
+            if (rand(1, 100) <= $baseAbsenceRate) {
+                $attendance->update([
                     'status' => 'absent'
                 ]);
                 continue;
@@ -64,8 +115,7 @@ class AttendanceSeeder extends Seeder
                 $status = 'late';
             }
             
-            Attendance::create([
-                'schedule_assignment_id' => $assignment->id,
+            $attendance->update([
                 'sign_in' => $signInTime->format('H:i'),
                 'break_out' => $breakOutTime->format('H:i'),
                 'break_in' => $breakInTime->format('H:i'),
@@ -82,8 +132,19 @@ class AttendanceSeeder extends Seeder
             ->get();
 
         foreach ($todaySchedules as $assignment) {
-            // Skip if already has attendance
-            if (Attendance::where('schedule_assignment_id', $assignment->id)->exists()) {
+            // Get existing attendance record (should exist due to ScheduleAssignment model)
+            $attendance = Attendance::where('schedule_assignment_id', $assignment->id)->first();
+            
+            if (!$attendance) {
+                // This shouldn't happen with the new logic, but create if missing
+                $attendance = Attendance::create([
+                    'schedule_assignment_id' => $assignment->id,
+                    'status' => 'scheduled'
+                ]);
+            }
+            
+            // Only update if it's still in 'scheduled' status (not manually updated)
+            if ($attendance->status !== 'scheduled') {
                 continue;
             }
 
@@ -116,8 +177,7 @@ class AttendanceSeeder extends Seeder
                     }
                 }
                 
-                Attendance::create([
-                    'schedule_assignment_id' => $assignment->id,
+                $attendance->update([
                     'sign_in' => $signInTime->format('H:i'),
                     'break_out' => $breakOutTime ? $breakOutTime->format('H:i') : null,
                     'break_in' => $breakInTime ? $breakInTime->format('H:i') : null,
@@ -125,11 +185,8 @@ class AttendanceSeeder extends Seeder
                     'status' => $status
                 ]);
             } else {
-                // Future shifts or not started yet
-                Attendance::create([
-                    'schedule_assignment_id' => $assignment->id,
-                    'status' => 'absent' // Will be updated when they clock in
-                ]);
+                // Future shifts or not started yet - keep as scheduled
+                // No need to update since it should already be 'scheduled'
             }
         }
 

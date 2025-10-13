@@ -1,31 +1,37 @@
-// src/components/pages/Payroll-Management/PayrollHistoryPage.jsx
-
 import React, { useState, useMemo } from 'react';
 import PayrollRunCard from './PayrollRunCard';
 import PayrollRunDetailModal from './PayrollRunDetailModal';
 import PayrollAdjustmentModal from '../../modals/PayrollAdjustmentModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
+import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
+import ReportPreviewModal from '../../modals/ReportPreviewModal';
+import useReportGenerator from '../../hooks/useReportGenerator';
+import { reportsConfig } from '../../config/reports.config';
 
 const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeaveRequests }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortConfig, setSortConfig] = useState({ key: 'payPeriod', direction: 'desc' });
 
-  // State for the Detail Modal (listing employees in a run)
+  // Modal States
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedRun, setSelectedRun] = useState(null);
-
-  // State for the Adjustment Modal (editing a single employee's payroll)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  
   const [runToDelete, setRunToDelete] = useState(null);
+  
+  // Report States
+  const [showReportConfigModal, setShowReportConfigModal] = useState(false);
+  const [reportToGenerate, setReportToGenerate] = useState(null);
+  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+  const [showReportPreview, setShowReportPreview] = useState(false);
 
-  const employeeMap = useMemo(() => new Map((employees || []).map(e => [e.id, e])), [employees]);
+
+  const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
 
   const processedPayrolls = useMemo(() => {
-    return (payrolls || []).map(run => {
+    return payrolls.map(run => {
       const { totalNet } = run.records.reduce((acc, rec) => {
           const totalEarnings = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
           const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + val, 0);
@@ -63,12 +69,8 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
         valB = b[sortConfig.key];
       }
 
-      if (valA < valB) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (valA > valB) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   }, [processedPayrolls, searchTerm, statusFilter, sortConfig]);
@@ -87,6 +89,8 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
     const fullRecord = run.records.find(r => r.payrollId === record.payrollId);
     const employeeData = employeeMap.get(record.empId);
     
+    // Close detail modal before opening adjustment modal
+    setShowDetailModal(false);
     setSelectedRecord({ ...fullRecord, cutOff: run.cutOff });
     setSelectedEmployee(employeeData);
     setShowAdjustmentModal(true);
@@ -98,6 +102,7 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
       setSelectedRun(null);
       setSelectedRecord(null);
       setSelectedEmployee(null);
+      setShowReportConfigModal(false);
   };
 
   const handleSaveAdjustments = (payrollId, updatedData) => {
@@ -127,6 +132,26 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
     }
   };
 
+  const handleOpenReportConfig = () => {
+    const reportConf = reportsConfig.find(r => r.id === 'payroll_run_summary');
+    if (reportConf) {
+      setReportToGenerate(reportConf);
+      setShowReportConfigModal(true);
+    }
+  };
+  
+  const handleRunReport = (reportId, params) => {
+    generateReport(reportId, params, { payrolls });
+    setShowReportConfigModal(false);
+    setShowReportPreview(true);
+  };
+
+  const handleCloseReportPreview = () => {
+    setShowReportPreview(false);
+    if(pdfDataUri) URL.revokeObjectURL(pdfDataUri);
+    setPdfDataUri('');
+  };
+
   return (
     <div className="payroll-history-container">
       <div className="payroll-history-controls mb-4">
@@ -141,6 +166,9 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
             />
         </div>
         <div className="d-flex align-items-center gap-3">
+            <button className="btn btn-outline-secondary" onClick={handleOpenReportConfig}>
+                <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
+            </button>
             <div className="d-flex align-items-center gap-2">
                 <label htmlFor="payrollSort" className="form-label mb-0 small text-muted flex-shrink-0">Sort by:</label>
                 <select 
@@ -212,6 +240,23 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
         )}
         <p className="text-danger">This will delete records for all employees in this run and cannot be undone.</p>
       </ConfirmationModal>
+
+      <ReportConfigurationModal
+        show={showReportConfigModal}
+        onClose={handleCloseAllModals}
+        reportConfig={reportToGenerate}
+        onRunReport={handleRunReport}
+        payrolls={payrolls}
+      />
+
+      {(isLoading || pdfDataUri) && (
+        <ReportPreviewModal
+            show={showReportPreview}
+            onClose={handleCloseReportPreview}
+            pdfDataUri={pdfDataUri}
+            reportTitle="Payroll Run Summary"
+        />
+      )}
     </div>
   );
 };

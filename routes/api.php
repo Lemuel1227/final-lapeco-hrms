@@ -18,6 +18,8 @@ use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\DisciplinaryCaseController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ResignationController;
+use App\Http\Controllers\TerminationController;
 use App\Models\User;
 use App\Models\Position;
 
@@ -75,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Employee Data - with role-based access control
     Route::middleware(['role.access:employee,index'])->get('/employees', [EmployeeController::class, 'index']);
+    Route::middleware(['role.access:employee,index'])->get('/employees/all', [EmployeeController::class, 'getAllEmployees']);
     Route::middleware(['role.access:employee,show'])->get('/employees/{employee}', [EmployeeController::class, 'show']);
     Route::middleware(['role.access:employee,store'])->post('/employees', [EmployeeController::class, 'store']);
     Route::middleware(['role.access:employee,update'])->put('/employees/{employee}', [EmployeeController::class, 'update']);
@@ -82,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role.access:employee,update'])->post('/employees/{employee}/reset-password', [EmployeeController::class, 'resetPassword']);
     Route::middleware(['role.access:employee,update'])->post('/employees/{employee}/deactivate', [EmployeeController::class, 'deactivateAccount']);
     Route::middleware(['role.access:employee,update'])->post('/employees/{employee}/activate', [EmployeeController::class, 'activateAccount']);
+    Route::middleware(['role.access:employee,update'])->post('/employees/{employee}/toggle-team-leader', [EmployeeController::class, 'toggleTeamLeaderStatus']);
 
     // Positions (authenticated routes) - with role-based access control
     Route::middleware(['role.access:position,index'])->get('/positions/authenticated', [PositionController::class, 'index']);
@@ -98,6 +102,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role.access:attendance,update'])->put('/attendance/{attendance}', [AttendanceController::class, 'update']);
     Route::middleware(['role.access:attendance,destroy'])->delete('/attendance/{attendance}', [AttendanceController::class, 'destroy']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-logs', [AttendanceController::class, 'getLogs']);
+    Route::middleware(['role.access:attendance,index'])->get('/attendance-history', [AttendanceController::class, 'getAttendanceHistory']);
+    Route::middleware(['role.access:attendance,index'])->get('/attendance-daily', [AttendanceController::class, 'getDailyAttendance']);
     Route::middleware(['role.access:attendance,store'])->post('/attendance/clock', [AttendanceController::class, 'clockAction']);
 
     // Schedule Management - with role-based access control
@@ -135,6 +141,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role.access:leave,store'])->post('/leaves', [LeaveController::class, 'store']);
     Route::middleware(['role.access:leave,update'])->put('/leaves/{leave}', [LeaveController::class, 'update']);
     Route::middleware(['role.access:leave,destroy'])->delete('/leaves/{leave}', [LeaveController::class, 'destroy']);
+    
+    // Leave Credits Management
+    Route::middleware(['role.access:leave,index'])->get('/leave-credits/all', [LeaveController::class, 'getAllLeaveCredits']);
+    Route::middleware(['role.access:leave,index'])->get('/leave-credits/{userId?}', [LeaveController::class, 'getLeaveCredits']);
+    Route::middleware(['role.access:leave,update'])->put('/leave-credits/{userId}', [LeaveController::class, 'updateLeaveCredits']);
+    Route::middleware(['role.access:leave,update'])->post('/leave-credits/reset', [LeaveController::class, 'resetUsedCredits']);
 
     // Payroll - with role-based access control
     Route::middleware(['role.access:payroll,index'])->get('/payroll', [PayrollController::class, 'index']);
@@ -193,6 +205,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases/status/{status}', [DisciplinaryCaseController::class, 'getByStatus']);
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-grouped-by-employee', [DisciplinaryCaseController::class, 'getGroupedByEmployee']);
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-statistics', [DisciplinaryCaseController::class, 'getStatistics']);
+
+    // Resignation Management - with role-based access control
+    Route::middleware(['role.access:employee,index'])->get('/resignations', [ResignationController::class, 'index']);
+    Route::middleware(['role.access:employee,store'])->post('/resignations', [ResignationController::class, 'store']);
+    Route::middleware(['role.access:employee,view'])->get('/resignations/{resignation}', [ResignationController::class, 'show']);
+    Route::middleware(['role.access:employee,update'])->put('/resignations/{resignation}', [ResignationController::class, 'update']);
+    Route::middleware(['role.access:employee,destroy'])->delete('/resignations/{resignation}', [ResignationController::class, 'destroy']);
+    Route::middleware(['role.access:employee,update'])->put('/resignations/{resignation}/status', [ResignationController::class, 'updateStatus']);
+    Route::middleware(['role.access:employee,update'])->put('/resignations/{resignation}/effective-date', [ResignationController::class, 'updateEffectiveDate']);
+
+    // Termination Management - with role-based access control
+    Route::middleware(['role.access:employee,index'])->get('/terminations', [TerminationController::class, 'index']);
+    Route::middleware(['role.access:employee,store'])->post('/terminations', [TerminationController::class, 'store']);
+    Route::middleware(['role.access:employee,view'])->get('/terminations/{termination}', [TerminationController::class, 'show']);
+    Route::middleware(['role.access:employee,update'])->put('/terminations/{termination}', [TerminationController::class, 'update']);
+    Route::middleware(['role.access:employee,destroy'])->delete('/terminations/{termination}', [TerminationController::class, 'destroy']);
+    Route::middleware(['role.access:employee,view'])->get('/terminations/employee/{employee}', [TerminationController::class, 'getByEmployee']);
+    Route::middleware(['role.access:employee,index'])->get('/terminations/statistics', [TerminationController::class, 'getStatistics']);
 
     // Reports - with role-based access control
     Route::middleware(['role.access:employee,index'])->get('/reports/employees', [ReportController::class, 'employeeReport']);

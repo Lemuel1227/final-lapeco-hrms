@@ -118,6 +118,13 @@ class DatabaseSeeder extends Seeder
             'position_id' => $positionIds['Mover'],
             'account_status' => 'Active',
         ]);
+        \App\Models\User::factory()->create([
+            'name' => 'Lemuel Ellasus',
+            'email' => 'lemuel_ellasus1@gmail.com',
+            'role' => 'HR_PERSONNEL',
+            'position_id' => $positionIds['HR Personnel'],
+            'account_status' => 'Active',
+        ]);
 
         // Create additional users distributed among positions
         $allPositionIds = array_values($positionIds);
@@ -431,6 +438,27 @@ class DatabaseSeeder extends Seeder
                 ]);
             }
         }
+
+        // Seed attendance data
+        $this->call(AttendanceSeeder::class);
+        
+        // Seed applicant data
+        $this->call(ApplicantSeeder::class);
+
+        // Seed schedule template data
+        $this->call(ScheduleTemplateSeeder::class);
+        
+        // Seed schedule template assignments
+        $this->call(ScheduleTemplateAssignmentSeeder::class);
+        
+        // Seed schedule assignment data
+        $this->call(ScheduleAssignmentSeeder::class);
+        
+        // Seed resignation data
+        $this->call(ResignationSeeder::class);
+        
+        // Seed termination data
+        $this->call(TerminationSeeder::class);
     }
 
     /**
@@ -446,16 +474,5 @@ class DatabaseSeeder extends Seeder
             default => "Standard enrollment for {$userName}."
         };
 
-                // Seed attendance data
-        $this->call(AttendanceSeeder::class);
-        
-        // Seed applicant data
-        $this->call(ApplicantSeeder::class);
-
-                // Seed attendance data
-        $this->call(ScheduleTemplateSeeder::class);
-        
-        // Seed applicant data
-        $this->call(ScheduleAssignmentSeeder::class);
     }
 }

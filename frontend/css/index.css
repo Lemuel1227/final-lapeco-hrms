@@ -12,14 +12,14 @@
   --border-radius: 0.375rem;
 
   /* --- Light Theme (Default) --- */
-  --bg-primary: #ffffff;      /* For main content surfaces like cards, modals */
+  --bg-primary: #ffffff;      
   --bg-primary-rgb: 255, 255, 255;
-  --bg-secondary: #f8f9fa;    /* For main page background, slightly off-white */
-  --bg-tertiary: #e9ecef;     /* For hover states, zebra striping, subtle backgrounds */
-  --text-primary: #212529;    /* Main text color */
+  --bg-secondary: #f8f9fa;    
+  --bg-tertiary: #e9ecef;    
+  --text-primary: #212529;    
   --text-primary-rgb: 33, 37, 41;
-  --text-secondary: #6c757d;  /* Muted, secondary text */
-  --text-on-success: #ffffff; /* Text color for on top of success color backgrounds */
+  --text-secondary: #6c757d;  
+  --text-on-success: #ffffff; 
   --border-color: #dee2e6;
   --card-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
   --modal-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
@@ -42,7 +42,6 @@
 
 /* --- Dark Theme --- */
 .dark-theme {
-  /* This hints to the browser to use its dark UI for native controls */
   color-scheme: dark;
 
   --app-success-color: #20c997;
@@ -54,20 +53,19 @@
   --warning-color: #ffc107;
   --info-color: #0dcaf0;
 
-  --bg-primary: #2c3136;      /* Cards, modals */
+  --bg-primary: #2c3136;      
   --bg-primary-rgb: 44, 49, 54;
-  --bg-secondary: #212529;    /* Page background */
-  --bg-tertiary: #343a40;     /* Hovers, subtle backgrounds */
-  --text-primary: #f8f9fa;    /* Main text */
+  --bg-secondary: #212529;    
+  --bg-tertiary: #343a40;     
+  --text-primary: #f8f9fa;    
   --text-primary-rgb: 248, 249, 250;
-  --text-secondary: #adb5bd;  /* Muted text */
+  --text-secondary: #adb5bd;  
   --text-on-success: #000000;
   --border-color: #495057;
   --card-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.2);
   --modal-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.25);
   --input-bg: #212529;
 
-  /* --- Legacy variable overrides --- */
   --secondary-color: var(--text-secondary);
   --light-gray: var(--bg-secondary);
   --thead-bg: #2c3136;
@@ -134,31 +132,53 @@ a:hover {
   border-top-color: var(--border-color);
 }
 
-.form-control, .form-select {
+/* Global form controls - lower specificity to allow component overrides */
+.form-control:not(.login-input), .form-select:not(.login-input) {
   background-color: var(--input-bg);
   color: var(--text-primary);
   border-color: var(--border-color);
 }
-.form-label {
+.form-label:not(.login-label) {
   color: var(--text-secondary);
 }
 .form-check-label {
   color: var(--text-primary);
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:not(.login-input):focus, .form-select:not(.login-input):focus {
   background-color: var(--input-bg);
   color: var(--text-primary);
   border-color: var(--app-success-color);
   box-shadow: var(--input-focus-shadow);
 }
-.form-control::placeholder {
+.form-control:not(.login-input)::placeholder {
   color: var(--text-secondary);
   opacity: 0.7;
 }
-.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1);
+
+.dark-theme input[type="date"]::-webkit-calendar-picker-indicator,
+.dark-theme input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.5);
 }
+
+/* Additional rules for better browser compatibility */
+.dark-theme input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.dark-theme input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(1) brightness(1.8);
+}
+
+/* Firefox support */
+.dark-theme input[type="date"]::-moz-calendar-picker-indicator,
+.dark-theme input[type="datetime-local"]::-moz-calendar-picker-indicator {
+  filter: invert(1) brightness(1.5);
+}
+
+/* Edge support */
+.dark-theme input[type="date"]::-ms-clear,
+.dark-theme input[type="datetime-local"]::-ms-clear {
+  filter: invert(1) brightness(1.5);
+}
+
 .dark-theme .form-check-input:checked {
     background-color: var(--app-success-color);
     border-color: var(--app-success-color);
@@ -239,6 +259,12 @@ a:hover {
   font-size: 2rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.section-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1.1rem;
 }
 
 /* Data Table Theming */
@@ -330,30 +356,80 @@ a:hover {
   border-color: var(--border-color);
 }
 
-/* --- Third-Party Library Overrides --- */
-
-/* FullCalendar Dark Theme */
-.dark-theme .fc {
-    --fc-border-color: var(--border-color);
-    --fc-daygrid-event-dot-width: 8px;
-    --fc-list-event-dot-width: 10px;
-    --fc-list-event-hover-bg-color: var(--bg-tertiary);
-}
-.dark-theme .fc .fc-col-header-cell-cushion,
-.dark-theme .fc .fc-daygrid-day-number {
-    color: var(--text-secondary);
-}
-.dark-theme .fc .fc-day-today {
-    background-color: rgba(var(--app-success-rgb), 0.1) !important;
-}
-.dark-theme .fc-event {
-    border: 1px solid rgba(0,0,0,0.3) !important;
-}
-
 /* Chart.js Dark Theme */
 .dark-theme .chart-container {
     color: var(--text-primary);
 }
 .dark-theme canvas {
     color: var(--text-primary);
+}
+
+/* Main control container */
+.react-select__control {
+  background-color: var(--input-bg) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+}
+.react-select__control:hover {
+  border-color: var(--border-color) !important;
+}
+.react-select__control--is-focused {
+  border-color: var(--app-success-color) !important;
+  box-shadow: var(--input-focus-shadow) !important;
+}
+
+/* Text for single selected value */
+.react-select__single-value {
+  color: var(--text-primary) !important;
+}
+
+/* Placeholder text */
+.react-select__placeholder {
+  color: var(--text-secondary) !important;
+}
+
+/* Dropdown menu */
+.react-select__menu {
+  background-color: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+.react-select__menu-list {
+  padding: 0.5rem 0 !important;
+}
+
+/* Options in the dropdown */
+.react-select__option {
+  color: var(--text-primary) !important;
+  background-color: transparent !important;
+}
+.react-select__option--is-focused {
+  background-color: var(--bg-tertiary) !important;
+}
+.react-select__option--is-selected {
+  background-color: var(--app-success-color) !important;
+  color: var(--text-on-success) !important;
+}
+
+/* Dropdown arrow indicators */
+.react-select__indicator-separator {
+  background-color: var(--border-color) !important;
+}
+.react-select__indicator {
+  color: var(--text-secondary) !important;
+}
+
+/* Multi-select "pills" - The fix for your issue */
+.react-select__multi-value {
+  background-color: var(--bg-tertiary) !important;
+}
+.react-select__multi-value__label {
+  color: var(--text-primary) !important;
+}
+.react-select__multi-value__remove {
+  color: var(--text-secondary) !important;
+  cursor: pointer;
+}
+.react-select__multi-value__remove:hover {
+  background-color: var(--danger-color) !important;
+  color: var(--white-color) !important;
 }

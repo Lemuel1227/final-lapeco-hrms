@@ -17,14 +17,46 @@ class EmployeeController extends Controller
         
         // Role-based filtering is now handled by middleware, but we still need to filter data based on role
         if ($role === 'HR_PERSONNEL') {
-            $employees = User::all();
+            // HR can see all employees except terminated/resigned ones
+            $employees = User::whereNotIn('employment_status', ['terminated', 'resigned'])->get();
         } elseif ($role === 'TEAM_LEADER') {
-            // Team leaders can see employees with the same position_id
-            $employees = User::where('position_id', $user->position_id)->get();
+            // Team leaders can see employees with the same position_id, excluding terminated/resigned
+            $employees = User::where('position_id', $user->position_id)
+                           ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                           ->get();
         } else {
-            // Regular employees can see all employees in their position
-            $employees = User::where('position_id', $user->position_id)->get();
+            // Regular employees can see all employees in their position, excluding terminated/resigned
+            $employees = User::where('position_id', $user->position_id)
+                           ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                           ->get();
         }
+        
+        return $this->formatEmployeeResponse($employees, $user, $role);
+    }
+
+    /**
+     * Get all employees including terminated/resigned for resignation management
+     */
+    public function getAllEmployees(Request $request)
+    {
+        $user = $request->user();
+        $role = $user->role;
+        
+        // Only HR personnel can access all employees including terminated/resigned
+        if ($role !== 'HR_PERSONNEL') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
+        $employees = User::all();
+        
+        return $this->formatEmployeeResponse($employees, $user, $role);
+    }
+
+    /**
+     * Format employee response data
+     */
+    private function formatEmployeeResponse($employees, $user, $role)
+    {
         
         $positions = Position::all()->mapWithKeys(function ($pos) {
             return [$pos->id => $pos->name];
@@ -45,6 +77,7 @@ class EmployeeController extends Controller
                 'contact_number' => $employee->contact_number,
                 'image_url' => $employee->image_url,
                 'account_status' => $employee->account_status,
+                'employment_status' => $employee->employment_status,
                 'password_changed' => $employee->password_changed,
             ];
             
@@ -384,6 +417,42 @@ class EmployeeController extends Controller
             'message' => 'Account activated successfully',
             'employee' => $employee->fresh()
         ]);
+    }
+
+    public function toggleTeamLeaderStatus(Request $request, User $employee)
+    {
+        $user = $request->user();
+        
+        // Only HR personnel can toggle team leader status
+        if ($user->role !== 'HR_PERSONNEL') {
+            return response()->json([
+                'message' => 'Access denied. Only HR personnel can change team leader status.',
+                'error_type' => 'authorization_error'
+            ], 403);
+        }
+
+        try {
+            // Toggle between TEAM_LEADER and REGULAR_EMPLOYEE roles
+            $newRole = $employee->role === 'TEAM_LEADER' ? 'REGULAR_EMPLOYEE' : 'TEAM_LEADER';
+            
+            $employee->update(['role' => $newRole]);
+            
+            $statusMessage = $newRole === 'TEAM_LEADER' 
+                ? "Employee '{$employee->name}' has been promoted to Team Leader."
+                : "Employee '{$employee->name}' has been changed to Regular Employee.";
+            
+            return response()->json([
+                'message' => $statusMessage,
+                'employee' => $employee->fresh(),
+                'new_role' => $newRole
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update team leader status. Please try again or contact system administrator.',
+                'error_type' => 'database_error',
+                'details' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
     }
 
     public function destroy(Request $request, User $employee)

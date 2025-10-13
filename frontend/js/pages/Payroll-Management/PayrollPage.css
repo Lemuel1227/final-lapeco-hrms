@@ -1,7 +1,7 @@
-.payroll-nav-tabs {
+.payroll-page-container .payroll-nav-tabs {
     margin-bottom: -1px;
 }
-.payroll-nav-tabs .nav-link {
+.payroll-page-container .payroll-nav-tabs .nav-link {
     font-weight: 500;
     color: var(--text-secondary);
     padding: 0.75rem 1.25rem;
@@ -10,13 +10,13 @@
     border: 1px solid transparent !important;
     border-bottom: 1px solid var(--border-color) !important;
 }
-.payroll-nav-tabs .nav-link.active {
+.payroll-page-container .payroll-nav-tabs .nav-link.active {
     color: var(--app-success-color);
     border-color: var(--border-color) var(--border-color) var(--bg-secondary) !important;
     background-color: var(--bg-secondary);
     font-weight: 600;
 }
-.payroll-tab-content {
+.payroll-page-container .payroll-tab-content {
     background-color: var(--bg-secondary);
     padding: 1.5rem;
     border: 1px solid var(--border-color);
@@ -24,23 +24,23 @@
 }
 
 /* --- Payroll Generation Page --- */
-.payroll-generation-summary { 
+.payroll-page-container .payroll-generation-summary { 
     background-color: var(--bg-primary); 
     border: 1px solid var(--border-color); 
     border-radius: var(--border-radius); 
     padding: 1.25rem; 
 }
-.summary-item { 
+.payroll-page-container .summary-item { 
     text-align: center; 
 }
-.summary-item .summary-label { 
+.payroll-page-container .summary-item .summary-label { 
     font-size: 0.8rem; 
     text-transform: uppercase; 
     font-weight: 500; 
     color: var(--text-secondary); 
     margin-bottom: 0.25rem; 
 }
-.summary-item .summary-value { 
+.payroll-page-container .summary-item .summary-value { 
     font-size: 1.75rem; 
     font-weight: 700; 
     line-height: 1.1; 
@@ -48,28 +48,28 @@
 }
 
 /* --- Payroll History Page --- */
-.payroll-history-controls { 
+.payroll-page-container .payroll-history-controls { 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
     gap: 1rem; 
-    flex-wrap: wrap; /* Added for responsiveness */
+    flex-wrap: wrap;
 }
-.payroll-history-controls .input-group { 
+.payroll-page-container .payroll-history-controls .input-group { 
     max-width: 400px;
-    flex-grow: 1; /* Added for responsiveness */
+    flex-grow: 1; 
 }
-.payroll-history-controls .btn-group .btn { 
+.payroll-page-container .payroll-history-controls .btn-group .btn { 
     font-weight: 500; 
 }
 
-.payroll-run-grid {
+.payroll-page-container .payroll-run-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
     gap: 1.5rem;
 }
 
-.payroll-run-card {
+.payroll-page-container .payroll-run-card {
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
@@ -78,13 +78,14 @@
     flex-direction: column;
     transition: all 0.2s ease-in-out;
     cursor: pointer;
+    overflow: hidden;
 }
-.payroll-run-card:hover {
+.payroll-page-container .payroll-run-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
     border-color: var(--app-success-color);
 }
-.payroll-run-card .card-header {
+.payroll-page-container .payroll-run-card .card-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -92,58 +93,93 @@
     border-bottom: 1px solid var(--border-color);
     background-color: var(--bg-secondary);
 }
-.payroll-run-card .card-title {
+.payroll-page-container .payroll-run-card .card-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
 }
-.payroll-run-card .card-subtitle {
+.payroll-page-container .payroll-run-card .card-subtitle {
     font-size: 0.75rem;
     color: var(--text-secondary);
     font-family: monospace;
 }
-.payroll-run-card .card-body {
-    padding: 1rem;
+
+/* UPDATED card-body layout to match two-column component structure */
+.payroll-page-container .payroll-run-card .card-body {
+    padding: 1rem 1.25rem;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    align-items: center;
 }
-.stats-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
+.payroll-page-container .body-column.financials {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    border-right: 1px solid var(--border-color);
+    padding-right: 1.5rem;
 }
-.stats-list .stat-item {
+.payroll-page-container .financial-item {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
 }
-.stats-list dt {
+.payroll-page-container .financial-label {
     font-size: 0.85rem;
     color: var(--text-secondary);
 }
-.stats-list dd {
-    font-size: 0.9rem;
+.payroll-page-container .financial-value {
     font-weight: 500;
     color: var(--text-primary);
-    margin: 0;
 }
-.stats-list .net-payout {
-    font-size: 1.2rem;
+.payroll-page-container .net-payout {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.5rem;
+    margin-top: 0.25rem;
+}
+.payroll-page-container .net-payout .financial-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+.payroll-page-container .net-payout .financial-value {
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--app-success-color);
 }
-.payroll-run-card .card-footer {
+.payroll-page-container .body-column.details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.payroll-page-container .detail-item {
+    display: flex;
+    flex-direction: column;
+}
+.payroll-page-container .detail-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 0.1rem;
+}
+.payroll-page-container .detail-value {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.payroll-page-container .payroll-run-card .card-footer {
     padding: 0.75rem 1rem;
     background-color: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 0.5rem;
 }
 
-.status-badge { 
+/* SCOPED status-badge to prevent conflicts with other pages */
+.payroll-page-container .status-badge { 
     color: var(--white-color); 
     padding: 0.3em 0.6em; 
     font-size: 0.75rem; 
@@ -151,20 +187,98 @@
     border-radius: var(--border-radius); 
     text-transform: uppercase; 
 }
-.status-paid { 
+.payroll-page-container .status-paid { 
     background-color: var(--app-success-color); 
 }
-.status-pending { 
+.payroll-page-container .status-pending { 
     background-color: var(--warning-color); 
     color: var(--text-primary) !important; 
 }
 
-/* Detail Modal */
-.modal-subtitle {
+/* SCOPED modal-subtitle for safety */
+.payroll-page-container .modal-subtitle {
     color: var(--text-secondary);
     font-size: 0.9rem;
 }
 
-.dark-theme .payroll-generation-container .card-title {
+.dark-theme .payroll-page-container .payroll-generation-container .card-title {
     color: var(--text-primary);
+}
+
+/* --- 13th Month Page Styles --- */
+.payroll-page-container .thirteenth-month-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.payroll-page-container .summary-card-13th {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    padding: 1.25rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+}
+.payroll-page-container .summary-card-13th .summary-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+}
+.payroll-page-container .summary-card-13th .summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.payroll-page-container .card-header.thirteenth-month-controls {
+    background-color: var(--bg-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+}
+.payroll-page-container .thirteenth-month-controls .controls-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+.payroll-page-container .thirteenth-month-controls .input-group {
+    max-width: 350px;
+}
+.payroll-page-container .thirteenth-month-controls .year-selector-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.payroll-page-container .thirteenth-month-controls .year-selector-group .form-label {
+    margin-bottom: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.payroll-page-container .thirteenth-month-controls .year-selector-group .form-select {
+    width: 120px;
+}
+
+.payroll-page-container .status-select {
+    font-weight: 600;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+}
+.payroll-page-container .status-select.status-select-pending {
+    background-color: var(--warning-color);
+    color: var(--text-primary);
+}
+.payroll-page-container .status-select.status-select-paid {
+    background-color: var(--app-success-color);
+    color: var(--text-on-success);
+}
+
+.payroll-page-container .thirteenth-month-container .data-table {
+    table-layout: fixed;
+    width: 100%;
 }

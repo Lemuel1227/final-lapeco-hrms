@@ -8,6 +8,7 @@ import { USER_ROLES } from '../constants/roles';
 const navItemsConfig = {
   [USER_ROLES.HR_PERSONNEL]: [
     { path: '/dashboard', icon: 'bi-grid-1x2-fill', label: 'Dashboard', exact: true },
+    { path: '/dashboard/leaderboards', icon: 'bi-bar-chart-line-fill', label: 'Leaderboards' }, 
     { path: '/dashboard/employee-data', icon: 'bi-people-fill', label: 'Employee Data' },
     { path: '/dashboard/positions', icon: 'bi-diagram-3-fill', label: 'Positions' },
     { path: '/dashboard/attendance-management', icon: 'bi-calendar-check-fill', label: 'Attendance' },
@@ -19,6 +20,7 @@ const navItemsConfig = {
     { path: '/dashboard/performance', icon: 'bi-graph-up-arrow', label: 'Performance' },
     { path: '/dashboard/training', icon: 'bi-mortarboard-fill', label: 'Training' },
     { path: '/dashboard/case-management', icon: 'bi-briefcase-fill', label: 'Cases' },
+    { path: '/dashboard/resignation-management', icon: 'bi-box-arrow-left', label: 'Resignation Management' },
     { path: '/dashboard/recruitment', icon: 'bi-person-plus-fill', label: 'Recruitment' },
     { path: '/dashboard/accounts', icon: 'bi-shield-lock-fill', label: 'Accounts' },
     { path: '/dashboard/reports', icon: 'bi-file-earmark-bar-graph-fill', label: 'Reports' },

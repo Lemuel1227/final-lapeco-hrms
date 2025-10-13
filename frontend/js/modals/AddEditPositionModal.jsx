@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AddEditPositionModal.css';
 
-const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
+const AddEditPositionModal = ({ show, onClose, onSave, positionData, submitting }) => {
   const initialFormState = { title: '', description: '', monthlySalary: '' };
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
@@ -82,8 +82,10 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-success">{isEditMode ? 'Save Changes' : 'Add Position'}</button>
+              <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={submitting}>Cancel</button>
+              <button type="submit" className="btn btn-success" disabled={submitting}>
+                {submitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Add Position')}
+              </button>
             </div>
           </form>
         </div>

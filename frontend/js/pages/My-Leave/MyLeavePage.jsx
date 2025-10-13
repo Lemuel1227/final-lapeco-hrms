@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { leaveAPI } from '../../services/api';
+import { getUserProfile } from '../../services/accountService';
 import RequestLeaveModal from '../../modals/RequestLeaveModal';
 import LeaveHistoryModal from '../../modals/LeaveHistoryModal';
 import LeaveRequestCard from './LeaveRequestCard';
+import ToastNotification from '../../common/ToastNotification';
+import { formatDateRange } from '../../utils/dateUtils';
 import './MyLeavePage.css'; 
 
 const MyLeavePage = () => {
@@ -11,18 +14,26 @@ const MyLeavePage = () => {
   const [error, setError] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   
   const leaveBalances = { vacation: 12, sick: 8 };
 
-  // Load user's leave requests from API
+  // Load user's leave requests and user profile from API
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const res = await leaveAPI.getAll();
-        const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        
+        // Fetch both leave requests and user profile
+        const [leaveRes, userRes] = await Promise.all([
+          leaveAPI.getAll(),
+          getUserProfile()
+        ]);
+        
+        const data = Array.isArray(leaveRes.data) ? leaveRes.data : (leaveRes.data?.data || []);
         // Map API to UI structure
         const mapped = data.map(l => ({
           leaveId: l.id,
@@ -42,6 +53,7 @@ const MyLeavePage = () => {
         // Team leaders see their team's leaves
         // HR personnel see all leaves
         setLeaveRequests(mapped);
+        setCurrentUser(userRes.data || userRes);
         setError(null);
       } catch (err) {
         setLeaveRequests([]);
@@ -62,7 +74,24 @@ const MyLeavePage = () => {
         reason: formData.reason,
       };
       
-      await leaveAPI.create(payload);
+      const response = await leaveAPI.create(payload);
+      
+      // Check if the response indicates success
+      if (response.data?.success) {
+        // Show success toast with backend message
+        setToast({
+          show: true,
+          message: response.data.message || 'Leave request submitted successfully!',
+          type: 'success'
+        });
+      } else {
+        // Handle unexpected response format
+        setToast({
+          show: true,
+          message: 'Leave request submitted, but response format was unexpected.',
+          type: 'warning'
+        });
+      }
       
       // Refresh the data
       const res = await leaveAPI.getAll();
@@ -82,9 +111,36 @@ const MyLeavePage = () => {
       // Backend handles filtering based on user authentication
       setLeaveRequests(mapped);
       setShowRequestModal(false);
-      alert('Leave request submitted successfully!');
+      
     } catch (err) {
-      alert('Failed to submit leave request. Please try again.');
+      console.error('Leave request error:', err);
+      
+      // Handle different types of errors
+      let errorMessage = 'Something went wrong while submitting your leave request. Please try again.';
+      
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        
+        if (errorData.message) {
+          // Use backend error message
+          errorMessage = errorData.message;
+        } else if (errorData.errors) {
+          // Handle validation errors
+          const validationErrors = Object.values(errorData.errors).flat();
+          errorMessage = validationErrors.length > 0 
+            ? validationErrors.join('\n') 
+            : 'Please check your input and try again.';
+        }
+      } else if (err.message) {
+        // Network or other errors
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setToast({
+        show: true,
+        message: errorMessage,
+        type: 'error'
+      });
     }
   };
 
@@ -105,6 +161,13 @@ const MyLeavePage = () => {
   
   return (
     <div className="container-fluid p-0 page-module-container">
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+        />
+      )}
       <header className="page-header d-flex justify-content-between align-items-center mb-4">
         <h1 className="page-main-title">My Leave</h1>
         <div className="d-flex gap-2">
@@ -151,13 +214,17 @@ const MyLeavePage = () => {
                 <div className="balance-icon icon-sick"><i className="bi bi-heart-pulse-fill"></i></div>
                 <div className="balance-info"><span className="balance-value">{leaveBalances.sick}</span><span className="balance-label">Sick Days Left</span></div>
             </div>
+            <div className="balance-card">
+              <div className="balance-icon icon-personal"><i className="bi bi-person-badge"></i></div>
+              <div className="balance-info"><span className="balance-value">{leaveBalances.personal}</span><span className="balance-label">Personal Days Left</span></div>
+            </div>
         </div>
         <div className="upcoming-leave-card">
             <h6><i className="bi bi-calendar-check-fill text-success me-2"></i>Upcoming Leave</h6>
             {upcomingLeave ? (
                 <div>
                     <p className="upcoming-type">{upcomingLeave.leaveType}</p>
-                    <p className="upcoming-dates">{upcomingLeave.dateFrom} to {upcomingLeave.dateTo}</p>
+                    <p className="upcoming-dates">{formatDateRange(upcomingLeave.dateFrom, upcomingLeave.dateTo)}</p>
                 </div>
             ) : (
                 <p className="text-muted no-upcoming">No upcoming approved leave.</p>
@@ -197,6 +264,7 @@ const MyLeavePage = () => {
           show={showRequestModal}
           onClose={() => setShowRequestModal(false)}
           onSave={createLeaveRequest}
+          currentUser={currentUser}
         />
       )}
         </>

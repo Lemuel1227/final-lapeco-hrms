@@ -5,6 +5,7 @@ import AddEditPositionModal from '../../modals/AddEditPositionModal';
 import AddEmployeeToPositionModal from '../../modals/AddEmployeeToPositionModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
+import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import Layout from '@/layout/Layout';
 import { positionAPI } from '@/services/api';
@@ -20,14 +21,52 @@ const PositionsPage = (props) => {
   const [loadingPositions, setLoadingPositions] = useState(true);
   const [allEmployees, setAllEmployees] = useState([]);
   const [loadingAllEmployees, setLoadingAllEmployees] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   const [showReportPreview, setShowReportPreview] = useState(false);
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
 
   const handleCloseAddEmployeeModal = () => setShowAddEmployeeModal(false);
+
+  // Handle reassignment confirmation
+  const handleConfirmReassignment = (employee, currentPosTitle, newPosition, onConfirm) => {
+    setReassignmentData({
+      employee,
+      currentPosTitle,
+      newPosition,
+      onConfirm
+    });
+    setShowReassignConfirmModal(true);
+  };
+
+  const confirmReassignment = async () => {
+    if (reassignmentData?.employee && reassignmentData?.newPosition) {
+      try {
+        await employeeAPI.update(reassignmentData.employee.id, { position_id: reassignmentData.newPosition.id });
+        if (selectedPosition) {
+          await refreshPositionEmployees(selectedPosition.id);
+        }
+        await refreshPositions();
+        setToast({ show: true, message: 'Employee reassigned successfully!', type: 'success' });
+        setShowAddEmployeeModal(false);
+      } catch (e) {
+        setToast({ show: true, message: 'Failed to reassign employee.', type: 'error' });
+      }
+    }
+    setShowReassignConfirmModal(false);
+    setReassignmentData(null);
+  };
+
+  const cancelReassignment = () => {
+    setShowReassignConfirmModal(false);
+    setReassignmentData(null);
+  };
   const [showAddEditPositionModal, setShowAddEditPositionModal] = useState(false);
   const [editingPosition, setEditingPosition] = useState(null);
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
+  
+  // Toast notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   
   // Confirmation modal states
   const [showDeletePositionModal, setShowDeletePositionModal] = useState(false);
@@ -36,6 +75,10 @@ const PositionsPage = (props) => {
   const [showRemoveEmployeeModal, setShowRemoveEmployeeModal] = useState(false);
   const [employeeToRemove, setEmployeeToRemove] = useState(null);
   const [isRemovingEmployee, setIsRemovingEmployee] = useState(false);
+  const [showAddEmployeeConfirmModal, setShowAddEmployeeConfirmModal] = useState(false);
+  const [employeeToAdd, setEmployeeToAdd] = useState(null);
+  const [showReassignConfirmModal, setShowReassignConfirmModal] = useState(false);
+  const [reassignmentData, setReassignmentData] = useState(null);
 
   // Load positions from API
   useEffect(() => {
@@ -107,15 +150,17 @@ const PositionsPage = (props) => {
       };
       if (positionId) {
         await positionAPI.update(positionId, payload);
+        setToast({ show: true, message: 'Position updated successfully!', type: 'success' });
       } else {
         await positionAPI.create(payload);
+        setToast({ show: true, message: 'Position created successfully!', type: 'success' });
       }
       await refreshPositions();
       setShowAddEditPositionModal(false);
       setEditingPosition(null);
     } catch (e) {
       const message = e?.response?.data?.message || 'Failed to save position. Please try again.';
-      alert(message);
+      setToast({ show: true, message, type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -137,8 +182,9 @@ const PositionsPage = (props) => {
           setSelectedPosition(null);
           setPositionEmployees([]);
         }
+        setToast({ show: true, message: 'Position deleted successfully!', type: 'success' });
       } catch (e) {
-        alert('Failed to delete position.');
+        setToast({ show: true, message: 'Failed to delete position.', type: 'error' });
       } finally {
         setIsDeletingPosition(false);
         setShowDeletePositionModal(false);
@@ -155,15 +201,32 @@ const PositionsPage = (props) => {
   };
 
   const handleSaveEmployeeToPosition = async (employeeId, positionId) => {
-    try {
-      await employeeAPI.update(employeeId, { position_id: positionId });
-      if (selectedPosition) {
-        await refreshPositionEmployees(selectedPosition.id);
+    setEmployeeToAdd({ employeeId, positionId });
+    setShowAddEmployeeConfirmModal(true);
+  };
+
+  const confirmAddEmployee = async () => {
+    if (employeeToAdd) {
+      try {
+        await employeeAPI.update(employeeToAdd.employeeId, { position_id: employeeToAdd.positionId });
+        if (selectedPosition) {
+          await refreshPositionEmployees(selectedPosition.id);
+        }
+        await refreshPositions();
+        setToast({ show: true, message: 'Employee added to position successfully!', type: 'success' });
+        setShowAddEmployeeModal(false);
+      } catch (e) {
+        setToast({ show: true, message: 'Failed to assign employee to position.', type: 'error' });
+      } finally {
+        setShowAddEmployeeConfirmModal(false);
+        setEmployeeToAdd(null);
       }
-      await refreshPositions();
-    } catch (e) {
-      alert('Failed to assign employee to position.');
     }
+  };
+
+  const cancelAddEmployee = () => {
+    setShowAddEmployeeConfirmModal(false);
+    setEmployeeToAdd(null);
   };
 
   const handleRemoveFromPosition = (employee) => {
@@ -180,8 +243,9 @@ const PositionsPage = (props) => {
           await refreshPositionEmployees(selectedPosition.id);
         }
         await refreshPositions();
+        setToast({ show: true, message: 'Employee removed from position successfully!', type: 'success' });
       } catch (e) {
-        alert('Failed to remove employee from position.');
+        setToast({ show: true, message: 'Failed to remove employee from position.', type: 'error' });
       } finally {
         setIsRemovingEmployee(false);
         setShowRemoveEmployeeModal(false);
@@ -197,9 +261,23 @@ const PositionsPage = (props) => {
     }
   };
 
-  const handleToggleLeader = (employeeId) => {
-    if (typeof handlers.toggleTeamLeaderStatus === 'function') {
-      handlers.toggleTeamLeaderStatus(employeeId);
+  const handleToggleLeader = async (employeeId) => {
+    try {
+      const response = await employeeAPI.toggleTeamLeaderStatus(employeeId);
+      
+      // Show success message
+      if (response.data?.message) {
+        setToast({ show: true, message: response.data.message, type: 'success' });
+      }
+      
+      // Refresh the position employees to reflect the role change
+      if (selectedPosition) {
+        await refreshPositionEmployees(selectedPosition.id);
+      }
+    } catch (error) {
+      // Handle error
+      const errorMessage = error.response?.data?.message || 'Failed to update team leader status. Please try again.';
+      setToast({ show: true, message: errorMessage, type: 'error' });
     }
   };
 
@@ -317,10 +395,41 @@ const PositionsPage = (props) => {
         {showAddEmployeeModal && (
           <AddEmployeeToPositionModal
             show={showAddEmployeeModal} onClose={handleCloseAddEmployeeModal}
-            onSave={handleSaveEmployeeToPosition} currentPosition={selectedPosition}
+            onSave={handleSaveEmployeeToPosition} onConfirmReassignment={handleConfirmReassignment}
+            currentPosition={selectedPosition}
             allEmployees={allEmployees} allPositions={positions}
           />
         )}
+
+        {/* Reassignment Confirmation Modal */}
+        <ConfirmationModal
+          show={showReassignConfirmModal}
+          title="Re-assign Employee"
+          onClose={cancelReassignment}
+          onConfirm={confirmReassignment}
+          confirmText="Re-assign"
+          confirmVariant="warning"
+        >
+          {reassignmentData && (
+            <>
+              Employee <strong>{reassignmentData.employee.name}</strong> is already assigned to "<strong>{reassignmentData.currentPosTitle}</strong>".
+              <br /><br />
+              Are you sure you want to re-assign them to "<strong>{reassignmentData.newPosition.title}</strong>"?
+            </>
+          )}
+        </ConfirmationModal>
+
+        {/* Add Employee Confirmation Modal */}
+        <ConfirmationModal
+          show={showAddEmployeeConfirmModal}
+          title="Add Employee to Position"
+          onClose={cancelAddEmployee}
+          onConfirm={confirmAddEmployee}
+          confirmText="Add Employee"
+          confirmVariant="success"
+        >
+          Are you sure you want to add this employee to the selected position?
+        </ConfirmationModal>
       </div>
     );
   }
@@ -399,7 +508,7 @@ const PositionsPage = (props) => {
       )}
 
       {showAddEditPositionModal && (
-        <AddEditPositionModal show={showAddEditPositionModal} onClose={handleCloseAddEditPositionModal} onSave={handleSavePosition} positionData={editingPosition} />
+        <AddEditPositionModal show={showAddEditPositionModal} onClose={handleCloseAddEditPositionModal} onSave={handleSavePosition} positionData={editingPosition} submitting={submitting} />
       )}
 
      {(isLoading || pdfDataUri) && (
@@ -436,6 +545,16 @@ const PositionsPage = (props) => {
       >
         Are you sure you want to remove "{employeeToRemove?.name}" from their current position?
       </ConfirmationModal>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+        />
+      )}
+
     </div>
   );
 };

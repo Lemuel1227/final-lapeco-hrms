@@ -4,7 +4,7 @@ import LeaveCreditsTab from './LeaveCreditsTab';
 import LeaveReportModal from '../../modals/LeaveReportModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
-import { leaveAPI } from '../../services/api';
+import { leaveAPI, employeeAPI } from '../../services/api';
 import './LeaveManagementPage.css';
 
 const LeaveManagementPage = () => {
@@ -20,14 +20,16 @@ const LeaveManagementPage = () => {
 
   // Load leave requests from API
   useEffect(() => {
-    const fetchLeaveRequests = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await leaveAPI.getAll();
-        const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        
+        // Fetch leave requests
+        const leaveRes = await leaveAPI.getAll();
+        const leaveData = Array.isArray(leaveRes.data) ? leaveRes.data : (leaveRes.data?.data || []);
         
         // Map API response to UI structure
-        const mapped = data.map(l => ({
+        const mappedLeaves = leaveData.map(l => ({
           leaveId: l.id,
           empId: l.user?.id ?? l.user_id,
           name: l.user?.name ?? '',
@@ -40,17 +42,23 @@ const LeaveManagementPage = () => {
           reason: l.reason,
         }));
         
-        setLeaveRequests(mapped);
+        // Fetch employees
+        const empRes = await employeeAPI.getAll();
+        const empData = Array.isArray(empRes.data) ? empRes.data : (empRes.data?.data || []);
+        
+        setLeaveRequests(mappedLeaves);
+        setEmployees(empData);
         setError(null);
       } catch (err) {
         setLeaveRequests([]);
-        setError('Failed to load leave requests. Please try again.');
+        setEmployees([]);
+        setError('Failed to load data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLeaveRequests();
+    fetchData();
   }, []);
 
   // Handlers for leave request operations
@@ -192,7 +200,7 @@ const LeaveManagementPage = () => {
             <LeaveCreditsTab 
               employees={employees}
               leaveRequests={leaveRequests}
-              onSaveCredits={handlers.updateLeaveCredits}
+              handlers={handlers}
             />
           )}
         </div>

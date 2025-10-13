@@ -65,8 +65,15 @@ const ProtectedRoute = ({ children }) => {
   }
 
   // Redirect to password change if user needs to change password
+  // But allow users to go back to login from force password change page
   if (needsPasswordChange && location.pathname !== '/force-password-change') {
     return <Navigate to="/force-password-change" replace />;
+  }
+
+  // If user is on force password change page but doesn't need password change anymore
+  // (e.g., they logged out and back in), redirect to dashboard
+  if (!needsPasswordChange && location.pathname === '/force-password-change') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Render protected content if authenticated and password is changed

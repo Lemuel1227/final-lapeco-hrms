@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import './MyPayrollPage.css';
 
-const MyPayrollLayout = () => {
+const MyPayrollLayout = ({ employees }) => {
   return (
     <div className="container-fluid p-0 page-module-container">
       <header className="page-header mb-4">
@@ -23,7 +23,7 @@ const MyPayrollLayout = () => {
       </ul>
       
       <div className="payroll-tab-content">
-        <Outlet />
+        <Outlet context={{ employees }} /> 
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Leave;
 use App\Models\User;
+use App\Models\LeaveCredit;
+use Illuminate\Validation\ValidationException;
 
 class LeaveController extends Controller
 {
@@ -28,20 +30,69 @@ class LeaveController extends Controller
     // Regular/Team leader create own leave
     public function store(Request $request)
     {
-        $request->merge([
-            'type' => $request->input('type', $request->input('leaveType')),
-        ]);
-        $data = $request->validate([
-            'type' => 'required|string|in:Vacation Leave,Sick Leave,Emergency Leave,Personal Leave,Unpaid Leave',
-            'date_from' => 'required|date',
-            'date_to' => 'required|date|after_or_equal:date_from',
-            'days' => 'required|integer|min:1',
-            'reason' => 'nullable|string',
-        ]);
-        $data['user_id'] = $request->user()->id;
-        $data['status'] = 'Pending';
-        $leave = Leave::create($data);
-        return response()->json($leave, 201);
+        try {
+            $request->merge([
+                'type' => $request->input('type', $request->input('leaveType')),
+            ]);
+            
+            $data = $request->validate([
+                'type' => 'required|string|in:Vacation Leave,Sick Leave,Personal Leave,Unpaid Leave,Maternity Leave,Paternity Leave',
+                'date_from' => 'required|date',
+                'date_to' => 'required|date|after_or_equal:date_from',
+                'days' => 'required|integer|min:1',
+                'reason' => 'nullable|string',
+            ], [
+                'type.required' => 'Please select a leave type.',
+                'type.in' => 'The selected leave type is not valid.',
+                'date_from.required' => 'Please select a start date for your leave.',
+                'date_from.date' => 'Please enter a valid start date.',
+                'date_to.required' => 'Please select an end date for your leave.',
+                'date_to.date' => 'Please enter a valid end date.',
+                'date_to.after_or_equal' => 'The end date must be on or after the start date.',
+                'days.required' => 'Please specify the number of leave days.',
+                'days.integer' => 'The number of days must be a whole number.',
+                'days.min' => 'Leave request must be for at least 1 day.',
+            ]);
+            
+            $user = $request->user();
+            $data['user_id'] = $user->id;
+            $data['status'] = 'Pending';
+            
+            // Check leave credits for applicable leave types (skip Unpaid Leave and Paternity Leave)
+            if (!in_array($data['type'], ['Unpaid Leave', 'Paternity Leave'])) {
+                $leaveCredit = LeaveCredit::getOrCreateForUser($user->id, $data['type']);
+                
+                if (!$leaveCredit->hasEnoughCredits($data['days'])) {
+                    $remaining = $leaveCredit->remaining_credits;
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Insufficient leave credits. You have {$remaining} days remaining for {$data['type']}.",
+                        'error' => 'Insufficient credits'
+                    ], 422);
+                }
+            }
+            
+            $leave = Leave::create($data);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Your leave request has been submitted successfully and is pending approval.',
+                'data' => $leave
+            ], 201);
+            
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please check your input and try again.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while submitting your leave request. Please try again later.',
+                'error' => 'Internal server error'
+            ], 500);
+        }
     }
 
     // HR or Team Leader can update status; user can cancel own request
@@ -49,7 +100,7 @@ class LeaveController extends Controller
     {
         $validated = $request->validate([
             'status' => 'sometimes|in:Pending,Approved,Declined,Canceled',
-            'type' => 'sometimes|string|in:Vacation Leave,Sick Leave,Emergency Leave,Personal Leave,Unpaid Leave',
+            'type' => 'sometimes|string|in:Vacation Leave,Sick Leave,Personal Leave,Unpaid Leave',
             'date_from' => 'sometimes|date',
             'date_to' => 'sometimes|date|after_or_equal:date_from',
             'days' => 'sometimes|integer|min:1',
@@ -79,5 +130,158 @@ class LeaveController extends Controller
         }
         $leave->delete();
         return response()->json(null, 204);
+    }
+
+    // Get leave credits for a user
+    public function getLeaveCredits(Request $request, $userId = null)
+    {
+        $user = $request->user();
+        
+        // If no userId provided, get current user's credits
+        if (!$userId) {
+            $userId = $user->id;
+        }
+        
+        // Check permissions - only HR can view other users' credits
+        if ($userId != $user->id && $user->role !== 'HR_PERSONNEL') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        
+        $leaveCredits = LeaveCredit::where('user_id', $userId)
+            ->where('year', date('Y'))
+            ->get()
+            ->keyBy('leave_type');
+        
+        // Ensure all leave types have records
+        $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Personal Leave', 'Maternity Leave'];
+        $result = [];
+        
+        foreach ($leaveTypes as $type) {
+            if (isset($leaveCredits[$type])) {
+                $result[$type] = $leaveCredits[$type];
+            } else {
+                $result[$type] = LeaveCredit::getOrCreateForUser($userId, $type);
+            }
+        }
+        
+        return response()->json($result);
+    }
+
+    // Get all users' leave credits in bulk (HR only)
+    public function getAllLeaveCredits(Request $request)
+    {
+        $user = $request->user();
+        
+        // Only HR can access all users' leave credits
+        if ($user->role !== 'HR_PERSONNEL') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        
+        // Get all users
+        $users = User::select('id', 'name', 'email', 'gender')->get();
+        
+        // Get all leave credits for current year
+        $leaveCredits = LeaveCredit::where('year', date('Y'))
+            ->get()
+            ->groupBy('user_id');
+        
+        // Define leave types
+        $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Personal Leave', 'Maternity Leave'];
+        
+        $result = [];
+        
+        foreach ($users as $userData) {
+            $userCredits = [];
+            $userLeaveCredits = $leaveCredits->get($userData->id, collect());
+            $userLeaveCreditsKeyed = $userLeaveCredits->keyBy('leave_type');
+            
+            foreach ($leaveTypes as $type) {
+                if (isset($userLeaveCreditsKeyed[$type])) {
+                    $userCredits[$type] = $userLeaveCreditsKeyed[$type];
+                } else {
+                    // Create default record if not exists
+                    $userCredits[$type] = LeaveCredit::getOrCreateForUser($userData->id, $type);
+                }
+            }
+            
+            $result[] = [
+                'user' => $userData,
+                'leave_credits' => $userCredits
+            ];
+        }
+        
+        return response()->json($result);
+    }
+
+    // Update leave credits (HR only)
+    public function updateLeaveCredits(Request $request, $userId)
+    {
+        $user = $request->user();
+        
+        if ($user->role !== 'HR_PERSONNEL') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        
+        $validated = $request->validate([
+            'leave_type' => 'required|string|in:Vacation Leave,Sick Leave,Personal Leave,Maternity Leave',
+            'total_credits' => 'required|integer|min:0',
+        ]);
+        
+        $leaveCredit = LeaveCredit::getOrCreateForUser($userId, $validated['leave_type']);
+        $leaveCredit->update(['total_credits' => $validated['total_credits']]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave credits updated successfully.',
+            'data' => $leaveCredit
+        ]);
+    }
+
+    // Reset used credits (HR only)
+    public function resetUsedCredits(Request $request)
+    {
+        $user = $request->user();
+        
+        if ($user->role !== 'HR_PERSONNEL') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        
+        $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
+            'leave_type' => 'nullable|string|in:Vacation Leave,Sick Leave,Personal Leave,Maternity Leave',
+            'reset_all_users' => 'boolean',
+            'reset_all_types' => 'boolean',
+        ]);
+        
+        $query = LeaveCredit::where('year', date('Y'));
+        
+        if (!empty($validated['user_id'])) {
+            $query->where('user_id', $validated['user_id']);
+        } elseif (!$validated['reset_all_users']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please specify a user or select reset all users.'
+            ], 422);
+        }
+        
+        if (!empty($validated['leave_type'])) {
+            $query->where('leave_type', $validated['leave_type']);
+        } elseif (!$validated['reset_all_types']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please specify a leave type or select reset all types.'
+            ], 422);
+        }
+        
+        $affectedRecords = $query->update([
+            'used_credits' => 0,
+            'last_reset_at' => now()
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully reset used credits for {$affectedRecords} records.",
+            'affected_records' => $affectedRecords
+        ]);
     }
 }

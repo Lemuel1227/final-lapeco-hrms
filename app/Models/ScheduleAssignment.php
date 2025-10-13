@@ -15,6 +15,7 @@ class ScheduleAssignment extends Model
         'user_id',
         'start_time',
         'end_time',
+        'ot_hours',
         'notes',
     ];
 
@@ -35,6 +36,21 @@ class ScheduleAssignment extends Model
             if (($model->schedule_id && $model->schedule_template_id) || 
                 (!$model->schedule_id && !$model->schedule_template_id)) {
                 throw new \InvalidArgumentException('Either schedule_id or schedule_template_id must be set, but not both.');
+            }
+        });
+
+        static::created(function ($model) {
+            // Only create attendance for actual schedules (not templates)
+            if ($model->schedule_id) {
+                // Create a placeholder attendance record
+                Attendance::create([
+                    'schedule_assignment_id' => $model->id,
+                    'status' => 'scheduled',
+                    'sign_in' => null,
+                    'break_out' => null,
+                    'break_in' => null,
+                    'sign_out' => null,
+                ]);
             }
         });
 
@@ -60,6 +76,14 @@ class ScheduleAssignment extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the attendance record for this schedule assignment
+     */
+    public function attendance()
+    {
+        return $this->hasOne(Attendance::class);
     }
 
     /**

@@ -41,6 +41,7 @@ class User extends Authenticatable
         'last_failed_login',
         'locked_until',
         'password_changed',
+        'employment_status',
     ];
 
     /**
@@ -77,11 +78,41 @@ class User extends Authenticatable
         return $this->hasMany(ScheduleAssignment::class);
     }
 
+    public function leaves()
+    {
+        return $this->hasMany(Leave::class);
+    }
+
+    public function leaveCredits()
+    {
+        return $this->hasMany(LeaveCredit::class);
+    }
+
     public function schedules()
     {
         return $this->belongsToMany(Schedule::class, 'schedule_assignments')
                     ->withPivot(['start_time', 'end_time', 'notes'])
                     ->withTimestamps();
+    }
+
+    public function resignations()
+    {
+        return $this->hasMany(Resignation::class, 'employee_id');
+    }
+
+    public function terminations()
+    {
+        return $this->hasMany(Termination::class, 'employee_id');
+    }
+
+    public function approvedResignations()
+    {
+        return $this->hasMany(Resignation::class, 'approved_by');
+    }
+
+    public function terminatedEmployees()
+    {
+        return $this->hasMany(Termination::class, 'terminated_by');
     }
 
     /**

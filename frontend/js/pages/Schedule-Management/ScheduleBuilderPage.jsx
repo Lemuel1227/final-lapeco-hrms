@@ -21,7 +21,7 @@ const defaultHandlers = {
           empId: schedule.empId,
           start_time: schedule.start_time,
           end_time: schedule.end_time,
-          notes: schedule.notes || null
+          ot_hours: schedule.ot_hours || '0'
         }))
       };
 
@@ -132,6 +132,7 @@ const ScheduleBuilderPage = (props) => {
   const [columns, setColumns] = useState([
     { key: 'start_time', name: 'Start Time' },
     { key: 'end_time', name: 'End Time' },
+    { key: 'ot_hours', name: 'OT Hours' },
   ]);
   const [gridData, setGridData] = useState([]);
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
@@ -212,12 +213,13 @@ const ScheduleBuilderPage = (props) => {
     let initialColumns = [
       { key: 'start_time', name: 'Start Time' },
       { key: 'end_time', name: 'End Time' },
+      { key: 'ot_hours', name: 'OT Hours' },
     ];
 
     if (method === 'copy' && sourceData && Array.isArray(sourceData)) {
       console.log('Copy method - sourceData:', sourceData);
       initialName = `Copy of ${sourceData[0]?.name || `Schedule for ${sourceData[0]?.date}`}`;
-      const sourceColumns = new Set(['start_time', 'end_time']);
+      const sourceColumns = new Set(['start_time', 'end_time', 'ot_hours']);
       sourceData.forEach(entry => {
         Object.keys(entry).forEach(key => {
           // Filter out employee-related fields that are already displayed as fixed columns
@@ -256,12 +258,14 @@ const ScheduleBuilderPage = (props) => {
         // Handle time fields directly like in template method
         row.start_time = formatTimeForInput(sch.start_time);
         row.end_time = formatTimeForInput(sch.end_time);
+        row.ot_hours = sch.ot_hours || '0';
         console.log(`start_time: ${sch.start_time} -> ${row.start_time}`);
         console.log(`end_time: ${sch.end_time} -> ${row.end_time}`);
+        console.log(`ot_hours: ${sch.ot_hours} -> ${row.ot_hours}`);
         
         // Handle other columns
         initialColumns.forEach(col => {
-          if (col.key !== 'start_time' && col.key !== 'end_time') {
+          if (col.key !== 'start_time' && col.key !== 'end_time' && col.key !== 'ot_hours') {
             row[col.key] = sch[col.key] || '';
           }
         });
@@ -272,8 +276,8 @@ const ScheduleBuilderPage = (props) => {
       initialName = `${sourceData.name} for ${currentDate}`;
       const templateColumnKeys = sourceData.columns && sourceData.columns.length > 0 ? sourceData.columns : [];
       
-      // Always include start_time and end_time as base columns, then add template columns and notes if needed
-      const baseColumns = ['start_time', 'end_time'];
+      // Always include start_time, end_time, and ot_hours as base columns, then add template columns and notes if needed
+      const baseColumns = ['start_time', 'end_time', 'ot_hours'];
       const allColumnKeys = sourceData.assignments && sourceData.assignments.length > 0 
         ? [...new Set([...baseColumns, ...templateColumnKeys, 'notes'])]
         : [...new Set([...baseColumns, ...templateColumnKeys])];
@@ -311,7 +315,7 @@ const ScheduleBuilderPage = (props) => {
           // Populate standard columns from assignment data with proper time formatting
           row.start_time = formatTimeForInput(assignment.start_time);
           row.end_time = formatTimeForInput(assignment.end_time);
-          row.notes = assignment.notes || '';
+          row.ot_hours = assignment.ot_hours || '0';
           
           // Populate any additional template columns with empty values
           allColumnKeys.forEach(key => {
@@ -328,7 +332,7 @@ const ScheduleBuilderPage = (props) => {
         initialGrid = employees.map(emp => ({ ...emptyRow, empId: emp.id }));
       }
     } else {
-      initialGrid = [{ empId: '', start_time: '', end_time: '' }];
+      initialGrid = [{ empId: '', start_time: '', end_time: '', ot_hours: '0' }];
     }
 
     setScheduleName(initialName);
@@ -346,7 +350,7 @@ const ScheduleBuilderPage = (props) => {
   };
 
   const handleAddColumn = (newColumn) => {
-    if (columns.some(c => c.key === newColumn.key) || ['empId', 'name', 'position', 'start_time', 'end_time'].includes(newColumn.key)) {
+    if (columns.some(c => c.key === newColumn.key) || ['empId', 'name', 'position', 'start_time', 'end_time', 'ot_hours'].includes(newColumn.key)) {
       alert(`Column "${newColumn.name}" or its key already exists.`);
       return;
     }
@@ -386,7 +390,7 @@ const ScheduleBuilderPage = (props) => {
           return acc;
         }, {});
 
-        if (Object.keys(entryData).length > 0 && entryData.start_time && entryData.end_time) {
+        if (Object.keys(entryData).length > 0 && entryData.start_time && entryData.end_time && entryData.ot_hours) {
           newScheduleEntries.push({ empId: row.empId, date: scheduleDate, name: finalScheduleName, ...entryData });
         }
       }
@@ -475,6 +479,12 @@ const ScheduleBuilderPage = (props) => {
                         <td key={col.key}>
                           {col.key === 'start_time' || col.key === 'end_time' ? (
                             <input type="time" className="form-control form-control-sm shift-input" value={row[col.key] || ''} onChange={e => handleGridInputChange(rowIndex, col.key, e.target.value)} />
+                          ) : col.key === 'ot_hours' ? (
+                            <input type="text" className="form-control form-control-sm shift-input" 
+                              value={row[col.key] && parseFloat(row[col.key]) > 0 ? row[col.key] : '---'} 
+                              onChange={e => handleGridInputChange(rowIndex, col.key, e.target.value === '---' ? '0' : e.target.value)}
+                              onFocus={e => { if (e.target.value === '---') e.target.value = '0'; }}
+                            />
                           ) : (
                             <input type="text" className="form-control form-control-sm shift-input" value={row[col.key] || ''} onChange={e => handleGridInputChange(rowIndex, col.key, e.target.value)} />
                           )}

@@ -23,8 +23,8 @@ class ScheduleAssignmentSeeder extends Seeder
             return;
         }
 
-        // Create schedules for the last 30 days and next 7 days
-        $startDate = now()->subDays(30);
+        // Create schedules for the last 60 days and next 7 days to match AttendanceSeeder
+        $startDate = now()->subDays(60);
         $endDate = now()->addDays(7);
         
         for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
@@ -70,11 +70,42 @@ class ScheduleAssignmentSeeder extends Seeder
                         break;
                 }
                 
+                // Generate realistic overtime hours based on various factors
+                $otHours = 0;
+                
+                // 60% chance of no overtime (most common)
+                if (rand(1, 100) <= 60) {
+                    $otHours = 0;
+                } 
+                // 25% chance of light overtime (0.5-2 hours)
+                else if (rand(1, 100) <= 85) {
+                    $otHours = [0.5, 1.0, 1.5, 2.0][rand(0, 3)];
+                }
+                // 10% chance of moderate overtime (2.5-4 hours)
+                else if (rand(1, 100) <= 95) {
+                    $otHours = [2.5, 3.0, 3.5, 4.0][rand(0, 3)];
+                }
+                // 5% chance of heavy overtime (4.5-6 hours) - rare cases
+                else {
+                    $otHours = [4.5, 5.0, 5.5, 6.0][rand(0, 3)];
+                }
+                
+                // Increase overtime probability on Fridays (project deadlines)
+                if ($date->isFriday() && $otHours == 0 && rand(1, 100) <= 30) {
+                    $otHours = [1.0, 1.5, 2.0, 2.5][rand(0, 3)];
+                }
+                
+                // Night shift workers get slightly more overtime
+                if ($shiftType == 3 && $otHours == 0 && rand(1, 100) <= 20) {
+                    $otHours = [0.5, 1.0, 1.5][rand(0, 2)];
+                }
+                
                 ScheduleAssignment::create([
                     'schedule_id' => $schedule->id,
                     'user_id' => $user->id,
                     'start_time' => $startTime,
                     'end_time' => $endTime,
+                    'ot_hours' => $otHours,
                     'notes' => 'Auto-generated schedule assignment'
                 ]);
             }

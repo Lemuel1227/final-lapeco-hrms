@@ -32,6 +32,8 @@ class Attendance extends Model
         'shift',
         'employee_name',
         'position_title',
+        'ot_hours',
+        'calculated_status',
     ];
 
     /**
@@ -62,14 +64,7 @@ class Attendance extends Model
      */
     public function position()
     {
-        return $this->hasOneThroughMany(
-            Position::class,
-            [ScheduleAssignment::class, User::class],
-            'id',
-            'id',
-            'schedule_assignment_id',
-            ['user_id', 'position_id']
-        );
+        return $this->scheduleAssignment->user->position ?? null;
     }
 
     /**
@@ -138,7 +133,79 @@ class Attendance extends Model
      */
     public function getPositionTitleAttribute()
     {
-        return $this->position ? $this->position->title : 'Unassigned';
+        $position = $this->scheduleAssignment->user->position ?? null;
+        return $position ? $position->name : 'Unassigned';
+    }
+
+    /**
+     * Get overtime hours from schedule assignment.
+     */
+    public function getOtHoursAttribute()
+    {
+        return $this->scheduleAssignment ? $this->scheduleAssignment->ot_hours : 0;
+    }
+
+    /**
+     * Calculate the actual attendance status based on sign-in/out times and shift schedule.
+     */
+    public function getCalculatedStatusAttribute()
+    {
+        // If no schedule assignment, return the stored status
+        if (!$this->scheduleAssignment) {
+            return $this->status;
+        }
+
+        $currentDate = Carbon::now()->format('Y-m-d');
+        $scheduleDate = $this->scheduleAssignment->schedule->date->format('Y-m-d');
+        
+        // For future dates, always return 'scheduled'
+        if ($scheduleDate > $currentDate) {
+            return 'scheduled';
+        }
+        
+        // For today and past dates, calculate based on attendance data
+        if (!$this->sign_in) {
+            // No sign-in recorded
+            if ($scheduleDate < $currentDate) {
+                return 'absent'; // Past date without sign-in
+            } else {
+                return 'scheduled'; // Today but hasn't signed in yet
+            }
+        }
+        
+        // Has sign-in, check if late
+        $scheduledStartTime = Carbon::parse($this->scheduleAssignment->start_time);
+        $actualSignIn = Carbon::parse($this->sign_in);
+        
+        // Consider late if signed in more than 15 minutes after scheduled start
+        $lateThreshold = $scheduledStartTime->copy()->addMinutes(15);
+        $isLate = $actualSignIn->gt($lateThreshold);
+        
+        // Check if they completed their shift
+        if (!$this->sign_out) {
+            // Signed in but no sign-out
+            if ($scheduleDate < $currentDate) {
+                // Past date without sign-out - consider incomplete/absent
+                return 'absent';
+            } else {
+                // Today, still working or forgot to sign out
+                return $isLate ? 'late' : 'present';
+            }
+        }
+        
+        // Has both sign-in and sign-out
+        $scheduledEndTime = Carbon::parse($this->scheduleAssignment->end_time);
+        $actualSignOut = Carbon::parse($this->sign_out);
+        
+        // Check if they left too early (more than 30 minutes before scheduled end)
+        $earlyLeaveThreshold = $scheduledEndTime->copy()->subMinutes(30);
+        $leftEarly = $actualSignOut->lt($earlyLeaveThreshold);
+        
+        if ($leftEarly) {
+            return 'absent'; // Left too early, consider absent
+        }
+        
+        return $isLate ? 'late' : 'present';
     }
 
     /**

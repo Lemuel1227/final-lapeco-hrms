@@ -1,4 +1,8 @@
-/* --- Main Page Tabs --- */
+/* src/components/pages/Performance-Management/PerformanceManagement.css */
+
+/* ==========================================================================
+   Main Page Tabs & Layout
+   ========================================================================== */
 .performance-nav-tabs .nav-link {
     font-size: 1rem;
     font-weight: 500;
@@ -7,7 +11,158 @@
     font-weight: 600;
 }
 
-/* --- KRA & KPI Setup View --- */
+/* ==========================================================================
+   Dashboard View
+   ========================================================================== */
+.performance-dashboard-layout-revised {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.performance-dashboard-layout-revised .performance-controls-card {
+    padding: 1rem 1.5rem;
+    background-color: var(--bg-primary);
+}
+.performance-dashboard-layout-revised .performance-controls-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-end;
+}
+.performance-dashboard-layout-revised .filter-group {
+    flex-grow: 1;
+}
+.performance-dashboard-layout-revised .filter-group label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.performance-dashboard-layout-revised .filter-group .btn-group .btn {
+    font-weight: 500;
+}
+.dark-theme .performance-dashboard-layout-revised .filter-group .btn-outline-secondary {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+.dark-theme .performance-dashboard-layout-revised .filter-group .btn-outline-secondary:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.stat-card-grid-revised {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+}
+.stat-card-revised {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+.stat-card-revised .stat-icon {
+    font-size: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    color: var(--text-on-success);
+    background-color: var(--app-success-color);
+}
+.stat-card-revised .stat-info .stat-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+.stat-card-revised .stat-info .stat-value strong {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+.stat-card-revised .stat-info .stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.analysis-grid-full-width {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+.analysis-grid-full-width .card-body {
+    color: var(--text-primary);
+}
+
+.history-table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+.history-table-controls h6 {
+    margin-bottom: 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.history-table-controls .input-group {
+    max-width: 350px;
+}
+.data-table .sortable { cursor: pointer; }
+
+/* Score Indicator in Table */
+.score-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 150px;
+}
+.score-bar-container {
+    flex-grow: 1;
+    height: 8px;
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.score-bar {
+    height: 100%;
+    border-radius: 4px;
+}
+.score-bar-danger { background-color: var(--danger-color); }
+.score-bar-warning { background-color: var(--warning-color); }
+.score-bar-success { background-color: var(--app-success-color); }
+.score-text {
+    font-weight: 600;
+    font-size: 0.9rem;
+    min-width: 55px;
+    text-align: right;
+    color: var(--text-primary);
+}
+
+.avatar-table {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+@media (max-width: 992px) {
+    .performance-dashboard-layout-revised .performance-controls-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* ==========================================================================
+   KRA & KPI Setup View
+   ========================================================================== */
 .kra-accordion-item {
     border: 1px solid var(--border-color);
     background-color: var(--bg-primary);
@@ -55,33 +210,60 @@
     display: flex;
     gap: 0.5rem;
     flex-shrink: 0;
+    background-color: var(--bg-primary);
+}
+.dark-theme .kra-accordion-actions {
     background-color: transparent;
 }
 
-/* --- KRA/KPI Modal --- */
+/* KRA/KPI Modal */
 .kpi-list-in-modal {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    background-color: var(--bg-secondary);
-    padding: 1rem;
-    border-radius: var(--border-radius);
 }
-.kpi-row-in-modal {
-    display: grid;
-    grid-template-columns: 1fr 120px 40px;
-    gap: 1rem;
-    align-items: center;
+.kpi-row {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
 }
-.kpi-modal-fields { display: flex; flex-direction: column; gap: 0.5rem; }
-.kpi-modal-weight { align-self: start; }
-.kpi-modal-actions { align-self: start; }
-.react-select-sm .react-select__control { min-height: 31px; background-color: var(--input-bg); border-color: var(--border-color); }
-.react-select-sm .react-select__indicators { height: 31px; }
-.dark-theme .react-select-sm .react-select__multi-value { background-color: var(--bg-tertiary); }
-.dark-theme .react-select-sm .react-select__multi-value__label { color: var(--text-primary); }
+.kpi-row-main {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.kpi-row-field {
+  flex-grow: 1;
+}
+.kpi-row-field .form-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+.kpi-row-weight {
+  flex-grow: 0;
+  flex-basis: 120px;
+}
+.kpi-row-description-editor textarea {
+  font-size: 0.9rem;
+  resize: vertical;
+}
+.kpi-row-actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
 
-/* --- Evaluation Form Page Layout --- */
+/* ==========================================================================
+   Evaluation Form Page
+   ========================================================================== */
 .evaluation-form-page {
     background-color: var(--bg-secondary);
     padding-bottom: 100px; 
@@ -143,7 +325,7 @@
     gap: 0.75rem;
 }
 
-/* --- Stepper Component --- */
+/* Stepper Component */
 .evaluation-stepper {
     display: flex;
     justify-content: space-between;
@@ -195,7 +377,7 @@
     background-color: var(--app-success-color);
 }
 
-/* --- Rating Scale Guide --- */
+/* Rating Scale Guide */
 .rating-scale-guide {
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
@@ -221,39 +403,65 @@
     color: var(--app-success-color);
 }
 
-/* --- Unified Rating Row Styles --- */
-.rating-scale-row, .kpi-scoring-row {
+/* KRA Evaluation Section */
+.kpi-scoring-container {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    grid-template-areas:
-        "info   info"
-        "rating comment";
-    gap: 0.5rem 1.5rem;
+    gap: 1rem;
     align-items: center;
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
 }
-.rating-scale-row:last-child, .kpi-scoring-row:last-child {
+.kpi-scoring-container:last-child {
     border-bottom: none;
 }
-.competency-info, .kpi-info { grid-area: info; }
-.rating-stars, .kpi-scoring { grid-area: rating; }
-.rating-comment, .kpi-comments { grid-area: comment; }
-.competency-name, .kpi-title {
+.kpi-info { flex-grow: 1; }
+.kpi-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+.kpi-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+.kpi-scoring {
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 400px;
+}
+
+/* Rating Scale Rows */
+.rating-scale-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.rating-scale-row:last-child {
+    border-bottom: none;
+}
+@media (min-width: 768px) {
+    .rating-scale-row {
+        grid-template-columns: 1fr 200px 300px;
+        gap: 1.5rem;
+    }
+}
+.competency-name {
     font-weight: 600;
     margin-bottom: 0.1rem;
     color: var(--text-primary);
 }
-.kpi-weight-display {
-    font-weight: 500;
-    color: var(--text-secondary);
-    font-size: 0.9em;
-}
-.competency-description, .kpi-description {
+.competency-description {
     font-size: 0.85rem;
     color: var(--text-secondary);
     margin-bottom: 0;
+}
+.rating-comment .form-control {
+    font-size: 0.85rem;
 }
 
 /* Star Rating Component */
@@ -278,181 +486,81 @@
     color: var(--warning-color);
 }
 
-.performance-dashboard-layout-revised {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-/* Stat Cards Grid */
-.stat-card-grid-revised {
+/* ==========================================================================
+   Evaluation Selector (Evaluate Team/Leader pages)
+   ========================================================================== */
+.evaluation-selector-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 1.5rem;
 }
-.stat-card-revised {
+.evaluation-selector-card-revised {
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    padding: 1.25rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
 }
-.stat-card-revised .stat-icon {
-    font-size: 1.5rem;
-    padding: 0.75rem;
-    border-radius: 8px;
-    color: #fff;
-    background-color: var(--app-success-color);
-}
-.stat-card-revised .stat-info .stat-value {
-    font-size: 2.25rem;
-    font-weight: 700;
-    line-height: 1.1;
-    color: var(--text-primary);
-}
-.stat-card-revised .stat-info .stat-label {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
-/* Analysis Grid (Chart & Insights) */
-.analysis-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-    gap: 1.5rem;
-    align-items: flex-start;
-}
-.analysis-grid .card-body {
-    color: var(--text-primary);
-}
-
-/* Strategic Insights Card */
-.insight-card .card-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-.insight-avatar-list {
+.card-main-info {
     display: flex;
     align-items: center;
-    margin-top: 0.75rem;
+    gap: 1rem;
+    padding: 1.25rem;
 }
-.insight-avatar {
-    width: 36px;
-    height: 36px;
+.selector-avatar {
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid var(--bg-primary);
-    margin-left: -12px;
-    transition: transform 0.2s ease;
-    cursor: pointer;
 }
-.insight-avatar:first-child {
-    margin-left: 0;
-}
-.insight-avatar:hover {
-    transform: translateY(-4px) scale(1.1);
-    z-index: 5;
-}
-.avatar-more-count {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background-color: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-size: 0.8rem;
+.selector-name {
+    font-size: 1.2rem;
     font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: -12px;
-    border: 2px solid var(--bg-primary);
+    color: var(--text-primary);
+    margin: 0;
 }
-.insight-card.high-potentials {
-    background: linear-gradient(135deg, #f0f9f4, var(--bg-primary));
-    border-color: var(--app-success-color);
+.selector-position {
+    font-size: 0.9rem;
+    margin: 0;
 }
-.insight-card.turnover-risks {
-    background: linear-gradient(135deg, #fdf3f4, var(--bg-primary));
-    border-color: var(--danger-color);
-}
-.dark-theme .insight-card.high-potentials {
-    background: rgba(var(--app-success-rgb), 0.1);
-}
-.dark-theme .insight-card.turnover-risks {
-    background: rgba(var(--danger-rgb), 0.1);
-}
-
-/* History Table Section */
-.history-table-controls {
+.card-status-panel {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
     background-color: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
 }
-.history-table-controls h6 {
-    margin-bottom: 0;
-    font-size: 1rem;
+.status-item {
+    font-size: 0.85rem;
+}
+.status-label {
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 0.1rem;
+}
+.status-value {
+    font-weight: 500;
     color: var(--text-primary);
 }
-.history-table-controls .input-group {
-    max-width: 350px;
-}
-.data-table .sortable {
-    cursor: pointer;
-}
-
-/* Score Indicator in Table */
-.score-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 150px;
-}
-.score-bar-container {
-    flex-grow: 1;
-    height: 8px;
-    background-color: var(--bg-tertiary);
-    border-radius: 4px;
-    overflow: hidden;
-}
-.score-bar {
-    height: 100%;
-    border-radius: 4px;
-}
-.score-bar-danger { background-color: var(--danger-color); }
-.score-bar-warning { background-color: var(--warning-color); }
-.score-bar-success { background-color: var(--app-success-color); }
-.score-text {
-    font-weight: 600;
-    font-size: 0.9rem;
-    min-width: 55px;
-    text-align: right;
-    color: var(--text-primary);
-}
-
-.status-badge-completed {
+.status-badge-revised {
     font-size: 0.7rem;
     font-weight: 600;
     padding: 0.3em 0.6em;
     border-radius: 20px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+.status-badge-revised.status-completed {
     color: var(--app-success-color);
     background-color: rgba(var(--app-success-rgb), 0.1);
 }
-
-.dark-theme .insight-card .card-title .badge {
-    background-color: var(--bg-tertiary) !important;
-    color: var(--text-secondary) !important;
+.status-badge-revised.status-due {
+    color: var(--warning-color);
+    background-color: rgba(var(--warning-rgb), 0.15);
 }
-
-@media (max-width: 992px) {
-    .analysis-grid {
-        grid-template-columns: 1fr;
-    }
+.card-action-button {
+    display: flex;
+    gap: 0.5rem;
 }

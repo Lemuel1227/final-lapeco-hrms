@@ -46,7 +46,45 @@ const ReportsPage = (props) => {
   };
 
   const handleRunReport = (reportId, params) => {
-    generateReport(reportId, params, props);
+    let dataSources = { ...props };
+    let finalParams = { ...params };
+    
+    // ... existing logic for predictive_analytics_summary
+    
+    if (reportId === 'thirteenth_month_pay') {
+        const { employees = [], payrolls = [] } = props;
+        const year = params.year;
+
+        const eligibleEmployees = employees.filter(emp => new Date(emp.joiningDate).getFullYear() <= year);
+
+        const details = eligibleEmployees.map(emp => {
+            let totalBasicSalary = 0;
+            payrolls.forEach(run => {
+                if (!run.cutOff.includes(year.toString())) return;
+                const record = run.records.find(r => r.empId === emp.id);
+                if (record && record.earnings) {
+                    record.earnings.forEach(earning => {
+                        if (earning.description?.toLowerCase().includes('regular pay')) {
+                            totalBasicSalary += Number(earning.amount) || 0;
+                        }
+                    });
+                }
+            });
+            const thirteenthMonthPay = totalBasicSalary > 0 ? totalBasicSalary / 12 : 0;
+            return { ...emp, totalBasicSalary, thirteenthMonthPay };
+        }).filter(empData => empData.totalBasicSalary > 0);
+
+        const totalPayout = details.reduce((sum, emp) => sum + emp.thirteenthMonthPay, 0);
+
+        dataSources.thirteenthMonthPayData = {
+            year,
+            totalPayout,
+            eligibleCount: details.length,
+            records: details.map(emp => ({ ...emp, status: 'Pending' })),
+        };
+    }
+    
+    generateReport(reportId, finalParams, dataSources);
     setConfigModalState({ show: false, config: null });
     setShowPreview(true);
   };
@@ -65,7 +103,7 @@ const ReportsPage = (props) => {
     <div className="container-fluid p-0 page-module-container">
       <header className="page-header mb-4">
         <h1 className="page-main-title">Reports Center</h1>
-        <p className="text-muted">Select a category and generate report.</p>
+        <p className="text-muted">Select a category and generate a report.</p>
       </header>
       
       <div className="reports-category-filter">

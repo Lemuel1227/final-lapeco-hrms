@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
-import placeholderAvatar from '../../../assets/placeholder-profile.jpg';
+import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
 const EvaluationSelectorCard = ({ employee, positionTitle, lastEvaluation, onAction }) => {
   const { status, statusClass, lastEvalDateFormatted } = useMemo(() => {

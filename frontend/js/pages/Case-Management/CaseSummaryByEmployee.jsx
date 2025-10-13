@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
 const CaseSummaryByEmployee = ({ employees, cases, onViewEmployeeCases }) => {
@@ -73,7 +74,7 @@ const CaseSummaryByEmployee = ({ employees, cases, onViewEmployeeCases }) => {
                 <td className="text-center fw-bold">{emp.totalCases}</td>
                 <td className="text-center fw-bold text-warning">{emp.ongoingCases}</td>
                 <td className="text-center text-secondary">{emp.closedCases}</td>
-                <td>{emp.lastIncidentDate}</td>
+                <td>{format(new Date(emp.lastIncidentDate), 'MMM dd, yyyy')}</td>
                 <td>
                   <button 
                     className="btn btn-sm btn-outline-secondary"

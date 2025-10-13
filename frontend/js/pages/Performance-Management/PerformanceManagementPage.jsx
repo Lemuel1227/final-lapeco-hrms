@@ -2,58 +2,69 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { startOfDay, endOfDay, subDays, startOfYear, endOfYear, getYear } from 'date-fns';
 import './PerformanceManagement.css';
 
 // Component Imports
-import AddEditKraModal from '../../modals/AddEditKraModal';
-import KraAccordionItem from './KraAccordionItem';
 import StartEvaluationModal from '../../modals/StartEvaluationModal';
 import ViewEvaluationModal from '../../modals/ViewEvaluationModal';
 import ScoreIndicator from './ScoreIndicator';
 import PerformanceReportModal from '../../modals/PerformanceReportModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
-import PerformanceInsightsCard from './PerformanceInsightsCard';
-import useReportGenerator from '../../hooks/useReportGenerator'; 
+import useReportGenerator from '../../hooks/useReportGenerator';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const PerformanceManagementPage = ({ kras = [], kpis = [], positions = [], employees = [], evaluations = [], handlers = {}, theme, evaluationFactors = [] }) => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [showKraModal, setShowKraModal] = useState(false);
-  const [editingKra, setEditingKra] = useState(null);
+const PerformanceManagementPage = ({ kras, kpis, positions, employees, evaluations, handlers, evaluationFactors, theme }) => {
   const [showStartEvalModal, setShowStartEvalModal] = useState(false);
   const [viewingEvaluation, setViewingEvaluation] = useState(null);
   const [showReportConfigModal, setShowReportConfigModal] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
 
+  // --- Date Filtering State ---
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [activePreset, setActivePreset] = useState('all');
+  const [dateFilterType, setDateFilterType] = useState('periodEnd');
+
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
-  
+
   const [historySearchTerm, setHistorySearchTerm] = useState('');
-  const [historySortConfig, setHistorySortConfig] = useState({ key: 'periodEnd', direction: 'descending' });
+  const [historySortConfig, setHistorySortConfig] = useState({ key: 'evaluationDate', direction: 'descending' });
 
   const navigate = useNavigate();
 
   const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
   const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);
-  
+
+  const filteredEvaluationsByDate = useMemo(() => {
+    if (!startDate || !endDate) return evaluations;
+    const start = startOfDay(new Date(startDate));
+    const end = endOfDay(new Date(endDate));
+    return evaluations.filter(ev => {
+      const dateToCompare = new Date(ev[dateFilterType]);
+      return dateToCompare >= start && dateToCompare <= end;
+    });
+  }, [evaluations, startDate, endDate, dateFilterType]);
+
   const dashboardStats = useMemo(() => {
-    const totalEvals = evaluations.length;
+    const totalEvals = filteredEvaluationsByDate.length;
     if (totalEvals === 0) return { totalEvals, avgScore: 0 };
-    const avgScore = evaluations.reduce((sum, ev) => sum + ev.overallScore, 0) / totalEvals;
+    const avgScore = filteredEvaluationsByDate.reduce((sum, ev) => sum + ev.overallScore, 0) / totalEvals;
     return { totalEvals, avgScore };
-  }, [evaluations]);
+  }, [filteredEvaluationsByDate]);
 
   const performanceBrackets = useMemo(() => {
     const brackets = { 'Needs Improvement': 0, 'Meets Expectations': 0, 'Outstanding': 0 };
-    evaluations.forEach(ev => {
+    filteredEvaluationsByDate.forEach(ev => {
       if (ev.overallScore < 70) brackets['Needs Improvement']++;
       else if (ev.overallScore < 90) brackets['Meets Expectations']++;
       else brackets['Outstanding']++;
     });
     return brackets;
-  }, [evaluations]);
-  
+  }, [filteredEvaluationsByDate]);
+
   const chartTextColor = theme === 'dark' ? '#adb5bd' : '#6c757d';
   const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
@@ -65,10 +76,9 @@ const PerformanceManagementPage = ({ kras = [], kpis = [], positions = [], emplo
       backgroundColor: ['#dc3545', '#ffc107', '#198754'],
     }],
   };
-  
+
   const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
+    responsive: true, maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -80,36 +90,13 @@ const PerformanceManagementPage = ({ kras = [], kpis = [], positions = [], emplo
       }
     },
     scales: {
-      y: {
-        beginAtZero: true,
-        ticks: { stepSize: 1, color: chartTextColor },
-        grid: { color: gridColor },
-      },
-      x: {
-        ticks: { color: chartTextColor },
-        grid: { display: false },
-      },
+      y: { beginAtZero: true, ticks: { stepSize: 1, color: chartTextColor }, grid: { color: gridColor } },
+      x: { ticks: { color: chartTextColor }, grid: { display: false } },
     },
   };
 
-  const strategicInsights = useMemo(() => {
-    const highPotentials = evaluations
-      .filter(ev => ev.overallScore >= 90)
-      .map(ev => ({...employeeMap.get(ev.employeeId), score: ev.overallScore}))
-      .filter(emp => emp.id)
-      .sort((a,b) => b.score - a.score);
-
-    const turnoverRisks = evaluations
-      .filter(ev => ev.overallScore < 70)
-      .map(ev => ({...employeeMap.get(ev.employeeId), score: ev.overallScore}))
-      .filter(emp => emp.id)
-      .sort((a,b) => a.score - b.score);
-
-    return { highPotentials, turnoverRisks };
-  }, [evaluations, employeeMap]);
-
   const filteredEvaluations = useMemo(() => {
-    let evals = [...evaluations];
+    let evals = [...filteredEvaluationsByDate];
     if (historySearchTerm) {
       const lowerSearch = historySearchTerm.toLowerCase();
       evals = evals.filter(ev => {
@@ -134,42 +121,70 @@ const PerformanceManagementPage = ({ kras = [], kpis = [], positions = [], emplo
       }
       if (typeof valA === 'string') return valA.localeCompare(valB) * direction;
       if (typeof valA === 'number') return (valA - valB) * direction;
-      return (new Date(valA) - new Date(valB)) * direction;
+      return (new Date(valB) - new Date(valA)) * direction;
     });
     return evals;
-  }, [evaluations, historySearchTerm, historySortConfig, employeeMap]);
-  
+  }, [filteredEvaluationsByDate, historySearchTerm, historySortConfig, employeeMap]);
+
+  const handleDatePreset = (preset) => {
+    setActivePreset(preset);
+    const today = new Date();
+    if (preset === 'all') {
+      setStartDate(null);
+      setEndDate(null);
+      return;
+    }
+    let start, end;
+    switch (preset) {
+      case '30d':
+        start = subDays(today, 30);
+        end = today;
+        break;
+      case '90d':
+        start = subDays(today, 90);
+        end = today;
+        break;
+      case 'thisYear':
+        start = startOfYear(today);
+        end = today;
+        break;
+      case 'lastYear':
+        const lastYear = getYear(today) - 1;
+        start = startOfYear(new Date(lastYear, 0, 1));
+        end = endOfYear(new Date(lastYear, 11, 31));
+        break;
+      default:
+        start = null;
+        end = null;
+    }
+    setStartDate(start ? start.toISOString().split('T')[0] : null);
+    setEndDate(end ? end.toISOString().split('T')[0] : null);
+  };
+
+  const handleDateChange = (date, type) => {
+    setActivePreset(null);
+    if (type === 'start') setStartDate(date);
+    if (type === 'end') setEndDate(date);
+  };
+
   const getSortIcon = (key) => {
     if (historySortConfig.key !== key) return <i className="bi bi-arrow-down-up sort-icon ms-1 opacity-25"></i>;
     return historySortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
   };
-  
-  const handleOpenKraModal = (kra = null) => { setEditingKra(kra); setShowKraModal(true); };
-  const handleCloseKraModal = () => { setEditingKra(null); setShowKraModal(false); };
-  const handleSaveKraAndKpis = (kraData, kpiList) => { handlers.saveKraAndKpis(kraData, kpiList); handleCloseKraModal(); };
-  const handleDeleteKra = (kraId) => { if (window.confirm("Are you sure you want to delete this KRA and all its KPIs?")) handlers.deleteKra(kraId); };
+
   const handleStartEvaluation = (startData) => navigate('/dashboard/performance/evaluate', { state: startData });
   const handleViewEvaluation = (evaluation) => setViewingEvaluation(evaluation);
+  const handleGenerateReport = () => setShowReportConfigModal(true);
 
-  const handleGenerateReport = ({ startDate, endDate }) => {
-    const filteredEvals = evaluations.filter(ev => new Date(ev.periodEnd) >= new Date(startDate) && new Date(ev.periodEnd) <= new Date(endDate));
-    if (filteredEvals.length === 0) {
-        alert("No evaluations found in the selected date range.");
-        return;
-    }
-
-    generateReport(
-        'performance_summary', 
-        { startDate, endDate }, 
-        { employees, positions, evaluations }
-    );
+  const handleRunReport = (params) => {
+    generateReport('performance_summary', { startDate: params.startDate, endDate: params.endDate }, { employees, positions, evaluations });
     setShowReportConfigModal(false);
     setShowReportPreview(true);
   };
-  
+
   const handleCloseReportPreview = () => {
     setShowReportPreview(false);
-    if(pdfDataUri) URL.revokeObjectURL(pdfDataUri);
+    if (pdfDataUri) URL.revokeObjectURL(pdfDataUri);
     setPdfDataUri('');
   };
 
@@ -187,50 +202,94 @@ const PerformanceManagementPage = ({ kras = [], kpis = [], positions = [], emplo
     const position = employee ? positions.find(p => p.id === employee.positionId) : null;
     return { evaluation: viewingEvaluation, employee, position };
   }, [viewingEvaluation, employeeMap, positions]);
-  
-  const renderDashboard = () => (
-    <div className="performance-dashboard-layout-revised">
-      <div className="stat-card-grid-revised">
-        <div className="stat-card-revised">
-            <div className="stat-icon"><i className="bi bi-journal-check"></i></div>
-            <div className="stat-info">
-                <div className="stat-value">{dashboardStats.totalEvals}</div>
-                <div className="stat-label">Total Evaluations Completed</div>
-            </div>
+
+  return (
+    <div className="container-fluid p-0 page-module-container">
+      <header className="page-header d-flex justify-content-between align-items-center mb-4">
+        <h1 className="page-main-title">Performance Management</h1>
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-secondary" onClick={handleGenerateReport}>
+            <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
+          </button>
+          <button className="btn btn-success" onClick={() => setShowStartEvalModal(true)}>
+            <i className="bi bi-play-circle-fill me-2"></i>Start New Evaluation
+          </button>
         </div>
-        <div className="stat-card-revised">
-            <div className="stat-icon"><i className="bi bi-reception-4"></i></div>
-            <div className="stat-info">
-                <div className="stat-value">{dashboardStats.avgScore.toFixed(1)}<span className="unit">%</span></div>
-                <div className="stat-label">Company Average Score</div>
-            </div>
-        </div>
-      </div>
-      <div className="analysis-grid">
-        <div className="card">
-            <div className="card-header"><h6><i className="bi bi-bar-chart-line-fill me-2"></i>Performance Distribution</h6></div>
-            <div className="card-body" style={{ height: '280px' }}><Bar data={chartData} options={chartOptions} /></div>
-        </div>
-        <div className="d-flex flex-column gap-3">
-            <PerformanceInsightsCard title="High-Potentials" icon="bi bi-graph-up-arrow" data={strategicInsights.highPotentials} className="insight-card high-potentials" />
-            <PerformanceInsightsCard title="Turnover Risks" icon="bi bi-graph-down-arrow" data={strategicInsights.turnoverRisks} className="insight-card turnover-risks" />
-        </div>
-      </div>
-      <div className="card dashboard-history-table">
-          <div className="history-table-controls">
-            <h6><i className="bi bi-clock-history me-2"></i>Evaluation History</h6>
-            <div className="input-group">
-              <span className="input-group-text"><i className="bi bi-search"></i></span>
-              <input type="text" className="form-control" placeholder="Search by name..." value={historySearchTerm} onChange={e => setHistorySearchTerm(e.target.value)} />
+      </header>
+      <div className="performance-content">
+        <div className="performance-dashboard-layout-revised">
+          <div className="card performance-controls-card">
+            <div className="performance-controls-bar">
+              <div className="filter-group">
+                <label>Filter Dates By</label>
+                <select className="form-select form-select-sm" value={dateFilterType} onChange={e => setDateFilterType(e.target.value)}>
+                  <option value="periodEnd">Evaluation Period</option>
+                  <option value="evaluationDate">Submission Date</option>
+                </select>
+              </div>
+              <div className="filter-group">
+                <label>Date Range</label>
+                <div className='d-flex align-items-center gap-2'>
+                  <input type="date" className="form-control form-control-sm" value={startDate || ''} onChange={e => handleDateChange(e.target.value, 'start')} />
+                  <span>-</span>
+                  <input type="date" className="form-control form-control-sm" value={endDate || ''} onChange={e => handleDateChange(e.target.value, 'end')} />
+                </div>
+              </div>
+              <div className="filter-group">
+                <label>Quick Presets</label>
+                <div className="btn-group w-100">
+                  <button className={`btn btn-sm ${activePreset === '30d' ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => handleDatePreset('30d')}>30d</button>
+                  <button className={`btn btn-sm ${activePreset === '90d' ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => handleDatePreset('90d')}>90d</button>
+                  <button className={`btn btn-sm ${activePreset === 'thisYear' ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => handleDatePreset('thisYear')}>This Year</button>
+                  <button className={`btn btn-sm ${activePreset === 'lastYear' ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => handleDatePreset('lastYear')}>Last Year</button>
+                  <button className={`btn btn-sm ${activePreset === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => handleDatePreset('all')}>All</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="table-responsive">
+          <div className="stat-card-grid-revised">
+            <div className="stat-card-revised">
+              <div className="stat-icon"><i className="bi bi-journal-check"></i></div>
+              <div className="stat-info">
+                <div className="stat-value">{dashboardStats.totalEvals}</div>
+                <div className="stat-label">Evaluations in Period</div>
+              </div>
+            </div>
+            <div className="stat-card-revised">
+              <div className="stat-icon"><i className="bi bi-reception-4"></i></div>
+              <div className="stat-info">
+                <div className="stat-value">{dashboardStats.avgScore.toFixed(1)}<strong>%</strong></div>
+                <div className="stat-label">Average Score in Period</div>
+              </div>
+            </div>
+          </div>
+          <div className="analysis-grid-full-width">
+            <div className="card">
+              <div className="card-header"><h6><i className="bi bi-bar-chart-line-fill me-2"></i>Performance Distribution</h6></div>
+              <div className="card-body" style={{ height: '280px' }}><Bar data={chartData} options={chartOptions} /></div>
+            </div>
+          </div>
+          <div className="card dashboard-history-table">
+            <div className="history-table-controls">
+              <h6><i className="bi bi-clock-history me-2"></i>Evaluation History</h6>
+              <div className='d-flex align-items-center gap-3'>
+                <span className="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                  Showing {filteredEvaluations.length} results
+                </span>
+                <div className="input-group">
+                  <span className="input-group-text"><i className="bi bi-search"></i></span>
+                  <input type="text" className="form-control" placeholder="Search by name..." value={historySearchTerm} onChange={e => setHistorySearchTerm(e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <div className="table-responsive">
               <table className="table data-table mb-0 align-middle">
                 <thead>
                   <tr>
                     <th className="sortable" onClick={() => requestHistorySort('employeeName')}>Employee {getSortIcon('employeeName')}</th>
                     <th className="sortable" onClick={() => requestHistorySort('evaluatorName')}>Evaluator {getSortIcon('evaluatorName')}</th>
                     <th className="sortable" onClick={() => requestHistorySort('periodEnd')}>Period {getSortIcon('periodEnd')}</th>
+                    <th className="sortable" onClick={() => requestHistorySort('evaluationDate')}>Date Submitted {getSortIcon('evaluationDate')}</th>
                     <th className="sortable" onClick={() => requestHistorySort('overallScore')}>Score {getSortIcon('overallScore')}</th>
                     <th>Action</th>
                   </tr>
@@ -252,82 +311,44 @@ const PerformanceManagementPage = ({ kras = [], kpis = [], positions = [], emplo
                         </td>
                         <td>{evaluator?.name || 'N/A'}</td>
                         <td>{ev.periodStart} to {ev.periodEnd}</td>
+                        <td>{ev.evaluationDate}</td>
                         <td><ScoreIndicator score={ev.overallScore} /></td>
                         <td><button className="btn btn-sm btn-outline-secondary" onClick={() => handleViewEvaluation(ev)}>View</button></td>
                       </tr>
                     )
                   }) : (
-                    <tr><td colSpan="5" className="text-center p-4">No evaluations match your search.</td></tr>
+                    <tr><td colSpan="6" className="text-center p-4">No evaluations found for the selected period.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
-      </div>
-    </div>
-  );
-
-  const renderSetup = () => (
-    <div className="kra-setup-container">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-          <h4 className="mb-0">Key Result Areas (KRAs)</h4>
-          <button className="btn btn-success" onClick={() => handleOpenKraModal(null)}><i className="bi bi-plus-circle-fill me-2"></i>Add New KRA</button>
-      </div>
-      <div className="accordion" id="kraAccordion">
-        {kras.length > 0 ? kras.map(kra => (
-            <KraAccordionItem key={kra.id} kra={kra} kpis={kpis.filter(k => k.kraId === kra.id)} onEdit={handleOpenKraModal} onDelete={handleDeleteKra}/>
-        )) : (
-          <div className="text-center p-5 bg-light rounded"><p>No KRAs have been defined yet. Click "Add New KRA" to start.</p></div>
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="container-fluid p-0 page-module-container">
-      <header className="page-header d-flex justify-content-between align-items-center mb-4">
-        <h1 className="page-main-title">Performance Management</h1>
-        <div className="d-flex gap-2">
-            <button className="btn btn-outline-secondary" onClick={() => setShowReportConfigModal(true)}>
-                <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
-            </button>
-            <button className="btn btn-success" onClick={() => setShowStartEvalModal(true)}>
-                <i className="bi bi-play-circle-fill me-2"></i>Start New Evaluation
-            </button>
+          </div>
         </div>
-      </header>
-      <ul className="nav nav-tabs performance-nav-tabs mb-4">
-        <li className="nav-item"><button className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Dashboard</button></li>
-        <li className="nav-item"><button className={`nav-link ${activeTab === 'setup' ? 'active' : ''}`} onClick={() => setActiveTab('setup')}>KRA & KPI Setup</button></li>
-      </ul>
-      <div className="performance-content">
-        {activeTab === 'setup' && renderSetup()}
-        {activeTab === 'dashboard' && renderDashboard()}
       </div>
-      
-      {showKraModal && (<AddEditKraModal show={showKraModal} onClose={handleCloseKraModal} onSave={handleSaveKraAndKpis} positions={positions} kraData={editingKra} kpisData={editingKra ? kpis.filter(k => k.kraId === editingKra.id) : []}/>)}
-      <StartEvaluationModal show={showStartEvalModal} onClose={() => setShowStartEvalModal(false)} onStart={handleStartEvaluation} employees={employees}/>
-      
+
+      <StartEvaluationModal show={showStartEvalModal} onClose={() => setShowStartEvalModal(false)} onStart={handleStartEvaluation} employees={employees} />
+
       {modalProps && (
-        <ViewEvaluationModal 
-          show={!!viewingEvaluation} 
-          onClose={() => setViewingEvaluation(null)} 
-          evaluation={modalProps.evaluation} 
+        <ViewEvaluationModal
+          show={!!viewingEvaluation}
+          onClose={() => setViewingEvaluation(null)}
+          evaluation={modalProps.evaluation}
           employee={modalProps.employee}
           position={modalProps.position}
-          kras={kras} 
-          kpis={kpis} 
+          kras={kras}
+          kpis={kpis}
           evaluationFactors={evaluationFactors}
         />
       )}
-      
-      <PerformanceReportModal show={showReportConfigModal} onClose={() => setShowReportConfigModal(false)} onGenerate={handleGenerateReport} />
-      
+
+      <PerformanceReportModal show={showReportConfigModal} onClose={() => setShowReportConfigModal(false)} onGenerate={handleRunReport} />
+
       {(isLoading || pdfDataUri) && (
-        <ReportPreviewModal 
-          show={showReportPreview} 
-          onClose={handleCloseReportPreview} 
-          pdfDataUri={pdfDataUri} 
-          reportTitle="Performance Summary Report" 
+        <ReportPreviewModal
+          show={showReportPreview}
+          onClose={handleCloseReportPreview}
+          pdfDataUri={pdfDataUri}
+          reportTitle="Performance Summary Report"
         />
       )}
     </div>
