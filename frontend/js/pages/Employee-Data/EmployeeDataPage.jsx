@@ -8,8 +8,9 @@ import ConfirmationModal from '../../modals/ConfirmationModal';
 import AccountGeneratedModal from '../../modals/AccountGeneratedModal';
 import placeholderImage from '../../assets/placeholder-profile.jpg';
 import useReportGenerator from '../../hooks/useReportGenerator';
+import TerminateEmployeeModal from '../../modals/TerminateEmployeeModal';
 import logo from '../../assets/logo.png';
-import { employeeAPI } from '../../services/api';
+import { employeeAPI, terminationAPI } from '../../services/api';
 import { positionAPI } from '../../services/api';
 import ToastNotification from '../../common/ToastNotification';
 
@@ -38,8 +39,14 @@ const EmployeeDataPage = () => {
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [newlyGeneratedAccount, setNewlyGeneratedAccount] = useState(null);
+  const [showTerminateModal, setShowTerminateModal] = useState(false);
+  const [employeeToTerminate, setEmployeeToTerminate] = useState(null);
 
   const [reportTitle, setReportTitle] = useState('');
+  
+  const activeAndInactiveEmployees = useMemo(() => {
+    return employees.filter(emp => emp.status === 'Active' || emp.status === 'Inactive');
+  }, [employees]);
 
   const normalizeEmployee = (e) => ({
     id: e.id,
@@ -221,7 +228,67 @@ const EmployeeDataPage = () => {
       } finally {
         setIsDeleting(false);
       }
-    } 
+    },
+    terminateEmployee: async (employeeId, terminationDetails) => {
+      try {
+        const payload = {
+          employee_id: employeeId,
+          type: 'involuntary', // Default type, can be adjusted based on reason
+          reason: terminationDetails.reason,
+          termination_date: terminationDetails.date,
+          last_working_day: terminationDetails.date, // Same as termination date for now
+          notes: terminationDetails.comments || null,
+          terminated_by: null // Will be set by backend based on authenticated user
+        };
+
+        await terminationAPI.create(payload);
+        setToast({ show: true, message: 'Employee terminated successfully!', type: 'success' });
+        
+        // Refresh employee data
+        const response = await employeeAPI.getAll();
+        const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+        
+        // Create position lookup map for refresh
+        const positionMap = {};
+        positions.forEach(p => {
+          positionMap[p.id] = p.title;
+        });
+        
+        // Normalize employees and add position title
+        const normalizedEmployees = empData.map(e => {
+          const normalized = normalizeEmployee(e);
+          normalized.positionTitle = normalized.positionId ? positionMap[normalized.positionId] : null;
+          return normalized;
+        });
+        
+        setEmployees(normalizedEmployees);
+        setShowTerminateModal(false);
+        setEmployeeToTerminate(null);
+      } catch (err) {
+        // Extract user-friendly error message from backend response
+        let message = 'Unable to terminate employee. Please try again.';
+        
+        if (err?.response?.data?.message) {
+          message = err.response.data.message;
+        } else if (err?.response?.data?.errors) {
+          const apiErrors = err.response.data.errors;
+          const errorMessages = Object.values(apiErrors).flat();
+          message = errorMessages.join('. ');
+        } else if (err?.response?.status === 403) {
+          message = 'You do not have permission to terminate employees.';
+        } else if (err?.response?.status === 404) {
+          message = 'Employee not found or may have already been terminated.';
+        } else if (err?.response?.status === 422) {
+          message = 'Invalid termination details. Please check the form and try again.';
+        } else if (err?.response?.status >= 500) {
+          message = 'Server error occurred. Please try again later.';
+        } else if (err?.code === 'NETWORK_ERROR' || !err?.response) {
+          message = 'Network connection error. Please check your connection and try again.';
+        }
+        
+        setToast({ show: true, message: message, type: 'error' });
+      }
+    }
   };
 
   const handleOpenDeleteConfirm = (e, employee) => { 
@@ -338,6 +405,16 @@ const EmployeeDataPage = () => {
     setIsViewOnlyMode(true);
   };
 
+  const handleOpenTerminateModal = (e, employee) => {
+    e.stopPropagation();
+    setEmployeeToTerminate(employee);
+    setShowTerminateModal(true);
+  };
+
+  const handleConfirmTermination = (terminationDetails) => {
+    handlers.terminateEmployee(employeeToTerminate.id, terminationDetails);
+  };
+
   const handleGenerateReport = () => {
     if (!filteredAndSortedEmployees || filteredAndSortedEmployees.length === 0) {
         alert("No employee data to generate a report for the current filter.");
@@ -367,7 +444,7 @@ const EmployeeDataPage = () => {
               </button>
               <ul className="dropdown-menu dropdown-menu-end">
                 <li><a className="dropdown-item" href="#" onClick={(e) => handleOpenEditModal(e, emp)}>Edit</a></li>
-                <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleDeleteEmployee(e, emp.id)}>Delete</a></li>
+                <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleOpenTerminateModal(e, emp)}>Terminate</a></li>
               </ul>
             </div>
           </div>
@@ -427,7 +504,7 @@ const EmployeeDataPage = () => {
                     <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleOpenViewModal(emp);}}><i className="bi bi-eye-fill me-2"></i>View Details</a></li>
                     <li><a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleOpenEditModal(e, emp);}}><i className="bi bi-pencil-fill me-2"></i>Edit</a></li>
                     <li><hr className="dropdown-divider" /></li>
-                    <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleDeleteEmployee(e, emp.id);}}><i className="bi bi-trash-fill me-2"></i>Delete</a></li>
+                    <li><a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleOpenTerminateModal(e, emp);}}><i className="bi bi-person-x-fill me-2"></i>Terminate</a></li>
                   </ul>
                 </div>
               </td>
@@ -537,6 +614,18 @@ const EmployeeDataPage = () => {
               viewOnly={isViewOnlyMode}
               onSwitchToEdit={handleSwitchToEditMode}
             /> 
+          )}
+          
+          {showTerminateModal && employeeToTerminate && (
+            <TerminateEmployeeModal
+              show={showTerminateModal}
+              onClose={() => {
+                setShowTerminateModal(false);
+                setEmployeeToTerminate(null);
+              }}
+              onConfirm={handleConfirmTermination}
+              employee={employeeToTerminate}
+            />
           )}
           
           {toast.show && (

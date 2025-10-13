@@ -124,6 +124,7 @@ class ScheduleController extends Controller
                     [
                         'start_time' => $assignment['start_time'],
                         'end_time' => $assignment['end_time'],
+                        'ot_hours' => $assignment['ot_hours'] ?? 0,
                         'notes' => $assignment['notes'] ?? null,
                     ]
                 );
@@ -155,55 +156,124 @@ class ScheduleController extends Controller
 
     public function update(Request $request, $id)
     {
-        $data = $request->validate([
-            'name' => 'required|string',
-            'date' => 'required|date',
-            'description' => 'nullable|string',
-            'assignments' => 'required|array',
-            'assignments.*.empId' => 'required|exists:users,id',
-            'assignments.*.start_time' => 'required',
-            'assignments.*.end_time' => 'required',
-            'assignments.*.notes' => 'nullable|string',
-        ]);
-        
-        // Find the schedule to update
-        $schedule = Schedule::findOrFail($id);
-        
-        // Check if changing date would conflict with existing schedule
-        if ($schedule->date !== $data['date']) {
-            $existingSchedule = Schedule::where('date', $data['date'])
-                                      ->where('id', '!=', $id)
-                                      ->first();
-            if ($existingSchedule) {
-                return response()->json([
-                    'message' => 'A schedule already exists for this date. Only one schedule per date is allowed.',
-                    'error' => 'SCHEDULE_EXISTS_FOR_DATE'
-                ], 422);
-            }
-        }
-        
-        // Update the schedule
-        $schedule->update([
-            'name' => $data['name'],
-            'date' => $data['date'],
-            'description' => $data['description'] ?? null,
-        ]);
-        
-        // Delete existing assignments for this schedule
-        ScheduleAssignment::where('schedule_id', $schedule->id)->delete();
-        
-        // Create new assignments
-        foreach ($data['assignments'] as $assignment) {
-            ScheduleAssignment::create([
-                'schedule_id' => $schedule->id,
-                'user_id' => $assignment['empId'],
-                'start_time' => $assignment['start_time'],
-                'end_time' => $assignment['end_time'],
-                'notes' => $assignment['notes'] ?? null,
+        try {
+            \Log::info('Schedule update request received', [
+                'schedule_id' => $id,
+                'request_data' => $request->all()
             ]);
+
+            $data = $request->validate([
+                'name' => 'required|string',
+                'date' => 'required|date',
+                'description' => 'nullable|string',
+                'assignments' => 'required|array',
+                'assignments.*.empId' => 'required|exists:users,id',
+                'assignments.*.start_time' => 'required',
+                'assignments.*.end_time' => 'required',
+                'assignments.*.ot_hours' => 'nullable|numeric|min:0',
+                'assignments.*.notes' => 'nullable|string',
+            ]);
+            
+            \Log::info('Validation passed for schedule update', ['validated_data' => $data]);
+            
+            // Find the schedule to update
+            $schedule = Schedule::findOrFail($id);
+            
+            // Check if changing date would conflict with existing schedule
+            if ($schedule->date !== $data['date']) {
+                $existingSchedule = Schedule::where('date', $data['date'])
+                                          ->where('id', '!=', $id)
+                                          ->first();
+                if ($existingSchedule) {
+                    \Log::warning('Schedule update failed: date conflict', [
+                        'schedule_id' => $id,
+                        'new_date' => $data['date'],
+                        'existing_schedule_id' => $existingSchedule->id
+                    ]);
+                    return response()->json([
+                        'message' => 'A schedule already exists for this date. Only one schedule per date is allowed.',
+                        'error' => 'SCHEDULE_EXISTS_FOR_DATE'
+                    ], 422);
+                }
+            }
+            
+            // Update the schedule
+            $schedule->update([
+                'name' => $data['name'],
+                'date' => $data['date'],
+                'description' => $data['description'] ?? null,
+            ]);
+            
+            \Log::info('Schedule basic info updated', ['schedule_id' => $schedule->id]);
+            
+            // Delete existing assignments for this schedule
+            ScheduleAssignment::where('schedule_id', $schedule->id)->delete();
+            
+            \Log::info('Existing assignments deleted', ['schedule_id' => $schedule->id]);
+            
+            // Create new assignments
+            foreach ($data['assignments'] as $index => $assignment) {
+                try {
+                    ScheduleAssignment::create([
+                        'schedule_id' => $schedule->id,
+                        'user_id' => $assignment['empId'],
+                        'start_time' => $assignment['start_time'],
+                        'end_time' => $assignment['end_time'],
+                        'ot_hours' => $assignment['ot_hours'] ?? 0,
+                        'notes' => $assignment['notes'] ?? null,
+                    ]);
+                    \Log::info('Assignment created', [
+                        'schedule_id' => $schedule->id,
+                        'assignment_index' => $index,
+                        'user_id' => $assignment['empId']
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create assignment', [
+                        'schedule_id' => $schedule->id,
+                        'assignment_index' => $index,
+                        'assignment_data' => $assignment,
+                        'error' => $e->getMessage()
+                    ]);
+                    throw $e;
+                }
+            }
+            
+            \Log::info('Schedule update completed successfully', ['schedule_id' => $schedule->id]);
+            
+            return response()->json(['message' => 'Schedule updated successfully!', 'schedule' => $schedule]);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Schedule update validation failed', [
+                'schedule_id' => $id,
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'Validation failed. Please check your input data.',
+                'error' => 'VALIDATION_ERROR',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Schedule not found for update', [
+                'schedule_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'message' => 'Schedule not found.',
+                'error' => 'SCHEDULE_NOT_FOUND'
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Schedule update failed with unexpected error', [
+                'schedule_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+            return response()->json([
+                'message' => 'An unexpected error occurred while updating the schedule. Please try again.',
+                'error' => 'SERVER_ERROR'
+            ], 500);
         }
-        
-        return response()->json(['message' => 'Schedule updated successfully!', 'schedule' => $schedule]);
     }
 
     public function templatesIndex()
@@ -258,6 +328,7 @@ class ScheduleController extends Controller
                         'id' => $assignment->id,
                         'start_time' => $assignment->start_time,
                         'end_time' => $assignment->end_time,
+                        'ot_hours' => $assignment->ot_hours,
                         'notes' => $assignment->notes,
                         'user_name' => $assignment->user ? $assignment->user->name : null,
                         'employee_id' => $assignment->user ? $assignment->user->id : null,
@@ -331,6 +402,7 @@ class ScheduleController extends Controller
                     'id' => $assignment->id,
                     'start_time' => $assignment->start_time,
                     'end_time' => $assignment->end_time,
+                    'ot_hours' => $assignment->ot_hours,
                     'notes' => $assignment->notes,
                     'user_name' => $assignment->user ? $assignment->user->name : null,
                     'employee_id' => $assignment->user ? $assignment->user->id : null,

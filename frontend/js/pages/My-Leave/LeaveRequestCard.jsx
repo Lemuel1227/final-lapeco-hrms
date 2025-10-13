@@ -1,15 +1,15 @@
 import React from 'react';
 import './MyLeavePage.css';
+import { formatDateRange, getMonthAbbr, getDay } from '../../utils/dateUtils';
 
 const LeaveRequestCard = ({ request }) => {
-  const startDate = new Date(request.dateFrom + 'T00:00:00');
   const statusClass = (request.status || 'pending').toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className={`leave-card status-${statusClass}`}>
       <div className="date-box">
-        <span className="month">{startDate.toLocaleDateString('en-US', { month: 'short' })}</span>
-        <span className="day">{startDate.getDate()}</span>
+        <span className="month">{getMonthAbbr(request.dateFrom)}</span>
+        <span className="day">{getDay(request.dateFrom)}</span>
       </div>
       <div className="info-section">
         <div className="info-header">
@@ -19,7 +19,7 @@ const LeaveRequestCard = ({ request }) => {
         <div className="info-body">
           <div className="info-item">
             <i className="bi bi-calendar-range"></i>
-            <span>{request.dateFrom} to {request.dateTo}</span>
+            <span>{formatDateRange(request.dateFrom, request.dateTo)}</span>
           </div>
           <div className="info-item">
             <i className="bi bi-clock-history"></i>

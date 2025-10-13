@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatDateRange } from '../utils/dateUtils';
 
 const LeaveHistoryModal = ({ show, onClose, leaveHistory }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,7 +53,7 @@ const LeaveHistoryModal = ({ show, onClose, leaveHistory }) => {
                   {filteredHistory.length > 0 ? filteredHistory.map(req => (
                     <tr key={req.leaveId}>
                       <td>{req.leaveType}</td>
-                      <td>{req.dateFrom} to {req.dateTo}</td>
+                      <td>{formatDateRange(req.dateFrom, req.dateTo)}</td>
                       <td className="text-center">{req.days}</td>
                       <td className="text-center">
                         <span className={`status-badge status-${(req.status || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>{req.status}</span>

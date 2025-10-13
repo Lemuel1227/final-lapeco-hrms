@@ -84,13 +84,15 @@ export const dashboardAPI = {
 // Employee API calls
 export const employeeAPI = {
   getAll: () => api.get('/employees'),
+  getAllIncludingTerminated: () => api.get('/employees/all'),
   getById: (id) => api.get(`/employees/${id}`),
   create: (data) => api.post('/employees', data),
   update: (id, data) => api.put(`/employees/${id}`, data),
   delete: (id) => api.delete(`/employees/${id}`),
-  resetPassword: (id) => api.post(`/employees/${id}/reset-password`),
-  deactivateAccount: (id) => api.post(`/employees/${id}/deactivate`),
-  activateAccount: (id) => api.post(`/employees/${id}/activate`),
+  resetPassword: (id, data) => api.post(`/employees/${id}/reset-password`, data),
+  deactivate: (id) => api.post(`/employees/${id}/deactivate`),
+  activate: (id) => api.post(`/employees/${id}/activate`),
+  toggleTeamLeader: (id) => api.post(`/employees/${id}/toggle-team-leader`),
 };
 
 // Position API calls
@@ -121,6 +123,10 @@ export const leaveAPI = {
   create: (data) => api.post('/leaves', data),
   update: (id, data) => api.put(`/leaves/${id}`, data),
   delete: (id) => api.delete(`/leaves/${id}`),
+  getAllLeaveCredits: () => api.get('/leave-credits/all'),
+  getLeaveCredits: (userId) => api.get(`/leave-credits/${userId}`),
+  updateLeaveCredits: (userId, data) => api.put(`/leave-credits/${userId}`, data),
+  resetUsedCredits: (data) => api.post('/leave-credits/reset', data),
 };
 
 // Payroll API calls
@@ -204,6 +210,27 @@ export const disciplinaryCaseAPI = {
   getByStatus: (status) => api.get(`/disciplinary-cases/status/${status}`),
   getStatistics: () => api.get('/disciplinary-cases-statistics'),
   getGroupedByEmployee: () => api.get('/disciplinary-cases-grouped-by-employee'),
+};
+
+// Resignation API calls
+export const resignationAPI = {
+  getAll: () => api.get('/resignations'),
+  getById: (id) => api.get(`/resignations/${id}`),
+  create: (data) => api.post('/resignations', data),
+  update: (id, data) => api.put(`/resignations/${id}`, data),
+  delete: (id) => api.delete(`/resignations/${id}`),
+  updateStatus: (id, data) => api.put(`/resignations/${id}/status`, data),
+  updateEffectiveDate: (id, data) => api.put(`/resignations/${id}/effective-date`, data),
+};
+
+// Termination API calls
+export const terminationAPI = {
+  getAll: () => api.get('/terminations'),
+  getById: (id) => api.get(`/terminations/${id}`),
+  create: (data) => api.post('/terminations', data),
+  update: (id, data) => api.put(`/terminations/${id}`, data),
+  delete: (id) => api.delete(`/terminations/${id}`),
+  getByEmployee: (employeeId) => api.get(`/terminations/employee/${employeeId}`),
 };
 
 // Reports API calls

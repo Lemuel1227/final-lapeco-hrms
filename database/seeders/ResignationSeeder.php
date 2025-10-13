@@ -1,0 +1,85 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use App\Models\Resignation;
+use App\Models\User;
+use Carbon\Carbon;
+
+class ResignationSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        // Get employees with IDs above 30 (excluding HR personnel)
+        $employees = User::where('role', '!=', 'HR_PERSONNEL')
+                        ->where('id', '>', 30)
+                        ->take(20)
+                        ->get();
+        $hrUsers = User::where('role', 'HR_PERSONNEL')->get();
+        
+        if ($employees->isEmpty() || $hrUsers->isEmpty()) {
+            $this->command->info('No employees or HR personnel found. Please seed users first.');
+            return;
+        }
+
+        $resignationReasons = [
+            'Career advancement opportunity',
+            'Personal reasons',
+            'Relocation to another city',
+            'Better compensation package',
+            'Work-life balance',
+            'Family obligations',
+            'Pursuing higher education',
+            'Health reasons'
+        ];
+
+        $statuses = ['pending', 'approved', 'rejected'];
+
+        foreach ($employees as $index => $employee) {
+            $submissionDate = Carbon::now()->subDays(rand(1, 60));
+            $effectiveDate = $submissionDate->copy()->addDays(rand(15, 45));
+            $status = $statuses[array_rand($statuses)];
+            
+            $resignationData = [
+                'employee_id' => $employee->id,
+                'reason' => $resignationReasons[array_rand($resignationReasons)],
+                'submission_date' => $submissionDate,
+                'effective_date' => $effectiveDate,
+                'status' => $status,
+                'notes' => $this->generateNotes($status),
+            ];
+
+            // If approved, add approval details and update employee status
+            if ($status === 'approved') {
+                $resignationData['approved_by'] = $hrUsers->random()->id;
+                $resignationData['approved_at'] = $submissionDate->copy()->addDays(rand(1, 7));
+                
+                // Update employee employment status
+                $employee->update(['employment_status' => 'resigned']);
+            }
+
+            Resignation::create($resignationData);
+        }
+
+        $this->command->info('Resignation records seeded successfully!');
+    }
+
+    private function generateNotes($status)
+    {
+        switch ($status) {
+            case 'approved':
+                return 'Resignation approved. Employee has completed all necessary handover procedures.';
+            case 'rejected':
+                return 'Resignation rejected due to critical project involvement. Please discuss alternative arrangements.';
+            case 'pending':
+                return 'Under review by HR department.';
+            default:
+                return null;
+        }
+    }
+}

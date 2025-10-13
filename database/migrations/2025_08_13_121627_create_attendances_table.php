@@ -18,7 +18,7 @@ return new class extends Migration
             $table->time('break_out')->nullable();
             $table->time('break_in')->nullable();
             $table->time('sign_out')->nullable();
-            $table->enum('status', ['present', 'absent', 'late'])->default('absent');
+            $table->enum('status', ['present', 'absent', 'late', 'scheduled'])->default('scheduled');
             $table->timestamps();
         });
     }

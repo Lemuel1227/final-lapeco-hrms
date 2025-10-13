@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Login.css';
 import ForgotPasswordModal from '../../modals/ForgotPasswordModal';
 import { authAPI } from '../../services/api';
@@ -11,10 +11,81 @@ const Login = ({ onLoginSuccess, onSendCode, onVerifyCode, onResetPassword }) =>
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [lockoutEndTime, setLockoutEndTime] = useState(null);
+  const [remainingTime, setRemainingTime] = useState(0);
+  const countdownInterval = useRef(null);
 
   const [modalStep, setModalStep] = useState(0);
   const [resetEmail, setResetEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Cleanup countdown on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownInterval.current) {
+        clearInterval(countdownInterval.current);
+      }
+    };
+  }, []);
+
+  // Start countdown when lockout is set
+  useEffect(() => {
+    if (lockoutEndTime) {
+      const updateCountdown = () => {
+        const now = new Date().getTime();
+        const timeLeft = Math.max(0, lockoutEndTime - now);
+        
+        if (timeLeft <= 0) {
+          setLockoutEndTime(null);
+          setRemainingTime(0);
+          setError('');
+          if (countdownInterval.current) {
+            clearInterval(countdownInterval.current);
+            countdownInterval.current = null;
+          }
+        } else {
+          setRemainingTime(timeLeft);
+        }
+      };
+
+      updateCountdown(); // Initial update
+      countdownInterval.current = setInterval(updateCountdown, 1000);
+
+      return () => {
+        if (countdownInterval.current) {
+          clearInterval(countdownInterval.current);
+          countdownInterval.current = null;
+        }
+      };
+    }
+  }, [lockoutEndTime]);
+
+  const formatTime = (milliseconds) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  };
+
+  const parseLockoutMessage = (message) => {
+    // Extract seconds from message like "Your account is temporarily locked. Please try again after 13.093784 seconds."
+    const match = message.match(/after\s+([\d.]+)\s+seconds/);
+    if (match) {
+      const seconds = Math.ceil(parseFloat(match[1])); // Round up to nearest second
+      const endTime = new Date().getTime() + (seconds * 1000);
+      setLockoutEndTime(endTime);
+      return `Your account is temporarily locked. Please try again after ${formatTime(seconds * 1000)}.`;
+    }
+    return message;
+  };
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
@@ -51,7 +122,14 @@ const Login = ({ onLoginSuccess, onSendCode, onVerifyCode, onResetPassword }) =>
         // Validation error - extract specific message from backend
         const errorData = error.response.data;
         if (errorData.errors && errorData.errors.email && errorData.errors.email[0]) {
-          setError(errorData.errors.email[0]);
+          const errorMessage = errorData.errors.email[0];
+          // Check if it's a lockout message
+          if (errorMessage.includes('temporarily locked') && errorMessage.includes('seconds')) {
+            const formattedMessage = parseLockoutMessage(errorMessage);
+            setError(formattedMessage);
+          } else {
+            setError(errorMessage);
+          }
         } else if (errorData.message) {
           setError(errorData.message);
         } else {
@@ -123,7 +201,12 @@ const Login = ({ onLoginSuccess, onSendCode, onVerifyCode, onResetPassword }) =>
 
               <div className="login-error-container mb-3">
                 {error && (
-                  <div className="alert alert-danger py-2 fade show" role="alert">{error}</div>
+                  <div className="alert alert-danger py-2 fade show" role="alert">
+                    {lockoutEndTime && remainingTime > 0 
+                      ? `Your account is temporarily locked. Please try again after ${formatTime(remainingTime)}.`
+                      : error
+                    }
+                  </div>
                 )}
               </div>
 

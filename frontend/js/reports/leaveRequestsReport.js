@@ -1,4 +1,5 @@
 import autoTable from 'jspdf-autotable';
+import { formatDateRange } from '../utils/dateUtils';
 
 /**
  * Generates the Leave Requests Report.
@@ -55,7 +56,7 @@ export const generateLeaveRequestsReport = async (doc, params, dataSources, addC
     req.name,
     req.position,
     req.leaveType,
-    `${req.dateFrom} to ${req.dateTo}`,
+    formatDateRange(req.dateFrom, req.dateTo),
     req.days,
     req.status
   ]);

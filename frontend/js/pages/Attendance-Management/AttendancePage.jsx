@@ -8,7 +8,7 @@ import EditAttendanceModal from '../../modals/EditAttendanceModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import attendanceAPI from '../../services/attendanceAPI';
-import { employeeAPI, positionAPI, scheduleAPI } from '../../services/api';
+import ToastNotification from '../../common/ToastNotification';
 
 const AttendancePage = () => {
   // State for UI
@@ -25,11 +25,12 @@ const AttendancePage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAttendanceRecord, setEditingAttendanceRecord] = useState(null);
   
+  // Toast notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  
   // State for data
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [positions, setPositions] = useState([]);
-  const [allSchedules, setAllSchedules] = useState([]);
+  const [dailyAttendanceData, setDailyAttendanceData] = useState([]);
+  const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -44,56 +45,39 @@ const AttendancePage = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch all required data
-        const [attendanceResponse, employeesResponse, positionsResponse, schedulesResponse] = await Promise.all([
-          attendanceAPI.getAll({ date: currentDate }),
-          employeeAPI.getAll(),
-          positionAPI.getAll(),
-          scheduleAPI.getAll()
-        ]);
+        // Fetch daily attendance data for the current date
+        const dailyResponse = await attendanceAPI.getDaily({ date: currentDate });
+        setDailyAttendanceData(dailyResponse.data || []);
         
-        // Store API responses
+        // Fetch attendance history - let backend determine the full date range
+        const historyResponse = await attendanceAPI.getHistory();
+        setAttendanceHistory(historyResponse.data || []);
         
-        setAttendanceData(attendanceResponse.data || []);
-        setEmployees(employeesResponse.data || []);
-        setPositions(positionsResponse.data || []);
-        
-        // Transform schedule data to match expected format
-        const scheduleData = schedulesResponse.data;
-        if (scheduleData && scheduleData.schedules) {
-          const transformedSchedules = [];
-          scheduleData.schedules.forEach(schedule => {
-            schedule.assignments.forEach(assignment => {
-              transformedSchedules.push({
-                scheduleId: assignment.id,
-                empId: assignment.employee_id,
-                date: schedule.date,
-                shift: `${assignment.start_time} - ${assignment.end_time}`,
-                name: schedule.name
-              });
-            });
-          });
-          setAllSchedules(transformedSchedules);
-        }
-        
-        // Fetch attendance logs (now grouped by schedule date)
-        const logsResponse = await attendanceAPI.getLogs({
-          start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          end_date: new Date().toISOString().split('T')[0]
-        });
+        // Fetch attendance logs (keeping for compatibility with existing code)
+        const logsResponse = await attendanceAPI.getLogs();
         
         // Transform grouped data to flat array for compatibility with existing code
         const flattenedLogs = [];
         if (logsResponse.data && Array.isArray(logsResponse.data)) {
           logsResponse.data.forEach(dateGroup => {
             if (dateGroup.attendances && Array.isArray(dateGroup.attendances)) {
-              flattenedLogs.push(...dateGroup.attendances);
+              // Add the date from the group to each attendance record
+              const attendancesWithDate = dateGroup.attendances.map(attendance => ({
+                ...attendance,
+                // Extract just the date part from ISO timestamp if needed
+                date: dateGroup.date ? 
+                  (dateGroup.date.includes('T') ? dateGroup.date.split('T')[0] : dateGroup.date) :
+                  (attendance.date && attendance.date.includes('T') ? attendance.date.split('T')[0] : attendance.date)
+              }));
+              flattenedLogs.push(...attendancesWithDate);
             }
           });
         }
+        console.log('Flattened Logs:', flattenedLogs); // Debug log
         setAttendanceLogs(flattenedLogs);
         
       } catch (err) {
+        console.error('Error fetching attendance data:', err);
         setError('Failed to load attendance data');
       } finally {
         setLoading(false);
@@ -104,74 +88,53 @@ const AttendancePage = () => {
   }, [currentDate]);
 
   const dailyAttendanceList = useMemo(() => {
-    if (!attendanceData || !employees || !positions) return [];
+    if (!dailyAttendanceData) return [];
 
-    // Use attendance data directly from API which already includes all necessary information
-    return attendanceData.map((record, index) => {
-      const employee = employees.find(emp => emp.id === record.empId) || record.employee;
-      const position = positions.find(pos => pos.id === employee?.position_id);
-      
+    // Use daily attendance data directly from the new API
+    return dailyAttendanceData.map((record, index) => {
       // Extract time from shift datetime strings and format to HH:MM
       let shiftDisplay = record.shift;
-      if (typeof record.shift === 'string' && record.shift.includes(' - ')) {
-        const [startDateTime, endDateTime] = record.shift.split(' - ');
-        
-        // Extract time from datetime string (handles ISO format, space-separated format, and time-only format)
-         const extractTime = (dateTimeStr) => {
-           try {
-             // If it's an ISO datetime string, parse it and extract time
-             if (dateTimeStr.includes('T')) {
-               const date = new Date(dateTimeStr);
-               return date.toTimeString().split(' ')[0].split(':').slice(0, 2).join(':');
-             }
-             // If it's space-separated datetime format (YYYY-MM-DD HH:MM), extract time part
-             else if (dateTimeStr.includes(' ') && dateTimeStr.includes('-')) {
-               const timePart = dateTimeStr.split(' ')[1];
-               return timePart ? timePart.split(':').slice(0, 2).join(':') : dateTimeStr;
-             }
-             // If it already looks like time, just format it
-             else if (dateTimeStr.includes(':')) {
-               return dateTimeStr.split(':').slice(0, 2).join(':');
-             }
-             // Fallback
-             return dateTimeStr;
-           } catch (error) {
-             return dateTimeStr;
-           }
-         };
-        
-        const startTime = extractTime(startDateTime.trim());
-        const endTime = extractTime(endDateTime.trim());
-        shiftDisplay = `${startTime} - ${endTime}`;
-      }
       
-      // Fix negative hours calculation
-      let workingHours = record.hoursWorked || '0h 0m';
-      if (workingHours.includes('-')) {
-        // If hours are negative, calculate properly or set to 0
-        workingHours = '0h 0m';
+      // Working hours calculation (if needed for compatibility)
+      let workingHours = '0h 0m';
+      if (record.signIn && record.signOut) {
+        try {
+          const signInTime = new Date(`2000-01-01 ${record.signIn}`);
+          const signOutTime = new Date(`2000-01-01 ${record.signOut}`);
+          const diffMs = signOutTime - signInTime;
+          if (diffMs > 0) {
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            workingHours = `${hours}h ${minutes}m`;
+          }
+        } catch (e) {
+          console.warn('Error calculating working hours:', e);
+        }
       }
-      
+
       const processedRecord = {
-        id: record.empId,
-        scheduleId: record.schedule_assignment_id,
+        id: record.empId || index,
         empId: record.empId,
-        name: record.employee?.name || employee?.name || 'Unknown',
-        position: record.employee?.position?.title || position?.title || 'Unknown',
-        shift: shiftDisplay,
+        name: record.employeeName,
+        position: record.position || 'N/A',
         date: record.date,
+        shift: record.shift,
+        shiftDisplay: shiftDisplay,
         signIn: record.signIn,
-        breakOut: record.breakOut,
-        breakIn: record.breakIn,
         signOut: record.signOut,
+        breakIn: record.breakIn,
+        breakOut: record.breakOut,
         status: record.status,
         workingHours: workingHours,
-        avatar: record.employee?.avatar || employee?.avatar || placeholderAvatar
+        otHours: record.otHours || '0.00',
+        scheduleId: record.scheduleId,
+        scheduleName: record.scheduleName,
+        schedule_assignment_id: record.schedule_assignment_id
       };
-      
+
       return processedRecord;
     });
-  }, [attendanceData, employees, positions]);
+  }, [dailyAttendanceData]);
 
   const sortedAndFilteredList = useMemo(() => {
     let list = [...dailyAttendanceList];
@@ -189,91 +152,118 @@ const AttendancePage = () => {
     return list;
   }, [dailyAttendanceList, positionFilter, statusFilter, sortConfig]);
 
-  const attendanceHistory = useMemo(() => {
-    if (!allSchedules || !attendanceLogs) return {};
-    const history = {};
-    const today = new Date().toISOString().split('T')[0];
-    const schedulesMap = new Map(allSchedules.map(s => [`${s.date}-${s.empId}`, s]));
-    allSchedules.forEach(s => {
-      if (s.date < today) {
-        if (!history[s.date]) {
-          history[s.date] = { scheduled: 0, present: 0, late: 0 };
-        }
-        history[s.date].scheduled++;
-      }
-    });
-    (attendanceLogs || []).forEach(log => {
-      if (history[log.date]) {
-        const scheduleKey = `${log.date}-${log.empId}`;
-        const schedule = schedulesMap.get(scheduleKey);
-        if (schedule && log.signIn) {
-          history[log.date].present++;
-          const shiftStartTime = schedule.shift ? schedule.shift.split(' - ')[0] : '00:00';
-          if (log.signIn > shiftStartTime) {
-            history[log.date].late++;
-          }
-        }
-      }
-    });
-    return Object.entries(history).map(([date, counts]) => ({
-      date,
-      present: counts.present,
-      late: counts.late,
-      absent: counts.scheduled - counts.present,
-      total: counts.scheduled,
+  const attendanceHistoryDisplay = useMemo(() => {
+    // Use the attendance history data directly from the new API
+    if (!attendanceHistory) return [];
+    
+    return attendanceHistory.map(day => ({
+      date: day.date.split('T')[0], // Extract date part from ISO string
+      present: day.present,
+      late: day.late,
+      absent: day.absent,
+      total: day.total,
     })).sort((a,b) => new Date(b.date) - new Date(a.date));
-  }, [attendanceLogs, allSchedules]);
+  }, [attendanceHistory]);
+
+  // Get unique employees from daily attendance data for employee selection
+  const availableEmployees = useMemo(() => {
+    if (!dailyAttendanceData) return [];
+    
+    const uniqueEmployees = [];
+    const seenIds = new Set();
+    
+    dailyAttendanceData.forEach(record => {
+      if (!seenIds.has(record.empId)) {
+        seenIds.add(record.empId);
+        uniqueEmployees.push({
+          id: record.empId,
+          name: record.employeeName,
+          position: record.position
+        });
+      }
+    });
+    
+    return uniqueEmployees.sort((a, b) => a.name.localeCompare(b.name));
+  }, [dailyAttendanceData]);
 
   const filteredEmployeesForSelection = useMemo(() => {
-      if (!employees) return [];
-      return employees.filter(emp => 
+      if (!availableEmployees) return [];
+      return availableEmployees.filter(emp => 
           emp.name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) || 
-          emp.id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+          emp.id.toString().toLowerCase().includes(employeeSearchTerm.toLowerCase())
       );
-  }, [employees, employeeSearchTerm]);
+  }, [availableEmployees, employeeSearchTerm]);
     
   const selectedEmployeeRecords = useMemo(() => {
-      if (!selectedEmployee || !allSchedules) return { records: [], stats: {} };
+      if (!selectedEmployee || !attendanceLogs) return { records: [], stats: {} };
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const records = allSchedules
-          .filter(s => s.empId === selectedEmployee.id)
-          .map(schedule => {
-              const log = (attendanceLogs || []).find(l => l.empId === schedule.empId && l.date === schedule.date);
-              const scheduleDate = new Date(schedule.date);
-              scheduleDate.setHours(0, 0, 0, 0);
-
-              let status = "Scheduled";
-              if (log && log.signIn) {
-                  const shiftStartTime = schedule.shift ? schedule.shift.split(' - ')[0] : '00:00';
-                  
-                  // Parse times for comparison
-                  const [shiftHour, shiftMin] = shiftStartTime.split(':').map(Number);
-                  const [signInHour, signInMin] = log.signIn.split(':').map(Number);
-                  
-                  // Convert to minutes for easier comparison
-                  const shiftStartMinutes = shiftHour * 60 + shiftMin;
-                  const signInMinutes = signInHour * 60 + signInMin;
-                  const lateThresholdMinutes = shiftStartMinutes + 15; // 15 minutes late threshold
-                  
-                  status = signInMinutes > lateThresholdMinutes ? "Late" : "Present";
-              } else if (scheduleDate < today) {
-                  status = "Absent";
+      console.log('=== BY EMPLOYEE DEBUG ===');
+      console.log('Selected Employee:', selectedEmployee);
+      console.log('All Attendance Logs for Employee:', attendanceLogs.filter(l => l.empId === selectedEmployee.id));
+      
+      // Get all attendance records for the selected employee from logs
+      const employeeRecords = attendanceLogs
+          .filter(log => log.empId === selectedEmployee.id)
+          .map(log => {
+              // Extract date part for comparison - ensure consistent format
+              let logDate = log.date;
+              if (logDate && logDate.includes('T')) {
+                  logDate = logDate.split('T')[0];
               }
-              return { ...schedule, ...log, status };
+              
+              const logDateObj = new Date(logDate);
+              logDateObj.setHours(0, 0, 0, 0);
+
+              console.log(`Processing log for ${logDate}:`, {
+                  logData: log,
+                  logDetails: {
+                      empId: log.empId,
+                      date: log.date,
+                      status: log.status,
+                      signIn: log.signIn,
+                      signOut: log.signOut,
+                      breakOut: log.breakOut,
+                      breakIn: log.breakIn,
+                      shift: log.shift
+                  }
+              });
+
+              // Create the final record from log data
+              const finalRecord = {
+                  empId: log.empId,
+                  employeeName: log.employeeName || selectedEmployee.name,
+                  position: log.position || selectedEmployee.position,
+                  date: logDate,
+                  shift: log.shift || 'N/A',
+                  signIn: log.signIn,
+                  signOut: log.signOut,
+                  breakOut: log.breakOut,
+                  breakIn: log.breakIn,
+                  status: log.status, // Use backend calculated status
+                  scheduleId: log.scheduleId,
+                  scheduleName: log.scheduleName
+              };
+              
+              console.log(`Final record for ${logDate}:`, finalRecord);
+              
+              return finalRecord;
           })
           .sort((a, b) => new Date(b.date) - new Date(a.date));
       
-      const stats = records.reduce((acc, rec) => {
+      const stats = employeeRecords.reduce((acc, rec) => {
           acc.totalScheduled++;
+          // Handle capitalized status values from backend
           if (rec.status === 'Late') acc.totalLate++;
           if (rec.status === 'Absent') acc.totalAbsent++;
           return acc;
       }, { totalScheduled: 0, totalLate: 0, totalAbsent: 0 });
 
-      return { records, stats };
-  }, [selectedEmployee, allSchedules, attendanceLogs]);
+      console.log('=== FINAL BY EMPLOYEE RECORDS ===', employeeRecords);
+      console.log('=== BY EMPLOYEE STATS ===', stats);
+      return { records: employeeRecords, stats };
+  }, [selectedEmployee, attendanceLogs]);
   
   const handleStatusFilterClick = (newStatus) => {
     setStatusFilter(prevStatus => prevStatus === newStatus ? '' : newStatus);
@@ -300,7 +290,12 @@ const AttendancePage = () => {
     generateReport(
         'attendance_summary', 
         { startDate: currentDate }, 
-        { employees, schedules: allSchedules, attendanceLogs, positions }
+        { 
+          employees: availableEmployees, 
+          schedules: [], // No schedules data available in current scope
+          attendanceLogs, 
+          positions: [] // No positions data available in current scope
+        }
     );
     setShowReportPreview(true);
   };
@@ -313,13 +308,16 @@ const AttendancePage = () => {
 
   const handleOpenEditModal = (employeeData) => {
     const record = {
-      id: employeeData.id,
-      name: employeeData.name,
+      id: employeeData.id || employeeData.empId,
+      name: employeeData.name || employeeData.employeeName,
       schedule: { date: currentDate, shift: employeeData.shift },
       signIn: employeeData.signIn,
       signOut: employeeData.signOut,
       breakIn: employeeData.breakIn,
       breakOut: employeeData.breakOut,
+      ot_hours: employeeData.otHours || employeeData.ot_hours || 0,
+      schedule_assignment_id: employeeData.schedule_assignment_id,
+      empId: employeeData.empId,
     };
     setEditingAttendanceRecord(record);
     setShowEditModal(true);
@@ -330,53 +328,118 @@ const AttendancePage = () => {
   };
   const handleSaveEditedTime = async (empId, date, updatedTimes) => {
     try {
-      // Find existing attendance record
-      const existingRecord = attendanceData.find(record => 
+      // Find existing attendance record from daily attendance data
+      const existingRecord = dailyAttendanceData.find(record => 
         record.empId === empId && record.date === date
       );
       
+      if (!existingRecord || !existingRecord.schedule_assignment_id) {
+        setToast({ 
+          show: true, 
+          message: 'Unable to find schedule assignment for this employee and date', 
+          type: 'error' 
+        });
+        return;
+      }
+      
       const updatedRecord = {
-        empId,
-        date,
-        signIn: updatedTimes.signIn || null,
-        signOut: updatedTimes.signOut || null,
-        breakIn: updatedTimes.breakIn || null,
-        breakOut: updatedTimes.breakOut || null,
+        schedule_assignment_id: existingRecord.schedule_assignment_id,
+        sign_in: updatedTimes.signIn || null,
+        sign_out: updatedTimes.signOut || null,
+        break_in: updatedTimes.breakIn || null,
+        break_out: updatedTimes.breakOut || null,
+        ot_hours: updatedTimes.ot_hours || null,
       };
       
-      if (existingRecord) {
-        // Update existing record
+      if (existingRecord.id) {
+        // Update existing attendance record
         await attendanceAPI.update(existingRecord.id, updatedRecord);
+        setToast({ 
+          show: true, 
+          message: 'Attendance record updated successfully', 
+          type: 'success' 
+        });
       } else {
-        // Create new record
+        // Create new attendance record
         await attendanceAPI.create(updatedRecord);
+        setToast({ 
+          show: true, 
+          message: 'Attendance record created successfully', 
+          type: 'success' 
+        });
       }
       
       // Refresh attendance data
-      const response = await attendanceAPI.getAll({ date: currentDate });
-      setAttendanceData(response.data || []);
+      const response = await attendanceAPI.getDaily({ date: currentDate });
+      setDailyAttendanceData(response.data || []);
       
       handleCloseEditModal();
     } catch (error) {
-      alert('Failed to save attendance record');
+      console.error('Error saving attendance record:', error);
+      
+      let errorMessage = 'Failed to save attendance record. Please try again.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors
+        const validationErrors = Object.values(error.response.data.errors).flat();
+        errorMessage = `Please check your input: ${validationErrors.join(', ')}`;
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Attendance record not found. It may have been deleted.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to update this attendance record.';
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Server error occurred. Please try again later.';
+      } else if (error.message && !error.message.includes('ReferenceError') && !error.message.includes('TypeError')) {
+        errorMessage = 'Unable to save attendance record. Please check your connection and try again.';
+      }
+      
+      setToast({ 
+        show: true, 
+        message: errorMessage, 
+        type: 'error' 
+      });
     }
   };
   const handleExport = () => {
     if (!sortedAndFilteredList || sortedAndFilteredList.length === 0) {
-      alert("No data to export.");
+      setToast({ 
+        show: true, 
+        message: 'No data to export for the selected date.', 
+        type: 'warning' 
+      });
       return;
     }
-    const dataToExport = sortedAndFilteredList.map(emp => ({
-      'Employee ID': emp.id, 'Name': emp.name, 'Position': emp.position, 'Shift': emp.shift,
-      'Sign In': emp.signIn || '', 'Break Out': emp.breakOut || '', 'Break In': emp.breakIn || '',
-      'Sign Out': emp.signOut || '', 'Status': emp.status,
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-    saveAs(data, `Attendance_${currentDate}.xlsx`);
+    
+    try {
+      const dataToExport = sortedAndFilteredList.map(emp => ({
+        'Employee ID': emp.id, 'Name': emp.name, 'Position': emp.position, 'Shift': emp.shift,
+        'Sign In': emp.signIn || '', 'Break Out': emp.breakOut || '', 'Break In': emp.breakIn || '',
+        'Sign Out': emp.signOut || '', 'Status': emp.status, 'Working Hours': emp.workingHours,
+        'OT Hours': emp.otHours
+      }));
+      
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(data, `attendance_${currentDate}.xlsx`);
+      
+      setToast({ 
+        show: true, 
+        message: `Attendance data for ${currentDate} exported successfully`, 
+        type: 'success' 
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      setToast({ 
+        show: true, 
+        message: 'Failed to export attendance data. Please try again.', 
+        type: 'error' 
+      });
+    }
   };
   const handleImportClick = () => { fileInputRef.current.click(); };
   const handleImport = (event) => {
@@ -407,9 +470,27 @@ const AttendancePage = () => {
             updatedCount++;
           });
           setAttendanceLogs(newLogs);
-          alert(`${updatedCount} records were updated/imported for ${currentDate}.`);
+          
+          if (updatedCount > 0) {
+            setToast({ 
+              show: true, 
+              message: `${updatedCount} attendance records were imported successfully for ${currentDate}`, 
+              type: 'success' 
+            });
+          } else {
+            setToast({ 
+              show: true, 
+              message: 'No valid attendance records found in the imported file', 
+              type: 'warning' 
+            });
+          }
         } catch (error) {
-          alert("Failed to process the Excel file. Please ensure it is a valid format.");
+          console.error('Import error:', error);
+          setToast({ 
+            show: true, 
+            message: 'Failed to process the Excel file. Please ensure it is a valid format and try again.', 
+            type: 'error' 
+          });
         }
       };
       reader.readAsArrayBuffer(file);
@@ -420,7 +501,8 @@ const AttendancePage = () => {
   const uniquePositions = useMemo(() => ['All Positions', ...new Set(dailyAttendanceList.map(item => item.position))], [dailyAttendanceList]);
   
   const renderEmployeeView = () => {
-    const positionMap = new Map((positions || []).map(pos => [pos.id, pos.title]));
+    // Create position map from available employees data
+    const positionMap = new Map();
     
     if (selectedEmployee) {
         return (
@@ -432,7 +514,7 @@ const AttendancePage = () => {
                     <img src={selectedEmployee.imageUrl || placeholderAvatar} alt={selectedEmployee.name} className="employee-detail-avatar" />
                     <div>
                         <h2 className="employee-detail-name">{selectedEmployee.name}</h2>
-                        <p className="employee-detail-meta">{selectedEmployee.id} • {positionMap.get(selectedEmployee.positionId) || 'Unassigned'}</p>
+                        <p className="employee-detail-meta">{selectedEmployee.id} • {selectedEmployee.position || 'Unassigned'}</p>
                     </div>
                 </div>
                 <div className="employee-attendance-stats my-4">
@@ -450,7 +532,12 @@ const AttendancePage = () => {
                                     <tr key={rec.scheduleId || rec.date}>
                                         <td>{(() => {
                                           try {
-                                            const date = new Date(rec.date);
+                                            // Handle ISO timestamp format by extracting date part
+                                            let dateStr = rec.date;
+                                            if (dateStr && dateStr.includes('T')) {
+                                              dateStr = dateStr.split('T')[0];
+                                            }
+                                            const date = new Date(dateStr);
                                             return isNaN(date.getTime()) ? rec.date : date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                                           } catch (error) {
                                             return rec.date;
@@ -606,12 +693,13 @@ const AttendancePage = () => {
                           <th className="sortable" onClick={() => handleRequestSort('breakIn')}>Break In {getSortIcon('breakIn')}</th>
                           <th className="sortable" onClick={() => handleRequestSort('signOut')}>Sign Out {getSortIcon('signOut')}</th>
                           <th className="sortable" onClick={() => handleRequestSort('workingHours')}>Hours {getSortIcon('workingHours')}</th>
+                          <th className="sortable" onClick={() => handleRequestSort('otHours')}>OT (hrs) {getSortIcon('otHours')}</th>
                           <th>Status</th><th>Actions</th>
                       </tr></thead>
-                      <tbody>{sortedAndFilteredList.map((emp) => (
-                          <tr key={emp.scheduleId}>
+                      <tbody>{sortedAndFilteredList.map((emp, index) => (
+                          <tr key={`${emp.empId}-${emp.scheduleId}-${index}`}>
                               <td>{emp.id}</td><td>{emp.name}</td><td>{emp.position}</td><td>{emp.shift}</td>
-                              <td>{emp.signIn || '---'}</td><td>{emp.breakOut || '---'}</td><td>{emp.breakIn || '---'}</td><td>{emp.signOut || '---'}</td><td>{emp.workingHours}</td>
+                              <td>{emp.signIn || '---'}</td><td>{emp.breakOut || '---'}</td><td>{emp.breakIn || '---'}</td><td>{emp.signOut || '---'}</td><td>{emp.workingHours}</td><td>{emp.otHours || '0'}</td>
                               <td><span className={`status-badge status-${emp.status.toLowerCase()}`}>{emp.status}</span></td>
                               <td>
                               <div className="dropdown">
@@ -645,12 +733,22 @@ const AttendancePage = () => {
         {!loading && !error && activeView === 'historyList' && (
           <>
             <h4 className="mb-3">Attendance History</h4>
-            {attendanceHistory.length > 0 ? (
+            {attendanceHistoryDisplay.length > 0 ? (
               <div className="attendance-history-grid">
-                {attendanceHistory.map(day => (
+                {attendanceHistoryDisplay.map(day => (
                   <div key={day.date} className="attendance-history-card" onClick={() => handleViewHistoryDetail(day.date)}>
                    <div className="card-header">
-                        <h5 className="card-title">{new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h5>
+                        <h5 className="card-title">
+                          {day.date ? 
+                            new Date(day.date).toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            }) : 
+                            'Invalid Date'
+                          }
+                        </h5>
                         <button className="btn btn-sm btn-outline-danger delete-history-btn" onClick={(e) => handleOpenDeleteConfirm(e, day.date)} title="Delete this day's records">
                             <i className="bi bi-trash-fill"></i>
                         </button>
@@ -679,6 +777,15 @@ const AttendancePage = () => {
       )}
 
       {showEditModal && ( <EditAttendanceModal show={showEditModal} onClose={handleCloseEditModal} onSave={handleSaveEditedTime} attendanceRecord={editingAttendanceRecord}/> )}
+      
+      {/* Toast Notification */}
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
     </div>
   );
 };

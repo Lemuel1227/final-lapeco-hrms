@@ -1,34 +1,82 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import EditLeaveCreditsModal from '../../modals/EditLeaveCreditsModal';
-import LeaveHistoryModal from '../../modals/LeaveHistoryModal'; // <-- NEW IMPORT
+import LeaveHistoryModal from '../../modals/LeaveHistoryModal';
+import BulkAddLeaveCreditsModal from '../../modals/BulkAddLeaveCreditsModal';
+import ResetCreditsModal from '../../modals/ResetCreditsModal';
+import { leaveAPI } from '../../services/api';
 
-const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
+const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
+  const [leaveCreditsData, setLeaveCreditsData] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // Show all employees regardless of status
+  const allEmployees = useMemo(() => employees, [employees]);
+
+  // Fetch leave credits for all employees
+  useEffect(() => {
+    const fetchLeaveCredits = async () => {
+      setLoading(true);
+      try {
+        // Use bulk API endpoint to fetch all users' leave credits in one request
+        const response = await leaveAPI.getAllLeaveCredits();
+        const creditsMap = {};
+        
+        // Transform the bulk response to match the expected format
+        response.data.forEach(({ user, leave_credits }) => {
+          creditsMap[user.id] = leave_credits;
+        });
+        
+        setLeaveCreditsData(creditsMap);
+      } catch (error) {
+        console.error('Failed to fetch leave credits:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (allEmployees.length > 0) {
+      fetchLeaveCredits();
+    }
+  }, [allEmployees]);
 
   const employeeLeaveData = useMemo(() => {
     const currentYear = new Date().getFullYear();
     
-    const calculatedData = employees
-      .filter(emp => emp.status === 'Active')
-      .map(emp => {
-        const totalCredits = emp.leaveCredits || { sick: 0, vacation: 0, personal: 0 };
-        const usedCredits = leaveRequests
+    const calculatedData = allEmployees.map(emp => {
+        // Get leave credits from API data
+        const empCredits = leaveCreditsData[emp.id] || {};
+        
+        // Transform API data to match expected format
+        const totalCredits = Object.values(empCredits).reduce((acc, credit) => {
+          const type = credit.leave_type.toLowerCase().replace(' leave', '');
+          acc[type] = credit.total_credits;
+          return acc;
+        }, { vacation: 0, sick: 0, personal: 0, maternity: 0 });
+        
+        const usedCredits = Object.values(empCredits).reduce((acc, credit) => {
+          const type = credit.leave_type.toLowerCase().replace(' leave', '');
+          acc[type] = credit.used_credits;
+          return acc;
+        }, { vacation: 0, sick: 0, personal: 0, maternity: 0, unpaid: 0 });
+        
+        // Add unpaid leave usage from leave requests (not tracked in credits)
+        const unpaidUsage = leaveRequests
           .filter(req => 
             req.empId === emp.id && 
             req.status === 'Approved' &&
+            req.leaveType === 'Unpaid Leave' &&
             new Date(req.dateFrom).getFullYear() === currentYear
           )
-          .reduce((acc, req) => {
-            const type = req.leaveType.toLowerCase().replace(' leave', '');
-            if (acc.hasOwnProperty(type)) {
-              acc[type] = (acc[type] || 0) + req.days;
-            }
-            return acc;
-          }, { vacation: 0, sick: 0, personal: 0, unpaid: 0 });
+          .reduce((sum, req) => sum + req.days, 0);
+        
+        usedCredits.unpaid = unpaidUsage;
         
         const individualHistory = leaveRequests.filter(req => req.empId === emp.id);
 
@@ -41,6 +89,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
             vacation: (totalCredits.vacation || 0) - (usedCredits.vacation || 0),
             sick: (totalCredits.sick || 0) - (usedCredits.sick || 0),
             personal: (totalCredits.personal || 0) - (usedCredits.personal || 0),
+            maternity: (totalCredits.maternity || 0) - (usedCredits.maternity || 0),
           }
         };
       });
@@ -49,7 +98,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
 
     return [...filteredData].sort((a, b) => {
       let valA, valB;
-      if (['vacation', 'sick', 'personal', 'unpaid'].includes(sortConfig.key)) {
+      if (['vacation', 'sick', 'personal', 'emergency', 'maternity', 'unpaid'].includes(sortConfig.key)) {
         valA = sortConfig.key === 'unpaid' ? a.usedCredits.unpaid : a.remainingBalance[sortConfig.key];
         valB = sortConfig.key === 'unpaid' ? b.usedCredits.unpaid : b.remainingBalance[sortConfig.key];
       } else {
@@ -62,7 +111,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
       return 0;
     });
 
-  }, [employees, leaveRequests, searchTerm, sortConfig]);
+  }, [allEmployees, leaveRequests, searchTerm, sortConfig, leaveCreditsData]);
   
   const handleEditClick = (employee) => {
     setSelectedEmployee(employee);
@@ -74,9 +123,43 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
     setShowHistoryModal(true);
   };
   
-  const handleSave = (employeeId, newCredits) => {
-    onSaveCredits(employeeId, newCredits);
-    setShowEditModal(false);
+  const handleSave = async (employeeId, newCredits) => {
+    try {
+      await leaveAPI.updateLeaveCredits(employeeId, newCredits);
+      // Refresh leave credits data
+      const response = await leaveAPI.getLeaveCredits(employeeId);
+      setLeaveCreditsData(prev => ({
+        ...prev,
+        [employeeId]: response.data
+      }));
+      setShowEditModal(false);
+    } catch (error) {
+      console.error('Failed to update leave credits:', error);
+    }
+  };
+
+  const handleBulkAdd = (creditsToAdd) => {
+    handlers.bulkAddLeaveCredits(creditsToAdd);
+    setShowBulkAddModal(false);
+  };
+
+  const handleResetCredits = async (resetData) => {
+    try {
+      await leaveAPI.resetUsedCredits(resetData);
+      // Refresh all leave credits data using bulk endpoint for better performance
+      const response = await leaveAPI.getAllLeaveCredits();
+      const creditsMap = {};
+      
+      // Transform the bulk response to match the expected format
+      response.data.forEach(({ user, leave_credits }) => {
+        creditsMap[user.id] = leave_credits;
+      });
+      
+      setLeaveCreditsData(creditsMap);
+      setShowResetModal(false);
+    } catch (error) {
+      console.error('Failed to reset leave credits:', error);
+    }
   };
   
   const requestSort = (key) => {
@@ -100,10 +183,18 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
 
   return (
     <>
-      <div className="mb-3" style={{ maxWidth: '400px' }}>
-        <div className="input-group">
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <div className="input-group" style={{ maxWidth: '400px' }}>
           <span className="input-group-text"><i className="bi bi-search"></i></span>
           <input type="text" className="form-control" placeholder="Search by employee name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
+        </div>
+        <div className="d-flex gap-2">
+          <button className="btn btn-warning" onClick={() => setShowResetModal(true)}>
+            <i className="bi bi-arrow-clockwise me-2"></i>Reset Credits
+          </button>
+          <button className="btn btn-success" onClick={() => setShowBulkAddModal(true)}>
+            <i className="bi bi-plus-circle-dotted me-2"></i>Add Credits to All
+          </button>
         </div>
       </div>
       <div className="card data-table-card shadow-sm">
@@ -115,24 +206,19 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
                 <th className="sortable" onClick={() => requestSort('vacation')}>Vacation {getSortIcon('vacation')}</th>
                 <th className="sortable" onClick={() => requestSort('sick')}>Sick {getSortIcon('sick')}</th>
                 <th className="sortable" onClick={() => requestSort('personal')}>Personal {getSortIcon('personal')}</th>
+                <th className="sortable" onClick={() => requestSort('maternity')}>Maternity {getSortIcon('maternity')}</th>
                 <th className="sortable text-center" onClick={() => requestSort('unpaid')}>Unpaid {getSortIcon('unpaid')}</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {employeeLeaveData.map(emp => {
+              {loading ? (
+                <tr><td colSpan="7" className="text-center p-4">Loading leave credits...</td></tr>
+              ) : employeeLeaveData.map(emp => {
                 const vacationRemaining = emp.remainingBalance.vacation;
                 const vacationTotal = emp.totalCredits.vacation;
                 const vacationPercentage = vacationTotal > 0 ? (vacationRemaining / vacationTotal) * 100 : 0;
                 
-                const sickRemaining = emp.remainingBalance.sick;
-                const sickTotal = emp.totalCredits.sick;
-                const sickPercentage = sickTotal > 0 ? (sickRemaining / sickTotal) * 100 : 0;
-
-                const personalRemaining = emp.remainingBalance.personal;
-                const personalTotal = emp.totalCredits.personal;
-                const personalPercentage = personalTotal > 0 ? (personalRemaining / personalTotal) * 100 : 0;
-
                 return (
                   <tr key={emp.id}>
                     <td><div>{emp.name}</div><small className="text-muted">{emp.id}</small></td>
@@ -140,14 +226,9 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
                       <div className="balance-summary">{emp.usedCredits.vacation} of {vacationTotal} used</div>
                       <div className="progress" style={{height: '8px'}}><div className={`progress-bar ${getProgressBarVariant(vacationPercentage)}`} style={{width: `${vacationPercentage}%`}}></div></div>
                     </td>
-                    <td style={{minWidth: '200px'}}>
-                      <div className="balance-summary">{emp.usedCredits.sick} of {sickTotal} used</div>
-                      <div className="progress" style={{height: '8px'}}><div className={`progress-bar ${getProgressBarVariant(sickPercentage)}`} style={{width: `${sickPercentage}%`}}></div></div>
-                    </td>
-                    <td style={{minWidth: '200px'}}>
-                      <div className="balance-summary">{emp.usedCredits.personal} of {personalTotal} used</div>
-                      <div className="progress" style={{height: '8px'}}><div className={`progress-bar ${getProgressBarVariant(personalPercentage)}`} style={{width: `${personalPercentage}%`}}></div></div>
-                    </td>
+                    <td className="text-center">{emp.usedCredits.sick} / {emp.totalCredits.sick}</td>
+                    <td className="text-center">{emp.usedCredits.personal} / {emp.totalCredits.personal}</td>
+                    <td className="text-center">{emp.gender === 'Female' ? `${emp.remainingBalance.maternity} / ${emp.totalCredits.maternity}` : 'N/A'}</td>
                     <td className="text-center fw-bold">{emp.usedCredits.unpaid || 0}</td>
                     <td>
                         <div className="dropdown">
@@ -161,8 +242,8 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
                   </tr>
                 );
               })}
-              {employeeLeaveData.length === 0 && (
-                <tr><td colSpan="6" className="text-center p-4">No active employees found.</td></tr>
+              {!loading && employeeLeaveData.length === 0 && (
+                <tr><td colSpan="7" className="text-center p-4">No employees found.</td></tr>
               )}
             </tbody>
           </table>
@@ -186,6 +267,20 @@ const LeaveCreditsTab = ({ employees, leaveRequests, onSaveCredits }) => {
           leaveHistory={selectedEmployee.leaveHistory}
         />
       )}
+
+      <BulkAddLeaveCreditsModal
+        show={showBulkAddModal}
+        onClose={() => setShowBulkAddModal(false)}
+        onConfirm={handleBulkAdd}
+        activeEmployeeCount={allEmployees.length}
+      />
+
+      <ResetCreditsModal
+        show={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        onConfirm={handleResetCredits}
+        employees={allEmployees}
+      />
     </>
   );
 };

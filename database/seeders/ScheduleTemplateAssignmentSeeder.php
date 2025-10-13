@@ -129,11 +129,33 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
                 $shift = $shifts[$index % count($shifts)];
                 $note = $notes[$index % count($notes)];
                 
+                // Generate realistic overtime hours for template assignments
+                $otHours = 0;
+                
+                // Template-based overtime patterns
+                if (str_contains($templateName, 'Emergency') || str_contains($templateName, 'Holiday')) {
+                    // Emergency and holiday schedules have higher overtime probability
+                    if (rand(1, 100) <= 40) {
+                        $otHours = [1.0, 1.5, 2.0, 2.5, 3.0][rand(0, 4)];
+                    }
+                } elseif (str_contains($templateName, 'Night') || str_contains($templateName, 'Weekend')) {
+                    // Night and weekend shifts have moderate overtime
+                    if (rand(1, 100) <= 25) {
+                        $otHours = [0.5, 1.0, 1.5, 2.0][rand(0, 3)];
+                    }
+                } else {
+                    // Regular templates have lower overtime probability
+                    if (rand(1, 100) <= 15) {
+                        $otHours = [0.5, 1.0, 1.5][rand(0, 2)];
+                    }
+                }
+                
                 ScheduleAssignment::create([
                     'schedule_template_id' => $template->id,
                     'user_id' => $user->id,
                     'start_time' => $shift['start'],
                     'end_time' => $shift['end'],
+                    'ot_hours' => $otHours,
                     'notes' => $note,
                 ]);
             }

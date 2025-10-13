@@ -38,11 +38,11 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, al
           
           setScheduleName(scheduleData.name || `Schedule for ${scheduleDate}`);
           
-          // Set default columns for start_time, end_time, and notes
+          // Set default columns for start_time, end_time, and ot_hours
           const defaultColumns = [
             { key: 'start_time', name: 'Start Time' },
             { key: 'end_time', name: 'End Time' },
-            { key: 'notes', name: 'Notes' }
+            { key: 'ot_hours', name: 'OT Hours' }
           ];
           setColumns(defaultColumns);
           
@@ -86,7 +86,7 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, al
               positionName: assignment.position_name || '',
               start_time: formatTime(assignment.start_time),
               end_time: formatTime(assignment.end_time),
-              notes: assignment.notes || ''
+              ot_hours: assignment.ot_hours || ''
             };
             return row;
           });
@@ -223,6 +223,12 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, al
                               <td key={col.key}>
                                 {col.key === 'start_time' || col.key === 'end_time' ? (
                                   <input type="time" className="form-control form-control-sm shift-input" value={row[col.key] || ''} onChange={e => handleGridChange(rowIndex, col.key, e.target.value)} />
+                                ) : col.key === 'ot_hours' ? (
+                                  <input type="text" className="form-control form-control-sm shift-input" 
+                                    value={row[col.key] && parseFloat(row[col.key]) > 0 ? row[col.key] : '---'} 
+                                    onChange={e => handleGridChange(rowIndex, col.key, e.target.value === '---' ? '0' : e.target.value)} 
+                                    onFocus={e => { if (e.target.value === '---') e.target.value = '0'; }}
+                                  />
                                 ) : (
                                   <input type="text" className="form-control form-control-sm shift-input" value={row[col.key] || ''} onChange={e => handleGridChange(rowIndex, col.key, e.target.value)} />
                                 )}
@@ -242,7 +248,7 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, al
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-primary action-button-primary">Save Changes</button>
+              <button type="submit" className="btn btn-success action-button-primary">Save Changes</button>
             </div>
           </form>
         </div>

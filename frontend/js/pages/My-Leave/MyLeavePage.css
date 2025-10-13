@@ -6,12 +6,11 @@
 }
 .leave-balances {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 1rem;
 }
-
 .balance-card {
-    background-color: var(--white-color);
+    background-color: var(--bg-primary);
     padding: 1rem;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
@@ -31,61 +30,241 @@
 }
 .balance-icon.icon-vacation { background-color: var(--info-color); }
 .balance-icon.icon-sick { background-color: var(--danger-color); }
-.balance-card .balance-info .balance-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
-.balance-card .balance-info .balance-label { font-size: 0.8rem; color: var(--secondary-color); font-weight: 500; }
+.balance-icon.icon-personal { background-color: #6f42c1; }
 
-/* --- NEW: Upcoming Leave Card --- */
+.balance-card .balance-info .balance-value { 
+    font-size: 1.75rem; 
+    font-weight: 700; 
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+.balance-card .balance-info .balance-label { 
+    font-size: 0.8rem; 
+    color: var(--text-secondary); 
+    font-weight: 500; 
+}
+
 .upcoming-leave-card {
-    background-color: var(--white-color);
+    background-color: var(--bg-primary);
     padding: 1rem 1.25rem;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
     box-shadow: var(--card-shadow);
 }
-.upcoming-leave-card h6 { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; }
-.upcoming-leave-card .upcoming-type { font-weight: 500; font-size: 1rem; margin-bottom: 0.1rem; }
-.upcoming-leave-card .upcoming-dates { font-size: 0.9rem; color: var(--secondary-color); margin-bottom: 0; }
-.upcoming-leave-card .no-upcoming { font-size: 0.9rem; margin-bottom: 0; }
+.upcoming-leave-card h6 { 
+    font-weight: 600; 
+    font-size: 0.9rem; 
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+.upcoming-leave-card .upcoming-type { 
+    font-weight: 500; 
+    font-size: 1rem; 
+    margin-bottom: 0.1rem;
+    color: var(--text-primary);
+}
+.upcoming-leave-card .upcoming-dates { 
+    font-size: 0.9rem; 
+    color: var(--text-secondary); 
+    margin-bottom: 0; 
+}
+.upcoming-leave-card .no-upcoming { 
+    font-size: 0.9rem; 
+    margin-bottom: 0; 
+}
 
-/* --- Filter Controls --- */
 .leave-filters { margin-bottom: 1rem; }
 .leave-filters .btn { font-size: 0.9rem; }
 
-/* --- Leave Request Card --- */
 .leave-requests-list { display: grid; gap: 0.75rem; }
-.leave-card { background-color: var(--white-color); border: 1px solid var(--border-color); border-left-width: 4px; border-radius: var(--border-radius); display: flex; gap: 0.75rem; padding: 0.75rem; transition: all 0.2s ease-in-out; }
-.leave-card:hover { transform: translateY(-2px); box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.06); }
+.leave-card { 
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color); 
+    border-left-width: 4px; 
+    border-radius: var(--border-radius); 
+    display: flex; 
+    gap: 0.75rem; 
+    padding: 0.75rem; 
+    transition: all 0.2s ease-in-out; 
+}
+.leave-card:hover { 
+    transform: translateY(-2px); 
+    box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.1); 
+}
+
 .leave-card.status-approved { border-left-color: var(--app-success-color); }
-.leave-card.status-pending { border-left-color: var(--warning-color); }
+.leave-card.status-pending { 
+    border-left-color: var(--warning-color); 
+    background-color: rgba(var(--warning-rgb), 0.1);
+}
 .leave-card.status-declined { border-left-color: var(--danger-color); }
-.leave-card.status-canceled { border-left-color: var(--secondary-color); }
-.leave-card .date-box { background-color: var(--light-gray); border-radius: var(--border-radius); padding: 0.5rem; text-align: center; width: 60px; flex-shrink: 0; }
-.date-box .month { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--secondary-color); }
-.date-box .day { font-size: 1.5rem; font-weight: 700; line-height: 1.1; color: var(--dark-gray); }
+.leave-card.status-canceled { border-left-color: var(--text-secondary); }
+
+
+.leave-card .date-box { 
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-radius); 
+    display: flex;
+    text-align: center;
+    gap: 0.25rem;
+    width: 65px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+.date-box .month { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
+.date-box .day { font-size: 1.5rem; font-weight: 700; line-height: 1.1; color: var(--text-primary);}
 .leave-card .info-section { flex-grow: 1; }
 .info-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
-.info-header .leave-type { font-size: 1rem; font-weight: 600; margin-bottom: 0; }
-.info-body { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--secondary-color); margin-bottom: 0.25rem; }
+.info-header .leave-type { 
+    font-size: 1rem; 
+    font-weight: 600; 
+    margin-bottom: 0;
+    color: var(--text-primary);
+}
+.info-body { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
 .info-body .info-item { display: flex; align-items: center; gap: 0.4rem; }
 .info-reason { font-size: 0.8rem; padding-top: 0.5rem; margin-top: 0.5rem; border-top: 1px dashed var(--border-color); }
 
-/* --- Calendar View --- */
-.leave-calendar-container { padding: 1rem; }
-.fc .fc-event { cursor: default; }
-.leave-event-approved { background-color: var(--app-success-color) !important; border-color: var(--app-success-color) !important; }
-.leave-event-pending { background-color: var(--warning-color) !important; border-color: var(--warning-color) !important; color: var(--dark-gray) !important; }
-.leave-event-declined { background-color: var(--danger-color) !important; border-color: var(--danger-color) !important; }
-.leave-event-canceled { background-color: var(--secondary-color) !important; border-color: var(--secondary-color) !important; }
-
-/* Status Badge Styles */
-.status-badge { font-size: 0.7rem; font-weight: 500; padding: 0.3em 0.6em; border-radius: var(--border-radius); color: #fff; text-transform: uppercase; }
-.status-badge.status-approved { background-color: var(--app-success-color); }
-.status-badge.status-pending { background-color: var(--warning-color); color: var(--warning-text-color) !important; }
+.status-badge { 
+    font-size: 0.7rem; 
+    font-weight: 500; 
+    padding: 0.3em 0.6em; 
+    border-radius: var(--border-radius); 
+    color: #fff; 
+    text-transform: uppercase; 
+}
+.status-badge.status-approved { background-color: var(--app-success-color); color: var(--text-on-success); }
+.status-badge.status-pending { background-color: var(--warning-color); color: var(--text-primary) !important; }
 .status-badge.status-declined, .status-badge.status-rejected { background-color: var(--danger-color); }
-.status-badge.status-canceled { background-color: var(--secondary-color); }
+.status-badge.status-canceled { background-color: var(--text-secondary); }
 
-@media (max-width: 768px) {
+.dark-theme .leave-card:hover {
+    box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.2);
+}
+.dark-theme .leave-card.status-pending {
+    background-color: rgba(var(--warning-rgb), 0.15);
+}
+
+/* === Maternity & Paternity Fields in Modal === */
+.maternity-fieldset,
+.paternity-fieldset {
+  border: 1px solid var(--border-color);
+  padding: 1rem 1.25rem 1.25rem;
+  border-radius: var(--border-radius);
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+.maternity-legend,
+.paternity-legend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0 0.5rem;
+  width: auto;
+  color: var(--text-primary);
+}
+.maternity-eligibility-notice {
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+}
+.maternity-eligibility-notice strong {
+    margin-right: 0.25rem;
+}
+
+/* === Styles for Edit/Cancel buttons === */
+.pending-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-icon:hover {
+    background-color: var(--app-success-color);
+    border-color: var(--app-success-color);
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.cancel-request-btn {
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: all 0.2s ease-in-out;
+}
+
+.cancel-request-btn:hover {
+    background-color: var(--danger-color) !important;
+    border-color: var(--danger-color) !important;
+    color: #fff !important;
+    transform: scale(1.1);
+}
+
+/* === RESPONSIVE STYLES === */
+@media (max-width: 992px) {
     .my-leave-dashboard {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .page-header .page-main-title {
+        width: 100%;
+        text-align: left;
+    }
+
+    .page-header .header-actions {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .page-header .header-actions .btn {
+        flex-grow: 1;
+    }
+
+    .leave-balances {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 0.75rem;
+        scrollbar-width: none; 
+        -ms-overflow-style: none;  
+    }
+    .leave-balances::-webkit-scrollbar {
+        display: none; 
+    }
+    .leave-balances .balance-card {
+        flex: 0 0 180px; 
     }
 }

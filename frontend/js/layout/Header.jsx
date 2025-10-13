@@ -19,10 +19,19 @@ const Header = ({ currentUser, notifications, appLevelHandlers, theme, isMobileV
     router('/login');
   };
 
+  const formatRole = (role) => {
+    const roleMap = {
+      'HR_PERSONNEL': 'HR Personnel',
+      'TEAM_LEADER': 'Team Leader',
+      'REGULAR_EMPLOYEE': 'Employee'
+    };
+    return roleMap[role] || role;
+  };
+
   const avatarSrc = currentUser?.image_url || placeholderAvatar;
   const displayName = currentUser?.name || '—';
-  const displayRole = currentUser?.role || '';
-  const displayEmployeeId = currentUser?.employee_id || '';
+  const displayRole = formatRole(currentUser?.role) || '';
+  const displayEmployeeId = currentUser?.id || '';
 
   return (
     <header className="app-header">

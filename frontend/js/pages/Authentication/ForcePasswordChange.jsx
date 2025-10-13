@@ -3,7 +3,6 @@ import { authAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import './Login.css';
-import './ForcePasswordChange.css';
 
 const ForcePasswordChange = () => {
   const navigate = useNavigate();
@@ -19,6 +18,16 @@ const ForcePasswordChange = () => {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Function to handle going back to login
+  const handleBackToLogin = () => {
+    // Clear user session data
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    
+    // Navigate to login page
+    navigate('/login', { replace: true });
+  };
 
   // Get current user's email for accessibility
   const getCurrentUserEmail = () => {
@@ -225,7 +234,7 @@ const ForcePasswordChange = () => {
 
               <button 
                 type="submit" 
-                className="btn btn-success w-100 login-button" 
+                className="btn btn-success w-100 login-button mb-3" 
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -236,6 +245,15 @@ const ForcePasswordChange = () => {
                 ) : (
                   'Change Password'
                 )}
+              </button>
+
+              <button 
+                type="button" 
+                className="btn btn-outline-secondary w-100" 
+                onClick={handleBackToLogin}
+                disabled={isLoading}
+              >
+                Back to Login
               </button>
             </form>
           </div>

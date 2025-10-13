@@ -1,4 +1,4 @@
-// src/hooks/useReportGenerator.js (UPDATED)
+// src/hooks/useReportGenerator.js
 
 import { useState } from 'react';
 import { createPdfDoc, addHeader } from '../utils/pdfUtils';
@@ -21,13 +21,20 @@ const useReportGenerator = () => {
         throw new Error(`Report generator for ID "${reportId}" not found.`);
       }
 
-      // 1. Initialize Document
+      // For the special case of viewing an attachment, the generator returns a blob directly.
+      if (reportId === 'attachment_viewer') {
+        const pdfBlob = await generator(null, params);
+        setPdfDataUri(URL.createObjectURL(pdfBlob));
+        setIsLoading(false);
+        return;
+      }
+
+      // 1. Initialize Document for all other reports
       const { doc, pageWidth, margin } = createPdfDoc();
       
       // 2. Add Header (except for payslip which has a custom layout)
       let startY = margin;
       if (reportId !== 'payslip') {
-        // Dynamically import config to avoid issues if it's not available server-side
         const reportConfigModule = await import('../config/reports.config.js');
         const reportConfig = reportConfigModule.reportsConfig;
         const title = reportConfig.find(r => r.id === reportId)?.title || "Report";
@@ -35,20 +42,21 @@ const useReportGenerator = () => {
       }
 
       // 3. Create a helper function to pass to generators that need charts
-      const addChartAndTitle = async (title, chartConfig) => {
+      const addChartAndTitle = async (title, chartConfig, currentY = startY) => {
         const chartImage = await generateChartAsImage(chartConfig);
         const chartHeight = 150;
-        if (startY + chartHeight + 35 > doc.internal.pageSize.getHeight()) {
+        let finalY = currentY;
+        if (finalY + chartHeight + 35 > doc.internal.pageSize.getHeight()) {
             doc.addPage();
-            startY = margin;
+            finalY = margin;
         }
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
-        doc.text(title, margin, startY);
-        startY += 15;
-        doc.addImage(chartImage, 'PNG', margin, startY, pageWidth - (margin * 2), chartHeight);
-        startY += chartHeight + 20;
-        return startY;
+        doc.text(title, margin, finalY);
+        finalY += 15;
+        doc.addImage(chartImage, 'PNG', margin, finalY, pageWidth - (margin * 2), chartHeight);
+        finalY += chartHeight + 20;
+        return finalY;
       };
 
       // 4. Delegate to the specific report generator
@@ -63,7 +71,6 @@ const useReportGenerator = () => {
       console.error("Error generating report:", e);
       setError(e.message);
     } finally {
-      // THE FIX: Ensure isLoading is always reset
       setIsLoading(false);
     }
   };

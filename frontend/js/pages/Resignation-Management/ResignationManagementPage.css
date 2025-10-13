@@ -1,0 +1,174 @@
+/* === Main Page Tabs === */
+.resignation-tabs {
+    margin-bottom: -1px;
+    border-bottom: none;
+}
+.resignation-tabs .nav-link {
+    font-weight: 500;
+    color: var(--text-secondary);
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    border: 1px solid transparent !important;
+    border-bottom: none !important;
+    background: none;
+}
+.resignation-tabs .nav-link.active {
+    color: var(--app-success-color);
+    border-color: var(--border-color) var(--border-color) transparent !important;
+    background-color: var(--bg-primary);
+    font-weight: 600;
+}
+.resignation-tab-content {
+    background-color: var(--bg-primary);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+.dark-theme .resignation-tabs .nav-link.active,
+.dark-theme .resignation-tab-content {
+    background-color: var(--bg-primary);
+}
+.dark-theme .resignation-tabs .nav-link.active {
+    border-color: var(--border-color) var(--border-color) transparent !important;
+}
+
+
+/* --- KPI Stat Cards --- */
+.resignation-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+.stat-card-resignation {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-left-width: 4px;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.stat-card-resignation:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow);
+}
+.stat-card-resignation.active {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow);
+}
+.stat-card-resignation .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+}
+.stat-card-resignation .stat-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+.stat-card-resignation.pending, .stat-card-resignation.pending.active { 
+    border-left-color: var(--warning-color); 
+}
+.stat-card-resignation.pending.active {
+    background-color: rgba(var(--warning-rgb), 0.1);
+}
+.stat-card-resignation.approved, .stat-card-resignation.approved.active { 
+    border-left-color: var(--app-success-color); 
+}
+.stat-card-resignation.approved.active {
+    background-color: rgba(var(--app-success-rgb), 0.1);
+}
+.stat-card-resignation.declined, .stat-card-resignation.declined.active { 
+    border-left-color: var(--danger-color); 
+}
+.stat-card-resignation.declined.active {
+    background-color: rgba(var(--danger-rgb), 0.05);
+}
+.stat-card-resignation.pending.active .stat-value { color: var(--warning-color); }
+.stat-card-resignation.approved.active .stat-value { color: var(--app-success-color); }
+.stat-card-resignation.declined.active .stat-value { color: var(--danger-color); }
+
+/* --- Table Styles --- */
+.data-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.data-table th.sortable:hover {
+  color: var(--text-primary);
+}
+.data-table .sort-icon {
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+  vertical-align: middle;
+}
+.data-table th.sortable:hover .sort-icon {
+  opacity: 1;
+}
+.data-table .sort-icon.active {
+  opacity: 1;
+  color: var(--app-success-color);
+}
+
+.avatar-table {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.resignation-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--bg-secondary);
+}
+
+.resignation-controls .input-group {
+    max-width: 400px;
+}
+
+/* --- Notice Period & Days Remaining Badges --- */
+.notice-badge, .days-remaining-badge {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.3em 0.7em;
+    border-radius: var(--border-radius);
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+}
+.notice-standard {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+.notice-short {
+    background-color: rgba(var(--warning-rgb), 0.15);
+    color: var(--warning-color);
+}
+.dark-theme .notice-short {
+    color: var(--warning-color);
+}
+.notice-long {
+    background-color: rgba(var(--info-rgb), 0.15);
+    color: var(--info-color);
+}
+
+.days-remaining-badge.positive {
+    background-color: rgba(var(--app-success-rgb), 0.1);
+    color: var(--app-success-color);
+}
+.days-remaining-badge.neutral {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+.days-remaining-badge.negative {
+    background-color: rgba(var(--danger-rgb), 0.1);
+    color: var(--danger-color);
+}

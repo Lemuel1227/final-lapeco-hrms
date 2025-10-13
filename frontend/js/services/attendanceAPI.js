@@ -1,42 +1,50 @@
 import api from './api';
 
 const attendanceAPI = {
-  // Get all attendance records
-  getAll: (params = {}) => {
-    const queryParams = new URLSearchParams(params).toString();
-    return api.get(`/attendance${queryParams ? `?${queryParams}` : ''}`);
-  },
+    // Get all attendance records
+    getAll: (params = {}) => {
+        return api.get('/attendance', { params });
+    },
 
-  // Get attendance logs in the format expected by frontend
-  getLogs: (params = {}) => {
-    const queryParams = new URLSearchParams(params).toString();
-    return api.get(`/attendance-logs${queryParams ? `?${queryParams}` : ''}`);
-  },
+    // Get attendance logs
+    getLogs: (params = {}) => {
+        return api.get('/attendance-logs', { params });
+    },
 
-  // Create new attendance record
-  create: (data) => {
-    return api.post('/attendance', data);
-  },
+    // Get attendance history with statistics
+    getHistory: (params = {}) => {
+        return api.get('/attendance-history', { params });
+    },
 
-  // Update attendance record
-  update: (id, data) => {
-    return api.put(`/attendance/${id}`, data);
-  },
+    // Get daily attendance data
+    getDaily: (params = {}) => {
+        return api.get('/attendance-daily', { params });
+    },
 
-  // Delete attendance record
-  delete: (id) => {
-    return api.delete(`/attendance/${id}`);
-  },
+    // Create new attendance record
+    create: (data) => {
+        return api.post('/attendance', data);
+    },
 
-  // Clock in/out actions
-  clockAction: (data) => {
-    return api.post('/attendance/clock', data);
-  },
+    // Update attendance record
+    update: (id, data) => {
+        return api.put(`/attendance/${id}`, data);
+    },
 
-  // Get single attendance record
-  getById: (id) => {
-    return api.get(`/attendance/${id}`);
-  }
+    // Delete attendance record
+    delete: (id) => {
+        return api.delete(`/attendance/${id}`);
+    },
+
+    // Get attendance record by ID
+    getById: (id) => {
+        return api.get(`/attendance/${id}`);
+    },
+
+    // Clock in/out action
+    clockAction: (data) => {
+        return api.post('/attendance/clock', data);
+    }
 };
 
 export default attendanceAPI;

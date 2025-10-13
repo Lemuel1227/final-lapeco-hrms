@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import Select from 'react-select';
 
-const AddEmployeeToPositionModal = ({ show, onClose, onSave, currentPosition, allEmployees, allPositions }) => {
+const AddEmployeeToPositionModal = ({ show, onClose, onSave, onConfirmReassignment, currentPosition, allEmployees, allPositions }) => {
   const [selectedEmployeeOption, setSelectedEmployeeOption] = useState(null);
   const [error, setError] = useState('');
 
@@ -46,13 +46,21 @@ const AddEmployeeToPositionModal = ({ show, onClose, onSave, currentPosition, al
     const currentPosTitle = positionsMap[selectedEmployee.positionId];
 
     if (selectedEmployee.positionId && selectedEmployee.positionId !== currentPosition.id) {
-      if (!window.confirm(`Employee ${selectedEmployee.name} is already assigned to "${currentPosTitle}".\n\nAre you sure you want to re-assign them to "${currentPosition.title}"?`)) {
-        return;
-      }
+      // Close this modal first, then show confirmation
+      onClose();
+      // Use external confirmation handler instead of window.confirm
+      onConfirmReassignment(
+        selectedEmployee,
+        currentPosTitle,
+        currentPosition,
+        () => {
+          onSave(selectedEmployee.id, currentPosition.id);
+        }
+      );
+    } else {
+      onSave(selectedEmployee.id, currentPosition.id);
+      onClose();
     }
-    
-    onSave(selectedEmployee.id, currentPosition.id);
-    onClose();
   };
 
   const customFormatOptionLabel = ({ label, subLabel }) => (

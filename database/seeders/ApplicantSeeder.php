@@ -13,6 +13,8 @@ class ApplicantSeeder extends Seeder
      */
     public function run(): void
     {
+        echo "Starting ApplicantSeeder...\n";
+        
         $applicants = [
             [
                 'first_name' => 'John',
@@ -22,7 +24,7 @@ class ApplicantSeeder extends Seeder
                 'phone' => '+1234567890',
                 'birthday' => '1990-05-15',
                 'gender' => 'Male',
-                'job_opening_id' => 1,
+                'job_opening_id' => 1, // Placeholder - no job_openings table exists
                 'status' => 'New Applicant',
                 'application_date' => now()->subDays(5)->toDateString(),
                 'notes' => 'Strong background in software development',
@@ -129,5 +131,7 @@ class ApplicantSeeder extends Seeder
         foreach ($applicants as $applicant) {
             Applicant::create($applicant);
         }
+        
+        echo "ApplicantSeeder completed. Created " . count($applicants) . " applicants.\n";
     }
 }

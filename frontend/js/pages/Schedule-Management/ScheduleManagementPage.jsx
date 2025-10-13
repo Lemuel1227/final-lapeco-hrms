@@ -62,104 +62,106 @@ const ScheduleManagementPage = (props) => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  // Fetch all data
-  useEffect(() => {
-    const fetchAllData = async () => {
-      try {
-        setLoading(true);
-        const [schedulesRes, templatesRes, employeesRes, positionsRes] = await Promise.all([
-          scheduleAPI.getAll(),
-          templateAPI.getAll(),
-          employeeAPI.getAll(),
-          positionAPI.getAll()
-        ]);
+  // Fetch all data function
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      const [schedulesRes, templatesRes, employeesRes, positionsRes] = await Promise.all([
+        scheduleAPI.getAll(),
+        templateAPI.getAll(),
+        employeeAPI.getAll(),
+        positionAPI.getAll()
+      ]);
 
-        // Transform schedules data
-        const transformedSchedules = [];
-        const scheduleMap = new Map();
-        if (schedulesRes.data && schedulesRes.data.schedules) {
-          schedulesRes.data.schedules.forEach(schedule => {
-            // Add to basic schedules map using actual schedule ID
-            const key = `${schedule.date}-${schedule.name}`;
-            if (!scheduleMap.has(key)) {
-              scheduleMap.set(key, {
-                id: schedule.id, // Use actual schedule ID, not assignment ID
-                date: schedule.date,
-                name: schedule.name,
-                employees_count: 0
-              });
-            }
-            
-            schedule.assignments.forEach(assignment => {
-              transformedSchedules.push({
-                id: assignment.id,
-                date: schedule.date,
-                name: schedule.name,
-                user_name: assignment.user_name,
-                employee_id: assignment.employee_id,
-                position_name: assignment.position_name,
-                start_time: assignment.start_time,
-                end_time: assignment.end_time,
-                notes: assignment.notes
-              });
-              
-              // Increment employee count for this schedule
-              scheduleMap.get(key).employees_count++;
+      // Transform schedules data
+      const transformedSchedules = [];
+      const scheduleMap = new Map();
+      if (schedulesRes.data && schedulesRes.data.schedules) {
+        schedulesRes.data.schedules.forEach(schedule => {
+          // Add to basic schedules map using actual schedule ID
+          const key = `${schedule.date}-${schedule.name}`;
+          if (!scheduleMap.has(key)) {
+            scheduleMap.set(key, {
+              id: schedule.id, // Use actual schedule ID, not assignment ID
+              date: schedule.date,
+              name: schedule.name,
+              employees_count: 0
             });
+          }
+          
+          schedule.assignments.forEach(assignment => {
+            transformedSchedules.push({
+              id: assignment.id,
+              date: schedule.date,
+              name: schedule.name,
+              user_name: assignment.user_name,
+              employee_id: assignment.employee_id,
+              position_name: assignment.position_name,
+              start_time: assignment.start_time,
+              end_time: assignment.end_time,
+              ot_hours: assignment.ot_hours || '0',
+              notes: assignment.notes
+            });
+            
+            // Increment employee count for this schedule
+            scheduleMap.get(key).employees_count++;
           });
-        }
-        setSchedules(transformedSchedules);
-        setBasicSchedules(Array.from(scheduleMap.values()));
-
-        // Set other data
-        setTemplates(Array.isArray(templatesRes.data) ? templatesRes.data : (templatesRes.data?.data || []));
-        
-        const empData = Array.isArray(employeesRes.data) ? employeesRes.data : (employeesRes.data?.data || []);
-        const posData = Array.isArray(positionsRes.data) ? positionsRes.data : (positionsRes.data?.data || []);
-        
-        // Create position lookup map
-        const positionMap = {};
-        posData.forEach(p => {
-          positionMap[p.id] = p.title ?? p.name;
         });
-        
-        // Normalize employees and add position title
-        const normalizedEmployees = empData.map(e => {
-          const normalized = {
-            id: e.id,
-            name: e.name,
-            email: e.email,
-            role: e.role,
-            positionId: e.position_id ?? e.positionId,
-            joiningDate: e.joining_date ?? e.joiningDate,
-            birthday: e.birthday,
-            gender: e.gender,
-            address: e.address,
-            contactNumber: e.contact_number ?? e.contactNumber,
-            imageUrl: e.image_url ?? e.imageUrl,
-            sssNo: e.sss_no ?? e.sssNo,
-            tinNo: e.tin_no ?? e.tinNo,
-            pagIbigNo: e.pag_ibig_no ?? e.pagIbigNo,
-            philhealthNo: e.philhealth_no ?? e.philhealthNo,
-            resumeFile: e.resume_file ?? e.resumeFile,
-            status: e.account_status ?? e.status ?? 'Active',
-            position: positionMap[e.position_id ?? e.positionId] || null
-          };
-          normalized.positionTitle = normalized.positionId ? positionMap[normalized.positionId] : null;
-          return normalized;
-        });
-        
-        setEmployees(normalizedEmployees);
-        setPositions(posData);
-        
-        setError(null);
-      } catch (err) {
-        setError('Failed to load data. Please try again.');
-      } finally {
-        setLoading(false);
       }
-    };
+      setSchedules(transformedSchedules);
+      setBasicSchedules(Array.from(scheduleMap.values()));
 
+      // Set other data
+      setTemplates(Array.isArray(templatesRes.data) ? templatesRes.data : (templatesRes.data?.data || []));
+      
+      const empData = Array.isArray(employeesRes.data) ? employeesRes.data : (employeesRes.data?.data || []);
+      const posData = Array.isArray(positionsRes.data) ? positionsRes.data : (positionsRes.data?.data || []);
+      
+      // Create position lookup map
+      const positionMap = {};
+      posData.forEach(p => {
+        positionMap[p.id] = p.title ?? p.name;
+      });
+      
+      // Normalize employees and add position title
+      const normalizedEmployees = empData.map(e => {
+        const normalized = {
+          id: e.id,
+          name: e.name,
+          email: e.email,
+          role: e.role,
+          positionId: e.position_id ?? e.positionId,
+          joiningDate: e.joining_date ?? e.joiningDate,
+          birthday: e.birthday,
+          gender: e.gender,
+          address: e.address,
+          contactNumber: e.contact_number ?? e.contactNumber,
+          imageUrl: e.image_url ?? e.imageUrl,
+          sssNo: e.sss_no ?? e.sssNo,
+          tinNo: e.tin_no ?? e.tinNo,
+          pagIbigNo: e.pag_ibig_no ?? e.pagIbigNo,
+          philhealthNo: e.philhealth_no ?? e.philhealthNo,
+          resumeFile: e.resume_file ?? e.resumeFile,
+          status: e.account_status ?? e.status ?? 'Active',
+          position: positionMap[e.position_id ?? e.positionId] || null
+        };
+        normalized.positionTitle = normalized.positionId ? positionMap[normalized.positionId] : null;
+        return normalized;
+      });
+      
+      setEmployees(normalizedEmployees);
+      setPositions(posData);
+      
+      setError(null);
+    } catch (err) {
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
     fetchAllData();
   }, []);
   
@@ -287,6 +289,7 @@ const ScheduleManagementPage = (props) => {
     { key: 'position_name', name: 'Position' },
     { key: 'start_time', name: 'Start Time' },
     { key: 'end_time', name: 'End Time' },
+    { key: 'ot_hours', name: 'OT (hrs)' },
   ];
   
   const positionsOnDate = useMemo(() => {
@@ -363,7 +366,7 @@ const ScheduleManagementPage = (props) => {
               position_name: assignment.position_name,
               start_time: assignment.start_time,
               end_time: assignment.end_time,
-              notes: assignment.notes
+              ot_hours: assignment.ot_hours || '0'
             });
             
             // Increment employee count for this schedule
@@ -407,7 +410,7 @@ const ScheduleManagementPage = (props) => {
               position_name: assignment.position_name,
               start_time: assignment.start_time,
               end_time: assignment.end_time,
-              notes: assignment.notes
+              ot_hours: assignment.ot_hours || '0'
             });
             
             // Increment employee count for this schedule
@@ -454,7 +457,7 @@ const ScheduleManagementPage = (props) => {
               position_name: assignment.position_name,
               start_time: assignment.start_time,
               end_time: assignment.end_time,
-              notes: assignment.notes
+              ot_hours: assignment.ot_hours || '0'
             });
             
             // Increment employee count for this schedule
@@ -480,10 +483,73 @@ const ScheduleManagementPage = (props) => {
 
   const handleOpenEditScheduleModal = (date) => { setEditingScheduleDate(date); setShowEditScheduleModal(true); };
   const handleCloseEditScheduleModal = () => { setEditingScheduleDate(null); setShowEditScheduleModal(false); };
-  const handleSaveAndCloseEditModal = (date, updatedEntries) => {
-    // This function will need to be updated to use React Router's navigate
-    // For now, it will just log and not navigate
-    // In a real application, you would use navigate('/dashboard/schedule-management/update', { state: { date, schedules: updatedEntries } });
+  const handleSaveAndCloseEditModal = async (date, updatedEntries) => {
+    try {
+      // Get the schedule ID for the date being edited
+      const scheduleInfo = schedulesByDate[date]?.info;
+      if (!scheduleInfo || !scheduleInfo.id) {
+        setToast({ show: true, message: 'Error: Could not find schedule to update', type: 'error' });
+        return;
+      }
+
+      // Transform the updated entries to match the backend API format
+      const scheduleData = {
+        name: updatedEntries[0]?.name || `Schedule for ${date}`,
+        date: date,
+        description: null,
+        assignments: updatedEntries.map(entry => ({
+          empId: entry.empId,
+          start_time: entry.start_time,
+          end_time: entry.end_time,
+          ot_hours: entry.ot_hours || '0',
+          notes: entry.notes || null
+        }))
+      };
+
+      // Log the data being sent for debugging
+      console.log('Sending schedule update data:', {
+        scheduleId: scheduleInfo.id,
+        scheduleData: scheduleData
+      });
+
+      // Call the update API
+      await scheduleAPI.update(scheduleInfo.id, scheduleData);
+      
+      // Refresh the schedule data
+      await fetchAllData();
+      
+      // Close the modal and show success message
+      handleCloseEditScheduleModal();
+      setToast({ show: true, message: 'Schedule updated successfully!', type: 'success' });
+      
+    } catch (error) {
+      console.error('Error updating schedule:', error);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
+      
+      let errorMessage = 'Unable to save schedule changes. Please try again.';
+      
+      if (error.response?.data?.error === 'SCHEDULE_EXISTS_FOR_DATE') {
+        errorMessage = 'A schedule already exists for this date. Only one schedule per date is allowed.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors
+        const validationErrors = Object.values(error.response.data.errors).flat();
+        errorMessage = `Please check your input: ${validationErrors.join(', ')}`;
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Schedule not found. It may have been deleted by another user.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to update this schedule.';
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Server error occurred. Please try again later.';
+      } else if (error.message && !error.message.includes('ReferenceError') && !error.message.includes('TypeError')) {
+        errorMessage = 'Unable to save schedule changes. Please check your connection and try again.';
+      }
+      
+      setToast({ show: true, message: errorMessage, type: 'error' });
+    }
   };
   
   const handleStartCreationFlow = (source) => {
@@ -562,8 +628,8 @@ const ScheduleManagementPage = (props) => {
                           <table className="table table-sm table-striped">
                               <thead>
                                   <tr>
-                                      <th>Employee Name</th><th>Position</th>
-                                      <th>Start Time</th><th>End Time</th><th>Notes</th>
+                                      <th>Employee Name</th><th>Employee ID</th><th>Position</th>
+                                      <th>Start Time</th><th>End Time</th><th>OT (hrs)</th>
                                       {(columnsForTable || []).map(key => <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</th>)}
                                   </tr>
                               </thead>
@@ -571,10 +637,11 @@ const ScheduleManagementPage = (props) => {
                                   {dataForTable.map(assignment => (
                                       <tr key={assignment.id}>
                                           <td>{assignment.user?.name || 'Unknown'}</td>
+                                          <td>{assignment.user?.id || 'N/A'}</td>
                                           <td>{assignment.user?.position?.name || 'Unassigned'}</td>
                                           <td>{formatTimeToAMPM(assignment.start_time)}</td>
                                           <td>{formatTimeToAMPM(assignment.end_time)}</td>
-                                          <td>{assignment.notes || '-'}</td>
+                                          <td>{assignment.ot_hours && parseFloat(assignment.ot_hours) > 0 ? assignment.ot_hours : '---'}</td>
                                           {(columnsForTable || []).map(key => <td key={key}>-</td>)}
                                       </tr>
                                   ))}
@@ -584,8 +651,18 @@ const ScheduleManagementPage = (props) => {
                   ) : (
                       <div className="table-responsive">
                           <table className="table template-preview-table">
-                              <thead><tr>{(columnsForTable || []).map(key => <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</th>)}</tr></thead>
-                              <tbody><tr><td colSpan={(columnsForTable || []).length} className="text-center">This template has no assigned employees yet.</td></tr></tbody>
+                              <thead>
+                                  <tr>
+                                      <th>Employee Name</th><th>Employee ID</th><th>Position</th>
+                                      <th>Start Time</th><th>End Time</th><th>OT (hrs)</th>
+                                      {(columnsForTable || []).map(key => <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</th>)}
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  <tr>
+                                      <td colSpan={6 + (columnsForTable || []).length} className="text-center">This template has no assigned employees yet.</td>
+                                  </tr>
+                              </tbody>
                           </table>
                       </div>
                   )}
@@ -598,7 +675,7 @@ const ScheduleManagementPage = (props) => {
                           <thead>
                               <tr>
                                   <th>Employee ID</th><th>Employee Name</th><th>Position</th>
-                                  <th>Start Time</th><th>End Time</th>
+                                  <th>Start Time</th><th>End Time</th><th>OT Hours</th>
                                   {(columnsForTable || []).map(key => <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}</th>)}
                               </tr>
                           </thead>
@@ -608,9 +685,10 @@ const ScheduleManagementPage = (props) => {
                                       <td>{emp.employee_id}</td><td>{emp.user_name}</td><td>{emp.position_name || 'Unassigned'}</td>
                                       <td>{formatTimeToAMPM(emp.start_time)}</td>
                                       <td>{formatTimeToAMPM(emp.end_time)}</td>
+                                      <td>{emp.ot_hours && parseFloat(emp.ot_hours) > 0 ? emp.ot_hours : '---'}</td>
                                       {(columnsForTable || []).map(key => {
                                         const value = emp[key];
-                                        if (key === 'start_time' || key === 'end_time') {
+                                        if (key === 'start_time' || key === 'end_time' || key === 'ot_hours') {
                                           return <td key={key}>{formatTimeToAMPM(value)}</td>;
                                         }
                                         return <td key={key}>{value || '---'}</td>;
@@ -658,6 +736,8 @@ const ScheduleManagementPage = (props) => {
                                     const value = sch[col.key];
                                     if (col.key === 'start_time' || col.key === 'end_time') {
                                       return <td key={col.key}>{formatTimeToAMPM(value)}</td>;
+                                    } else if (col.key === 'ot_hours') {
+                                      return <td key={col.key}>{value && parseFloat(value) > 0 ? value : '---'}</td>;
                                     }
                                     return <td key={col.key}>{value || '---'}</td>;
                                   })}

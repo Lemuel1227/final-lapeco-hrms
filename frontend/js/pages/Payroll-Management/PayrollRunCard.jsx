@@ -1,5 +1,5 @@
 import React from 'react';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
@@ -28,6 +28,15 @@ const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
 
   const payDate = run.records[0]?.paymentDate || format(addDays(new Date(run.cutOff.split(' to ')[1]), 5), 'yyyy-MM-dd');
 
+  // Recalculate gross and deductions for display
+  const { grossPay, totalDeductions } = run.records.reduce((acc, rec) => {
+    acc.grossPay += (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const statutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + val, 0);
+    const other = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    acc.totalDeductions += statutory + other;
+    return acc;
+  }, { grossPay: 0, totalDeductions: 0 });
+
   return (
     <div className="payroll-run-card" onClick={onViewDetails}>
       <div className="card-header">
@@ -40,20 +49,30 @@ const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
         </span>
       </div>
       <div className="card-body">
-        <dl className="stats-list">
-          <div className="stat-item">
-            <dt>Total Net Payout</dt>
-            <dd className="net-payout">₱{formatCurrency(run.totalNet)}</dd>
-          </div>
-          <div className="stat-item">
-            <dt>Employees</dt>
-            <dd>{run.records.length}</dd>
-          </div>
-          <div className="stat-item">
-            <dt>Pay Date</dt>
-            <dd>{format(new Date(payDate + 'T00:00:00'), 'MMM dd, yyyy')}</dd>
-          </div>
-        </dl>
+        <div className="body-column financials">
+            <div className="financial-item">
+                <span className="financial-label">Gross Pay</span>
+                <span className="financial-value">₱{formatCurrency(grossPay)}</span>
+            </div>
+            <div className="financial-item">
+                <span className="financial-label">Deductions</span>
+                <span className="financial-value text-danger">- ₱{formatCurrency(totalDeductions)}</span>
+            </div>
+             <div className="financial-item net-payout">
+                <span className="financial-label">Total Net Payout</span>
+                <span className="financial-value">₱{formatCurrency(run.totalNet)}</span>
+            </div>
+        </div>
+        <div className="body-column details">
+            <div className="detail-item">
+                <span className="detail-label">Pay Date</span>
+                <span className="detail-value">{format(new Date(payDate + 'T00:00:00'), 'MMM dd, yyyy')}</span>
+            </div>
+            <div className="detail-item">
+                <span className="detail-label">Employees</span>
+                <span className="detail-value">{run.records.length}</span>
+            </div>
+        </div>
       </div>
       <div className="card-footer">
         {!run.isPaid && (
@@ -61,18 +80,20 @@ const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
             Mark All as Paid
           </button>
         )}
-        <button className="btn btn-sm btn-primary" onClick={(e) => handleActionClick(e, onViewDetails)}>
-          View Details
-        </button>
-        <div className="dropdown">
-            <button className="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" onClick={(e) => e.stopPropagation()} aria-expanded="false">
-                <i className="bi bi-three-dots-vertical"></i>
+        <div className="ms-auto d-flex gap-2">
+            <button className="btn btn-sm btn-primary" onClick={(e) => handleActionClick(e, onViewDetails)}>
+            View Details
             </button>
-            <ul className="dropdown-menu dropdown-menu-end">
-                <li><a className="dropdown-item" href="#" onClick={handleExportRun}><i className="bi bi-download me-2"></i>Export CSV</a></li>
-                <li><hr className="dropdown-divider" /></li>
-                <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleActionClick(e, onDelete)}><i className="bi bi-trash-fill me-2"></i>Delete Run</a></li>
-            </ul>
+            <div className="dropdown">
+                <button className="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" onClick={(e) => e.stopPropagation()} aria-expanded="false">
+                    <i className="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul className="dropdown-menu dropdown-menu-end">
+                    <li><a className="dropdown-item" href="#" onClick={handleExportRun}><i className="bi bi-download me-2"></i>Export CSV</a></li>
+                    <li><hr className="dropdown-divider" /></li>
+                    <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleActionClick(e, onDelete)}><i className="bi bi-trash-fill me-2"></i>Delete Run</a></li>
+                </ul>
+            </div>
         </div>
       </div>
     </div>

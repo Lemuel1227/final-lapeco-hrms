@@ -1,10 +1,19 @@
 .projection-summary-card {
     background: linear-gradient(135deg, var(--app-success-color) 0%, #1a744a 100%);
-    color: white;
+    color: var(--text-on-success);
     padding: 1rem 1.25rem;
     border-radius: var(--border-radius);
     text-align: center;
 }
+.dark-theme .projection-summary-card {
+    color: var(--text-primary);
+}
+
+.payroll-projection-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 .projection-summary-card .summary-label {
     font-size: 0.9rem;
     opacity: 0.9;
@@ -34,7 +43,7 @@
 }
 
 .my-payroll-accordion .accordion-item {
-    background-color: var(--white-color);
+    background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius) !important;
     overflow: hidden;
@@ -49,6 +58,7 @@
     align-items: center;
     width: 100%;
     text-align: left;
+    color: var(--text-primary);
 }
 .my-payroll-accordion .accordion-button:not(.collapsed) {
     color: var(--app-success-color);
@@ -59,12 +69,12 @@
     font-size: 1rem;
     font-weight: 600;
     display: block;
-    color: var(--dark-gray);
+    color: var(--text-primary);
     margin-bottom: 0;
 }
 .my-payroll-accordion .accordion-button .period-info .period-status {
     font-size: 0.75rem;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
     font-weight: 500;
 }
 .my-payroll-accordion .accordion-button .period-summary {
@@ -75,7 +85,7 @@
 .my-payroll-accordion .accordion-button .period-summary .summary-label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
     display: block;
     margin-bottom: 0;
 }
@@ -86,6 +96,18 @@
 }
 
 .my-payroll-accordion .accordion-body {
-    background-color: #f8f9fa;
+    background-color: var(--bg-secondary);
     padding: 1.25rem;
+}
+
+.dark-theme .my-payroll-accordion .accordion-button {
+    background-color: var(--bg-primary);
+}
+
+.dark-theme .my-payroll-accordion .accordion-button:not(.collapsed) {
+    background-color: var(--bg-tertiary);
+}
+
+.dark-theme .my-payroll-accordion .accordion-button::after {
+    filter: brightness(0) invert(1);
 }
