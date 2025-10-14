@@ -190,12 +190,15 @@ class EmployeeController extends Controller
             $data['pag_ibig_no'] = $employee->pag_ibig_no;
             $data['philhealth_no'] = $employee->philhealth_no;
             $data['resume_file'] = $employee->resume_file;
+            // Provide secure URL for private resume files
+            $data['resumeUrl'] = $employee->resume_file ? route('employee.resume', $employee->id) : null;
         } else {
             $data['sss_no'] = null;
             $data['tin_no'] = null;
             $data['pag_ibig_no'] = null;
             $data['philhealth_no'] = null;
             $data['resume_file'] = null;
+            $data['resumeUrl'] = null;
         }
         
         return response()->json($data);
@@ -206,6 +209,13 @@ class EmployeeController extends Controller
         // Authorization is now handled by middleware
         
         // Debug logging for file upload BEFORE validation
+        \Log::info('Request debug info:', [
+            'has_file' => $request->hasFile('resume_file'),
+            'all_files' => $request->allFiles(),
+            'content_type' => $request->header('Content-Type'),
+            'request_method' => $request->method()
+        ]);
+        
         if ($request->hasFile('resume_file')) {
             $file = $request->file('resume_file');
             \Log::info('File upload debug BEFORE validation:', [
@@ -321,28 +331,50 @@ class EmployeeController extends Controller
                 unset($validated['resume_file']);
             }
             
-            // Handle file upload - store in private storage for security using Laravel 12 Storage methods
-            if ($request->hasFile('resume_file')) {
+            // Handle file upload - store in private storage (storage/app/resumes)
+            if ($request->hasFile('resume_file') && $request->file('resume_file')->isValid()) {
                 $file = $request->file('resume_file');
                 $filename = time() . '_' . $file->getClientOriginalName();
-                $filePath = 'resumes/' . $filename;
                 
-                // Use Storage::put() for Laravel 12
-                $stored = Storage::disk('local')->put($filePath, file_get_contents($file->getRealPath()));
-                
-                if ($stored) {
-                    $resumeFile = $filePath;
+                try {
+                    // Ensure the resumes directory exists
+                    $resumesPath = Storage::disk('local')->path('resumes');
+                    if (!file_exists($resumesPath)) {
+                        mkdir($resumesPath, 0755, true);
+                        \Log::info('Created resumes directory:', ['path' => $resumesPath]);
+                    }
                     
-                    \Log::info('File stored successfully using Storage::put():', [
-                        'original_name' => $file->getClientOriginalName(),
-                        'stored_path' => $filePath,
-                        'full_path' => Storage::disk('local')->path($filePath)
+                    // Use the Laravel 12 recommended approach: storeAs method on uploaded file
+                    $storedPath = $file->storeAs('resumes', $filename, 'local');
+                    
+                    if ($storedPath) {
+                        $resumeFile = $storedPath; // e.g., 'resumes/123_name.pdf'
+                        $fullPath = Storage::disk('local')->path($storedPath);
+                        
+                        \Log::info('File stored successfully using storeAs():', [
+                            'original_name' => $file->getClientOriginalName(),
+                            'stored_path' => $storedPath,
+                            'full_path' => $fullPath,
+                            'file_exists' => file_exists($fullPath),
+                            'file_size' => $file->getSize(),
+                            'mime_type' => $file->getMimeType()
+                        ]);
+                    } else {
+                        \Log::error('Failed to store file using storeAs() - returned false');
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Exception during file storage:', [
+                        'error' => $e->getMessage(),
+                        'file_name' => $file->getClientOriginalName(),
+                        'trace' => $e->getTraceAsString()
                     ]);
-                } else {
-                    \Log::error('Failed to store file using Storage::put()');
                 }
             } else {
-                \Log::info('No resume file in request or file upload failed');
+                if ($request->hasFile('resume_file')) {
+                    \Log::error('Resume file is invalid');
+                } else {
+                    \Log::info('No resume file in request');
+                }
             }
             
             // Add default values for required fields
@@ -480,28 +512,50 @@ class EmployeeController extends Controller
                 unset($validated['resume_file']);
             }
             
-            // Handle file upload - store in private storage for security using Laravel 12 Storage methods
-            if ($request->hasFile('resume_file')) {
+            // Handle file upload - store in private storage (storage/app/resumes)
+            if ($request->hasFile('resume_file') && $request->file('resume_file')->isValid()) {
                 $file = $request->file('resume_file');
                 $filename = time() . '_' . $file->getClientOriginalName();
-                $filePath = 'resumes/' . $filename;
                 
-                // Use Storage::put() for Laravel 12
-                $stored = Storage::disk('local')->put($filePath, file_get_contents($file->getRealPath()));
-                
-                if ($stored) {
-                    $resumeFile = $filePath;
+                try {
+                    // Ensure the resumes directory exists
+                    $resumesPath = Storage::disk('local')->path('resumes');
+                    if (!file_exists($resumesPath)) {
+                        mkdir($resumesPath, 0755, true);
+                        \Log::info('Created resumes directory in update:', ['path' => $resumesPath]);
+                    }
                     
-                    \Log::info('File stored successfully in update using Storage::put():', [
-                        'original_name' => $file->getClientOriginalName(),
-                        'stored_path' => $filePath,
-                        'full_path' => Storage::disk('local')->path($filePath)
+                    // Use the Laravel 12 recommended approach: storeAs method on uploaded file
+                    $storedPath = $file->storeAs('resumes', $filename, 'local');
+                    
+                    if ($storedPath) {
+                        $resumeFile = $storedPath;
+                        $fullPath = Storage::disk('local')->path($storedPath);
+                        
+                        \Log::info('File stored successfully in update using storeAs():', [
+                            'original_name' => $file->getClientOriginalName(),
+                            'stored_path' => $storedPath,
+                            'full_path' => $fullPath,
+                            'file_exists' => file_exists($fullPath),
+                            'file_size' => $file->getSize(),
+                            'mime_type' => $file->getMimeType()
+                        ]);
+                    } else {
+                        \Log::error('Failed to store file in update using storeAs() - returned false');
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Exception during file storage in update:', [
+                        'error' => $e->getMessage(),
+                        'file_name' => $file->getClientOriginalName(),
+                        'trace' => $e->getTraceAsString()
                     ]);
-                } else {
-                    \Log::error('Failed to store file in update using Storage::put()');
                 }
             } else {
-                \Log::info('No resume file in update request or file upload failed');
+                if ($request->hasFile('resume_file')) {
+                    \Log::error('Resume file is invalid in update');
+                } else {
+                    \Log::info('No resume file in update request');
+                }
             }
             
             // Add resume file path if it was uploaded
@@ -637,11 +691,121 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Return HTML error response for iframe display
+     */
+    private function resumeErrorResponse($title, $message)
+    {
+        $html = '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Resume Error</title>
+            <style>
+                body { 
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    height: 100vh; 
+                    margin: 0; 
+                    background-color: #f8f9fa;
+                    color: #6c757d;
+                }
+                .error-container { 
+                    text-align: center; 
+                    padding: 2rem;
+                    max-width: 400px;
+                }
+                .error-icon { 
+                    font-size: 4rem; 
+                    margin-bottom: 1rem;
+                    color: #ffc107;
+                }
+                .error-title { 
+                    font-size: 1.5rem; 
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                    color: #495057;
+                }
+                .error-message { 
+                    font-size: 1rem;
+                    line-height: 1.5;
+                    margin-bottom: 0;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="error-container">
+                <div class="error-icon">⚠️</div>
+                <h2 class="error-title">' . htmlspecialchars($title) . '</h2>
+                <p class="error-message">' . htmlspecialchars($message) . '</p>
+            </div>
+        </body>
+        </html>';
+        
+        return response($html, 404, ['Content-Type' => 'text/html']);
+    }
+
+    /**
      * Serve private resume files securely using Laravel 12 Storage methods
      */
     public function serveResume(Request $request, User $employee)
     {
+        \Log::info('Resume access attempt:', [
+            'employee_id' => $employee->id,
+            'has_token_param' => $request->has('token'),
+            'token_param' => $request->get('token') ? substr($request->get('token'), 0, 10) . '...' : null,
+            'query_params' => $request->query(),
+            'headers' => $request->headers->all()
+        ]);
+        
+        // Try to get user from normal auth, or from token query parameter
         $user = $request->user();
+        
+        // If no user from normal auth, try token from query parameter
+        if (!$user && $request->has('token')) {
+            try {
+                $token = $request->get('token');
+                \Log::info('Attempting token authentication:', [
+                    'token_length' => strlen($token),
+                    'token_start' => substr($token, 0, 10)
+                ]);
+                
+                $personalAccessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                if ($personalAccessToken) {
+                    \Log::info('Token found:', [
+                        'token_id' => $personalAccessToken->id,
+                        'tokenable_type' => $personalAccessToken->tokenable_type,
+                        'tokenable_id' => $personalAccessToken->tokenable_id
+                    ]);
+                    
+                    if ($personalAccessToken->tokenable) {
+                        $user = $personalAccessToken->tokenable;
+                        \Log::info('User authenticated via token for resume access:', [
+                            'user_id' => $user->id,
+                            'employee_id' => $employee->id
+                        ]);
+                    } else {
+                        \Log::error('Token found but no tokenable user');
+                    }
+                } else {
+                    \Log::error('Token not found in database');
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error authenticating via token:', ['error' => $e->getMessage()]);
+            }
+        } else {
+            \Log::info('Auth status:', [
+                'has_user_from_auth' => !!$user,
+                'has_token_param' => $request->has('token')
+            ]);
+        }
+        
+        // If still no user, unauthorized
+        if (!$user) {
+            \Log::error('No user found after all auth attempts');
+            return response()->json(['error' => 'Unauthorized - No valid authentication'], 401);
+        }
         
         // Only HR personnel or the employee themselves can access the resume
         if ($user->role !== 'HR_PERSONNEL' && $user->id !== $employee->id) {
@@ -649,13 +813,30 @@ class EmployeeController extends Controller
         }
         
         // Check if employee has a resume file
+        \Log::info('Resume file check:', [
+            'employee_id' => $employee->id,
+            'resume_file_field' => $employee->resume_file,
+            'resume_file_exists_in_db' => !empty($employee->resume_file)
+        ]);
+        
         if (!$employee->resume_file) {
-            return response()->json(['error' => 'Resume not found'], 404);
+            return $this->resumeErrorResponse('Resume not found', 'No resume file has been uploaded for this employee.');
         }
         
         // Use Storage::exists() to check if file exists
-        if (!Storage::disk('local')->exists($employee->resume_file)) {
-            return response()->json(['error' => 'Resume file not found'], 404);
+        $fileExists = Storage::disk('local')->exists($employee->resume_file);
+        $fullPath = Storage::disk('local')->path($employee->resume_file);
+        
+        \Log::info('File system check:', [
+            'resume_file_path' => $employee->resume_file,
+            'full_path' => $fullPath,
+            'file_exists_in_storage' => $fileExists,
+            'storage_disk_path' => Storage::disk('local')->path(''),
+            'directory_contents' => is_dir(dirname($fullPath)) ? scandir(dirname($fullPath)) : 'directory does not exist'
+        ]);
+        
+        if (!$fileExists) {
+            return $this->resumeErrorResponse('Resume file not found', 'The resume file exists in the database but could not be found in storage.');
         }
         
         // Use Storage::get() to retrieve file content

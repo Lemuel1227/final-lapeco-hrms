@@ -1,11 +1,20 @@
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const NotificationItem = ({ notification, onMarkAsRead }) => {
+  const navigate = useNavigate();
+  
   const getIconForType = (type) => {
     switch (type) {
       case 'leave_request':
         return { icon: 'bi-calendar-event-fill', color: 'text-info' };
+      case 'leave_status_update':
+        // Use different colors based on the status in notification data
+        if (notification.data?.status === 'Declined') {
+          return { icon: 'bi-calendar-x-fill', color: 'text-danger' };
+        }
+        return { icon: 'bi-calendar-check-fill', color: 'text-success' };
       case 'performance_review':
         return { icon: 'bi-clipboard-check-fill', color: 'text-warning' };
       case 'recruitment':
@@ -24,9 +33,26 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
 
   const handleClick = (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    // Mark as read if unread
     if (!notification.read) {
       onMarkAsRead(notification.id);
     }
+    
+    // Navigate based on notification type and data
+    if (notification.type === 'leave_request') {
+      navigate('/dashboard/leave-management');
+    } else if (notification.type === 'leave_status_update') {
+      navigate('/dashboard/my-leave');
+    } else if (notification.data?.action_url) {
+      navigate(notification.data.action_url);
+    }
+    
+    // Close the dropdown by clicking outside
+    setTimeout(() => {
+      document.body.click();
+    }, 100);
   };
 
   return (
