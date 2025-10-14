@@ -46,6 +46,9 @@ Route::get('/applicants', [ApplicantController::class, 'index']);
 Route::post('/applicants', [ApplicantController::class, 'store']); // Add public POST route for testing
 Route::get('/positions', [PositionController::class, 'publicIndex']);
 
+// Resume serving route (handles auth internally)
+Route::get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
+
 // Protected routes
 Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // User profile
@@ -75,7 +78,6 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:employee,index'])->get('/employees/list', [EmployeeController::class, 'getEmployeesList']);
     Route::middleware(['role.access:employee,index'])->get('/employees/all', [EmployeeController::class, 'getAllEmployees']);
     Route::middleware(['role.access:employee,show'])->get('/employees/{employee}', [EmployeeController::class, 'show']);
-    Route::middleware(['role.access:employee,show'])->get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
     Route::middleware(['role.access:employee,store'])->post('/employees', [EmployeeController::class, 'store']);
     Route::middleware(['role.access:employee,update'])->put('/employees/{employee}', [EmployeeController::class, 'update']);
     Route::middleware(['role.access:employee,destroy'])->delete('/employees/{employee}', [EmployeeController::class, 'destroy']);

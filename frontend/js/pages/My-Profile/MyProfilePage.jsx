@@ -3,6 +3,9 @@ import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import { USER_ROLES } from '../../constants/roles';
 import { employeeAPI, positionAPI } from '../../services/api';
 import './MyProfilePage.css';
+import ResumeIframe from '../../modals/ResumeIframe';
+import ToastNotification from '../../common/ToastNotification';
+import api from '../../services/api';
 
 const InfoField = ({ label, value }) => (
     <div className="info-field">
@@ -21,6 +24,7 @@ const MyProfilePage = () => {
     const [positions, setPositions] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
     
     const fileInputRef = useRef(null);
     const isHrUser = userRole === USER_ROLES.HR_PERSONNEL;
@@ -68,7 +72,12 @@ const MyProfilePage = () => {
                 pag_ibig_no: currentUser.pag_ibig_no || '',
                 philhealth_no: currentUser.philhealth_no || '',
             });
-            setResumePreview(currentUser.resume_file || null);
+            // Set resume URL - if user has resume_file, create API URL
+            if (currentUser.resume_file) {
+                setResumePreview(`http://localhost:8000/api/employees/${currentUser.id}/resume`);
+            } else {
+                setResumePreview(null);
+            }
         }
     }, [currentUser]);
 
@@ -109,22 +118,43 @@ const MyProfilePage = () => {
     const handleSaveChanges = async (e) => {
         e.preventDefault();
         try {
-            // Update profile data
-            await employeeAPI.update(currentUser.id, formData);
+            // Check if we have a new resume file to upload
+            const hasNewFile = resumeFile && resumeFile instanceof File;
             
-            // Update resume if provided
-            if (resumeFile) {
-                // Note: Resume upload would need a separate API endpoint
+            let payload;
+            if (hasNewFile) {
+                // Use FormData for file uploads
+                payload = new FormData();
+                payload.append('_method', 'PUT'); // Method override for Laravel
+                payload.append('contact_number', formData.contact_number || '');
+                payload.append('address', formData.address || '');
+                payload.append('sss_no', formData.sss_no || '');
+                payload.append('tin_no', formData.tin_no || '');
+                payload.append('pag_ibig_no', formData.pag_ibig_no || '');
+                payload.append('philhealth_no', formData.philhealth_no || '');
+                payload.append('resume_file', resumeFile);
+                
+                // Use POST with method override for file uploads
+                await api.post(`/employees/${currentUser.id}`, payload);
+            } else {
+                // Use regular JSON for non-file updates
+                await employeeAPI.update(currentUser.id, formData);
             }
             
             // Update localStorage with new data
             const updatedUser = { ...currentUser, ...formData };
+            if (hasNewFile) {
+                updatedUser.resume_file = 'uploaded'; // Indicate file was uploaded
+                // Update preview to show new file
+                setResumePreview(`http://localhost:8000/api/employees/${currentUser.id}/resume`);
+            }
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setCurrentUser(updatedUser);
             
-            alert("Profile updated successfully!");
+            setToast({ show: true, message: 'Profile updated successfully!', type: 'success' });
         } catch (error) {
-            alert("Error updating profile. Please try again.");
+            console.error('Profile update error:', error);
+            setToast({ show: true, message: 'Error updating profile. Please try again.', type: 'error' });
         }
     };
 
@@ -229,7 +259,11 @@ const MyProfilePage = () => {
                                 )}
                                 {resumePreview ? (
                                     <div className="resume-viewer">
-                                        <iframe src={resumePreview} title={`${currentUser.name}'s Resume`} width="100%" height="100%" />
+                                        {resumePreview.startsWith('blob:') ? (
+                                            <iframe src={resumePreview} title={`${currentUser.name}'s Resume`} width="100%" height="600px" />
+                                        ) : (
+                                            <ResumeIframe resumeUrl={resumePreview} />
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="resume-placeholder">
@@ -248,6 +282,15 @@ const MyProfilePage = () => {
                     )}
                 </form>
             </div>
+            
+            {/* Toast Notification */}
+            {toast.show && (
+                <ToastNotification
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast({ show: false, message: '', type: 'success' })}
+                />
+            )}
         </div>
     );
 };

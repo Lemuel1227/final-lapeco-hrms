@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Leave;
 use App\Models\User;
 use App\Models\LeaveCredit;
+use App\Models\Notification;
 use Illuminate\Validation\ValidationException;
 
 class LeaveController extends Controller
@@ -74,6 +75,26 @@ class LeaveController extends Controller
             
             $leave = Leave::create($data);
             
+            // Create notification for all HR personnel
+            $hrPersonnel = User::where('role', 'HR_PERSONNEL')->get();
+            foreach ($hrPersonnel as $hrUser) {
+                Notification::createForUser(
+                    $hrUser->id,
+                    'leave_request',
+                    'New Leave Request',
+                    "{$user->name} has submitted a new {$data['type']} request for {$data['days']} day(s) from " . date('M j, Y', strtotime($data['date_from'])) . " to " . date('M j, Y', strtotime($data['date_to'])) . ".",
+                    [
+                        'leave_id' => $leave->id,
+                        'employee_name' => $user->name,
+                        'leave_type' => $data['type'],
+                        'days' => $data['days'],
+                        'date_from' => $data['date_from'],
+                        'date_to' => $data['date_to'],
+                        'action_url' => '/dashboard/leave-management'
+                    ]
+                );
+            }
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Your leave request has been submitted successfully and is pending approval.',
@@ -108,6 +129,8 @@ class LeaveController extends Controller
         ]);
 
         $user = $request->user();
+        $originalStatus = $leave->status;
+        
         if (isset($validated['status'])) {
             if (!in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
                 return response()->json(['message' => 'Forbidden'], 403);
@@ -119,6 +142,34 @@ class LeaveController extends Controller
         }
 
         $leave->update($validated);
+        
+        // Send notification to employee if status was changed by HR/Team Leader
+        if (isset($validated['status']) && $validated['status'] !== $originalStatus) {
+            $employee = $leave->user;
+            $newStatus = $validated['status'];
+            
+            if (in_array($newStatus, ['Approved', 'Declined'])) {
+                $statusText = $newStatus === 'Approved' ? 'approved' : 'declined';
+                
+                Notification::createForUser(
+                    $employee->id,
+                    'leave_status_update',
+                    "Leave Request {$newStatus}",
+                    "Your {$leave->type} request from " . date('M j, Y', strtotime($leave->date_from)) . " to " . date('M j, Y', strtotime($leave->date_to)) . " has been {$statusText} by {$user->name}.",
+                    [
+                        'leave_id' => $leave->id,
+                        'leave_type' => $leave->type,
+                        'status' => $newStatus,
+                        'approved_by' => $user->name,
+                        'date_from' => $leave->date_from,
+                        'date_to' => $leave->date_to,
+                        'days' => $leave->days,
+                        'action_url' => '/dashboard/my-leave'
+                    ]
+                );
+            }
+        }
+        
         return response()->json($leave->fresh('user'));
     }
 

@@ -13,6 +13,7 @@ import logo from '../../assets/logo.png';
 import { employeeAPI, terminationAPI } from '../../services/api';
 import { positionAPI } from '../../services/api';
 import ToastNotification from '../../common/ToastNotification';
+import api from '../../services/api';
 
 const EmployeeDataPage = () => {
   const [employees, setEmployees] = useState([]);
@@ -48,6 +49,14 @@ const EmployeeDataPage = () => {
     return employees.filter(emp => emp.status === 'Active' || emp.status === 'Inactive');
   }, [employees]);
 
+  // Build a fully qualified URL for files returned as relative paths from the backend
+  const buildFileUrl = (path) => {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path) || path.startsWith('blob:')) return path;
+    const root = (api?.defaults?.baseURL || '').replace(/\/api\/?$/, '');
+    return `${root}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
   const normalizeEmployee = (e) => ({
     id: e.id,
     name: e.name,
@@ -66,7 +75,8 @@ const EmployeeDataPage = () => {
     pagIbigNo: e.pag_ibig_no ?? e.pagIbigNo ?? null,
     philhealthNo: e.philhealth_no ?? e.philhealthNo ?? null,
     resumeFile: e.resume_file ?? e.resumeFile ?? null,
-    resumeUrl: e.resumeUrl ?? null,
+    // Prefer explicit resumeUrl; otherwise derive from resume_file if provided as a relative storage path
+    resumeUrl: e.resumeUrl ?? buildFileUrl(e.resume_file ?? null),
     attendance_status: e.attendance_status ?? 'Active',
   });
 
@@ -137,43 +147,36 @@ const EmployeeDataPage = () => {
           resumeFile: employeeData.resumeFile
         });
         
-        let payload;
+        // Always use FormData to support file uploads (even if no file is selected)
+        let payload = new FormData();
+        
+        // For PUT requests with FormData, we need to add method override
+        if (isEdit) {
+          payload.append('_method', 'PUT');
+        }
+        
+        payload.append('name', employeeData.name);
+        payload.append('email', employeeData.email);
+        if (!isEdit) {
+          payload.append('role', employeeData.role || 'REGULAR_EMPLOYEE');
+        }
+        if (employeeData.positionId) payload.append('position_id', Number(employeeData.positionId));
+        if (employeeData.joiningDate) payload.append('joining_date', employeeData.joiningDate);
+        if (employeeData.birthday) payload.append('birthday', employeeData.birthday);
+        if (employeeData.gender) payload.append('gender', employeeData.gender);
+        if (employeeData.address) payload.append('address', employeeData.address);
+        if (employeeData.contactNumber) payload.append('contact_number', employeeData.contactNumber);
+        if (employeeData.sssNo) payload.append('sss_no', employeeData.sssNo);
+        if (employeeData.tinNo) payload.append('tin_no', employeeData.tinNo);
+        if (employeeData.pagIbigNo) payload.append('pag_ibig_no', employeeData.pagIbigNo);
+        if (employeeData.philhealthNo) payload.append('philhealth_no', employeeData.philhealthNo);
+        
+        // Only append the file if a new file was selected
         if (hasNewFile) {
-          // Use FormData for file uploads
-          payload = new FormData();
-          payload.append('name', employeeData.name);
-          payload.append('email', employeeData.email);
-          if (!isEdit) {
-            payload.append('role', employeeData.role || 'REGULAR_EMPLOYEE');
-          }
-          if (employeeData.positionId) payload.append('position_id', Number(employeeData.positionId));
-          if (employeeData.joiningDate) payload.append('joining_date', employeeData.joiningDate);
-          if (employeeData.birthday) payload.append('birthday', employeeData.birthday);
-          if (employeeData.gender) payload.append('gender', employeeData.gender);
-          if (employeeData.address) payload.append('address', employeeData.address);
-          if (employeeData.contactNumber) payload.append('contact_number', employeeData.contactNumber);
-          if (employeeData.sssNo) payload.append('sss_no', employeeData.sssNo);
-          if (employeeData.tinNo) payload.append('tin_no', employeeData.tinNo);
-          if (employeeData.pagIbigNo) payload.append('pag_ibig_no', employeeData.pagIbigNo);
-          if (employeeData.philhealthNo) payload.append('philhealth_no', employeeData.philhealthNo);
-          if (employeeData.resumeFile) payload.append('resume_file', employeeData.resumeFile);
+          payload.append('resume_file', employeeData.resumeFile);
+          console.log('Appending resume file to FormData:', employeeData.resumeFile.name);
         } else {
-          // Use JSON for regular data
-          payload = {
-            name: employeeData.name,
-            email: employeeData.email,
-            ...(isEdit ? {} : { role: employeeData.role || 'REGULAR_EMPLOYEE' }),
-            position_id: employeeData.positionId ? Number(employeeData.positionId) : null,
-            joining_date: employeeData.joiningDate || null,
-            birthday: employeeData.birthday || null,
-            gender: employeeData.gender || null,
-            address: employeeData.address || null,
-            contact_number: employeeData.contactNumber || null,
-            sss_no: employeeData.sssNo || null,
-            tin_no: employeeData.tinNo || null,
-            pag_ibig_no: employeeData.pagIbigNo || null,
-            philhealth_no: employeeData.philhealthNo || null,
-          };
+          console.log('No new resume file to append');
         }
 
         if (isEdit) {
@@ -186,7 +189,8 @@ const EmployeeDataPage = () => {
               type: employeeData.resumeFile.type
             });
           }
-          await employeeAPI.update(id, payload);
+          // Use POST with _method=PUT for FormData file uploads
+          await api.post(`/employees/${id}`, payload);
           setToast({ show: true, message: 'Employee updated successfully!', type: 'success' });
         } else {
           const response = await employeeAPI.create(payload);

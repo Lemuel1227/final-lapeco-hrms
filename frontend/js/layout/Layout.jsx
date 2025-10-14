@@ -50,7 +50,8 @@ const Layout = ({ onLogout = () => {}, userRole: userRoleProp, currentUser: curr
           message: notification.message,
           timestamp: notification.created_at,
           read: !!notification.read_at,
-          title: notification.title
+          title: notification.title,
+          data: notification.data || null
         }));
         setNotifications(transformedNotifications);
       }

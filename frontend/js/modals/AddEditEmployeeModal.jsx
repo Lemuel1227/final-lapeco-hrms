@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './AddEditEmployeeModal.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import placeholderImage from '../assets/placeholder-profile.jpg';
+import ResumeIframe from './ResumeIframe';
 
 const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, viewOnly, onSwitchToEdit }) => {
   const initialFormState = {
@@ -226,8 +227,10 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, 
 
                         {formData.resumeUrl ? (
                           <div className="resume-viewer">
-                            {formData.resumeUrl.includes('blob:') ? (
+                            {formData.resumeUrl.startsWith('blob:') ? (
                               <iframe src={formData.resumeUrl} width="100%" height="600px" title="Resume Preview"></iframe>
+                            ) : formData.resumeUrl.startsWith('http://localhost:8000/api/') ? (
+                              <ResumeIframe resumeUrl={formData.resumeUrl} />
                             ) : (
                               <div className="d-flex flex-column align-items-center">
                                 <a href={formData.resumeUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary mb-3">
