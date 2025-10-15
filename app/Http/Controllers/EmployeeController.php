@@ -80,6 +80,7 @@ class EmployeeController extends Controller
                 'joining_date' => $employee->joining_date,
                 'attendance_status' => $employee->attendance_status ?? 'Pending',
                 'image_url' => $employee->image_url,
+                'profile_picture_url' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
                 'status' => $employee->account_status, // For frontend compatibility
             ];
         });
@@ -129,6 +130,7 @@ class EmployeeController extends Controller
                 'address' => $employee->address,
                 'contact_number' => $employee->contact_number,
                 'image_url' => $employee->image_url,
+                'profile_picture_url' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
                 'account_status' => $employee->account_status,
                 'attendance_status' => $employee->attendance_status ?? 'Pending',
                 'employment_status' => $employee->employment_status,

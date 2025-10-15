@@ -32,7 +32,14 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle }) => {
           <div className="modal-body">
             <div className="applicant-details-container">
               <div className="profile-sidebar">
-                <img src={placeholderImage} alt={`${applicant.name}'s profile`} className="profile-avatar"/>
+                <img 
+                  src={applicant.profile_picture_url || placeholderImage} 
+                  alt={`${applicant.full_name || applicant.name}'s profile`} 
+                  className="profile-avatar"
+                  onError={(e) => {
+                    e.target.src = placeholderImage;
+                  }}
+                />
                 <h4 className="applicant-profile-name">{applicant.full_name || applicant.name}</h4>
                 <p className="profile-job-title">{jobTitle}</p>
                 <span className={`applicant-status-badge status-${applicant.status.replace(/\s+/g, '-').toLowerCase()}`}>{applicant.status}</span>

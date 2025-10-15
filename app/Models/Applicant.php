@@ -19,6 +19,7 @@ class Applicant extends Model
         'gender',
         'job_opening_id',
         'resume_file',
+        'profile_picture',
         'status',
         'application_date',
         'notes',
@@ -50,6 +51,12 @@ class Applicant extends Model
     public function getResumeUrlAttribute()
     {
         return $this->resume_file ? asset('storage/' . $this->resume_file) : null;
+    }
+
+    // Get profile picture URL
+    public function getProfilePictureUrlAttribute()
+    {
+        return $this->profile_picture ? asset('storage/' . $this->profile_picture) : null;
     }
 
     // Convert applicant to employee data

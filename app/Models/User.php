@@ -117,6 +117,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Get profile picture URL
+     */
+    public function getProfilePictureUrlAttribute()
+    {
+        return $this->image_url ? asset('storage/' . $this->image_url) : null;
+    }
+
+    /**
+     * Get resume URL
+     */
+    public function getResumeUrlAttribute()
+    {
+        return $this->resume_file ? asset('storage/' . $this->resume_file) : null;
+    }
+
+    /**
      * Create a new employee from applicant data.
      */
     public static function createFromApplicant($applicantData, $positionId, $employeeId = null)
@@ -135,6 +151,7 @@ class User extends Authenticatable
             'gender' => $applicantData['gender'] ?? null,
             'contact_number' => $applicantData['phone'] ?? null,
             'resume_file' => $applicantData['resume_file'] ?? null,
+            'image_url' => $applicantData['profile_picture'] ?? null, // Transfer profile picture
             'account_status' => 'Active',
             'login_attempts' => 0,
             'password_changed' => false, // New employees haven't changed their password yet

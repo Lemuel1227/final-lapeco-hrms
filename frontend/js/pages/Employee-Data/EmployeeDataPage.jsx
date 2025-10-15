@@ -560,7 +560,7 @@ const EmployeeDataPage = () => {
             </div>
           </div>
           <div className="employee-card-body-v2">
-            <img src={emp.imageUrl || placeholderImage} alt={emp.name} className="employee-avatar-v2" onError={(e) => { e.target.src = placeholderImage; }} />
+            <img src={emp.profile_picture_url || placeholderImage} alt={emp.name} className="employee-avatar-v2" onError={(e) => { e.target.src = placeholderImage; }} />
             <h5 className="employee-name-v2">{emp.name}</h5>
             <p className="employee-position-v2">{emp.position || 'Unassigned'}</p>
             <div className="d-flex gap-2 mb-2">
@@ -601,7 +601,7 @@ const EmployeeDataPage = () => {
                 <td><strong>{emp.id}</strong></td>
               <td>
                 <div className="d-flex align-items-center">
-                    <img src={emp.imageUrl || placeholderImage} alt={emp.name} className="employee-avatar-table me-2" onError={(e) => { e.target.src = placeholderImage; }} />
+                    <img src={emp.profile_picture_url || placeholderImage} alt={emp.name} className="employee-avatar-table me-2" onError={(e) => { e.target.src = placeholderImage; }} />
                     {emp.name}
                 </div>
               </td>

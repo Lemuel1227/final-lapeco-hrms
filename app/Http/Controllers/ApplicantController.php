@@ -45,7 +45,7 @@ class ApplicantController extends Controller
 
         // Append the full_name attribute to each applicant
         $applicants->each(function ($applicant) {
-            $applicant->append(['full_name', 'resume_url']);
+            $applicant->append(['full_name', 'resume_url', 'profile_picture_url']);
         });
 
         return response()->json($applicants);
@@ -66,7 +66,8 @@ class ApplicantController extends Controller
                 'phone' => 'nullable|string|max:20',
                 'birthday' => 'nullable|date',
                 'gender' => 'nullable|in:Male,Female,Other',
-                'resume_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB max
+                'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB max
+                'profile_picture' => 'nullable|file|mimes:jpeg,jpg,png,gif|max:2048', // 2MB max
             ]);
 
             if ($validator->fails()) {
@@ -79,12 +80,20 @@ class ApplicantController extends Controller
             $data = $request->all();
             $data['application_date'] = now()->toDateString();
 
-            // Handle file upload
-            if ($request->hasFile('resume_file')) {
-                $file = $request->file('resume_file');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('resumes', $filename, 'public');
+            // Handle resume file upload
+            if ($request->hasFile('resume')) {
+                $file = $request->file('resume');
+                $filename = time() . '_resume_' . $file->getClientOriginalName();
+                $path = $file->storeAs('resumes', $filename);
                 $data['resume_file'] = $path;
+            }
+
+            // Handle profile picture upload
+            if ($request->hasFile('profile_picture')) {
+                $file = $request->file('profile_picture');
+                $filename = time() . '_profile_' . $file->getClientOriginalName();
+                $path = $file->storeAs('profile_pictures', $filename, 'public');
+                $data['profile_picture'] = $path;
             }
 
             $applicant = Applicant::create($data);
@@ -107,7 +116,7 @@ class ApplicantController extends Controller
     public function show($id)
     {
         $applicant = Applicant::findOrFail($id);
-        $applicant->append(['full_name', 'resume_url']);
+        $applicant->append(['full_name', 'resume_url', 'profile_picture_url']);
         return response()->json($applicant);
     }
 
