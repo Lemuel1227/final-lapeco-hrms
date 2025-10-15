@@ -4,23 +4,16 @@ import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 import FinalizedPeriodCard from './FinalizedPeriodCard';
 import FinalizedPeriodRow from './FinalizedPeriodRow';
-import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
-import { generateContributionsReport } from '../../reports/contributionsReport';
-import { createPdfDoc, addHeader } from '../../utils/pdfUtils';
 
-const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, employees, positions, payrolls }) => {
+const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, onView }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('period-desc');
   const [viewMode, setViewMode] = useState('grid');
-  
-  const [pdfDataUri, setPdfDataUri] = useState('');
-  const [previewTitle, setPreviewTitle] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
   const [periodToDelete, setPeriodToDelete] = useState(null);
 
   const finalizedPeriods = useMemo(() => {
-    const groupedByPeriod = archivedReports.reduce((acc, report) => {
+    const groupedByPeriod = (archivedReports || []).reduce((acc, report) => {
       if (!acc[report.payPeriod]) { acc[report.payPeriod] = []; }
       acc[report.payPeriod].push(report);
       return acc;
@@ -89,39 +82,10 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, employees, p
     saveAs(blob, `Archived_${report.type}_${contributionMonth}.xlsx`);
   };
 
-  const handleView = async (period) => {
-    const payPeriodRun = payrolls.find(p => p.cutOff === period.payPeriod);
-    if (!payPeriodRun) {
-        alert("Could not find the corresponding payroll run for this period.");
-        return;
-    }
-
-    const { doc, pageWidth, margin } = createPdfDoc();
-    const startY = addHeader(doc, 'Consolidated Contributions Report', { pageWidth, margin });
-
-    const finalDoc = await generateContributionsReport(
-        doc, 
-        { runId: payPeriodRun.runId, startY, margin }, 
-        { employees, positions, payrolls }
-    );
-    
-    const pdfBlob = finalDoc.output('blob');
-    setPdfDataUri(URL.createObjectURL(pdfBlob));
-    setPreviewTitle(`Finalized Contributions for ${period.payPeriod}`);
-    setShowPreview(true);
-  };
-
   const handleDeletePeriod = () => {
     if (!periodToDelete) return;
     onDeletePeriod(periodToDelete);
     setPeriodToDelete(null);
-  };
-  
-  const handleClosePreview = () => {
-    if (pdfDataUri) { URL.revokeObjectURL(pdfDataUri); }
-    setShowPreview(false);
-    setPdfDataUri('');
-    setPreviewTitle('');
   };
 
   return (
@@ -165,7 +129,7 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, employees, p
                   key={period.payPeriod} 
                   period={period} 
                   onDownload={handleDownloadExcel}
-                  onView={() => handleView(period)}
+                  onView={() => onView(period)}
                   onDelete={() => setPeriodToDelete(period)}
                 />
               ))}
@@ -189,7 +153,7 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, employees, p
                         key={period.payPeriod} 
                         period={period} 
                         onDownload={handleDownloadExcel}
-                        onView={() => handleView(period)}
+                        onView={() => onView(period)}
                         onDelete={() => setPeriodToDelete(period)}
                       />
                     ))}
@@ -207,15 +171,6 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, employees, p
         )}
       </div>
       
-      {pdfDataUri && (
-        <ReportPreviewModal
-            show={showPreview}
-            onClose={handleClosePreview}
-            pdfDataUri={pdfDataUri}
-            reportTitle={previewTitle}
-        />
-      )}
-
       <ConfirmationModal
         show={!!periodToDelete}
         onClose={() => setPeriodToDelete(null)}

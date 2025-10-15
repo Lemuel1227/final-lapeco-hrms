@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('leave_credits', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->enum('leave_type', ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Personal Leave', 'Unpaid Leave', 'Maternity Leave']);
+            $table->enum('leave_type', ['Vacation Leave', 'Sick Leave', 'Emergency Leave',]);
             $table->integer('total_credits')->default(0)->comment('Total allocated credits for the year (0 = unlimited)');
             $table->integer('used_credits')->default(0)->comment('Credits used from approved leaves');
             $table->integer('year')->default(date('Y'))->comment('Year these credits apply to');

@@ -1,33 +1,33 @@
-import autoTable from 'jspdf-autotable';
-
-export const generateRecruitmentActivityReport = async (doc, params, dataSources, addChartAndTitle) => {
+export const generateRecruitmentActivityReport = async (layoutManager, dataSources, params) => {
   const { applicants, jobOpenings } = dataSources;
-  const { startDate, endDate, margin } = params;
+  const { startDate, endDate } = params;
+  const { doc, margin } = layoutManager;
 
-  // --- MODIFIED LOGIC ---
-  // Start with all applicants, then filter ONLY if dates are provided.
+  // --- 1. DATA PREPARATION ---
+  const dateRangeText = startDate && endDate ? `from ${startDate} to ${endDate}` : 'for all time';
+
   let filteredApps = [...(applicants || [])];
   if (startDate && endDate) {
     filteredApps = filteredApps.filter(app => {
-      const appDate = new Date(app.application_date);
+      const appDate = new Date(app.applicationDate);
       return appDate >= new Date(startDate) && appDate <= new Date(endDate);
     });
   }
 
   if (filteredApps.length === 0) {
-    doc.text("No recruitment activity was found for the selected period.", margin, params.startY);
-    return doc;
+    doc.text(`No recruitment activity was found ${dateRangeText}.`, margin, layoutManager.y);
+    return;
   }
-  
-  const dateRangeText = startDate && endDate ? `${startDate} to ${endDate}` : 'All Time';
 
-  // Aggregate data for the chart
   const statusCounts = filteredApps.reduce((acc, app) => {
     acc[app.status] = (acc[app.status] || 0) + 1;
     return acc;
   }, {});
 
-  // Configure and add the chart to the PDF
+  const hiredCount = statusCounts['Hired'] || 0;
+  const rejectedCount = statusCounts['Rejected'] || 0;
+
+  // --- 2. CHART CONFIGURATION ---
   const chartConfig = {
     type: 'bar',
     data: {
@@ -43,26 +43,23 @@ export const generateRecruitmentActivityReport = async (doc, params, dataSources
       scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
     }
   };
-  let finalY = await addChartAndTitle(`Applicant Status Distribution (${dateRangeText})`, chartConfig);
+  
+  // --- 3. SUMMARY TEXT ---
+  const summaryText = `This report summarizes ${filteredApps.length} applicant activities recorded ${dateRangeText}. During this period, ${hiredCount} applicant(s) were successfully hired, and ${rejectedCount} were rejected. The chart above provides a visual breakdown of all applicants by their current status in the hiring pipeline.`;
 
-  // Prepare data for the main table
+  // --- 4. TABLE DATA ---
   const jobOpeningsMap = new Map((jobOpenings || []).map(j => [j.id, j.title]));
-  const tableColumns = ["Applicant Name", "Applied For", "Application Date", "Status"];
-  const tableRows = filteredApps.map(app => [
+  const tableHead = ["Applicant Name", "Applied For", "Application Date", "Status"];
+  const tableBody = filteredApps.map(app => [
     app.name,
     jobOpeningsMap.get(app.jobOpeningId) || 'N/A',
-    app.application_date,
+    app.applicationDate,
     app.status
   ]);
-
-  // Add the table to the PDF
-  autoTable(doc, {
-    head: [tableColumns],
-    body: tableRows,
-    startY: finalY,
-    theme: 'striped',
-    headStyles: { fillColor: [25, 135, 84] }
-  });
-
-  return doc;
+  
+  // --- 5. PDF ASSEMBLY ---
+  await layoutManager.addChartWithTitle(`Applicant Status Distribution`, chartConfig);
+  layoutManager.addSummaryText(summaryText);
+  layoutManager.addSectionTitle("Detailed Applicant List");
+  layoutManager.addTable([tableHead], tableBody);
 };

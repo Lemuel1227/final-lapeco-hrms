@@ -1,8 +1,7 @@
-import autoTable from 'jspdf-autotable';
-
-export const generateOffboardingSummaryReport = async (doc, params, dataSources, addChartAndTitle) => {
+export const generateOffboardingSummaryReport = async (layoutManager, dataSources, params) => {
   const { resignations, terminations, employees } = dataSources;
-  const { startDate, endDate, margin } = params;
+  const { startDate, endDate } = params;
+  const { doc, margin } = layoutManager;
 
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -18,11 +17,12 @@ export const generateOffboardingSummaryReport = async (doc, params, dataSources,
   });
 
   if (filteredResignations.length === 0 && filteredTerminations.length === 0) {
-    doc.text("No offboarding activity found for the selected period.", margin, params.startY);
-    return doc;
+    doc.text("No offboarding activity found for the selected period.", margin, layoutManager.y);
+    return;
   }
-
-  // Chart
+  
+  layoutManager.addSectionTitle(`Offboarding Types (${startDate} to ${endDate})`, { spaceBefore: 0, fontSize: 14 });
+  
   const chartConfig = {
     type: 'pie',
     data: {
@@ -34,51 +34,26 @@ export const generateOffboardingSummaryReport = async (doc, params, dataSources,
     },
     options: { plugins: { legend: { position: 'right' } } }
   };
-  let finalY = await addChartAndTitle(`Offboarding Types (${startDate} to ${endDate})`, chartConfig);
+  await layoutManager.addChart(chartConfig, { height: 180 });
 
   const employeeMap = new Map(employees.map(e => [e.id, e]));
 
-  // Resignations Table
   if (filteredResignations.length > 0) {
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text("Voluntary Resignations", margin, finalY);
-    finalY += 15;
-
-    const resTableColumns = ["Employee Name", "Last Position", "Effective Date", "Reason"];
-    const resTableRows = filteredResignations.map(r => [
-      r.employeeName,
-      r.position,
-      r.effectiveDate,
-      r.reason,
+    layoutManager.addSectionTitle("Voluntary Resignations");
+    const resTableHead = ["Employee Name", "Last Position", "Effective Date", "Reason"];
+    const resTableBody = filteredResignations.map(r => [
+      r.employeeName, r.position, r.effectiveDate, r.reason,
     ]);
-    autoTable(doc, { head: [resTableColumns], body: resTableRows, startY: finalY, theme: 'striped' });
-    finalY = doc.lastAutoTable.finalY + 25;
+    layoutManager.addTable([resTableHead], resTableBody);
   }
 
-  // Terminations Table
   if (filteredTerminations.length > 0) {
-    if (finalY > doc.internal.pageSize.getHeight() - 100) {
-      doc.addPage();
-      finalY = params.startY;
-    }
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text("Involuntary Terminations", margin, finalY);
-    finalY += 15;
-
-    const termTableColumns = ["Employee Name", "Termination Date", "Reason", "Comments"];
-    const termTableRows = filteredTerminations.map(t => {
-        const emp = employeeMap.get(t.employeeId);
-        return [
-            emp?.name || t.employeeId,
-            t.date,
-            t.reason,
-            t.comments
-        ];
+    layoutManager.addSectionTitle("Involuntary Terminations");
+    const termTableHead = ["Employee Name", "Termination Date", "Reason", "Comments"];
+    const termTableBody = filteredTerminations.map(t => {
+      const emp = employeeMap.get(t.employeeId);
+      return [emp?.name || t.employeeId, t.date, t.reason, t.comments];
     });
-    autoTable(doc, { head: [termTableColumns], body: termTableRows, startY: finalY, theme: 'striped' });
+    layoutManager.addTable([termTableHead], termTableBody);
   }
-
-  return doc;
 };

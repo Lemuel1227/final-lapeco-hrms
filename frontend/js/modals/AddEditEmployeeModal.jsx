@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './AddEditEmployeeModal.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import placeholderImage from '../assets/placeholder-profile.jpg';
-import ResumeIframe from './ResumeIframe';
+import ResumeIframe from '../common/ResumeIframe';
 
 const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, viewOnly, onSwitchToEdit }) => {
   const initialFormState = {

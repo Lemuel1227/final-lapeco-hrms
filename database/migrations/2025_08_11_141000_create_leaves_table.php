@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('leaves', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->enum('type', ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Personal Leave', 'Unpaid Leave', 'Maternity Leave', 'Paternity Leave']);
+            $table->enum('type', ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Unpaid Leave', 'Maternity Leave', 'Paternity Leave']);
             $table->date('date_from');
             $table->date('date_to');
             $table->unsignedInteger('days');

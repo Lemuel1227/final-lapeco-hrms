@@ -6,7 +6,7 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
   const [credits, setCredits] = useState({
     sick: 0,
     vacation: 0,
-    personal: 0,
+    emergency: 0,
   });
 
   useEffect(() => {
@@ -14,7 +14,7 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
       setCredits({
         sick: employeeData.leaveCredits.sick || 0,
         vacation: employeeData.leaveCredits.vacation || 0,
-        personal: employeeData.leaveCredits.personal || 0,
+        emergency: employeeData.leaveCredits.emergency || 0,
       });
     }
   }, [employeeData]);
@@ -54,8 +54,8 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
                 <input type="number" id="sick" name="sick" className="form-control" value={credits.sick} onChange={handleChange} min="0" />
               </div>
               <div className="mb-3">
-                <label htmlFor="personal" className="form-label">Total Personal Leave Days</label>
-                <input type="number" id="personal" name="personal" className="form-control" value={credits.personal} onChange={handleChange} min="0" />
+                <label htmlFor="emergency" className="form-label">Total Emergency Leave Days</label>
+                <input type="number" id="emergency" name="emergency" className="form-control" value={credits.emergency} onChange={handleChange} min="0" />
               </div>
             </div>
             <div className="modal-footer">

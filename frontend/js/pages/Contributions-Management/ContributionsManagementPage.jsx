@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { generatePagibigData, generatePhilhealthData, generateSssData } from '../../hooks/contributionUtils';
-import ContributionTypeToggle from './ContributionTypeToggle';
 import ReportHeader from './ReportHeader';
 import EditableContributionTable from './EditableContributionTable';
 import AddColumnModal from './AddColumnModal';
@@ -8,9 +6,13 @@ import ConfirmationModal from '../../modals/ConfirmationModal';
 import ContributionsHistoryTab from './ContributionsHistoryTab';
 import FinalizedReportPlaceholder from './FinalizedReportPlaceholder';
 import ToastNotification from '../../common/ToastNotification';
+import ReportPreviewModal from '../../modals/ReportPreviewModal';
+import useReportGenerator from '../../hooks/useReportGenerator';
+import { generateSssData, generatePhilhealthData, generatePagibigData } from '../../hooks/contributionUtils';
+import ContributionTypeToggle from './ContributionTypeToggle';
 import './ContributionsManagement.css';
 
-const ContributionsManagementPage = ({ employees, positions, payrolls }) => {
+const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) => {
   const [mainTab, setMainTab] = useState('current');
   const [activeReport, setActiveReport] = useState('sss');
   const [selectedPayrollRunId, setSelectedPayrollRunId] = useState('');
@@ -19,8 +21,12 @@ const ContributionsManagementPage = ({ employees, positions, payrolls }) => {
   const [rows, setRows] = useState([]);
   const [reportTitle, setReportTitle] = useState('');
   const [headerData, setHeaderData] = useState({});
-  const [archivedReports, setArchivedReports] = useState([]);
+  const [archivedReports, setArchivedReports] = useState(mockData.initialArchivedContributions);
   
+  // Centralized report generation logic
+  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator(theme);
+  const [showReportPreview, setShowReportPreview] = useState(false);
+
   const [editingHeaderKey, setEditingHeaderKey] = useState(null);
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
   const [confirmationModalState, setConfirmationModalState] = useState({
@@ -35,7 +41,7 @@ const ContributionsManagementPage = ({ employees, positions, payrolls }) => {
         return acc;
     }, {});
   
-    const sortedPayrolls = [...(payrolls || [])].sort((a,b) => new Date(b.cutOff.split(' to ')[0]) - new Date(a.cutOff.split(' to ')[0]));
+    const sortedPayrolls = [...payrolls].sort((a,b) => new Date(b.cutOff.split(' to ')[0]) - new Date(a.cutOff.split(' to ')[0]));
 
     return sortedPayrolls.filter(run => {
         const finalizedTypes = finalizedPeriods[run.cutOff];
@@ -97,6 +103,37 @@ const ContributionsManagementPage = ({ employees, positions, payrolls }) => {
 
     return { sss: sssTotal, philhealth: philhealthTotal, pagibig: pagibigTotal };
   }, [activePayrollRun, employees, positions, isCurrentPeriodArchived]);
+
+  // --- Report Generation Handlers ---
+  const handleExportPdf = () => {
+    if (!activePayrollRun) return;
+    generateReport(
+      'contributions_summary',
+      { runId: activePayrollRun.runId },
+      { employees, positions, payrolls }
+    );
+    setShowReportPreview(true);
+  };
+
+  const handleViewHistoryPdf = (period) => {
+    const payPeriodRun = payrolls.find(p => p.cutOff === period.payPeriod);
+    if (!payPeriodRun) {
+      alert("Could not find the corresponding payroll run for this historical period.");
+      return;
+    }
+    generateReport(
+      'contributions_summary',
+      { runId: payPeriodRun.runId },
+      { employees, positions, payrolls }
+    );
+    setShowReportPreview(true);
+  };
+
+  const handleClosePreview = () => {
+    setShowReportPreview(false);
+    if (pdfDataUri) { URL.revokeObjectURL(pdfDataUri); }
+    setPdfDataUri('');
+  };
 
   const handleArchivePeriod = () => {
     if (!activePayrollRun) return;
@@ -171,15 +208,10 @@ const ContributionsManagementPage = ({ employees, positions, payrolls }) => {
   const handleColumnHeaderChange = (columnKey, newLabel) => setColumns(prev => prev.map(col => col.key === columnKey ? { ...col, label: newLabel } : col));
   const formatCurrency = (value) => Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+
   return (
     <div className="container-fluid p-0 page-module-container">
-       {toast.show && (
-        <ToastNotification
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ show: false, message: '', type: 'success' })}
-        />
-      )}
+       {toast.show && ( <ToastNotification toast={toast} onClose={() => setToast({ ...toast, show: false })} /> )}
       <header className="page-header mb-4">
         <h1 className="page-main-title">Contributions Management</h1>
         <p className="text-muted">Generate, edit, and archive monthly contribution reports.</p>
@@ -198,20 +230,26 @@ const ContributionsManagementPage = ({ employees, positions, payrolls }) => {
             <div className="stat-card-contribution pagibig-card"><div className="stat-icon"><i className="bi bi-house-heart-fill"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.pagibig)}</div><div className="stat-label">Total Pag-IBIG Contribution</div></div></div>
           </div>
           <div className="card shadow-sm">
-            <ReportHeader title={reportTitle} payrolls={pendingPayrolls} selectedRunId={selectedPayrollRunId} onRunChange={setSelectedPayrollRunId} columns={columns} rows={rows} headerData={headerData} onArchive={handleArchivePeriod} isArchived={isCurrentPeriodArchived} />
+            <ReportHeader
+              title={reportTitle}
+              payrolls={pendingPayrolls}
+              selectedRunId={selectedPayrollRunId}
+              onRunChange={setSelectedPayrollRunId}
+              onArchive={handleArchivePeriod}
+              isArchived={isCurrentPeriodArchived}
+              onExportPdf={handleExportPdf}
+              columns={columns}
+              rows={rows}
+              headerData={headerData}
+            />
             <div className="card-body">
               <ContributionTypeToggle activeReport={activeReport} onSelectReport={setActiveReport} />
               {isCurrentPeriodArchived ? (
-                <FinalizedReportPlaceholder
-                    onNavigate={() => setMainTab('history')}
-                    reportInfo={{
-                        payPeriod: activePayrollRun?.cutOff || ''
-                    }}
-                />
+                <FinalizedReportPlaceholder onNavigate={() => setMainTab('history')} reportInfo={{ payPeriod: activePayrollRun?.cutOff || '' }} />
               ) : !activePayrollRun ? (
                 <div className="text-center p-5 bg-light rounded mt-3"><i className="bi bi-check2-all fs-1 text-success mb-3 d-block"></i><h4 className="text-muted">All Reports Finalized</h4><p className="text-muted">There are no pending contribution reports to generate.</p></div>
               ) : (
-                <EditableContributionTable columns={columns} rows={rows} editingHeaderKey={editingHeaderKey} onCellChange={handleCellChange} onAddRow={handleAddRow} onDeleteRow={handleDeleteRow} onHeaderChange={handleColumnHeaderChange} onHeaderClick={handleHeaderClick} onAddColumn={() => setShowAddColumnModal(true)} onDeleteColumn={handleDeleteColumn} />
+                <EditableContributionTable columns={columns} rows={rows} onCellChange={handleCellChange} onAddRow={handleAddRow} onDeleteRow={handleDeleteRow} onAddColumn={() => setShowAddColumnModal(true)} onDeleteColumn={handleDeleteColumn} />
               )}
             </div>
           </div>
@@ -221,13 +259,20 @@ const ContributionsManagementPage = ({ employees, positions, payrolls }) => {
           <ContributionsHistoryTab 
             archivedReports={archivedReports} 
             onDeletePeriod={handleDeleteFinalizedPeriod}
-            employees={employees}
-            positions={positions}
-            payrolls={payrolls}
+            onView={handleViewHistoryPdf}
           />
         </div>
       )}
       
+      {(isLoading || pdfDataUri) && (
+        <ReportPreviewModal
+          show={showReportPreview}
+          onClose={handleClosePreview}
+          pdfDataUri={pdfDataUri}
+          reportTitle="Consolidated Contributions Report"
+        />
+      )}
+
       <AddColumnModal show={showAddColumnModal} onClose={() => setShowAddColumnModal(false)} onAdd={handleAddColumn} />
       <ConfirmationModal show={confirmationModalState.isOpen} onClose={closeConfirmationModal} onConfirm={confirmationModalState.onConfirm} title={confirmationModalState.title} confirmText="Yes, Delete" confirmVariant="danger"><p>{confirmationModalState.body}</p></ConfirmationModal>
     </div>

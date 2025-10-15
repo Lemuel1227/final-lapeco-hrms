@@ -2,7 +2,7 @@ import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
-const NotificationItem = ({ notification, onMarkAsRead }) => {
+const NotificationItem = ({ notification, onMarkAsRead, currentUser }) => {
   const navigate = useNavigate();
   
   const getIconForType = (type) => {
@@ -15,6 +15,8 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
           return { icon: 'bi-calendar-x-fill', color: 'text-danger' };
         }
         return { icon: 'bi-calendar-check-fill', color: 'text-success' };
+      case 'holiday_reminder':
+        return { icon: 'bi-flag-fill', color: 'text-warning' };
       case 'performance_review':
         return { icon: 'bi-clipboard-check-fill', color: 'text-warning' };
       case 'recruitment':
@@ -45,6 +47,13 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
       navigate('/dashboard/leave-management');
     } else if (notification.type === 'leave_status_update') {
       navigate('/dashboard/my-leave');
+    } else if (notification.type === 'holiday_reminder') {
+      // HR goes to Holiday Management, others go to My Attendance
+      if (currentUser?.role === 'HR_PERSONNEL') {
+        navigate('/dashboard/holiday-management');
+      } else {
+        navigate('/dashboard/my-attendance');
+      }
     } else if (notification.data?.action_url) {
       navigate(notification.data.action_url);
     }

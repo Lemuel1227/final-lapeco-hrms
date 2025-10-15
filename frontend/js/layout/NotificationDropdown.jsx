@@ -30,7 +30,7 @@ const groupNotifications = (notifications) => {
 };
 
 
-const NotificationDropdown = ({ notifications = [], handlers }) => {
+const NotificationDropdown = ({ notifications = [], handlers, currentUser }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
   const groupedNotifications = groupNotifications(notifications);
 
@@ -69,6 +69,7 @@ const NotificationDropdown = ({ notifications = [], handlers }) => {
                       key={n.id} 
                       notification={n} 
                       onMarkAsRead={handlers.markNotificationAsRead}
+                      currentUser={currentUser}
                     />
                   ))}
                 </ul>

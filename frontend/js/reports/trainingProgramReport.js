@@ -1,39 +1,32 @@
-import autoTable from 'jspdf-autotable';
-
-/**
- * Generates the Training Program Summary Report.
- * @param {jsPDF} doc - The jsPDF instance.
- * @param {object} params - Report parameters (e.g., programId).
- * @param {object} dataSources - Contains all mock data (trainingPrograms, enrollments, employees).
- * @param {function} addChartAndTitle - Helper function to add a chart to the PDF.
- * @returns {jsPDF} The modified jsPDF document.
- */
-export const generateTrainingProgramReport = async (doc, params, dataSources, addChartAndTitle) => {
+export const generateTrainingProgramReport = async (layoutManager, dataSources, params) => {
   const { trainingPrograms, enrollments, employees } = dataSources;
-  const { programId, margin } = params;
+  const { programId } = params;
+  const { doc, margin } = layoutManager;
 
-  // 1. Find the selected program
+  // --- 1. DATA PREPARATION ---
   const program = trainingPrograms.find(p => p.id.toString() === programId.toString());
   if (!program) {
-    doc.text("The selected training program could not be found.", margin, params.startY);
-    return doc;
+    doc.text("The selected training program could not be found.", margin, layoutManager.y);
+    return;
   }
 
-  // 2. Filter enrollments for this program
   const programEnrollments = (enrollments || []).filter(e => e.programId.toString() === programId.toString());
 
   if (programEnrollments.length === 0) {
-    doc.text(`There are no employees enrolled in "${program.title}".`, margin, params.startY);
-    return doc;
+    doc.text(`There are no employees enrolled in "${program.title}".`, margin, layoutManager.y);
+    return;
   }
 
-  // 3. Aggregate data for the enrollment status chart
   const stats = { 'Completed': 0, 'In Progress': 0, 'Not Started': 0 };
   programEnrollments.forEach(e => {
     stats[e.status]++;
   });
 
-  // 4. Configure and add the chart to the PDF
+  const completionRate = programEnrollments.length > 0
+    ? (stats['Completed'] / programEnrollments.length) * 100
+    : 0;
+
+  // --- 2. CHART CONFIGURATION ---
   const chartConfig = {
     type: 'pie',
     data: {
@@ -41,8 +34,6 @@ export const generateTrainingProgramReport = async (doc, params, dataSources, ad
       datasets: [{
         data: Object.values(stats),
         backgroundColor: ['#198754', '#0dcaf0', '#6c757d'],
-        borderColor: '#fff',
-        borderWidth: 2,
       }]
     },
     options: {
@@ -51,26 +42,25 @@ export const generateTrainingProgramReport = async (doc, params, dataSources, ad
       }
     }
   };
-  let finalY = await addChartAndTitle(`Enrollment Status for "${program.title}"`, chartConfig);
 
-  // 5. Prepare data for the main table
+  // --- 3. SUMMARY TEXT ---
+  const summaryText = `This report summarizes the status for the "${program.title}" training program. A total of ${programEnrollments.length} employee(s) are enrolled. The overall completion rate for this program is currently ${completionRate.toFixed(1)}%.`;
+  
+  // --- 4. TABLE DATA ---
   const employeeMap = new Map(employees.map(e => [e.id, e.name]));
-  const tableColumns = ['Employee ID', 'Employee Name', 'Progress', 'Status'];
-  const tableRows = programEnrollments.map(enr => [
+  const tableHead = ['Employee ID', 'Employee Name', 'Progress', 'Status'];
+  const tableBody = programEnrollments.map(enr => [
     enr.employeeId,
     employeeMap.get(enr.employeeId) || 'N/A',
     `${enr.progress || 0}%`,
     enr.status
   ]);
-
-  // 6. Add the table to the PDF
-  autoTable(doc, {
-    head: [tableColumns],
-    body: tableRows,
-    startY: finalY,
-    theme: 'striped',
-    headStyles: { fillColor: [25, 135, 84] }
+  
+  // --- 5. PDF ASSEMBLY ---
+  await layoutManager.addChartWithTitle(`Enrollment Status for "${program.title}"`, chartConfig);
+  layoutManager.addSummaryText(summaryText);
+  layoutManager.addSectionTitle("Detailed Enrollment List");
+  layoutManager.addTable([tableHead], tableBody, {
+    columnStyles: { 2: { halign: 'left' } }
   });
-
-  return doc;
 };

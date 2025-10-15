@@ -16,10 +16,8 @@ const MyLeavePage = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentUser, setCurrentUser] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  
-  const leaveBalances = { vacation: 12, sick: 8 };
+  const [leaveBalances, setLeaveBalances] = useState({ vacation: 0, sick: 0, emergency: 0 });
 
   // Load user's leave requests and user profile from API
   useEffect(() => {
@@ -27,11 +25,32 @@ const MyLeavePage = () => {
       try {
         setLoading(true);
         
-        // Fetch both leave requests and user profile
+        // Fetch leave requests and user profile first
         const [leaveRes, userRes] = await Promise.all([
           leaveAPI.getAll(),
           getUserProfile()
         ]);
+        
+        console.log('Leave requests loaded:', leaveRes.data);
+        console.log('User profile loaded:', userRes);
+        
+        // Try to fetch leave credits (make it optional to not break the whole page)
+        let creditsRes = null;
+        // getUserProfile returns direct JSON, leaveAPI returns { data: ... }
+        const userId = userRes.id || userRes.data?.id;
+        console.log('User ID for credits:', userId);
+        
+        if (userId) {
+          try {
+            creditsRes = await leaveAPI.getLeaveCredits(userId);
+            console.log('Leave credits loaded:', creditsRes.data);
+          } catch (creditsError) {
+            console.warn('Failed to load leave credits:', creditsError);
+            // Continue without credits - will show 0 balances
+          }
+        } else {
+          console.warn('No user ID found, skipping leave credits');
+        }
         
         const data = Array.isArray(leaveRes.data) ? leaveRes.data : (leaveRes.data?.data || []);
         // Map API to UI structure
@@ -53,10 +72,29 @@ const MyLeavePage = () => {
         // Team leaders see their team's leaves
         // HR personnel see all leaves
         setLeaveRequests(mapped);
-        setCurrentUser(userRes.data || userRes);
+        // getUserProfile returns direct JSON, not wrapped in data
+        setCurrentUser(userRes);
+        console.log('Current user set:', userRes);
+        
+        // Calculate leave balances from credits (if available)
+        if (creditsRes && creditsRes.data) {
+          const credits = creditsRes.data;
+          const balances = {
+            vacation: (credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0),
+            sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0),
+            emergency: (credits['Emergency Leave']?.total_credits || 0) - (credits['Emergency Leave']?.used_credits || 0)
+          };
+          setLeaveBalances(balances);
+        } else {
+          // Set default balances if credits couldn't be loaded
+          setLeaveBalances({ vacation: 0, sick: 0, emergency: 0 });
+        }
+        
         setError(null);
       } catch (err) {
+        console.error('Error loading leave requests:', err);
         setLeaveRequests([]);
+        setLeaveBalances({ vacation: 0, sick: 0, emergency: 0 });
         setError('Failed to load leave requests. Please try again.');
       } finally {
         setLoading(false);
@@ -93,8 +131,18 @@ const MyLeavePage = () => {
         });
       }
       
-      // Refresh the data
+      // Refresh the data and leave balances
       const res = await leaveAPI.getAll();
+      let creditsRes = null;
+      
+      if (currentUser && currentUser.id) {
+        try {
+          creditsRes = await leaveAPI.getLeaveCredits(currentUser.id);
+        } catch (creditsError) {
+          console.warn('Failed to refresh leave credits:', creditsError);
+        }
+      }
+      
       const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       const mapped = data.map(l => ({
         leaveId: l.id,
@@ -108,6 +156,18 @@ const MyLeavePage = () => {
         status: l.status,
         reason: l.reason,
       }));
+      
+      // Update leave balances (if credits were loaded)
+      if (creditsRes && creditsRes.data) {
+        const credits = creditsRes.data;
+        const balances = {
+          vacation: (credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0),
+          sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0),
+          emergency: (credits['Emergency Leave']?.total_credits || 0) - (credits['Emergency Leave']?.used_credits || 0)
+        };
+        setLeaveBalances(balances);
+      }
+      
       // Backend handles filtering based on user authentication
       setLeaveRequests(mapped);
       setShowRequestModal(false);
@@ -208,15 +268,15 @@ const MyLeavePage = () => {
         <div className="leave-balances">
             <div className="balance-card">
                 <div className="balance-icon icon-vacation"><i className="bi bi-sun-fill"></i></div>
-                <div className="balance-info"><span className="balance-value">{leaveBalances.vacation}</span><span className="balance-label">Vacation Days Left</span></div>
+                <div className="balance-info"><span className="balance-value">{leaveBalances.vacation}</span><span className="balance-label"> Vacation Days Left</span></div>
             </div>
             <div className="balance-card">
                 <div className="balance-icon icon-sick"><i className="bi bi-heart-pulse-fill"></i></div>
-                <div className="balance-info"><span className="balance-value">{leaveBalances.sick}</span><span className="balance-label">Sick Days Left</span></div>
+                <div className="balance-info"><span className="balance-value">{leaveBalances.sick}</span><span className="balance-label"> Sick Days Left</span></div>
             </div>
             <div className="balance-card">
-              <div className="balance-icon icon-personal"><i className="bi bi-person-badge"></i></div>
-              <div className="balance-info"><span className="balance-value">{leaveBalances.personal}</span><span className="balance-label">Personal Days Left</span></div>
+              <div className="balance-icon icon-emergency"><i className="bi bi-exclamation-triangle-fill"></i></div>
+              <div className="balance-info"><span className="balance-value">{leaveBalances.emergency}</span><span className="balance-label"> Emergency Days Left</span></div>
             </div>
         </div>
         <div className="upcoming-leave-card">

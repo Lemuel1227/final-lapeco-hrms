@@ -1,103 +1,63 @@
-import autoTable from 'jspdf-autotable';
+import { formatCurrency } from '../utils/formatters';
 
-/**
- * Generates the Company Positions Report.
- * @param {jsPDF} doc - The jsPDF instance.
- * @param {object} params - Report parameters (not used in this report, but part of the signature).
- * @param {object} dataSources - Contains all mock data (employees, positions).
- * @param {function} addChartAndTitle - Helper function to add a chart to the PDF.
- * @returns {jsPDF} The modified jsPDF document.
- */
-export const generatePositionsReport = async (doc, params, dataSources, addChartAndTitle) => {
+export const generatePositionsReport = async (layoutManager, dataSources) => {
   const { employees, positions } = dataSources;
-  const { margin } = params;
+  const { doc, margin } = layoutManager;
 
   if (!positions || positions.length === 0) {
-    doc.text("No position data found to generate a report.", margin, params.startY);
-    return doc;
+    doc.text("No position data found to generate a report.", margin, layoutManager.y);
+    return;
   }
 
-  // 1. Calculate employee count for each position using the employeeCount field from positions
+  // --- 1. DATA PREPARATION ---
   const employeeCounts = positions.reduce((acc, pos) => {
-    // Use the employeeCount field from the position data if available
-    const count = pos.employeeCount || 0;
-    acc[pos.title] = count;
+    acc[pos.id] = employees.filter(emp => emp.positionId === pos.id).length;
     return acc;
   }, {});
 
-  // 2. Configure and add the Employee Count chart
+  const highestSalaryPosition = [...positions].sort((a, b) => b.monthlySalary - a.monthlySalary)[0];
+
+  // --- 2. CHART CONFIGURATION ---
   const countChartConfig = {
     type: 'bar',
     data: {
-      labels: Object.keys(employeeCounts),
+      labels: positions.map(p => p.title),
       datasets: [{
         label: 'Number of Employees',
-        data: Object.values(employeeCounts),
+        data: positions.map(p => employeeCounts[p.id] || 0),
         backgroundColor: 'rgba(25, 135, 84, 0.6)'
       }]
     },
     options: {
       plugins: { legend: { display: false } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { stepSize: 1 },
-          min: 0
-        }
-      }
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
     }
   };
   
-  let finalY = await addChartAndTitle("Employee Count by Position", countChartConfig);
+  // --- 3. SUMMARY TEXT ---
+  const summaryText = `This report outlines the ${positions.length} defined positions within the company. The role with the highest base salary is '${highestSalaryPosition.title}' at ${formatCurrency(highestSalaryPosition.monthlySalary)}. The chart above illustrates the current headcount for each position, providing a clear overview of workforce distribution.`;
 
-  // 3. Configure and add the Salary Comparison chart
-  const sortedPositionsBySalary = [...positions].sort((a, b) => (a.monthly_salary || 0) - (b.monthly_salary || 0));
-  const salaryChartConfig = {
-    type: 'bar',
-    data: {
-      labels: sortedPositionsBySalary.map(p => p.title),
-      datasets: [{
-        label: 'Monthly Salary (₱)',
-        data: sortedPositionsBySalary.map(p => p.monthly_salary || 0),
-        backgroundColor: 'rgba(13, 202, 240, 0.6)'
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      plugins: { legend: { display: false } },
-      scales: {
-        x: {
-          ticks: {
-            callback: value => `₱${(value / 1000)}k`
-          }
-        }
-      }
-    }
-  };
-  finalY = await addChartAndTitle("Monthly Salary Comparison", salaryChartConfig);
-
-  // 4. Add a new page for the detailed table if needed
-  if (finalY > doc.internal.pageSize.getHeight() - 200) { // Check if there's enough space
-    doc.addPage();
-    finalY = params.startY; // Reset Y position on the new page
-  }
-
-  // 5. Prepare data for and add the detailed table
-  const tableColumns = ['Position Title', 'Employee Count', 'Monthly Salary (PHP)', 'Description'];
-  const tableRows = positions.map(pos => [
+  // --- 4. TABLE DATA ---
+  const tableHead = ['Position Title', 'Count', 'Salary', 'Description'];
+  const tableBody = positions.map(pos => [
     pos.title,
-    employeeCounts[pos.title] || 0,
-    (pos.monthly_salary || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    employeeCounts[pos.id] || 0,
+    formatCurrency(pos.monthlySalary),
     pos.description
   ]);
   
-  autoTable(doc, {
-    head: [tableColumns],
-    body: tableRows,
-    startY: finalY,
-    theme: 'grid',
-    headStyles: { fillColor: [25, 135, 84] }
+  // --- 5. PDF ASSEMBLY ---
+  await layoutManager.addChartWithTitle("Employee Count by Position", countChartConfig, { height: 200 });
+  layoutManager.addSummaryText(summaryText);
+  layoutManager.addSectionTitle("Position Details");
+  
+  // MODIFIED: Enforced explicit column widths to guarantee correct layout
+  layoutManager.addTable([tableHead], tableBody, {
+    columnStyles: {
+      0: { cellWidth: 110 },       // Position Title
+      1: { halign: 'center', cellWidth: 50 }, // Count
+      2: { halign: 'left', cellWidth: 100 }, // Salary
+      3: { cellWidth: 'auto' },      // Description will take the remaining space
+    }
   });
-
-  return doc;
 };

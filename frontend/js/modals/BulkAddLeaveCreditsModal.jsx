@@ -4,8 +4,7 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
   const [creditsToAdd, setCreditsToAdd] = useState({
     vacation: 0,
     sick: 0,
-    personal: 0,
-    paternity: 0,
+    emergency: 0,
   });
 
   const handleChange = (e) => {
@@ -19,6 +18,7 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('BulkAddLeaveCreditsModal: Submitting credits:', creditsToAdd);
     onConfirm(creditsToAdd);
   };
 
@@ -37,7 +37,7 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
               <div className="alert alert-info">
                 The credits you enter below will be <strong>added</strong> to the current balance of all <strong>{activeEmployeeCount} active employees</strong>.
               </div>
-              <p className="text-muted">This is useful for annual leave allocation. Paternity leave credits will only be applied to male employees.</p>
+              <p className="text-muted">This is useful for annual leave allocation.</p>
               
               <div className="mb-3">
                 <label htmlFor="vacation" className="form-label">Vacation Leave Days to Add</label>
@@ -48,12 +48,8 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
                 <input type="number" id="sick" name="sick" className="form-control" value={creditsToAdd.sick} onChange={handleChange} min="0" />
               </div>
               <div className="mb-3">
-                <label htmlFor="personal" className="form-label">Personal Leave Days to Add</label>
-                <input type="number" id="personal" name="personal" className="form-control" value={creditsToAdd.personal} onChange={handleChange} min="0" />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="paternity" className="form-label">Paternity Leave Days to Add (for Males)</label>
-                <input type="number" id="paternity" name="paternity" className="form-control" value={creditsToAdd.paternity} onChange={handleChange} min="0" />
+                <label htmlFor="emergency" className="form-label">Emergency Leave Days to Add</label>
+                <input type="number" id="emergency" name="emergency" className="form-control" value={creditsToAdd.emergency} onChange={handleChange} min="0" />
               </div>
             </div>
             <div className="modal-footer">

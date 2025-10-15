@@ -58,13 +58,13 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
           const type = credit.leave_type.toLowerCase().replace(' leave', '');
           acc[type] = credit.total_credits;
           return acc;
-        }, { vacation: 0, sick: 0, personal: 0, maternity: 0 });
+        }, { vacation: 0, sick: 0, emergency: 0 });
         
         const usedCredits = Object.values(empCredits).reduce((acc, credit) => {
           const type = credit.leave_type.toLowerCase().replace(' leave', '');
           acc[type] = credit.used_credits;
           return acc;
-        }, { vacation: 0, sick: 0, personal: 0, maternity: 0, unpaid: 0 });
+        }, { vacation: 0, sick: 0, emergency: 0, unpaid: 0 });
         
         // Add unpaid leave usage from leave requests (not tracked in credits)
         const unpaidUsage = leaveRequests
@@ -88,8 +88,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
           remainingBalance: {
             vacation: (totalCredits.vacation || 0) - (usedCredits.vacation || 0),
             sick: (totalCredits.sick || 0) - (usedCredits.sick || 0),
-            personal: (totalCredits.personal || 0) - (usedCredits.personal || 0),
-            maternity: (totalCredits.maternity || 0) - (usedCredits.maternity || 0),
+            emergency: (totalCredits.emergency || 0) - (usedCredits.emergency || 0),
           }
         };
       });
@@ -98,7 +97,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
 
     return [...filteredData].sort((a, b) => {
       let valA, valB;
-      if (['vacation', 'sick', 'personal', 'emergency', 'maternity', 'unpaid'].includes(sortConfig.key)) {
+      if (['vacation', 'sick', 'emergency', 'unpaid'].includes(sortConfig.key)) {
         valA = sortConfig.key === 'unpaid' ? a.usedCredits.unpaid : a.remainingBalance[sortConfig.key];
         valB = sortConfig.key === 'unpaid' ? b.usedCredits.unpaid : b.remainingBalance[sortConfig.key];
       } else {
@@ -138,9 +137,32 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
     }
   };
 
-  const handleBulkAdd = (creditsToAdd) => {
-    handlers.bulkAddLeaveCredits(creditsToAdd);
-    setShowBulkAddModal(false);
+  const handleBulkAdd = async (creditsToAdd) => {
+    try {
+      console.log('Starting bulk add with credits:', creditsToAdd);
+      
+      // Use the new bulk API endpoint - much faster!
+      const response = await leaveAPI.bulkAddCredits(creditsToAdd);
+      console.log('Bulk add response:', response.data);
+      
+      // Refresh all leave credits data
+      console.log('Refreshing leave credits data...');
+      const creditsResponse = await leaveAPI.getAllLeaveCredits();
+      const creditsMap = {};
+      creditsResponse.data.forEach(({ user, leave_credits }) => {
+        creditsMap[user.id] = leave_credits;
+      });
+      setLeaveCreditsData(creditsMap);
+      
+      setShowBulkAddModal(false);
+      console.log(`Bulk add completed successfully! Updated ${response.data.users_updated} users with ${response.data.records_updated} credit records.`);
+      
+      // Show success message
+      alert(`Successfully added credits to ${response.data.users_updated} employees!`);
+    } catch (error) {
+      console.error('Failed to bulk add leave credits:', error);
+      alert('Failed to add leave credits. Please try again.');
+    }
   };
 
   const handleResetCredits = async (resetData) => {
@@ -205,15 +227,14 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
                 <th className="sortable" onClick={() => requestSort('name')}>Employee Name {getSortIcon('name')}</th>
                 <th className="sortable" onClick={() => requestSort('vacation')}>Vacation {getSortIcon('vacation')}</th>
                 <th className="sortable" onClick={() => requestSort('sick')}>Sick {getSortIcon('sick')}</th>
-                <th className="sortable" onClick={() => requestSort('personal')}>Personal {getSortIcon('personal')}</th>
-                <th className="sortable" onClick={() => requestSort('maternity')}>Maternity {getSortIcon('maternity')}</th>
+                <th className="sortable" onClick={() => requestSort('emergency')}>Emergency {getSortIcon('emergency')}</th>
                 <th className="sortable text-center" onClick={() => requestSort('unpaid')}>Unpaid {getSortIcon('unpaid')}</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="text-center p-4">Loading leave credits...</td></tr>
+                <tr><td colSpan="6" className="text-center p-4">Loading leave credits...</td></tr>
               ) : employeeLeaveData.map(emp => {
                 const vacationRemaining = emp.remainingBalance.vacation;
                 const vacationTotal = emp.totalCredits.vacation;
@@ -227,8 +248,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
                       <div className="progress" style={{height: '8px'}}><div className={`progress-bar ${getProgressBarVariant(vacationPercentage)}`} style={{width: `${vacationPercentage}%`}}></div></div>
                     </td>
                     <td className="text-center">{emp.usedCredits.sick} / {emp.totalCredits.sick}</td>
-                    <td className="text-center">{emp.usedCredits.personal} / {emp.totalCredits.personal}</td>
-                    <td className="text-center">{emp.gender === 'Female' ? `${emp.remainingBalance.maternity} / ${emp.totalCredits.maternity}` : 'N/A'}</td>
+                    <td className="text-center">{emp.usedCredits.emergency} / {emp.totalCredits.emergency}</td>
                     <td className="text-center fw-bold">{emp.usedCredits.unpaid || 0}</td>
                     <td>
                         <div className="dropdown">
@@ -243,7 +263,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
                 );
               })}
               {!loading && employeeLeaveData.length === 0 && (
-                <tr><td colSpan="7" className="text-center p-4">No employees found.</td></tr>
+                <tr><td colSpan="6" className="text-center p-4">No employees found.</td></tr>
               )}
             </tbody>
           </table>

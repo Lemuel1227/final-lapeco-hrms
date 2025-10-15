@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import { addDays } from 'date-fns';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../../hooks/useReportGenerator';
 import './MyPayrollPage.css';
@@ -7,10 +8,10 @@ import './MyPayrollPage.css';
 const formatCurrency = (value) => Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const MyPayrollHistoryPage = ({ currentUser, payrolls = [] }) => {
-  const { employees } = useOutletContext();
+  const { employees, theme } = useOutletContext();
   
   const [showPdfPreview, setShowPdfPreview] = useState(false);
-  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator(theme);
 
   const myPayrolls = useMemo(() => {
     return payrolls
@@ -34,7 +35,18 @@ const MyPayrollHistoryPage = ({ currentUser, payrolls = [] }) => {
   }, [employees, currentUser.id]);
 
   const handleViewPayslip = async (record, run) => {
-    const fullPayslipData = { ...record, cutOff: run.cutOff };
+    const [start, end] = run.cutOff.split(' to ');
+    const calculatedPaymentDate = addDays(new Date(end), 5).toISOString().split('T')[0];
+    
+    const fullPayslipData = { 
+      ...record,
+      payStartDate: record.payStartDate ?? start,
+      payEndDate: record.payEndDate ?? end,
+      paymentDate: record.paymentDate ?? calculatedPaymentDate,
+      period: record.period ?? run.cutOff,
+      leaveBalances: employeeDetails?.leaveCredits || {},
+    };
+
     await generateReport('payslip', {}, { payslipData: fullPayslipData, employeeDetails });
     setShowPdfPreview(true);
   };

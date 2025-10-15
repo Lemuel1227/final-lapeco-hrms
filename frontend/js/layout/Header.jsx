@@ -48,7 +48,7 @@ const Header = ({ currentUser, notifications, appLevelHandlers, theme, isMobileV
       <div className="header-right">
         <ThemeToggle theme={theme} onToggle={appLevelHandlers.toggleTheme} />
 
-        <NotificationDropdown notifications={notifications} handlers={appLevelHandlers} />
+        <NotificationDropdown notifications={notifications} handlers={appLevelHandlers} currentUser={currentUser} />
         <div className="dropdown user-profile-menu">
           <div 
             className="user-info-wrapper"

@@ -28,28 +28,44 @@ const addFooterAndConcernSlip = (doc, y, pageWidth, employeeDetails, payrollId) 
     y += 15;
 
     const concernStartY = y;
+
     const concernLine = (label, lineY, value = '') => {
-        doc.setFontSize(8); doc.setTextColor(COLOR_SECONDARY); doc.text(label, PAGE_MARGIN, lineY);
-        doc.setDrawColor(COLOR_SECONDARY); doc.line(PAGE_MARGIN + 90, lineY, pageWidth / 2 + 80, lineY);
+        doc.setFontSize(8); 
+        doc.setTextColor(COLOR_SECONDARY); 
+        doc.text(label, PAGE_MARGIN, lineY);
+
+        const labelWidth = doc.getTextWidth(label);
+        const lineStartX = PAGE_MARGIN + labelWidth + 5;
+        const valueStartX = lineStartX + 5;
+
+        doc.setDrawColor(COLOR_SECONDARY); 
+        doc.line(lineStartX, lineY, pageWidth / 2 + 80, lineY);
+        
         if (value) {
-            doc.setFont(FONT_REGULAR, 'bold'); doc.setTextColor(COLOR_PRIMARY); doc.text(value, PAGE_MARGIN + 95, lineY - 2);
+            doc.setFont(FONT_REGULAR, 'bold'); 
+            doc.setTextColor(COLOR_PRIMARY); 
+            doc.text(value, valueStartX, lineY - 2);
         }
     };
     
-    concernLine('Employee Full Name', concernStartY, employeeDetails.name.toUpperCase());
-    concernLine('Employee Number', concernStartY + 15, employeeDetails.id);
-    concernLine('Payroll Number in Concern', concernStartY + 30, payrollId);
+    concernLine('Employee Full Name:', concernStartY, employeeDetails.name.toUpperCase());
+    concernLine('Employee Number:', concernStartY + 15, employeeDetails.id);
+    concernLine('Payroll Number in Concern:', concernStartY + 30, payrollId);
     concernLine('Concern dates:', concernStartY + 45);
-    concernLine('Over/Underpaid Amount', concernStartY + 60);
-    concernLine('Loan/Deduction Amount', concernStartY + 75);
-    concernLine('Other Concerns', concernStartY + 90);
+    concernLine('Over/Underpaid Amount:', concernStartY + 60);
+    concernLine('Loan/Deduction Amount:', concernStartY + 75);
+    concernLine('Other Concerns:', concernStartY + 90);
 
     const guideX = pageWidth / 2 + 100;
     const guideY = concernStartY;
+    const guideWidth = 150;
+    const guideHeight = 55;
+    const guidePadding = 10;
+
     doc.setDrawColor(COLOR_BORDER); doc.setFillColor(...COLOR_HEADER_BG);
-    doc.roundedRect(guideX, guideY, 150, 45, 3, 3, 'FD');
+    doc.roundedRect(guideX, guideY, guideWidth, guideHeight, 3, 3, 'FD');
     doc.setFont(FONT_REGULAR, 'bold'); doc.setTextColor(COLOR_PRIMARY);
-    doc.text('Payslip Guide', guideX + 10, guideY + 10);
+    doc.text('Payslip Guide', guideX + guidePadding, guideY + 10);
     doc.setFont(FONT_REGULAR, 'normal'); doc.setFontSize(6.5); doc.setTextColor(COLOR_SECONDARY);
     const guideItems = [
         { label: 'Gross Pay', formula: '= Total Amount of Earnings' },
@@ -57,14 +73,22 @@ const addFooterAndConcernSlip = (doc, y, pageWidth, employeeDetails, payrollId) 
         { label: 'Other Ded', formula: '= Canteen + Cash Advance + Others + Loans' },
         { label: 'Net Pay', formula: '= Gross - Statutory Deductions - Other Ded' },
     ];
+    
     const labelWidths = guideItems.map(item => doc.getTextWidth(item.label));
     const maxLabelWidth = Math.max(...labelWidths);
-    const formulaX = guideX + 10 + maxLabelWidth + 5;
-    let currentGuideY = guideY + 20;
+    const formulaX = guideX + guidePadding + maxLabelWidth + 5;
+    const formulaMaxWidth = (guideX + guideWidth) - formulaX - (guidePadding / 2);
+    let currentGuideY = guideY + 22;
+    const lineHeight = 9;
+
     guideItems.forEach(item => {
-        doc.text(item.label, guideX + 10, currentGuideY);
-        doc.text(item.formula, formulaX, currentGuideY);
-        currentGuideY += 9;
+        if (currentGuideY > guideY + guideHeight - guidePadding) return;
+
+        doc.text(item.label, guideX + guidePadding, currentGuideY);
+        doc.text(item.formula, formulaX, currentGuideY, { maxWidth: formulaMaxWidth });
+        
+        const lines = doc.splitTextToSize(item.formula, formulaMaxWidth).length;
+        currentGuideY += (lines * lineHeight);
     });
 
     y = concernStartY + 120;
@@ -74,12 +98,15 @@ const addFooterAndConcernSlip = (doc, y, pageWidth, employeeDetails, payrollId) 
     doc.text('Received and Noted by:', pageWidth - PAGE_MARGIN - 200, y + 8);
 };
 
+
 // --- MAIN GENERATOR FUNCTION ---
-export const generatePayslipReport = async (doc, params, dataSources) => {
+export const generatePayslipReport = async (layoutManager, dataSources) => {
+  const { doc } = layoutManager;
   const { payslipData, employeeDetails } = dataSources;
+  
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  let y = PAGE_MARGIN;
+  let y = layoutManager.margin;
 
   const addHeader = () => {
     doc.addImage(logo, 'PNG', pageWidth / 2 - 40, 25, 80, 26);
@@ -224,11 +251,17 @@ export const generatePayslipReport = async (doc, params, dataSources) => {
   });
   
   let finalY = doc.lastAutoTable.finalY;
+
+  finalY += 15;
+  doc.setDrawColor(COLOR_BORDER);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.line(PAGE_MARGIN, finalY, pageWidth - PAGE_MARGIN, finalY);
+  doc.setLineDashPattern([], 0); 
+  finalY += 15;
+  
   if (pageHeight - finalY < FOOTER_HEIGHT) {
       doc.addPage();
       finalY = PAGE_MARGIN;
   }
-  addFooterAndConcernSlip(doc, finalY + 15, pageWidth, employeeDetails, payslipData.payrollId);
-  
-  return doc;
+  addFooterAndConcernSlip(doc, finalY, pageWidth, employeeDetails, payslipData.payrollId);
 };

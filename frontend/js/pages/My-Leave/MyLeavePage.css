@@ -30,7 +30,7 @@
 }
 .balance-icon.icon-vacation { background-color: var(--info-color); }
 .balance-icon.icon-sick { background-color: var(--danger-color); }
-.balance-icon.icon-personal { background-color: #6f42c1; }
+.balance-icon.icon-emergency { background-color: #fd7e14; }
 
 .balance-card .balance-info .balance-value { 
     font-size: 1.75rem; 

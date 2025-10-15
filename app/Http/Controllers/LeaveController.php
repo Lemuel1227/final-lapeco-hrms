@@ -37,7 +37,7 @@ class LeaveController extends Controller
             ]);
             
             $data = $request->validate([
-                'type' => 'required|string|in:Vacation Leave,Sick Leave,Personal Leave,Unpaid Leave,Maternity Leave,Paternity Leave',
+                'type' => 'required|string|in:Vacation Leave,Sick Leave,Emergency Leave,Unpaid Leave,Maternity Leave,Paternity Leave',
                 'date_from' => 'required|date',
                 'date_to' => 'required|date|after_or_equal:date_from',
                 'days' => 'required|integer|min:1',
@@ -71,6 +71,31 @@ class LeaveController extends Controller
                         'error' => 'Insufficient credits'
                     ], 422);
                 }
+            }
+            
+            // Check for overlapping leave dates
+            $overlappingLeave = Leave::where('user_id', $user->id)
+                ->where('status', '!=', 'Declined')
+                ->where('status', '!=', 'Canceled')
+                ->where(function ($query) use ($data) {
+                    $query->whereBetween('date_from', [$data['date_from'], $data['date_to']])
+                          ->orWhereBetween('date_to', [$data['date_from'], $data['date_to']])
+                          ->orWhere(function ($subQuery) use ($data) {
+                              $subQuery->where('date_from', '<=', $data['date_from'])
+                                       ->where('date_to', '>=', $data['date_to']);
+                          });
+                })
+                ->first();
+            
+            if ($overlappingLeave) {
+                $overlappingFromDate = date('M j, Y', strtotime($overlappingLeave->date_from));
+                $overlappingToDate = date('M j, Y', strtotime($overlappingLeave->date_to));
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => "You already have a {$overlappingLeave->status} {$overlappingLeave->type} request from {$overlappingFromDate} to {$overlappingToDate} that overlaps with your requested dates.",
+                    'error' => 'Overlapping dates'
+                ], 422);
             }
             
             $leave = Leave::create($data);
@@ -121,7 +146,7 @@ class LeaveController extends Controller
     {
         $validated = $request->validate([
             'status' => 'sometimes|in:Pending,Approved,Declined,Canceled',
-            'type' => 'sometimes|string|in:Vacation Leave,Sick Leave,Personal Leave,Unpaid Leave',
+            'type' => 'sometimes|string|in:Vacation Leave,Sick Leave,Emergency Leave,Unpaid Leave,Maternity Leave,Paternity Leave',
             'date_from' => 'sometimes|date',
             'date_to' => 'sometimes|date|after_or_equal:date_from',
             'days' => 'sometimes|integer|min:1',
@@ -203,8 +228,8 @@ class LeaveController extends Controller
             ->get()
             ->keyBy('leave_type');
         
-        // Ensure all leave types have records
-        $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Personal Leave', 'Maternity Leave'];
+        // Ensure all leave types have records (only types with credit limits)
+        $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Emergency Leave'];
         $result = [];
         
         foreach ($leaveTypes as $type) {
@@ -236,8 +261,8 @@ class LeaveController extends Controller
             ->get()
             ->groupBy('user_id');
         
-        // Define leave types
-        $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Personal Leave', 'Maternity Leave'];
+        // Define leave types (only types with credit limits)
+        $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Emergency Leave'];
         
         $result = [];
         
@@ -274,7 +299,7 @@ class LeaveController extends Controller
         }
         
         $validated = $request->validate([
-            'leave_type' => 'required|string|in:Vacation Leave,Sick Leave,Personal Leave,Maternity Leave',
+            'leave_type' => 'required|string|in:Vacation Leave,Sick Leave,Emergency Leave',
             'total_credits' => 'required|integer|min:0',
         ]);
         
@@ -285,6 +310,52 @@ class LeaveController extends Controller
             'success' => true,
             'message' => 'Leave credits updated successfully.',
             'data' => $leaveCredit
+        ]);
+    }
+
+    // Bulk add credits to all employees (HR only)
+    public function bulkAddCredits(Request $request)
+    {
+        $user = $request->user();
+        
+        if ($user->role !== 'HR_PERSONNEL') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        
+        $validated = $request->validate([
+            'vacation' => 'integer|min:0',
+            'sick' => 'integer|min:0',
+            'emergency' => 'integer|min:0',
+        ]);
+        
+        $updatedRecords = 0;
+        $users = User::whereIn('role', ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'])->get();
+        
+        foreach ($users as $targetUser) {
+            if ($validated['vacation'] > 0) {
+                $credit = LeaveCredit::getOrCreateForUser($targetUser->id, 'Vacation Leave');
+                $credit->increment('total_credits', $validated['vacation']);
+                $updatedRecords++;
+            }
+            
+            if ($validated['sick'] > 0) {
+                $credit = LeaveCredit::getOrCreateForUser($targetUser->id, 'Sick Leave');
+                $credit->increment('total_credits', $validated['sick']);
+                $updatedRecords++;
+            }
+            
+            if ($validated['emergency'] > 0) {
+                $credit = LeaveCredit::getOrCreateForUser($targetUser->id, 'Emergency Leave');
+                $credit->increment('total_credits', $validated['emergency']);
+                $updatedRecords++;
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave credits added successfully to all employees.',
+            'users_updated' => $users->count(),
+            'records_updated' => $updatedRecords
         ]);
     }
 
@@ -299,7 +370,7 @@ class LeaveController extends Controller
         
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
-            'leave_type' => 'nullable|string|in:Vacation Leave,Sick Leave,Personal Leave,Maternity Leave',
+            'leave_type' => 'nullable|string|in:Vacation Leave,Sick Leave,Emergency Leave',
             'reset_all_users' => 'boolean',
             'reset_all_types' => 'boolean',
         ]);

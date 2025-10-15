@@ -3,7 +3,7 @@ import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import { USER_ROLES } from '../../constants/roles';
 import { employeeAPI, positionAPI } from '../../services/api';
 import './MyProfilePage.css';
-import ResumeIframe from '../../modals/ResumeIframe';
+import ResumeIframe from '../../common/ResumeIframe';
 import ToastNotification from '../../common/ToastNotification';
 import api from '../../services/api';
 

@@ -1,74 +1,26 @@
 import { useMemo } from 'react';
+import { subDays, startOfDay, endOfDay } from 'date-fns';
 
-export const useLeaderboardAnalytics = (props = {}, filters = {}) => {
-  const { startDate, endDate, positionFilter } = filters;
-  
-  // Extract data from props with default empty arrays
-  const employees = props.employees || [];
-  const positions = props.positions || [];
-  const schedules = props.schedules || [];
-  const attendanceLogs = props.attendanceLogs || [];
-  const leaveRequests = props.leaveRequests || [];
-  const evaluations = props.evaluations || [];
+export const useLeaderboardAnalytics = ({ employees, positions, schedules, attendanceLogs, leaveRequests, evaluations }, { startDate, endDate, positionFilter }) => {
 
   const analyticsData = useMemo(() => {
-    // Early return if essential data is not available
-    if (!employees.length || !positions.length) {
-      return [];
-    }
-
+    const start = startDate ? startOfDay(new Date(startDate)) : startOfDay(subDays(new Date(), 89));
+    const end = endDate ? endOfDay(new Date(endDate)) : endOfDay(new Date());
+    
     const positionMap = new Map(positions.map(p => [p.id, p]));
-    const attendanceMap = new Map(attendanceLogs.map(log => [`${log.empId}-${log.date}`, log]));
-    const leaveMap = new Map();
-    
-    // Group leave requests by employee ID
-    leaveRequests.forEach(leave => {
-      const employeeId = leave.user_id || leave.empId; // Support both field names
-      if (!leaveMap.has(employeeId)) {
-        leaveMap.set(employeeId, []);
-      }
-      leaveMap.get(employeeId).push(leave);
-    });
-    
-    const evaluationMap = new Map();
-    
-    // Group evaluations by employee ID
-    evaluations.forEach(evaluation => {
-      if (!evaluationMap.has(evaluation.empId)) {
-        evaluationMap.set(evaluation.empId, []);
-      }
-      evaluationMap.get(evaluation.empId).push(evaluation);
-    });
 
     return employees.map(employee => {
-      const position = positionMap.get(employee.position_id);
+      const position = positionMap.get(employee.positionId);
       if (!position) return null;
-
-      const empSchedules = schedules.filter(s => s.empId === employee.id);
-      const empLogs = new Map();
-      empSchedules.forEach(schedule => {
-        const log = attendanceMap.get(`${schedule.empId}-${schedule.date}`);
-        if (log) empLogs.set(schedule.date, log);
-      });
-
-      const empLeaves = leaveMap.get(employee.id) || [];
-      const empEvals = (evaluationMap.get(employee.id) || []).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      let absences = 0;
-      let lates = 0;
-      let presentDays = 0;
-
+      const empSchedules = schedules.filter(s => s.empId === employee.id && new Date(s.date) >= start && new Date(s.date) <= end);
+      const empLogs = new Map(attendanceLogs.filter(l => l.empId === employee.id && new Date(l.date) >= start && new Date(l.date) <= end).map(l => [l.date, l]));
+      const empLeaves = leaveRequests.filter(l => l.empId === employee.id && l.status === 'Approved' && new Date(l.dateFrom) <= end && new Date(l.dateTo) >= start);
+      const empEvals = evaluations.filter(ev => ev.employeeId === employee.id && new Date(ev.periodEnd) <= end).sort((a,b) => new Date(b.periodEnd) - new Date(a.periodEnd));
+      
+      let absences = 0, lates = 0, presentDays = 0;
       empSchedules.forEach(schedule => {
         const log = empLogs.get(schedule.date);
-        if (!log || !log.signIn) {
-          absences++;
-        } else {
-          presentDays++;
-          const shiftStartTime = schedule.shift ? schedule.shift.split(' - ')[0] : '00:00';
-          if (log.signIn > shiftStartTime) { 
-            lates++; 
-          } 
-        }
+        if (!log || !log.signIn) { absences++; } else { presentDays++; if (log.signIn > (schedule.start_time || '00:00')) { lates++; } }
       });
       const attendanceScore = Math.max(0, 100 - (absences * 5) - (lates * 2));
       const latestPerformanceScore = empEvals.length > 0 ? empEvals[0].overallScore : 0;
@@ -91,44 +43,49 @@ export const useLeaderboardAnalytics = (props = {}, filters = {}) => {
   }, [employees, positions, schedules, attendanceLogs, leaveRequests, evaluations, startDate, endDate]);
 
   const filteredData = useMemo(() => {
-    if (!analyticsData.length) return [];
-    
-    return analyticsData.filter(emp => {
-      if (positionFilter && positionFilter !== 'All Positions' && emp.positionTitle !== positionFilter) {
-        return false;
-      }
-      return true;
-    });
+    if (!positionFilter) return analyticsData;
+    return analyticsData.filter(emp => emp.positionTitle === positionFilter);
   }, [analyticsData, positionFilter]);
 
-  const sortedByOverallScore = useMemo(() => [...filteredData].sort((a, b) => b.overallScore - a.overallScore), [filteredData]);
-  const sortedByTeamScore = useMemo(() => [...filteredData].filter(emp => emp.role === 'TEAM_LEADER').sort((a, b) => b.overallScore - a.overallScore), [filteredData]);
-  const sortedByPresence = useMemo(() => [...filteredData].sort((a, b) => b.presentDays - a.presentDays), [filteredData]);
-  const sortedByLates = useMemo(() => [...filteredData].sort((a, b) => b.lates - a.lates), [filteredData]);
-  const sortedByLeaveDays = useMemo(() => [...filteredData].sort((a, b) => b.leaveDays - a.leaveDays), [filteredData]);
-  const sortedByOvertime = useMemo(() => [...filteredData].sort((a, b) => b.overtimeHours - a.overtimeHours), [filteredData]);
+  // --- DERIVED RANKINGS & STATS ---
+  const sortedByTeamScore = useMemo(() => {
+    const leaders = employees.filter(e => e.isTeamLeader);
+    const employeeScores = new Map(filteredData.map(e => [e.id, e.overallScore]));
+    const positionMap = new Map(positions.map(p => [p.id, p.title]));
+    const leaderScores = leaders.map(leader => {
+      const teamMembers = employees.filter(e => e.positionId === leader.positionId && !e.isTeamLeader);
+      if (teamMembers.length === 0) return null;
+      let totalScore = 0;
+      let membersWithScores = 0;
+      teamMembers.forEach(member => {
+        if (employeeScores.has(member.id)) { totalScore += employeeScores.get(member.id); membersWithScores++; }
+      });
+      const averageTeamScore = membersWithScores > 0 ? totalScore / membersWithScores : 0;
+      return { ...leader, positionTitle: positionMap.get(leader.positionId) || 'Unassigned', averageTeamScore, teamSize: teamMembers.length };
+    }).filter(Boolean);
+    return leaderScores.sort((a, b) => b.averageTeamScore - a.averageTeamScore);
+  }, [filteredData, employees, positions]);
 
-  const summaryStats = useMemo(() => {
-    if (!filteredData.length) {
-      return {
-        totalEmployees: 0,
-        averageAttendanceScore: 0,
-        averagePerformanceScore: 0,
-        totalLeaveDays: 0,
-        totalOvertime: 0
-      };
-    }
+  const sortedByOverallScore = useMemo(() => 
+    [...filteredData].sort((a, b) => b.overallScore - a.overallScore), [filteredData]);
+  const sortedByPresence = useMemo(() => 
+    [...filteredData].sort((a, b) => b.presentDays - a.presentDays), [filteredData]);
+  const sortedByLates = useMemo(() => 
+    [...filteredData].sort((a, b) => b.lates - a.lates), [filteredData]);
+  const sortedByLeaveDays = useMemo(() => 
+    [...filteredData].sort((a, b) => b.leaveDays - a.leaveDays), [filteredData]);
+  const sortedByOvertime = useMemo(() => 
+    [...filteredData].sort((a, b) => b.overtimeHours - a.overtimeHours), [filteredData]);
 
-    const totalEmployees = filteredData.length;
-    const averageAttendanceScore = filteredData.reduce((sum, emp) => sum + emp.attendanceScore, 0) / totalEmployees;
-    const averagePerformanceScore = filteredData.reduce((sum, emp) => sum + emp.performanceScore, 0) / totalEmployees;
-    const totalLeaveDays = filteredData.reduce((sum, emp) => sum + emp.leaveDays, 0);
-    const totalOvertime = filteredData.reduce((sum, emp) => sum + emp.overtimeHours, 0);
-
-    return { totalEmployees, averageAttendanceScore, averagePerformanceScore, totalLeaveDays, totalOvertime };
-  }, [filteredData]);
-
-  return {
+  const summaryStats = useMemo(() => ({
+    totalPresentDays: filteredData.reduce((sum, e) => sum + e.presentDays, 0),
+    totalAbsences: filteredData.reduce((sum, e) => sum + e.absences, 0),
+    totalLates: filteredData.reduce((sum, e) => sum + e.lates, 0),
+    totalOvertime: filteredData.reduce((sum, e) => sum + e.overtimeHours, 0),
+    totalLeaveDays: filteredData.reduce((sum, e) => sum + e.leaveDays, 0),
+  }), [filteredData]);
+  
+  return { 
     sortedByOverallScore,
     sortedByTeamScore,
     sortedByPresence,

@@ -1,8 +1,10 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useOutletContext as useParentContext } from 'react-router-dom';
 import './MyPayrollPage.css';
 
 const MyPayrollLayout = ({ employees }) => {
+  const { theme } = useParentContext(); 
+
   return (
     <div className="container-fluid p-0 page-module-container">
       <header className="page-header mb-4">
@@ -23,7 +25,7 @@ const MyPayrollLayout = ({ employees }) => {
       </ul>
       
       <div className="payroll-tab-content">
-        <Outlet context={{ employees }} /> 
+        <Outlet context={{ employees, theme }} /> 
       </div>
     </div>
   );

@@ -9,16 +9,45 @@
 }
 .program-detail-header .program-meta {
     display: flex;
+    flex-wrap: wrap;
     gap: 1.5rem;
     margin-top: 0.5rem;
     font-size: 0.9rem;
 }
+
+/* Large screens - allow all items in one row */
+@media (min-width: 1200px) {
+    .program-detail-header .program-meta {
+        gap: 2rem;
+    }
+}
+
+/* Medium screens - reduce gap */
+@media (min-width: 768px) and (max-width: 1199px) {
+    .program-detail-header .program-meta {
+        gap: 1.25rem;
+    }
+}
+
+/* Small screens - smaller gap */
+@media (max-width: 767px) {
+    .program-detail-header .program-meta {
+        gap: 1rem;
+    }
+}
+
 .program-detail-header .meta-item {
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    flex: 0 0 auto; /* Don't grow or shrink, use natural size */
 }
+
 .program-detail-header .meta-item i {
     margin-right: 0.5rem;
     color: var(--secondary-color);
+    flex-shrink: 0; /* Prevent icons from shrinking */
 }
 
 /* === NEW: Styles for table controls === */

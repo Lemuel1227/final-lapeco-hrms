@@ -29,6 +29,7 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
 
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = !!editingRequest;
 
   useEffect(() => {
@@ -148,30 +149,37 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent double submission
+    
     if (validate()) {
-      let payload = { leaveType: formData.leaveType, dateFrom: formData.dateFrom, dateTo: formData.dateTo, reason: formData.reason, days: formData.days };
-      if (isMaternity) { 
-        payload.maternityDetails = { 
-          type: formData.maternityType, 
-          isSoloParent: formData.isSoloParent && canClaimSoloParent, 
-          deliveryDate: formData.deliveryDate, 
-          allocationDays: formData.willAllocate ? formData.allocationDays : 0, 
-          medicalDocumentName: formData.medicalDocument?.name || editingRequest?.maternityDetails?.medicalDocumentName || null, 
-          soloParentDocumentName: formData.soloParentDocument?.name || editingRequest?.maternityDetails?.soloParentDocumentName || null 
-        };
+      setIsSubmitting(true);
+      try {
+        let payload = { leaveType: formData.leaveType, dateFrom: formData.dateFrom, dateTo: formData.dateTo, reason: formData.reason, days: formData.days };
+        if (isMaternity) { 
+          payload.maternityDetails = { 
+            type: formData.maternityType, 
+            isSoloParent: formData.isSoloParent && canClaimSoloParent, 
+            deliveryDate: formData.deliveryDate, 
+            allocationDays: formData.willAllocate ? formData.allocationDays : 0, 
+            medicalDocumentName: formData.medicalDocument?.name || editingRequest?.maternityDetails?.medicalDocumentName || null, 
+            soloParentDocumentName: formData.soloParentDocument?.name || editingRequest?.maternityDetails?.soloParentDocumentName || null 
+          };
+        }
+        if (isPaternity) {
+          payload.paternityDetails = {
+              childsDob: formData.childsDob,
+              isEligiblePaternity: formData.isEligiblePaternity,
+              marriageCertName: formData.marriageCert?.name || editingRequest?.paternityDetails?.marriageCertName || null,
+              birthCertName: formData.birthCert?.name || editingRequest?.paternityDetails?.birthCertName || null,
+          };
+        }
+        if (isEditing) payload.leaveId = editingRequest.leaveId;
+        await onSave(payload, isEditing);
+      } finally {
+        setIsSubmitting(false);
       }
-      if (isPaternity) {
-        payload.paternityDetails = {
-            childsDob: formData.childsDob,
-            isEligiblePaternity: formData.isEligiblePaternity,
-            marriageCertName: formData.marriageCert?.name || editingRequest?.paternityDetails?.marriageCertName || null,
-            birthCertName: formData.birthCert?.name || editingRequest?.paternityDetails?.birthCertName || null,
-        };
-      }
-      if (isEditing) payload.leaveId = editingRequest.leaveId;
-      onSave(payload, isEditing);
     }
   };
 
@@ -204,7 +212,7 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
                   <option value="">Select Leave Type</option>
                   <option value="Vacation Leave">Vacation Leave</option>
                   <option value="Sick Leave">Sick Leave</option>
-                  <option value="Personal Leave">Personal Leave</option>
+                  <option value="Emergency Leave">Emergency Leave</option>
                   <option value="Unpaid Leave">Unpaid Leave</option>
                   {userGender?.toLowerCase() === 'female' && (<option value="Maternity Leave">Maternity Leave</option>)}
                   {userGender?.toLowerCase() === 'male' && (<option value="Paternity Leave">Paternity Leave</option>)}
@@ -319,8 +327,17 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
               <div className="mb-3"><label htmlFor="reason" className="form-label mt-3">Reason*</label><textarea id="reason" name="reason" rows="3" className={`form-control ${errors.reason ? 'is-invalid' : ''}`} value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})}></textarea>{errors.reason && <div className="invalid-feedback">{errors.reason}</div>}</div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" onClick={handleClose}>Cancel</button>
-              <button type="submit" className="btn btn-success">{isEditing ? 'Save Changes' : 'Submit Request'}</button>
+              <button type="button" className="btn btn-outline-secondary" onClick={handleClose} disabled={isSubmitting}>Cancel</button>
+              <button type="submit" className="btn btn-success" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    {isEditing ? 'Saving...' : 'Submitting...'}
+                  </>
+                ) : (
+                  isEditing ? 'Save Changes' : 'Submit Request'
+                )}
+              </button>
             </div>
           </form>
         </div>

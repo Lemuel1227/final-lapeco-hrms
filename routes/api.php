@@ -144,8 +144,9 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     
     // Leave Credits Management
     Route::middleware(['role.access:leave,index'])->get('/leave-credits/all', [LeaveController::class, 'getAllLeaveCredits']);
-    Route::middleware(['role.access:leave,index'])->get('/leave-credits/{userId?}', [LeaveController::class, 'getLeaveCredits']);
+    Route::middleware(['role.access:leave,index'])->get('/leave-credits/{userId}', [LeaveController::class, 'getLeaveCredits']);
     Route::middleware(['role.access:leave,update'])->put('/leave-credits/{userId}', [LeaveController::class, 'updateLeaveCredits']);
+    Route::middleware(['role.access:leave,update'])->post('/leave-credits/bulk-add', [LeaveController::class, 'bulkAddCredits']);
     Route::middleware(['role.access:leave,update'])->post('/leave-credits/reset', [LeaveController::class, 'resetUsedCredits']);
 
     // Payroll - with role-based access control

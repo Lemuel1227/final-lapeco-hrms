@@ -134,6 +134,7 @@ export const leaveAPI = {
   getAllLeaveCredits: () => api.get('/leave-credits/all'),
   getLeaveCredits: (userId) => api.get(`/leave-credits/${userId}`),
   updateLeaveCredits: (userId, data) => api.put(`/leave-credits/${userId}`, data),
+  bulkAddCredits: (data) => api.post('/leave-credits/bulk-add', data),
   resetUsedCredits: (data) => api.post('/leave-credits/reset', data),
 };
 
