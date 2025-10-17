@@ -69,7 +69,7 @@ const EmployeeDataPage = () => {
     gender: e.gender ?? null,
     address: e.address ?? null,
     contactNumber: e.contact_number ?? e.contactNumber ?? null,
-    imageUrl: e.image_url ?? e.imageUrl ?? null,
+    imageUrl: e.profile_picture_url ?? null,
     sssNo: e.sss_no ?? e.sssNo ?? null,
     tinNo: e.tin_no ?? e.tinNo ?? null,
     pagIbigNo: e.pag_ibig_no ?? e.pagIbigNo ?? null,
@@ -108,7 +108,7 @@ const EmployeeDataPage = () => {
           position: e.position,
           positionTitle: e.position, // Backend already provides position name
           joiningDate: e.joining_date,
-          imageUrl: e.image_url,
+          imageUrl: e.profile_picture_url || null,
           status: e.attendance_status || 'Pending', // Use attendance_status for status filter
           attendance_status: e.attendance_status,
           account_status: e.status, // Keep account_status separate
@@ -136,15 +136,19 @@ const EmployeeDataPage = () => {
       try {
         const isEdit = Boolean(id);
         
-        // Check if we have a NEW file to upload (not just existing resume URL)
-        const hasNewFile = employeeData.resumeFile && employeeData.resumeFile instanceof File;
+        // Check if we have NEW files to upload
+        const hasNewResumeFile = employeeData.resumeFile && employeeData.resumeFile instanceof File;
+        const hasNewImageFile = employeeData.imageUrl && employeeData.imageUrl instanceof File;
         
         console.log('File upload check:', {
           hasResumeFile: !!employeeData.resumeFile,
-          isFileInstance: employeeData.resumeFile instanceof File,
-          hasNewFile: hasNewFile,
+          isResumeFileInstance: employeeData.resumeFile instanceof File,
+          hasNewResumeFile: hasNewResumeFile,
+          hasImageFile: !!employeeData.imageUrl,
+          isImageFileInstance: employeeData.imageUrl instanceof File,
+          hasNewImageFile: hasNewImageFile,
           resumeFileType: typeof employeeData.resumeFile,
-          resumeFile: employeeData.resumeFile
+          imageFileType: typeof employeeData.imageUrl
         });
         
         // Always use FormData to support file uploads (even if no file is selected)
@@ -171,22 +175,37 @@ const EmployeeDataPage = () => {
         if (employeeData.pagIbigNo) payload.append('pag_ibig_no', employeeData.pagIbigNo);
         if (employeeData.philhealthNo) payload.append('philhealth_no', employeeData.philhealthNo);
         
-        // Only append the file if a new file was selected
-        if (hasNewFile) {
+        // Only append files if new files were selected
+        if (hasNewResumeFile) {
           payload.append('resume_file', employeeData.resumeFile);
           console.log('Appending resume file to FormData:', employeeData.resumeFile.name);
         } else {
           console.log('No new resume file to append');
         }
+        
+        if (hasNewImageFile) {
+          payload.append('imageUrl', employeeData.imageUrl);
+          console.log('Appending profile picture to FormData:', employeeData.imageUrl.name);
+        } else {
+          console.log('No new profile picture to append');
+        }
 
         if (isEdit) {
           console.log('Updating employee with payload:', payload);
-          console.log('Has new file:', hasNewFile);
-          if (hasNewFile && employeeData.resumeFile) {
+          console.log('Has new resume file:', hasNewResumeFile);
+          console.log('Has new image file:', hasNewImageFile);
+          if (hasNewResumeFile && employeeData.resumeFile) {
             console.log('Resume file details:', {
               name: employeeData.resumeFile.name,
               size: employeeData.resumeFile.size,
               type: employeeData.resumeFile.type
+            });
+          }
+          if (hasNewImageFile && employeeData.imageUrl) {
+            console.log('Image file details:', {
+              name: employeeData.imageUrl.name,
+              size: employeeData.imageUrl.size,
+              type: employeeData.imageUrl.type
             });
           }
           // Use POST with _method=PUT for FormData file uploads
@@ -214,7 +233,7 @@ const EmployeeDataPage = () => {
           position: e.position,
           positionTitle: e.position,
           joiningDate: e.joining_date,
-          imageUrl: e.image_url,
+          imageUrl: e.profile_picture_url || null,
           status: e.status,
           attendance_status: e.attendance_status,
         }));
@@ -265,7 +284,7 @@ const EmployeeDataPage = () => {
           position: e.position,
           positionTitle: e.position,
           joiningDate: e.joining_date,
-          imageUrl: e.image_url,
+          imageUrl: e.profile_picture_url || null,
           status: e.status,
           attendance_status: e.attendance_status,
         }));
@@ -300,7 +319,7 @@ const EmployeeDataPage = () => {
               position: e.position,
               positionTitle: e.position,
               joiningDate: e.joining_date,
-              imageUrl: e.image_url,
+              imageUrl: e.profile_picture_url || null,
               status: e.status,
               attendance_status: e.attendance_status,
             }));
@@ -341,7 +360,7 @@ const EmployeeDataPage = () => {
           position: e.position,
           positionTitle: e.position,
           joiningDate: e.joining_date,
-          imageUrl: e.image_url,
+          imageUrl: e.profile_picture_url || null,
           status: e.status,
           attendance_status: e.attendance_status,
         }));
@@ -402,7 +421,7 @@ const EmployeeDataPage = () => {
   const uniquePositions = useMemo(() => ['All Positions', ...new Set(employees.map(emp => emp.position).filter(Boolean).sort())], [employees]);
   
   const filteredAndSortedEmployees = useMemo(() => {
-    let records = employees.map(emp => ({...emp}));
+    let records = [...employees]; // Use shallow copy instead of deep cloning
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       records = records.filter(emp => 
@@ -416,7 +435,7 @@ const EmployeeDataPage = () => {
     if (joiningDateFilter) { records = records.filter(emp => emp.joiningDate === joiningDateFilter); }
     if (statusFilter) { records = records.filter(emp => (emp.status || 'Pending') === statusFilter); }
     if (sortConfig.key) {
-      records.sort((a, b) => {
+      records = [...records].sort((a, b) => { // Create new array only when sorting
         // Handle numeric fields (like employee ID) as numbers
         if (sortConfig.key === 'id') {
           const numA = parseInt(a[sortConfig.key]) || 0;
@@ -560,7 +579,14 @@ const EmployeeDataPage = () => {
             </div>
           </div>
           <div className="employee-card-body-v2">
-            <img src={emp.profile_picture_url || placeholderImage} alt={emp.name} className="employee-avatar-v2" onError={(e) => { e.target.src = placeholderImage; }} />
+            <img 
+              src={emp.imageUrl || placeholderImage} 
+              alt={emp.name} 
+              className="employee-avatar-v2" 
+              onError={(e) => { e.target.src = placeholderImage; }}
+              loading="lazy"
+              key={emp.id} // Force re-render only when employee ID changes
+            />
             <h5 className="employee-name-v2">{emp.name}</h5>
             <p className="employee-position-v2">{emp.position || 'Unassigned'}</p>
             <div className="d-flex gap-2 mb-2">
@@ -601,7 +627,14 @@ const EmployeeDataPage = () => {
                 <td><strong>{emp.id}</strong></td>
               <td>
                 <div className="d-flex align-items-center">
-                    <img src={emp.profile_picture_url || placeholderImage} alt={emp.name} className="employee-avatar-table me-2" onError={(e) => { e.target.src = placeholderImage; }} />
+                    <img 
+                      src={emp.imageUrl || placeholderImage} 
+                      alt={emp.name} 
+                      className="employee-avatar-table me-2" 
+                      onError={(e) => { e.target.src = placeholderImage; }}
+                      loading="lazy"
+                      key={emp.id} // Force re-render only when employee ID changes
+                    />
                     {emp.name}
                 </div>
               </td>

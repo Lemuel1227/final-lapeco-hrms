@@ -106,6 +106,7 @@ const RecruitmentPage = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'application_date', direction: 'descending' });
   const [newlyGeneratedAccount, setNewlyGeneratedAccount] = useState(null);
   const [applicantToDelete, setApplicantToDelete] = useState(null);
+  const [applicantToReject, setApplicantToReject] = useState(null);
   const [hireValidationErrors, setHireValidationErrors] = useState(null);
 
   // Handlers for applicant operations
@@ -166,8 +167,23 @@ const RecruitmentPage = () => {
         type: 'success' 
       });
     } catch (error) {
-      // Show error toast notification
-      const errorMessage = error.response?.data?.message || 'Failed to schedule interview. Please try again.';
+      // Show error toast notification with detailed validation errors
+      let errorMessage = 'Failed to schedule interview. Please try again.';
+      
+      if (error.response?.data) {
+        const { message, errors } = error.response.data;
+        
+        if (errors && Object.keys(errors).length > 0) {
+          // Extract specific field validation errors
+          const fieldErrors = Object.values(errors).flat();
+          errorMessage = fieldErrors.length === 1 
+            ? fieldErrors[0] 
+            : fieldErrors.join('. ');
+        } else if (message) {
+          errorMessage = message;
+        }
+      }
+      
       setToast({ show: true, message: errorMessage, type: 'error' });
     }
   };
@@ -259,6 +275,8 @@ const RecruitmentPage = () => {
       } else if (newStatus === 'Interview') {
         setSelectedApplicant(applicantData);
         setShowInterviewModal(true);
+      } else if (newStatus === 'Rejected') {
+        setApplicantToReject(applicantData);
       } else {
         handleUpdateApplicantStatus(applicantId, newStatus);
       }
@@ -267,8 +285,15 @@ const RecruitmentPage = () => {
   
   const handleConfirmDelete = () => {
     if (applicantToDelete) {
-      handlers.deleteApplicant(applicantToDelete.id);
+      handleDeleteApplicant(applicantToDelete.id);
       setApplicantToDelete(null);
+    }
+  };
+
+  const handleConfirmReject = () => {
+    if (applicantToReject) {
+      handleUpdateApplicantStatus(applicantToReject.id, 'Rejected');
+      setApplicantToReject(null);
     }
   };
   
@@ -306,7 +331,7 @@ const RecruitmentPage = () => {
       case 'move': handleUpdateApplicantStatus(data.applicantId, data.newStatus); break;
       case 'scheduleInterview': setSelectedApplicant(data); setShowInterviewModal(true); break;
       case 'hire': setSelectedApplicant(data); setShowHireModal(true); break;
-      case 'reject': if(window.confirm("Are you sure you want to reject this applicant?")) handleUpdateApplicantStatus(data.id, 'Rejected'); break;
+      case 'reject': setApplicantToReject(data); break;
       case 'delete': setApplicantToDelete(data); break;
       default: break;
     }
@@ -534,8 +559,18 @@ const RecruitmentPage = () => {
         onClose={() => setApplicantToDelete(null)}
         onConfirm={() => handleDeleteApplicant(applicantToDelete.id)}
         title="Delete Applicant"
-        message={`Are you sure you want to delete ${applicantToDelete?.name}? This action cannot be undone.`}
+        message={`Are you sure you want to delete ${applicantToDelete?.full_name || applicantToDelete?.name || 'this applicant'}? This action cannot be undone.`}
         confirmText="Delete"
+        confirmVariant="danger"
+      />
+
+      <ConfirmationModal
+        show={!!applicantToReject}
+        onClose={() => setApplicantToReject(null)}
+        onConfirm={handleConfirmReject}
+        title="Reject Applicant"
+        message={`Are you sure you want to reject ${applicantToReject?.full_name || applicantToReject?.name || 'this applicant'}? This will move them to the Rejected stage.`}
+        confirmText="Reject"
         confirmVariant="danger"
       />
 

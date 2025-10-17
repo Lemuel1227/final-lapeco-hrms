@@ -79,7 +79,6 @@ class EmployeeController extends Controller
                 'position' => $positions[$employee->position_id] ?? 'Unassigned',
                 'joining_date' => $employee->joining_date,
                 'attendance_status' => $employee->attendance_status ?? 'Pending',
-                'image_url' => $employee->image_url,
                 'profile_picture_url' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
                 'status' => $employee->account_status, // For frontend compatibility
             ];
@@ -129,7 +128,6 @@ class EmployeeController extends Controller
                 'gender' => $employee->gender,
                 'address' => $employee->address,
                 'contact_number' => $employee->contact_number,
-                'image_url' => $employee->image_url,
                 'profile_picture_url' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
                 'account_status' => $employee->account_status,
                 'attendance_status' => $employee->attendance_status ?? 'Pending',
@@ -180,7 +178,7 @@ class EmployeeController extends Controller
             'gender' => $employee->gender,
             'address' => $employee->address,
             'contact_number' => $employee->contact_number,
-            'image_url' => $employee->image_url,
+            'profile_picture_url' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
             'account_status' => $employee->account_status,
             'attendance_status' => $employee->attendance_status ?? 'Pending',
         ];
@@ -243,7 +241,7 @@ class EmployeeController extends Controller
                 'gender' => 'nullable|string|in:Male,Female,Other',
                 'address' => 'nullable|string',
                 'contact_number' => 'nullable|string|max:20',
-                'image_url' => 'nullable|string',
+                'imageUrl' => 'nullable|file|mimes:jpeg,jpg,png,gif|max:2048', // 2MB max for profile pictures
                 'sss_no' => 'nullable|string|max:20',
                 'tin_no' => 'nullable|string|max:20',
                 'pag_ibig_no' => 'nullable|string|max:20',
@@ -379,6 +377,41 @@ class EmployeeController extends Controller
                 }
             }
             
+            // Handle profile picture upload - store in public storage (storage/app/public/profile_pictures)
+            if ($request->hasFile('imageUrl') && $request->file('imageUrl')->isValid()) {
+                $file = $request->file('imageUrl');
+                $filename = time() . '_profile_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+                
+                try {
+                    // Store in public disk so it's accessible via URL
+                    $storedPath = $file->storeAs('profile_pictures', $filename, 'public');
+                    
+                    if ($storedPath) {
+                        $profilePicturePath = $storedPath; // e.g., 'profile_pictures/123_profile_uuid.jpg'
+                        \Log::info('Profile picture stored successfully:', [
+                            'original_name' => $file->getClientOriginalName(),
+                            'stored_path' => $storedPath,
+                            'file_size' => $file->getSize(),
+                            'mime_type' => $file->getMimeType()
+                        ]);
+                    } else {
+                        \Log::error('Failed to store profile picture - returned false');
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Exception during profile picture storage:', [
+                        'error' => $e->getMessage(),
+                        'file_name' => $file->getClientOriginalName(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            } else {
+                if ($request->hasFile('imageUrl')) {
+                    \Log::error('Profile picture file is invalid');
+                } else {
+                    \Log::info('No profile picture in request');
+                }
+            }
+            
             // Add default values for required fields
             $validated['password'] = Hash::make('temporary'); // Temporary password, will be updated after creation
             $validated['password_changed'] = false;
@@ -387,6 +420,11 @@ class EmployeeController extends Controller
             // Add resume file path if it was uploaded
             if ($resumeFile) {
                 $validated['resume_file'] = $resumeFile;
+            }
+            
+            // Add profile picture path if it was uploaded
+            if ($profilePicturePath) {
+                $validated['image_url'] = $profilePicturePath;
             }
             
             // Create employee first to get the ID
@@ -439,12 +477,12 @@ class EmployeeController extends Controller
                 'gender' => 'sometimes|nullable|string|in:Male,Female,Other',
                 'address' => 'sometimes|nullable|string',
                 'contact_number' => 'sometimes|nullable|string|max:20',
-                'image_url' => 'sometimes|nullable|string',
+                'imageUrl' => 'sometimes|nullable|file|mimes:jpeg,jpg,png,gif|max:2048', 
                 'sss_no' => 'sometimes|nullable|string|max:20',
                 'tin_no' => 'sometimes|nullable|string|max:20',
                 'pag_ibig_no' => 'sometimes|nullable|string|max:20',
                 'philhealth_no' => 'sometimes|nullable|string|max:20',
-                'resume_file' => 'sometimes|nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB max
+                'resume_file' => 'sometimes|nullable|file|mimes:pdf,doc,docx|max:5120', 
                 'account_status' => 'sometimes|nullable|string|in:Active,Deactivated',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -560,9 +598,50 @@ class EmployeeController extends Controller
                 }
             }
             
+            // Handle profile picture upload - store in public storage (storage/app/public/profile_pictures)  
+            $profilePicturePath = null;
+            if ($request->hasFile('imageUrl') && $request->file('imageUrl')->isValid()) {
+                $file = $request->file('imageUrl');
+                $filename = time() . '_profile_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+                
+                try {
+                    // Store in public disk so it's accessible via URL
+                    $storedPath = $file->storeAs('profile_pictures', $filename, 'public');
+                    
+                    if ($storedPath) {
+                        $profilePicturePath = $storedPath; // e.g., 'profile_pictures/123_profile_uuid.jpg'
+                        \Log::info('Profile picture updated successfully:', [
+                            'original_name' => $file->getClientOriginalName(),
+                            'stored_path' => $storedPath,
+                            'file_size' => $file->getSize(),
+                            'mime_type' => $file->getMimeType()
+                        ]);
+                    } else {
+                        \Log::error('Failed to update profile picture - returned false');
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Exception during profile picture update:', [
+                        'error' => $e->getMessage(),
+                        'file_name' => $file->getClientOriginalName(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            } else {
+                if ($request->hasFile('imageUrl')) {
+                    \Log::error('Profile picture file is invalid in update');
+                } else {
+                    \Log::info('No profile picture in update request');
+                }
+            }
+            
             // Add resume file path if it was uploaded
             if ($resumeFile) {
                 $validated['resume_file'] = $resumeFile;
+            }
+            
+            // Add profile picture path if it was uploaded
+            if ($profilePicturePath) {
+                $validated['image_url'] = $profilePicturePath;
             }
             
             // Store original values for comparison

@@ -89,7 +89,7 @@ class AuthenticatedSessionController extends Controller
             $user->lockout_count = 0; // Reset lockout count on successful login
             $user->save();
             
-            $token = $user->createToken('auth-token')->plainTextToken;
+            $token = $user->createToken('auth-token', ['*'], now()->addDays(7))->plainTextToken;
 
             return response()->json([
                 'user' => $user,

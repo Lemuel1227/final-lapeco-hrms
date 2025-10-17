@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
 
-const mockUserAccounts = [
-    { employeeId: 'EMP005', username: 'hr_user', email: 'hr_user@lapeco.com', password: 'password123' },
-    { employeeId: 'EMP003', username: 'leader_carol', email: 'carol.w@example.com', password: 'password123' },
-    { employeeId: 'EMP002', username: 'leader_bob', email: 'bob.s@example.com', password: 'password123' },
-    { employeeId: 'EMP001', username: 'employee_alice', email: 'alice.j@example.com', password: 'password123' },
-];
-
 const ForgotPasswordModal = ({ show, onClose }) => {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
