@@ -11,12 +11,13 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
 
   useEffect(() => {
     if (attendanceRecord) {
+      const otHours = attendanceRecord.otHours || attendanceRecord.ot_hours || 0;
       setFormData({
-        signIn: attendanceRecord.signIn || '',
+        signIn: attendanceRecord.timeIn || attendanceRecord.signIn || '',
         breakOut: attendanceRecord.breakOut || '',
         breakIn: attendanceRecord.breakIn || '',
-        signOut: attendanceRecord.signOut || '',
-        ot_hours: attendanceRecord.ot_hours || 0,
+        signOut: attendanceRecord.timeOut || attendanceRecord.signOut || '',
+        ot_hours: parseInt(otHours, 10) || 0,
       });
     }
   }, [attendanceRecord]);
@@ -27,12 +28,20 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Handle ot_hours specially to ensure it's always a valid number
+    if (name === 'ot_hours') {
+      const numValue = value === '' ? 0 : parseInt(value, 10);
+      setFormData(prev => ({ ...prev, [name]: isNaN(numValue) ? 0 : numValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(attendanceRecord.id, attendanceRecord.schedule.date, formData);
+    console.log('EditAttendanceModal submitting formData:', formData);
+    onSave(attendanceRecord.id, attendanceRecord.date, formData);
   };
 
   return (
@@ -41,11 +50,11 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
         <div className="modal-content">
           <form onSubmit={handleSubmit}>
             <div className="modal-header">
-              <h5 className="modal-title">Edit Time Log for {attendanceRecord.name}</h5>
+              <h5 className="modal-title">Edit Time Log for {attendanceRecord.employeeName || attendanceRecord.name}</h5>
               <button type="button" className="btn-close" onClick={onClose} aria-label="Close"></button>
             </div>
             <div className="modal-body">
-              <p className="text-muted">Editing attendance for {new Date(attendanceRecord.schedule.date + 'T00:00:00').toLocaleDateString()}.</p>
+              <p className="text-muted">Editing attendance for {new Date(attendanceRecord.date + 'T00:00:00').toLocaleDateString()}.</p>
               <div className="row g-3">
                 <div className="col-md-6 mb-3">
                   <label htmlFor="signIn" className="form-label">Sign In</label>
@@ -65,7 +74,7 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
                 </div>
                 <div className="col-12 mb-3">
                     <label htmlFor="ot_hours" className="form-label">Overtime (hrs)</label>
-                    <input type="number" step="0.1" min="0" id="ot_hours" name="ot_hours" className="form-control" value={formData.ot_hours} onChange={handleChange} />
+                    <input type="number" min="0" id="ot_hours" name="ot_hours" className="form-control" value={formData.ot_hours} onChange={handleChange} />
                     <small className="form-text text-muted">Manually enter approved overtime hours.</small>
                 </div>
               </div>

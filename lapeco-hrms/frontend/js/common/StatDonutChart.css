@@ -1,0 +1,35 @@
+.stat-donut-chart-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-donut-chart {
+  display: block;
+}
+
+.stat-donut-chart-bg {
+  fill: none;
+  stroke: var(--bg-tertiary);
+}
+
+.stat-donut-chart-progress {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease-out;
+}
+
+.stat-donut-chart-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  fill: var(--text-primary);
+}
+
+.stat-donut-chart-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  text-align: center;
+}

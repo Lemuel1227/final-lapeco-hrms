@@ -318,6 +318,8 @@ class DatabaseSeeder extends Seeder
             }
         }
 
+        $this->call(PerformanceEvaluationSeeder::class);
+
 
 
         // Seed training programs

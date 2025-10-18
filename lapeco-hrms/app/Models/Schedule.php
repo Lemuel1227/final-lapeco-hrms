@@ -30,4 +30,17 @@ class Schedule extends Model
                     ->withPivot(['start_time', 'end_time', 'notes'])
                     ->withTimestamps();
     }
+
+    protected static function boot()
+{
+    parent::boot();
+
+    static::deleting(function ($schedule) {
+        $schedule->assignments()->delete();
+        
+        foreach ($schedule->assignments as $assignment) {
+            $assignment->attendance()->delete();
+        }
+    });
+}
 }

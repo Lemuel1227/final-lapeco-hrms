@@ -6,9 +6,14 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import EditAttendanceModal from '../../modals/EditAttendanceModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
-import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import attendanceAPI from '../../services/attendanceAPI';
+import { scheduleAPI } from '../../services/api';
 import ToastNotification from '../../common/ToastNotification';
+
+// Import the new view components
+import DailyAttendanceView from './DailyAttendanceView';
+import HistoryAttendanceView from './HistoryAttendanceView';
+import ByEmployeeAttendanceView from './ByEmployeeAttendanceView';
 
 const AttendancePage = () => {
   // State for UI
@@ -19,12 +24,14 @@ const AttendancePage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+  const [employeeDateFilter, setEmployeeDateFilter] = useState({ start: '', end: '' });
 
   const [showReportPreview, setShowReportPreview] = useState(false);
-
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAttendanceRecord, setEditingAttendanceRecord] = useState(null);
-  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingDate, setDeletingDate] = useState(null);
+
   // Toast notification state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   
@@ -32,49 +39,34 @@ const AttendancePage = () => {
   const [dailyAttendanceData, setDailyAttendanceData] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const fileInputRef = useRef(null);
 
-  // Fetch data on component mount
+  // Fetch data based on active view
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Fetch daily attendance data for the current date
-        const dailyResponse = await attendanceAPI.getDaily({ date: currentDate });
-        setDailyAttendanceData(dailyResponse.data || []);
-        
-        // Fetch attendance history - let backend determine the full date range
-        const historyResponse = await attendanceAPI.getHistory();
-        setAttendanceHistory(historyResponse.data || []);
-        
-        // Fetch attendance logs (keeping for compatibility with existing code)
-        const logsResponse = await attendanceAPI.getLogs();
-        
-        // Transform grouped data to flat array for compatibility with existing code
-        const flattenedLogs = [];
-        if (logsResponse.data && Array.isArray(logsResponse.data)) {
-          logsResponse.data.forEach(dateGroup => {
-            if (dateGroup.attendances && Array.isArray(dateGroup.attendances)) {
-              // Add the date from the group to each attendance record
-              const attendancesWithDate = dateGroup.attendances.map(attendance => ({
-                ...attendance,
-                // Extract just the date part from ISO timestamp if needed
-                date: dateGroup.date ? 
-                  (dateGroup.date.includes('T') ? dateGroup.date.split('T')[0] : dateGroup.date) :
-                  (attendance.date && attendance.date.includes('T') ? attendance.date.split('T')[0] : attendance.date)
-              }));
-              flattenedLogs.push(...attendancesWithDate);
-            }
-          });
+        if (activeView === 'daily' || activeView === 'historyDetail') {
+          // Only fetch daily attendance data for the current date
+          const dailyResponse = await attendanceAPI.getDaily({ date: currentDate });
+          setDailyAttendanceData(dailyResponse.data || []);
+        } else if (activeView === 'historyList') {
+          // Only fetch attendance history summary
+          const historyResponse = await attendanceAPI.getHistory();
+          setAttendanceHistory(historyResponse.data || []);
+        } else if (activeView === 'employee') {
+          // Only fetch employees list for employee selection
+          const employeesResponse = await attendanceAPI.getEmployeeNameID();
+          // Handle the new response structure: { success: true, data: [...] }
+          setEmployeesList(employeesResponse.data?.data || []);
         }
-        console.log('Flattened Logs:', flattenedLogs); // Debug log
-        setAttendanceLogs(flattenedLogs);
         
       } catch (err) {
         console.error('Error fetching attendance data:', err);
@@ -85,7 +77,20 @@ const AttendancePage = () => {
     };
     
     fetchData();
-  }, [currentDate]);
+  }, [currentDate, activeView]);
+
+  // Fetch specific employee attendance records
+  const fetchEmployeeAttendanceLogs = async (employeeId) => {
+    try {
+      // Use the new API endpoint to get only this employee's attendance
+      const employeeAttendanceResponse = await attendanceAPI.getEmployeeAttendance(employeeId);
+      // Handle the new response structure: { success: true, data: [...] }
+      setAttendanceLogs(employeeAttendanceResponse.data?.data || []);
+    } catch (error) {
+      console.error('Error fetching employee attendance logs:', error);
+      setAttendanceLogs([]);
+    }
+  };
 
   const dailyAttendanceList = useMemo(() => {
     if (!dailyAttendanceData) return [];
@@ -96,59 +101,59 @@ const AttendancePage = () => {
       let shiftDisplay = record.shift;
       
       // Working hours calculation (if needed for compatibility)
-      let workingHours = '0h 0m';
+      let workingHours = '0:00';
       if (record.signIn && record.signOut) {
         try {
-          const signInTime = new Date(`2000-01-01 ${record.signIn}`);
-          const signOutTime = new Date(`2000-01-01 ${record.signOut}`);
+          const signInTime = new Date(`1970-01-01T${record.signIn}:00`);
+          const signOutTime = new Date(`1970-01-01T${record.signOut}:00`);
           const diffMs = signOutTime - signInTime;
-          if (diffMs > 0) {
-            const hours = Math.floor(diffMs / (1000 * 60 * 60));
-            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-            workingHours = `${hours}h ${minutes}m`;
-          }
-        } catch (e) {
-          console.warn('Error calculating working hours:', e);
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          workingHours = `${diffHours}:${diffMinutes.toString().padStart(2, '0')}`;
+        } catch (error) {
+          workingHours = '0:00';
         }
       }
 
-      const processedRecord = {
-        id: record.empId || index,
+      return {
         empId: record.empId,
+        scheduleId: record.scheduleId,
+        id: record.empId,
         name: record.employeeName,
-        position: record.position || 'N/A',
-        date: record.date,
-        shift: record.shift,
-        shiftDisplay: shiftDisplay,
+        position: record.position,
+        shift: shiftDisplay,
         signIn: record.signIn,
-        signOut: record.signOut,
-        breakIn: record.breakIn,
         breakOut: record.breakOut,
+        breakIn: record.breakIn,
+        signOut: record.signOut,
         status: record.status,
         workingHours: workingHours,
-        otHours: record.otHours || '0.00',
-        scheduleId: record.scheduleId,
-        scheduleName: record.scheduleName,
-        schedule_assignment_id: record.schedule_assignment_id
+        otHours: record.otHours || '0'
       };
-
-      return processedRecord;
     });
   }, [dailyAttendanceData]);
 
   const sortedAndFilteredList = useMemo(() => {
     let list = [...dailyAttendanceList];
-    if (positionFilter) list = list.filter(item => item.position === positionFilter);
-    if (statusFilter) list = list.filter(item => item.status === statusFilter);
-    if (sortConfig.key) {
-      list.sort((a, b) => {
-        const valA = String(a[sortConfig.key] || 'z').toLowerCase();
-        const valB = String(b[sortConfig.key] || 'z').toLowerCase();
-        if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
-        return 0;
-      });
+    
+    // Apply filters
+    if (positionFilter) {
+      list = list.filter(emp => emp.position === positionFilter);
     }
+    if (statusFilter) {
+      list = list.filter(emp => emp.status === statusFilter);
+    }
+    
+    // Apply sorting
+    list.sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+    
     return list;
   }, [dailyAttendanceList, positionFilter, statusFilter, sortConfig]);
 
@@ -165,33 +170,18 @@ const AttendancePage = () => {
     })).sort((a,b) => new Date(b.date) - new Date(a.date));
   }, [attendanceHistory]);
 
-  // Get unique employees from daily attendance data for employee selection
+  // Get employees list for employee selection
   const availableEmployees = useMemo(() => {
-    if (!dailyAttendanceData) return [];
-    
-    const uniqueEmployees = [];
-    const seenIds = new Set();
-    
-    dailyAttendanceData.forEach(record => {
-      if (!seenIds.has(record.empId)) {
-        seenIds.add(record.empId);
-        uniqueEmployees.push({
-          id: record.empId,
-          name: record.employeeName,
-          position: record.position
-        });
-      }
-    });
-    
-    return uniqueEmployees.sort((a, b) => a.name.localeCompare(b.name));
-  }, [dailyAttendanceData]);
+    return Array.isArray(employeesList) ? employeesList : [];
+  }, [employeesList]);
 
   const filteredEmployeesForSelection = useMemo(() => {
-      if (!availableEmployees) return [];
-      return availableEmployees.filter(emp => 
-          emp.name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) || 
-          emp.id.toString().toLowerCase().includes(employeeSearchTerm.toLowerCase())
-      );
+    if (!employeeSearchTerm) return availableEmployees;
+    
+    return availableEmployees.filter(emp => 
+      emp.name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+      emp.id.toString().includes(employeeSearchTerm)
+    );
   }, [availableEmployees, employeeSearchTerm]);
     
   const selectedEmployeeRecords = useMemo(() => {
@@ -199,144 +189,254 @@ const AttendancePage = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      console.log('=== BY EMPLOYEE DEBUG ===');
-      console.log('Selected Employee:', selectedEmployee);
-      console.log('All Attendance Logs for Employee:', attendanceLogs.filter(l => l.empId === selectedEmployee.id));
+      let filteredRecords = attendanceLogs.filter(log => log.empId === selectedEmployee.id);
       
-      // Get all attendance records for the selected employee from logs
-      const employeeRecords = attendanceLogs
-          .filter(log => log.empId === selectedEmployee.id)
-          .map(log => {
-              // Extract date part for comparison - ensure consistent format
-              let logDate = log.date;
-              if (logDate && logDate.includes('T')) {
-                  logDate = logDate.split('T')[0];
-              }
-              
-              const logDateObj = new Date(logDate);
-              logDateObj.setHours(0, 0, 0, 0);
-
-              console.log(`Processing log for ${logDate}:`, {
-                  logData: log,
-                  logDetails: {
-                      empId: log.empId,
-                      date: log.date,
-                      status: log.status,
-                      signIn: log.signIn,
-                      signOut: log.signOut,
-                      breakOut: log.breakOut,
-                      breakIn: log.breakIn,
-                      shift: log.shift
-                  }
-              });
-
-              // Create the final record from log data
-              const finalRecord = {
-                  empId: log.empId,
-                  employeeName: log.employeeName || selectedEmployee.name,
-                  position: log.position || selectedEmployee.position,
-                  date: logDate,
-                  shift: log.shift || 'N/A',
-                  signIn: log.signIn,
-                  signOut: log.signOut,
-                  breakOut: log.breakOut,
-                  breakIn: log.breakIn,
-                  status: log.status, // Use backend calculated status
-                  scheduleId: log.scheduleId,
-                  scheduleName: log.scheduleName
-              };
-              
-              console.log(`Final record for ${logDate}:`, finalRecord);
-              
-              return finalRecord;
-          })
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Apply date filter if provided
+      if (employeeDateFilter.start || employeeDateFilter.end) {
+        filteredRecords = filteredRecords.filter(record => {
+          const recordDate = new Date(record.date);
+          recordDate.setHours(0, 0, 0, 0);
+          
+          let matchesStart = true;
+          let matchesEnd = true;
+          
+          if (employeeDateFilter.start) {
+            const startDate = new Date(employeeDateFilter.start);
+            startDate.setHours(0, 0, 0, 0);
+            matchesStart = recordDate >= startDate;
+          }
+          
+          if (employeeDateFilter.end) {
+            const endDate = new Date(employeeDateFilter.end);
+            endDate.setHours(0, 0, 0, 0);
+            matchesEnd = recordDate <= endDate;
+          }
+          
+          return matchesStart && matchesEnd;
+        });
+      }
       
-      const stats = employeeRecords.reduce((acc, rec) => {
-          acc.totalScheduled++;
-          // Handle capitalized status values from backend
-          if (rec.status === 'Late') acc.totalLate++;
-          if (rec.status === 'Absent') acc.totalAbsent++;
-          return acc;
-      }, { totalScheduled: 0, totalLate: 0, totalAbsent: 0 });
+      // Sort by date descending
+      const sortedRecords = filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      // Calculate stats
+      const totalScheduled = sortedRecords.length;
+      const totalPresent = sortedRecords.filter(r => r.status === 'Present').length;
+      const totalLate = sortedRecords.filter(r => r.status === 'Late').length;
+      const totalAbsent = sortedRecords.filter(r => r.status === 'Absent').length;
+      
+      const presentPercentage = totalScheduled > 0 ? Math.round((totalPresent / totalScheduled) * 100) : 0;
+      const latePercentage = totalScheduled > 0 ? Math.round((totalLate / totalScheduled) * 100) : 0;
+      const absentPercentage = totalScheduled > 0 ? Math.round((totalAbsent / totalScheduled) * 100) : 0;
+      
+      return {
+        records: sortedRecords,
+        stats: {
+          totalScheduled,
+          totalPresent,
+          totalLate,
+          totalAbsent,
+          presentPercentage,
+          latePercentage,
+          absentPercentage
+        }
+      };
+  }, [selectedEmployee, attendanceLogs, employeeDateFilter]);
 
-      console.log('=== FINAL BY EMPLOYEE RECORDS ===', employeeRecords);
-      console.log('=== BY EMPLOYEE STATS ===', stats);
-      return { records: employeeRecords, stats };
-  }, [selectedEmployee, attendanceLogs]);
-  
-  const handleStatusFilterClick = (newStatus) => {
-    setStatusFilter(prevStatus => prevStatus === newStatus ? '' : newStatus);
-  };
   const handleRequestSort = (key) => {
     let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') { direction = 'descending'; }
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
     setSortConfig({ key, direction });
   };
+
+  const handleStatusFilterClick = (status) => {
+    setStatusFilter(statusFilter === status ? '' : status);
+  };
+
   const getSortIcon = (key) => {
     if (sortConfig.key !== key) return <i className="bi bi-arrow-down-up sort-icon ms-1"></i>;
     return sortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
   };
+
   const handleViewHistoryDetail = (date) => {
     setCurrentDate(date);
-    setActiveView('historyDetail');
+    handleViewChange('historyDetail');
   };
-  
-  const handleGenerateReport = () => {
-    if (!dailyAttendanceList || dailyAttendanceList.length === 0) {
-      alert("No attendance data to generate a report for the selected day.");
+
+  const handleOpenDeleteConfirm = (e, date) => {
+    e.stopPropagation();
+    setDeletingDate(date);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingDate) return;
+    
+    try {
+      // First, fetch all attendance records for the specific date to get the schedule ID
+      const dailyResponse = await attendanceAPI.getDaily({ date: deletingDate });
+      const records = dailyResponse.data || [];
+      
+      if (records.length === 0) {
+        setToast({
+          show: true,
+          message: 'No records found for this date',
+          type: 'warning'
+        });
+        setShowDeleteConfirm(false);
+        setDeletingDate(null);
+        return;
+      }
+      
+      // Get the schedule ID from the first record (all records for a date should have the same schedule ID)
+      const scheduleId = records[0]?.scheduleId;
+      
+      if (!scheduleId) {
+        setToast({
+          show: true,
+          message: 'No schedule found for this date',
+          type: 'warning'
+        });
+        setShowDeleteConfirm(false);
+        setDeletingDate(null);
+        return;
+      }
+      
+      // Delete the entire schedule (this will cascade delete all related attendance records)
+      await scheduleAPI.delete(scheduleId);
+      
+      // Refresh the history data
+      const historyResponse = await attendanceAPI.getHistory();
+      setAttendanceHistory(historyResponse.data || []);
+      
+      setToast({
+        show: true,
+        message: `Successfully deleted schedule and all attendance records for ${deletingDate}`,
+        type: 'success'
+      });
+      
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      setToast({
+        show: true,
+        message: 'Failed to delete schedule and attendance records',
+        type: 'error'
+      });
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingDate(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingDate(null);
+  };
+
+  const handleEmployeeSelect = async (employee) => {
+    setSelectedEmployee(employee);
+    // Fetch attendance logs for the selected employee
+    await fetchEmployeeAttendanceLogs(employee.id);
+  };
+
+  const handleEmployeeDeselect = () => {
+    setSelectedEmployee(null);
+    // Clear attendance logs when going back to employee list
+    setAttendanceLogs([]);
+  };
+
+  // Clear data when switching views
+  const handleViewChange = (newView) => {
+    setActiveView(newView);
+    
+    // Clear data from other views to free memory
+    if (newView !== 'daily' && newView !== 'historyDetail') {
+      setDailyAttendanceData([]);
+    }
+    if (newView !== 'historyList') {
+      setAttendanceHistory([]);
+    }
+    if (newView !== 'employee') {
+      setEmployeesList([]);
+      setSelectedEmployee(null);
+      setAttendanceLogs([]);
+    }
+    
+    // Reset date to today when switching to daily view
+    if (newView === 'daily') {
+      setCurrentDate(new Date().toISOString().split('T')[0]);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    if (!sortedAndFilteredList || sortedAndFilteredList.length === 0) {
+      setToast({ 
+        show: true, 
+        message: 'No data available to generate report for the selected date.', 
+        type: 'warning' 
+      });
       return;
     }
-    generateReport(
-        'attendance_summary', 
-        { startDate: currentDate }, 
-        { 
-          employees: availableEmployees, 
-          schedules: [], // No schedules data available in current scope
-          attendanceLogs, 
-          positions: [] // No positions data available in current scope
+    
+    try {
+      const reportData = {
+        title: `Daily Attendance Report - ${currentDate}`,
+        date: currentDate,
+        data: sortedAndFilteredList,
+        summary: {
+          totalScheduled: dailyAttendanceList.length,
+          totalPresent: dailyAttendanceList.filter(e => e.status === 'Present').length,
+          totalLate: dailyAttendanceList.filter(e => e.status === 'Late').length,
+          totalAbsent: dailyAttendanceList.filter(e => e.status === 'Absent').length
         }
-    );
-    setShowReportPreview(true);
+      };
+      
+      await generateReport(reportData);
+      setShowReportPreview(true);
+      
+    } catch (error) {
+      console.error('Error generating report:', error);
+      setToast({ 
+        show: true, 
+        message: 'Failed to generate report. Please try again.', 
+        type: 'error' 
+      });
+    }
   };
 
   const handleCloseReportPreview = () => {
     setShowReportPreview(false);
-    if(pdfDataUri) URL.revokeObjectURL(pdfDataUri);
-    setPdfDataUri('');
+    setPdfDataUri(null);
   };
 
-  const handleOpenEditModal = (employeeData) => {
-    const record = {
-      id: employeeData.id || employeeData.empId,
-      name: employeeData.name || employeeData.employeeName,
-      schedule: { date: currentDate, shift: employeeData.shift },
-      signIn: employeeData.signIn,
-      signOut: employeeData.signOut,
-      breakIn: employeeData.breakIn,
-      breakOut: employeeData.breakOut,
-      ot_hours: employeeData.otHours || employeeData.ot_hours || 0,
-      schedule_assignment_id: employeeData.schedule_assignment_id,
-      empId: employeeData.empId,
-    };
-    setEditingAttendanceRecord(record);
+  const handleOpenEditModal = (attendanceRecord) => {
+    setEditingAttendanceRecord(attendanceRecord);
     setShowEditModal(true);
   };
+
   const handleCloseEditModal = () => {
     setShowEditModal(false);
     setEditingAttendanceRecord(null);
   };
-  const handleSaveEditedTime = async (empId, date, updatedTimes) => {
+
+  const handleSaveEditedTime = async (attendanceId, date, updatedTimes) => {
+    if (!editingAttendanceRecord) return;
+    
+    console.log('handleSaveEditedTime called with:', { attendanceId, date, updatedTimes });
+    
     try {
-      // Find existing attendance record from daily attendance data
+      // Find the existing record from dailyAttendanceData
       const existingRecord = dailyAttendanceData.find(record => 
-        record.empId === empId && record.date === date
+        record.empId === editingAttendanceRecord.empId && 
+        record.scheduleId === editingAttendanceRecord.scheduleId
       );
       
-      if (!existingRecord || !existingRecord.schedule_assignment_id) {
+      if (!existingRecord) {
         setToast({ 
           show: true, 
-          message: 'Unable to find schedule assignment for this employee and date', 
+          message: 'Unable to find the attendance record to update.', 
           type: 'error' 
         });
         return;
@@ -350,6 +450,9 @@ const AttendancePage = () => {
         break_out: updatedTimes.breakOut || null,
         ot_hours: updatedTimes.ot_hours || null,
       };
+      
+      console.log('Sending updatedRecord:', updatedRecord);
+      console.log('Original updatedTimes.ot_hours:', updatedTimes.ot_hours);
       
       if (existingRecord.id) {
         // Update existing attendance record
@@ -402,6 +505,7 @@ const AttendancePage = () => {
       });
     }
   };
+
   const handleExport = () => {
     if (!sortedAndFilteredList || sortedAndFilteredList.length === 0) {
       setToast({ 
@@ -441,7 +545,9 @@ const AttendancePage = () => {
       });
     }
   };
+
   const handleImportClick = () => { fileInputRef.current.click(); };
+
   const handleImport = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -499,116 +605,6 @@ const AttendancePage = () => {
   };
   
   const uniquePositions = useMemo(() => ['All Positions', ...new Set(dailyAttendanceList.map(item => item.position))], [dailyAttendanceList]);
-  
-  const renderEmployeeView = () => {
-    // Create position map from available employees data
-    const positionMap = new Map();
-    
-    if (selectedEmployee) {
-        return (
-            <div>
-                <button className="btn btn-light me-3 back-button mb-3" onClick={() => setSelectedEmployee(null)}>
-                    <i className="bi bi-arrow-left"></i> Back to Employee List
-                </button>
-                <div className="employee-detail-header">
-                    <img src={selectedEmployee.imageUrl || placeholderAvatar} alt={selectedEmployee.name} className="employee-detail-avatar" />
-                    <div>
-                        <h2 className="employee-detail-name">{selectedEmployee.name}</h2>
-                        <p className="employee-detail-meta">{selectedEmployee.id} • {selectedEmployee.position || 'Unassigned'}</p>
-                    </div>
-                </div>
-                <div className="employee-attendance-stats my-4">
-                    <div className="stat-card scheduled"> <span className="stat-value">{selectedEmployeeRecords.stats.totalScheduled}</span> <span className="stat-label">Total Scheduled</span> </div>
-                    <div className="stat-card present"> <span className="stat-value">{selectedEmployeeRecords.stats.totalScheduled - selectedEmployeeRecords.stats.totalAbsent}</span> <span className="stat-label">Days Present</span> </div>
-                    <div className="stat-card late"> <span className="stat-value">{selectedEmployeeRecords.stats.totalLate}</span> <span className="stat-label">Total Lates</span> </div>
-                    <div className="stat-card absent"> <span className="stat-value">{selectedEmployeeRecords.stats.totalAbsent}</span> <span className="stat-label">Total Absences</span> </div>
-                </div>
-                <div className="card data-table-card shadow-sm">
-                    <div className="table-responsive">
-                        <table className="table data-table mb-0">
-                            <thead><tr><th>Date</th><th>Schedule</th><th>Sign In</th><th>Sign Out</th><th>Status</th></tr></thead>
-                            <tbody>
-                                {selectedEmployeeRecords.records.map(rec => (
-                                    <tr key={rec.scheduleId || rec.date}>
-                                        <td>{(() => {
-                                          try {
-                                            // Handle ISO timestamp format by extracting date part
-                                            let dateStr = rec.date;
-                                            if (dateStr && dateStr.includes('T')) {
-                                              dateStr = dateStr.split('T')[0];
-                                            }
-                                            const date = new Date(dateStr);
-                                            return isNaN(date.getTime()) ? rec.date : date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                                          } catch (error) {
-                                            return rec.date;
-                                          }
-                                        })()}</td><td>{(() => {
-                                           // Extract time from shift datetime strings and format to HH:MM
-                                           let shiftDisplay = rec.shift;
-                                           if (typeof rec.shift === 'string' && rec.shift.includes(' - ')) {
-                                              const [startDateTime, endDateTime] = rec.shift.split(' - ');
-                                              
-                                              // Extract time from datetime string (handles ISO format, space-separated format, and time-only format)
-                                              const extractTime = (dateTimeStr) => {
-                                                try {
-                                                  // If it's an ISO datetime string, parse it and extract time
-                                                  if (dateTimeStr.includes('T')) {
-                                                    const date = new Date(dateTimeStr);
-                                                    return date.toTimeString().split(' ')[0].split(':').slice(0, 2).join(':');
-                                                  }
-                                                  // If it's space-separated datetime format (YYYY-MM-DD HH:MM), extract time part
-                                                  else if (dateTimeStr.includes(' ') && dateTimeStr.includes('-')) {
-                                                    const timePart = dateTimeStr.split(' ')[1];
-                                                    return timePart ? timePart.split(':').slice(0, 2).join(':') : dateTimeStr;
-                                                  }
-                                                  // If it already looks like time, just format it
-                                                  else if (dateTimeStr.includes(':')) {
-                                                    return dateTimeStr.split(':').slice(0, 2).join(':');
-                                                  }
-                                                  // Fallback
-                                                  return dateTimeStr;
-                                                } catch (error) {
-                                                  return dateTimeStr;
-                                                }
-                                              };
-                                              
-                                              const startTime = extractTime(startDateTime.trim());
-                                             const endTime = extractTime(endDateTime.trim());
-                                             shiftDisplay = `${startTime} - ${endTime}`;
-                                           }
-                                           return shiftDisplay;
-                                         })()}</td><td>{rec.signIn || '---'}</td><td>{rec.signOut || '---'}</td>
-                                        <td><span className={`status-badge status-${rec.status.toLowerCase()}`}>{rec.status}</span></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div>
-            <div className="input-group mb-4" style={{maxWidth: '500px'}}>
-                <span className="input-group-text"><i className="bi bi-search"></i></span>
-                <input type="text" className="form-control" placeholder="Search by employee name or ID..." value={employeeSearchTerm} onChange={e => setEmployeeSearchTerm(e.target.value)} />
-            </div>
-            <div className="employee-selection-grid">
-                {filteredEmployeesForSelection.map(emp => (
-                    <div key={emp.id} className="employee-selection-card" onClick={() => setSelectedEmployee(emp)}>
-                        <img src={emp.imageUrl || placeholderAvatar} alt={emp.name} className="employee-selection-avatar" />
-                        <div className="employee-selection-info">
-                            <div className="employee-selection-name">{emp.name}</div>
-                            <div className="employee-selection-id text-muted">{emp.id}</div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-  }
 
   return (
     <div className="container-fluid p-0 page-module-container">
@@ -622,13 +618,13 @@ const AttendancePage = () => {
                 <i className="bi bi-file-earmark-text-fill me-2"></i>Generate Report
             </button>
             <div className="attendance-view-controls">
-                <button className={`btn ${activeView === 'daily' ? 'active' : ''}`} onClick={() => { setActiveView('daily'); setCurrentDate(new Date().toISOString().split('T')[0]); }}>
+                <button className={`btn ${activeView === 'daily' ? 'active' : ''}`} onClick={() => handleViewChange('daily')}>
                     <i className="bi bi-calendar-day me-2"></i>Daily
                 </button>
-                <button className={`btn ${activeView.startsWith('history') ? 'active' : ''}`} onClick={() => setActiveView('historyList')}>
+                <button className={`btn ${activeView.startsWith('history') ? 'active' : ''}`} onClick={() => handleViewChange('historyList')}>
                     <i className="bi bi-clock-history me-2"></i>History
                 </button>
-                <button className={`btn ${activeView === 'employee' ? 'active' : ''}`} onClick={() => { setActiveView('employee'); setSelectedEmployee(null); }}>
+                <button className={`btn ${activeView === 'employee' ? 'active' : ''}`} onClick={() => handleViewChange('employee')}>
                     <i className="bi bi-person-lines-fill me-2"></i>By Employee
                 </button>
             </div>
@@ -657,113 +653,58 @@ const AttendancePage = () => {
             </button>
           </div>
         )}
-        {!loading && !error && activeView === 'employee' && renderEmployeeView()}
-        {!loading && !error && (activeView === 'daily' || activeView === 'historyDetail') && (
-          <>
-            <div className="daily-view-header-bar">
-              <div className="date-picker-group">
-                {activeView === 'historyDetail' ? (
-                  <button className="btn btn-outline-secondary" onClick={() => setActiveView('historyList')}>
-                    <i className="bi bi-arrow-left"></i> Back to History
-                  </button>
-                ) : (
-                  <div>
-                    <label htmlFor="daily-date-picker" className="date-label">VIEWING DATE</label>
-                    <input id="daily-date-picker" type="date" className="form-control" value={currentDate} onChange={(e) => setCurrentDate(e.target.value)} />
-                  </div>
-                )}
-              </div>
-              <div className="stat-cards-group">
-                <div className={`stat-card scheduled ${!statusFilter ? 'active' : ''}`} onClick={() => handleStatusFilterClick('')}> <span className="stat-value">{dailyAttendanceList.length}</span> <span className="stat-label">Scheduled</span> </div>
-                <div className={`stat-card present ${statusFilter === 'Present' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Present')}> <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Present').length}</span> <span className="stat-label">Present</span> </div>
-                <div className={`stat-card late ${statusFilter === 'Late' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Late')}> <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Late').length}</span> <span className="stat-label">Late</span> </div>
-                <div className={`stat-card absent ${statusFilter === 'Absent' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Absent')}> <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Absent').length}</span> <span className="stat-label">Absent</span> </div>
-              </div>
-              <div className="filters-group"> <select className="form-select" value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)}> {uniquePositions.map(pos => <option key={pos} value={pos === 'All Positions' ? '' : pos}>{pos}</option>)} </select> </div>
-            </div>
-            {sortedAndFilteredList.length > 0 ? (
-                <div className="card data-table-card shadow-sm"><div className="table-responsive">
-                  <table className="table data-table mb-0">
-                      <thead><tr>
-                          <th className="sortable" onClick={() => handleRequestSort('id')}>ID {getSortIcon('id')}</th>
-                          <th className="sortable" onClick={() => handleRequestSort('name')}>Employee Name {getSortIcon('name')}</th>
-                          <th>Position</th><th className="sortable" onClick={() => handleRequestSort('shift')}>Shift {getSortIcon('shift')}</th>
-                          <th className="sortable" onClick={() => handleRequestSort('signIn')}>Sign In {getSortIcon('signIn')}</th>
-                          <th className="sortable" onClick={() => handleRequestSort('breakOut')}>Break Out {getSortIcon('breakOut')}</th>
-                          <th className="sortable" onClick={() => handleRequestSort('breakIn')}>Break In {getSortIcon('breakIn')}</th>
-                          <th className="sortable" onClick={() => handleRequestSort('signOut')}>Sign Out {getSortIcon('signOut')}</th>
-                          <th className="sortable" onClick={() => handleRequestSort('workingHours')}>Hours {getSortIcon('workingHours')}</th>
-                          <th className="sortable" onClick={() => handleRequestSort('otHours')}>OT (hrs) {getSortIcon('otHours')}</th>
-                          <th>Status</th><th>Actions</th>
-                      </tr></thead>
-                      <tbody>{sortedAndFilteredList.map((emp, index) => (
-                          <tr key={`${emp.empId}-${emp.scheduleId}-${index}`}>
-                              <td>{emp.id}</td><td>{emp.name}</td><td>{emp.position}</td><td>{emp.shift}</td>
-                              <td>{emp.signIn || '---'}</td><td>{emp.breakOut || '---'}</td><td>{emp.breakIn || '---'}</td><td>{emp.signOut || '---'}</td><td>{emp.workingHours}</td><td>{emp.otHours || '0'}</td>
-                              <td><span className={`status-badge status-${emp.status.toLowerCase()}`}>{emp.status}</span></td>
-                              <td>
-                              <div className="dropdown">
-                                  <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
-                                  <ul className="dropdown-menu dropdown-menu-end">
-                                      <li>
-                                        <a 
-                                          className="dropdown-item" 
-                                          href="#" 
-                                          onClick={(e) => {e.preventDefault(); handleOpenEditModal(emp)}}
-                                        >
-                                          <i className="bi bi-pencil-fill me-2"></i>Edit / Log Times
-                                        </a>
-                                      </li>
-                                  </ul>
-                              </div>
-                              </td>
-                          </tr>
-                      ))}</tbody>
-                  </table>
-                </div></div>
-            ) : (
-              <div className="text-center p-5 bg-light rounded d-flex flex-column justify-content-center" style={{minHeight: '300px'}}>
-                  <i className="bi bi-calendar-check fs-1 text-muted mb-3 d-block"></i>
-                  <h4 className="text-muted">{dailyAttendanceList.length > 0 && (positionFilter || statusFilter) ? 'No employees match filters.' : 'No Employees Scheduled'}</h4>
-                  <p className="text-muted">{dailyAttendanceList.length > 0 && (positionFilter || statusFilter) ? 'Try adjusting your filters.' : 'There is no schedule created for this day.'}</p>
-              </div>
-            )}
-          </>
+        
+        {!loading && !error && activeView === 'employee' && (
+          <ByEmployeeAttendanceView
+            selectedEmployee={selectedEmployee}
+            setSelectedEmployee={handleEmployeeDeselect}
+            employeeDateFilter={employeeDateFilter}
+            setEmployeeDateFilter={setEmployeeDateFilter}
+            selectedEmployeeRecords={selectedEmployeeRecords}
+            employeeSearchTerm={employeeSearchTerm}
+            setEmployeeSearchTerm={setEmployeeSearchTerm}
+            filteredEmployeesForSelection={filteredEmployeesForSelection}
+            onEmployeeSelect={handleEmployeeSelect}
+          />
         )}
-        {!loading && !error && activeView === 'historyList' && (
-          <>
-            <h4 className="mb-3">Attendance History</h4>
-            {attendanceHistoryDisplay.length > 0 ? (
-              <div className="attendance-history-grid">
-                {attendanceHistoryDisplay.map(day => (
-                  <div key={day.date} className="attendance-history-card" onClick={() => handleViewHistoryDetail(day.date)}>
-                   <div className="card-header">
-                        <h5 className="card-title">
-                          {day.date ? 
-                            new Date(day.date).toLocaleDateString('en-US', { 
-                              weekday: 'long', 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            }) : 
-                            'Invalid Date'
-                          }
-                        </h5>
-                        <button className="btn btn-sm btn-outline-danger delete-history-btn" onClick={(e) => handleOpenDeleteConfirm(e, day.date)} title="Delete this day's records">
-                            <i className="bi bi-trash-fill"></i>
-                        </button>
-                    </div>
-                    <div className="card-body"><div className="info-grid">
-                        <div className="info-item scheduled"><span className="value">{day.total}</span><span className="label">Scheduled</span></div>
-                        <div className="info-item present"><span className="value">{day.present - day.late}</span><span className="label">Present</span></div>
-                        <div className="info-item late"><span className="value">{day.late}</span><span className="label">Late</span></div>
-                        <div className="info-item absent"><span className="value">{day.absent}</span><span className="label">Absent</span></div>
-                    </div></div>
-                  </div>
-                ))}
-              </div>
-            ) : <p className="text-muted">No historical attendance data found.</p>}
-          </>
+        
+        {!loading && !error && activeView === 'daily' && (
+          <DailyAttendanceView
+            currentDate={currentDate}
+            setCurrentDate={setCurrentDate}
+            statusFilter={statusFilter}
+            handleStatusFilterClick={handleStatusFilterClick}
+            positionFilter={positionFilter}
+            setPositionFilter={setPositionFilter}
+            uniquePositions={uniquePositions}
+            dailyAttendanceList={dailyAttendanceList}
+            sortedAndFilteredList={sortedAndFilteredList}
+            handleRequestSort={handleRequestSort}
+            getSortIcon={getSortIcon}
+            handleOpenEditModal={handleOpenEditModal}
+          />
+        )}
+        
+        {!loading && !error && (activeView === 'historyList' || activeView === 'historyDetail') && (
+          <HistoryAttendanceView
+            activeView={activeView}
+            setActiveView={handleViewChange}
+            attendanceHistoryDisplay={attendanceHistoryDisplay}
+            handleViewHistoryDetail={handleViewHistoryDetail}
+            handleOpenDeleteConfirm={handleOpenDeleteConfirm}
+            currentDate={currentDate}
+            setCurrentDate={setCurrentDate}
+            statusFilter={statusFilter}
+            handleStatusFilterClick={handleStatusFilterClick}
+            positionFilter={positionFilter}
+            setPositionFilter={setPositionFilter}
+            uniquePositions={uniquePositions}
+            dailyAttendanceList={dailyAttendanceList}
+            sortedAndFilteredList={sortedAndFilteredList}
+            handleRequestSort={handleRequestSort}
+            getSortIcon={getSortIcon}
+            handleOpenEditModal={handleOpenEditModal}
+          />
         )}
       </div>
 
@@ -777,6 +718,32 @@ const AttendancePage = () => {
       )}
 
       {showEditModal && ( <EditAttendanceModal show={showEditModal} onClose={handleCloseEditModal} onSave={handleSaveEditedTime} attendanceRecord={editingAttendanceRecord}/> )}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Confirm Delete</h5>
+                <button type="button" className="btn-close" onClick={handleCancelDelete} aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to delete all attendance records for <strong>{deletingDate}</strong>?</p>
+                <div className="alert alert-warning" role="alert">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                  <strong>Warning:</strong> This will also delete the corresponding schedule for this date and all associated data.
+                </div>
+                <p className="text-muted">This action cannot be undone.</p>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={handleCancelDelete}>Cancel</button>
+                <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Toast Notification */}
       {toast.show && (

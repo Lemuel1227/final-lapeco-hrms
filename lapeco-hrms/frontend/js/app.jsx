@@ -5,6 +5,7 @@ import './bootstrap';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { templateAPI } from './services/api';
 
 // Import components
 
@@ -44,7 +45,7 @@ import LeaderboardsPage from './pages/Leaderboards/LeaderboardsPage';
 import ResignationManagementPage from './pages/Resignation-Management/ResignationManagementPage';
 import MyResignationPage from './pages/My-Resignation/MyResignationPage';
 import EmailVerificationHandler from './pages/Verify-Email/EmailVerificationHandler';
-import ErrorBoundary from './common/ErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Import layout, context, and components
 import Layout from './layout/Layout';
@@ -55,6 +56,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/index.css';
 // Create the main App component
 function App() {
+  const [templates, setTemplates] = useState([]);
+
   // Load initial data only if authenticated
   useEffect(() => {
     const loadData = async () => {
@@ -80,9 +83,10 @@ function App() {
   }, []);
   
   return (
-    <ThemeProvider>
-      <Router>
-        <Routes>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Router>
+          <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/force-password-change" element={<ForcePasswordChange />} />
@@ -99,11 +103,7 @@ function App() {
             <Route path="dashboard/employee-data" element={<EmployeeDataPage />} />
             <Route path="dashboard/leaderboards" element={<LeaderboardsPage />} />
             <Route path="dashboard/positions" element={<PositionsPage />} />
-            <Route path="dashboard/attendance-management" element={
-              <ErrorBoundary>
-                <AttendancePage />
-              </ErrorBoundary>
-            } />
+            <Route path="dashboard/attendance-management" element={<AttendancePage />} />
             <Route path="dashboard/schedule-management" element={<ScheduleManagementPage />} />
             <Route path="dashboard/schedule-management/create" element={<ScheduleBuilderPage />} />
             <Route path="dashboard/leave-management" element={<LeaveManagementPage />} />
@@ -117,11 +117,7 @@ function App() {
             <Route path="dashboard/performance" element={<PerformanceManagementPage />} />
             <Route path="dashboard/training" element={<TrainingPage />} />
             <Route path="dashboard/training/:programId" element={<ProgramDetailPage />} />
-            <Route path="dashboard/case-management" element={
-              <ErrorBoundary>
-                <CaseManagementPage />
-              </ErrorBoundary>
-            } />
+            <Route path="dashboard/case-management" element={<CaseManagementPage />} />
             <Route path="dashboard/resignation-management" element={<ResignationManagementPage />} />
             <Route path="dashboard/recruitment" element={<RecruitmentPage />} />
             <Route path="dashboard/reports" element={<ReportsPage />} />
@@ -136,18 +132,15 @@ function App() {
             <Route path="dashboard/my-attendance" element={<MyAttendancePage />} />
             <Route path="dashboard/my-payroll" element={<div className="p-5 text-center"><h1>My Payroll</h1><p>This page is under construction.</p></div>} />
             <Route path="dashboard/evaluate-self" element={<div className="p-5 text-center"><h1>My Evaluations</h1><p>This page is under construction.</p></div>} />
-            <Route path="dashboard/my-resignation" element={
-              <ErrorBoundary>
-                <MyResignationPage />
-              </ErrorBoundary>
-            } />
+            <Route path="dashboard/my-resignation" element={<MyResignationPage />} />
           </Route>
 
           {/* Catch all route */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Router>
-    </ThemeProvider>
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

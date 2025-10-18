@@ -108,13 +108,15 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // Attendance Management - with role-based access control
     Route::middleware(['role.access:attendance,index'])->get('/attendance', [AttendanceController::class, 'index']);
     Route::middleware(['role.access:attendance,store'])->post('/attendance', [AttendanceController::class, 'store']);
-    Route::middleware(['role.access:attendance,view'])->get('/attendance/{attendance}', [AttendanceController::class, 'show']);
-    Route::middleware(['role.access:attendance,update'])->put('/attendance/{attendance}', [AttendanceController::class, 'update']);
-    Route::middleware(['role.access:attendance,destroy'])->delete('/attendance/{attendance}', [AttendanceController::class, 'destroy']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-logs', [AttendanceController::class, 'getLogs']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-history', [AttendanceController::class, 'getAttendanceHistory']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-daily', [AttendanceController::class, 'getDailyAttendance']);
+    Route::middleware(['role.access:attendance,index'])->get('/attendance/employees', [AttendanceController::class, 'getEmployees']);
+    Route::middleware(['role.access:attendance,index'])->get('/attendance/employee/{employeeId}', [AttendanceController::class, 'getEmployeeAttendance']);
     Route::middleware(['role.access:attendance,store'])->post('/attendance/clock', [AttendanceController::class, 'clockAction']);
+    Route::middleware(['role.access:attendance,view'])->get('/attendance/{attendance}', [AttendanceController::class, 'show']);
+    Route::middleware(['role.access:attendance,update'])->put('/attendance/{attendance}', [AttendanceController::class, 'update']);
+    Route::middleware(['role.access:attendance,destroy'])->delete('/attendance/{attendance}', [AttendanceController::class, 'destroy']);
 
     // Schedule Management - with role-based access control
     Route::middleware(['role.access:schedule,index'])->get('/schedules', [ScheduleController::class, 'index']);

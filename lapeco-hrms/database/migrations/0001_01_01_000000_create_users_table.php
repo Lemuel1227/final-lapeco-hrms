@@ -67,8 +67,25 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
+        // Proactively drop known child tables that reference `users` to avoid FK violations
+        // These tables are created by later migrations and should be dropped first during refresh
+        Schema::dropIfExists('performance_evaluator_responses');
+        Schema::dropIfExists('performance_evaluations');
+        Schema::dropIfExists('performance_evaluation_periods');
+        Schema::dropIfExists('training_enrollments');
+        Schema::dropIfExists('attendances'); // depends on schedule_assignments
+        Schema::dropIfExists('schedule_assignments');
+        Schema::dropIfExists('action_logs'); // depends on disciplinary_cases
+        Schema::dropIfExists('disciplinary_cases');
+        Schema::dropIfExists('terminations');
+        Schema::dropIfExists('resignations');
+        Schema::dropIfExists('leave_credits');
+        Schema::dropIfExists('leaves');
+        Schema::dropIfExists('notifications');
+
+        // Drop dependent/auth tables first, then users to avoid FK issues
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

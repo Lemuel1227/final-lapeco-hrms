@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('schedule_assignments', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('schedule_id')->nullable();
-            $table->unsignedBigInteger('schedule_template_id')->nullable();
+            $table->unsignedBigInteger('schedule_id')->nullable()->onDelete('cascade');
+            $table->unsignedBigInteger('schedule_template_id')->nullable()->onDelete('cascade');
             $table->unsignedBigInteger('user_id');
             $table->time('start_time');
             $table->time('end_time');

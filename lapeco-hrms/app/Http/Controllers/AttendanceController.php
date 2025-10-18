@@ -170,7 +170,7 @@ class AttendanceController extends Controller
             'break_in' => 'nullable|date_format:H:i',
             'sign_out' => 'nullable|date_format:H:i',
             'status' => 'sometimes|in:present,absent,late',
-            'ot_hours' => 'nullable|numeric|min:0'
+            'ot_hours' => 'sometimes|numeric|min:0'
         ]);
 
         // Update attendance record
@@ -182,8 +182,10 @@ class AttendanceController extends Controller
         if ($request->has('ot_hours')) {
             try {
                 if ($attendance->scheduleAssignment) {
+                    // Ensure ot_hours is never null - default to 0
+                    $otHours = $request->ot_hours ?? 0;
                     $attendance->scheduleAssignment->update([
-                        'ot_hours' => $request->ot_hours
+                        'ot_hours' => $otHours
                     ]);
                 } else {
                     \Log::error('No schedule assignment found for attendance ID: ' . $attendance->id);
@@ -354,12 +356,18 @@ class AttendanceController extends Controller
             $startDate = $earliestSchedule ? $earliestSchedule->date : Carbon::now()->subDays(90)->toDateString();
         }
 
-        // Get all schedule assignments within the date range
-        $scheduleAssignments = ScheduleAssignment::with(['user', 'schedule', 'attendance'])
-            ->whereHas('schedule', function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('date', [$startDate, $endDate]);
-            })
+        // Get schedules within the date range and their assignments (this ensures only existing schedules)
+        $schedules = Schedule::with(['assignments.user', 'assignments.attendance'])
+            ->whereBetween('date', [$startDate, $endDate])
             ->get();
+            
+        // Flatten the schedule assignments
+        $scheduleAssignments = $schedules->flatMap(function ($schedule) {
+            return $schedule->assignments->map(function ($assignment) use ($schedule) {
+                $assignment->schedule = $schedule; // Ensure schedule relationship is loaded
+                return $assignment;
+            });
+        });
 
         // Group by date and calculate statistics
         $historyData = [];
@@ -483,5 +491,135 @@ class AttendanceController extends Controller
         });
 
         return response()->json($dailyData->values());
+    }
+
+    /**
+     * Get all employees (name and ID only) for attendance management
+     * Includes all employees regardless of account status
+     */
+    public function getEmployees(Request $request): JsonResponse
+    {
+        try {
+            // Get ALL employees including deactivated ones
+            $employees = \App\Models\User::select('id', 'first_name', 'middle_name', 'last_name', 'position_id')
+                ->with('position:id,name') // Load position relationship
+                ->get()
+                ->map(function ($user) {
+                    // Combine first, middle, and last name
+                    $name = trim($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name);
+                    
+                    return [
+                        'id' => $user->id,
+                        'name' => $name,
+                        'position' => $user->position ? $user->position->name : 'Unassigned'
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $employees
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch employees: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all attendance records for a specific employee
+     * Includes scheduled records without actual attendance
+     */
+    public function getEmployeeAttendance($employeeId, Request $request): JsonResponse
+    {
+        try {
+            // Get all schedule assignments for this employee
+            $scheduleAssignments = ScheduleAssignment::with([
+                'user',
+                'user.position',
+                'schedule',
+                'attendance'
+            ])
+            ->where('user_id', $employeeId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+            // Transform the data to include all necessary fields
+            $attendanceRecords = $scheduleAssignments->map(function ($assignment) {
+                $user = $assignment->user;
+                $schedule = $assignment->schedule;
+                $attendance = $assignment->attendance;
+
+                // Skip if no schedule (shouldn't happen but safety check)
+                if (!$schedule) {
+                    return null;
+                }
+
+                // Format shift times
+                $startTime = $assignment->start_time ? Carbon::parse($assignment->start_time)->format('H:i') : null;
+                $endTime = $assignment->end_time ? Carbon::parse($assignment->end_time)->format('H:i') : null;
+                $shift = ($startTime && $endTime) ? "$startTime - $endTime" : null;
+
+                // Determine status and attendance details
+                $currentDate = Carbon::now()->format('Y-m-d');
+                $scheduleDate = Carbon::parse($schedule->date)->format('Y-m-d');
+                
+                $status = 'Scheduled'; // Default status
+                $signIn = null;
+                $signOut = null;
+                $breakIn = null;
+                $breakOut = null;
+                $hoursWorked = '0:00';
+                $attendanceId = null;
+
+                if ($attendance) {
+                    // Attendance record exists
+                    $status = ucfirst($attendance->calculated_status);
+                    $signIn = $attendance->sign_in ? $attendance->sign_in->format('H:i') : null;
+                    $signOut = $attendance->sign_out ? $attendance->sign_out->format('H:i') : null;
+                    $breakIn = $attendance->break_in ? $attendance->break_in->format('H:i') : null;
+                    $breakOut = $attendance->break_out ? $attendance->break_out->format('H:i') : null;
+                    $hoursWorked = $attendance->hours_worked ?? '0:00';
+                    $attendanceId = $attendance->id;
+                } else {
+                    // No attendance record - determine status based on date
+                    if ($scheduleDate < $currentDate) {
+                        $status = 'Absent'; // Past date without attendance
+                    } else {
+                        $status = 'Scheduled'; // Future date or today without attendance yet
+                    }
+                }
+
+                return [
+                    'id' => $attendanceId,
+                    'empId' => $user->id,
+                    'employeeName' => trim($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name),
+                    'position' => $user->position ? $user->position->name : 'Unassigned',
+                    'date' => $scheduleDate,
+                    'shift' => $shift,
+                    'timeIn' => $signIn,
+                    'timeOut' => $signOut,
+                    'breakIn' => $breakIn,
+                    'breakOut' => $breakOut,
+                    'status' => $status,
+                    'workingHours' => $hoursWorked,
+                    'otHours' => $assignment->ot_hours ?? '0.00',
+                    'scheduleId' => $schedule->id,
+                    'scheduleName' => $schedule->name,
+                    'schedule_assignment_id' => $assignment->id
+                ];
+            })->filter()->values(); // Remove null values
+
+            return response()->json([
+                'success' => true,
+                'data' => $attendanceRecords
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch employee attendance: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -20,6 +20,7 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [runToDelete, setRunToDelete] = useState(null);
+  const [runToMarkAsPaid, setRunToMarkAsPaid] = useState(null); // --- NEW STATE ---
   
   // Report States
   const [showReportConfigModal, setShowReportConfigModal] = useState(false);
@@ -113,15 +114,17 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
   const handleSaveEmployeeInfo = (employeeId, updatedData) => {
       handlers.saveEmployee(updatedData, employeeId);
   };
-
+  
+  // --- MODIFIED: Opens the confirmation modal instead of using window.confirm ---
   const handleMarkRunAsPaid = (run) => {
-    if(window.confirm(`Mark all ${run.records.length} pending records in this run as 'Paid'?`)) {
-        run.records.forEach(rec => {
-            if(rec.status !== 'Paid') {
-                handlers.updatePayrollRecord(rec.payrollId, { ...rec, status: 'Paid' });
-            }
-        });
-    }
+    setRunToMarkAsPaid(run);
+  };
+  
+  // --- NEW: Handler for modal confirmation ---
+  const confirmMarkAsPaid = () => {
+    if (!runToMarkAsPaid) return;
+    handlers.markRunAsPaid(runToMarkAsPaid.runId);
+    setRunToMarkAsPaid(null);
   };
 
   const handleConfirmDelete = () => {
@@ -226,6 +229,23 @@ const PayrollHistoryPage = ({ payrolls, employees, positions, handlers, allLeave
           employees={employees}
         />
       )}
+      
+      {/* --- NEW: Confirmation Modal for Marking as Paid --- */}
+      <ConfirmationModal
+        show={!!runToMarkAsPaid}
+        onClose={() => setRunToMarkAsPaid(null)}
+        onConfirm={confirmMarkAsPaid}
+        title="Mark Run as Paid"
+        confirmText="Yes, Mark as Paid"
+        confirmVariant="success"
+      >
+        {runToMarkAsPaid && (
+          <>
+            <p>Are you sure you want to mark all {runToMarkAsPaid.records.length} pending records in this payroll run as 'Paid'?</p>
+            <p className="text-muted small"><strong>Pay Period:</strong> {runToMarkAsPaid.cutOff}</p>
+          </>
+        )}
+      </ConfirmationModal>
 
       <ConfirmationModal
         show={!!runToDelete}
