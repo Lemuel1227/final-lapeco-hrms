@@ -15,7 +15,7 @@ class DisciplinaryCaseController extends Controller
      */
     public function index(): JsonResponse
     {
-        $cases = DisciplinaryCase::with(['employee:id,name', 'actionLogs'])
+        $cases = DisciplinaryCase::with(['employee:id,first_name,middle_name,last_name', 'actionLogs'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -41,7 +41,7 @@ class DisciplinaryCaseController extends Controller
         $case = DisciplinaryCase::create($validated);
 
         // Load the employee relationship
-        $case->load('employee:id,name');
+        $case->load('employee:id,first_name,middle_name,last_name');
 
         return response()->json($case, 201);
     }
@@ -51,7 +51,7 @@ class DisciplinaryCaseController extends Controller
      */
     public function show(DisciplinaryCase $disciplinaryCase): JsonResponse
     {
-        $disciplinaryCase->load(['employee:id,name', 'actionLogs']);
+        $disciplinaryCase->load(['employee:id,first_name,middle_name,last_name', 'actionLogs']);
         return response()->json($disciplinaryCase);
     }
 
@@ -72,7 +72,7 @@ class DisciplinaryCaseController extends Controller
         ]);
 
         $disciplinaryCase->update($validated);
-        $disciplinaryCase->load('employee:id,name');
+        $disciplinaryCase->load('employee:id,first_name,middle_name,last_name');
 
         return response()->json($disciplinaryCase);
     }
@@ -92,7 +92,7 @@ class DisciplinaryCaseController extends Controller
     public function getByEmployee(User $employee): JsonResponse
     {
         $cases = DisciplinaryCase::where('employee_id', $employee->id)
-            ->with('employee:id,name')
+            ->with('employee:id,first_name,middle_name,last_name')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -105,7 +105,7 @@ class DisciplinaryCaseController extends Controller
     public function getByStatus(string $status): JsonResponse
     {
         $cases = DisciplinaryCase::where('status', $status)
-            ->with('employee:id,name')
+            ->with('employee:id,first_name,middle_name,last_name')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -117,7 +117,7 @@ class DisciplinaryCaseController extends Controller
      */
     public function getGroupedByEmployee(): JsonResponse
     {
-        $casesGroupedByEmployee = DisciplinaryCase::with('employee:id,name')
+        $casesGroupedByEmployee = DisciplinaryCase::with('employee:id,first_name,middle_name,last_name')
             ->get()
             ->groupBy('employee_id')
             ->map(function ($cases, $employeeId) {
@@ -161,7 +161,7 @@ class DisciplinaryCaseController extends Controller
                 ->selectRaw('count(*) as count')
                 ->groupBy('action_type')
                 ->pluck('count', 'action_type'),
-            'recent_cases' => DisciplinaryCase::with('employee:id,name')
+            'recent_cases' => DisciplinaryCase::with('employee:id,first_name,middle_name,last_name')
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get()

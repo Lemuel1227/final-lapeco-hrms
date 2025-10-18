@@ -194,16 +194,37 @@ const ScheduleManagementPage = (props) => {
     }
   };
 
+  const normalizeScheduleDate = (dateValue) => {
+    if (!dateValue) return '';
+    if (dateValue instanceof Date) {
+      const year = dateValue.getFullYear();
+      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+      const day = String(dateValue.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    const parsed = new Date(dateValue);
+    if (!Number.isNaN(parsed.getTime())) {
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    if (typeof dateValue === 'string' && dateValue.includes('T')) {
+      return dateValue.split('T')[0];
+    }
+    return dateValue;
+  };
+
   // --- MEMOIZED DATA & DERIVED STATE ---
   // Use basicSchedules for list view with correct employee counts
   const schedulesByDate = useMemo(() => {
-    
+
     const grouped = {};
-    
+
     // Create grouped data from basicSchedules for list view
     (basicSchedules || []).forEach(schedule => {
-      
-      const normalizedDate = schedule.date instanceof Date ? schedule.date.toISOString().split('T')[0] : schedule.date.split('T')[0];
+
+      const normalizedDate = normalizeScheduleDate(schedule.date);
       grouped[normalizedDate] = {
         info: {
           id: schedule.id,
@@ -217,11 +238,11 @@ const ScheduleManagementPage = (props) => {
     
     // Add detailed schedule data for daily view
     (schedules || []).forEach(sch => {
-      const normalizedDate = sch.date instanceof Date ? sch.date.toISOString().split('T')[0] : sch.date.split('T')[0];
+      const normalizedDate = normalizeScheduleDate(sch.date);
       if (!grouped[normalizedDate]) {
         grouped[normalizedDate] = { info: { name: sch.name, date: normalizedDate, employeeCount: 0 } };
       }
-      (grouped[normalizedDate].assignments = grouped[normalizedDate].assignments || []).push(sch);
+      (grouped[normalizedDate].assignments = grouped[normalizedDate].assignments || []).push({ ...sch, date: normalizedDate });
     });
     
     return grouped;
@@ -636,7 +657,13 @@ const ScheduleManagementPage = (props) => {
                               <tbody>
                                   {dataForTable.map(assignment => (
                                       <tr key={assignment.id}>
-                                          <td>{assignment.user?.name || 'Unknown'}</td>
+                                          <td>
+                                            {assignment.user
+                                              ? ([assignment.user.first_name, assignment.user.middle_name, assignment.user.last_name]
+                                                  .filter(Boolean)
+                                                  .join(' ') || assignment.user.name || assignment.user.username || 'Unknown')
+                                              : 'Unknown'}
+                                          </td>
                                           <td>{assignment.user?.id || 'N/A'}</td>
                                           <td>{assignment.user?.position?.name || 'Unassigned'}</td>
                                           <td>{formatTimeToAMPM(assignment.start_time)}</td>

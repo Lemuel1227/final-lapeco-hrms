@@ -189,8 +189,11 @@ export const recruitmentAPI = {
 // Performance API calls
 export const performanceAPI = {
   getAll: () => api.get('/performance'),
-  createEvaluation: (data) => api.post('/performance/evaluations', data),
-  updateEvaluation: (id, data) => api.put(`/performance/evaluations/${id}`, data),
+  createPeriod: (data) => api.post('/performance/periods', data),
+  updatePeriod: (id, data) => api.put(`/performance/periods/${id}`, data),
+  assignEmployees: (periodId, data) => api.post(`/performance/periods/${periodId}/assign`, data),
+  submitResponse: (evaluationId, data) => api.post(`/performance/evaluations/${evaluationId}/responses`, data),
+  updateResponse: (responseId, data) => api.put(`/performance/evaluation-responses/${responseId}`, data),
 };
 
 // Training API calls

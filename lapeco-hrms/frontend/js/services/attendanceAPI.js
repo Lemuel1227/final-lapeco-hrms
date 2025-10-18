@@ -44,6 +44,16 @@ const attendanceAPI = {
     // Clock in/out action
     clockAction: (data) => {
         return api.post('/attendance/clock', data);
+    },
+
+    // Get all employees (name and ID only) for attendance management
+    getEmployeeNameID: (params = {}) => {
+        return api.get('/attendance/employees', { params });
+    },
+
+    // Get all attendance records for a specific employee (including scheduled/absent)
+    getEmployeeAttendance: (employeeId, params = {}) => {
+        return api.get(`/attendance/employee/${employeeId}`, { params });
     }
 };
 

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { startOfDay, endOfDay, subDays, startOfYear, endOfYear, getYear } from 'date-fns';
@@ -13,10 +13,28 @@ import PerformanceReportModal from '../../modals/PerformanceReportModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
+import { performanceAPI, employeeAPI, positionAPI } from '../../services/api';
+import { evaluationFactorsConfig } from '../../config/evaluation.config';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const PerformanceManagementPage = ({ kras, kpis, positions, employees, evaluations, handlers, evaluationFactors, theme }) => {
+const PerformanceManagementPage = ({
+  kras = [],
+  kpis = [],
+  positions: initialPositions = [],
+  employees: initialEmployees = [],
+  evaluations: initialEvaluations = [],
+  handlers = {},
+  evaluationFactors: evaluationFactorsProp,
+  theme: themeProp,
+}) => {
+  const [positions, setPositions] = useState(initialPositions);
+  const [employees, setEmployees] = useState(initialEmployees);
+  const [evaluations, setEvaluations] = useState(initialEvaluations);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const evaluationFactors = evaluationFactorsProp?.length ? evaluationFactorsProp : evaluationFactorsConfig;
+
   const [showStartEvalModal, setShowStartEvalModal] = useState(false);
   const [viewingEvaluation, setViewingEvaluation] = useState(null);
   const [showReportConfigModal, setShowReportConfigModal] = useState(false);
@@ -28,12 +46,188 @@ const PerformanceManagementPage = ({ kras, kpis, positions, employees, evaluatio
   const [activePreset, setActivePreset] = useState('all');
   const [dateFilterType, setDateFilterType] = useState('periodEnd');
 
-  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+  const { generateReport, pdfDataUri, isLoading: isGeneratingReport, setPdfDataUri } = useReportGenerator();
 
   const [historySearchTerm, setHistorySearchTerm] = useState('');
   const [historySortConfig, setHistorySortConfig] = useState({ key: 'evaluationDate', direction: 'descending' });
 
   const navigate = useNavigate();
+  const outletContext = typeof useOutletContext === 'function' ? useOutletContext() : undefined;
+  const theme = themeProp ?? outletContext?.theme ?? 'light';
+
+  const normalizeEmployee = useCallback((user) => {
+    if (!user) {
+      return null;
+    }
+    const fullName = [user.first_name, user.middle_name, user.last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || user.name || user.email || 'Unknown';
+
+    return {
+      id: user.id,
+      first_name: user.first_name ?? null,
+      middle_name: user.middle_name ?? null,
+      last_name: user.last_name ?? null,
+      name: fullName,
+      email: user.email ?? null,
+      positionId: user.position_id ?? user.positionId ?? null,
+      imageUrl: user.profile_picture_url ?? user.imageUrl ?? null,
+      role: user.role ?? null,
+      isTeamLeader: user.role === 'TEAM_LEADER',
+    };
+  }, []);
+
+  const toPercent = useCallback((value) => {
+    if (value === null || value === undefined) {
+      return 0;
+    }
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      return 0;
+    }
+    return Number((numeric * 20).toFixed(2));
+  }, []);
+
+  const buildFactorScores = useCallback((response) => ({
+    factor_attendance: { score: response?.attendance ?? null },
+    factor_dedication: { score: response?.dedication ?? null },
+    factor_job_knowledge: { score: response?.performance_job_knowledge ?? null },
+    factor_efficiency: { score: response?.performance_work_efficiency_professionalism ?? null },
+    factor_task_acceptance: { score: response?.cooperation_task_acceptance ?? null },
+    factor_adaptability: { score: response?.cooperation_adaptability ?? null },
+    factor_autonomy: { score: response?.initiative_autonomy ?? null },
+    factor_pressure: { score: response?.initiative_under_pressure ?? null },
+    factor_communication: { score: response?.communication ?? null },
+    factor_teamwork: { score: response?.teamwork ?? null },
+    factor_character: { score: response?.character ?? null },
+    factor_responsiveness: { score: response?.responsiveness ?? null },
+    factor_personality: { score: response?.personality ?? null },
+    factor_appearance: { score: response?.appearance ?? null },
+    factor_work_habits: { score: response?.work_habits ?? null },
+    factor_evaluator_summary: { value: response?.remarks ?? '' },
+    factor_development_areas: { value: '' },
+  }), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const toDateString = (value) => {
+      if (!value) {
+        return '';
+      }
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return value;
+      }
+      return parsed.toISOString().split('T')[0];
+    };
+
+    const loadPerformanceData = async () => {
+      setIsLoading(true);
+      setLoadError('');
+
+      try {
+        const [performanceRes, employeesRes, positionsRes] = await Promise.all([
+          performanceAPI.getAll(),
+          employeeAPI.getAll().catch(() => ({ data: [] })),
+          positionAPI.getAll().catch(() => ({ data: [] })),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        const periodData = Array.isArray(performanceRes?.data) ? performanceRes.data : [];
+        const combinedEmployees = new Map();
+        const normalizedEvaluations = [];
+
+        periodData.forEach((period) => {
+          (period.evaluations ?? []).forEach((evaluation) => {
+            const employeeEntry = normalizeEmployee(evaluation.employee);
+            if (employeeEntry?.id) {
+              combinedEmployees.set(employeeEntry.id, employeeEntry);
+            }
+
+            const responses = evaluation.responses ?? [];
+
+            responses.forEach((response) => {
+              const evaluatorEntry = normalizeEmployee(response.evaluator);
+              if (evaluatorEntry?.id) {
+                combinedEmployees.set(evaluatorEntry.id, evaluatorEntry);
+              }
+
+              normalizedEvaluations.push({
+                id: `response-${response.id}`,
+                responseId: response.id,
+                evaluationId: evaluation.id,
+                periodId: period.id,
+                employeeId: employeeEntry?.id ?? null,
+                evaluatorId: evaluatorEntry?.id ?? null,
+                periodStart: toDateString(period.evaluation_start),
+                periodEnd: toDateString(period.evaluation_end),
+                evaluationDate: toDateString(response.evaluated_on ?? evaluation.completed_at ?? period.evaluation_end),
+                overallScore: toPercent(response.overall_score ?? evaluation.average_score),
+                rawScore: response.overall_score ?? evaluation.average_score ?? null,
+                factorScores: buildFactorScores(response),
+                remarks: response?.remarks ?? '',
+                employee: employeeEntry,
+                evaluator: evaluatorEntry,
+              });
+            });
+
+            if (responses.length === 0) {
+              normalizedEvaluations.push({
+                id: `evaluation-${evaluation.id}`,
+                responseId: null,
+                evaluationId: evaluation.id,
+                periodId: period.id,
+                employeeId: employeeEntry?.id ?? null,
+                evaluatorId: null,
+                periodStart: toDateString(period.evaluation_start),
+                periodEnd: toDateString(period.evaluation_end),
+                evaluationDate: toDateString(evaluation.completed_at ?? period.evaluation_end),
+                overallScore: toPercent(evaluation.average_score),
+                rawScore: evaluation.average_score ?? null,
+                factorScores: {},
+                remarks: '',
+                employee: employeeEntry,
+                evaluator: null,
+              });
+            }
+          });
+        });
+
+        const apiEmployees = Array.isArray(employeesRes?.data) ? employeesRes.data : [];
+        apiEmployees.forEach((employee) => {
+          const normalized = normalizeEmployee(employee);
+          if (normalized?.id) {
+            combinedEmployees.set(normalized.id, normalized);
+          }
+        });
+
+        setEmployees(Array.from(combinedEmployees.values()));
+        setPositions(Array.isArray(positionsRes?.data) ? positionsRes.data : []);
+        setEvaluations(normalizedEvaluations);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+        console.error('Failed to load performance data.', error);
+        setLoadError(error.response?.data?.message ?? 'Failed to load performance data.');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPerformanceData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [normalizeEmployee, buildFactorScores, toPercent]);
 
   const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
   const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);

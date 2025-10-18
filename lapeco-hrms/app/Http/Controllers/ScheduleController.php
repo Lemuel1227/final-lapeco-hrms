@@ -414,15 +414,12 @@ class ScheduleController extends Controller
 
     public function destroy($id)
     {
-        $schedule = Schedule::findOrFail($id);
-        
-        // Delete all assignments first
-        ScheduleAssignment::where('schedule_id', $schedule->id)->delete();
-        
-        // Delete the schedule
+        $schedule = Schedule::findOrFail($id);       
+
+        $date = $schedule->date;
         $schedule->delete();
         
-        return response()->json(['message' => 'Schedule deleted successfully!']);
+        return response()->json(['message' => 'Schedule ' . $date . ' deleted successfully!']);
     }
 
     // Template methods

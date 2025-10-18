@@ -6,23 +6,68 @@ const MOCK_COMPANY_INFO = {
     address: '123 Innovation Drive, Tech City',
 };
 
-// Simplified calculation for SSS based on a mock salary bracket
-const calculateSss = (salary) => {
-    if (salary > 29750) return 1350;
-    if (salary > 20250) return 900;
-    return 581.30;
+export const calculateSssContribution = (salary) => {
+    let msc = Math.min(salary, 30000); // Apply MSC ceiling
+    if (msc < 4000) msc = 4000; // Apply MSC floor as per legislation
+
+    // Round MSC to the nearest 500 for calculation if not at ceiling
+    if (msc < 30000) {
+        const remainder = msc % 500;
+        if (remainder < 250) {
+            msc = msc - remainder;
+        } else {
+            msc = msc - remainder + 500;
+        }
+    }
+    
+    const employeeShare = msc * 0.045;
+    const employerShare = msc * 0.095;
+
+    return {
+        employeeShare: employeeShare,
+        employerShare: employerShare,
+        total: employeeShare + employerShare,
+    };
 };
 
-// Simplified calculation for PhilHealth
-const calculatePhilhealth = (salary) => {
-    const rate = 0.04; // Example rate
-    let premium = salary * rate;
-    if (premium > 3200) premium = 3200;
-    if (premium < 400) premium = 400;
-    return premium;
+export const calculatePhilhealthContribution = (salary) => {
+    const rate = 0.05;
+    const incomeFloor = 10000;
+    const incomeCeiling = 100000;
+
+    let baseSalary = Math.max(salary, incomeFloor);
+    baseSalary = Math.min(baseSalary, incomeCeiling);
+
+    const totalPremium = baseSalary * rate;
+
+    return {
+        employeeShare: totalPremium / 2,
+        employerShare: totalPremium / 2,
+        total: totalPremium,
+    };
 };
 
-// --- REFACTORED LOGIC: All functions now use the payroll run records as the source of truth ---
+export const calculatePagibigContribution = (salary) => {
+    let employeeShare;
+    if (salary <= 1500) {
+        employeeShare = salary * 0.01;
+    } else {
+        employeeShare = salary * 0.02;
+    }
+    
+    // Employee share is capped at 100
+    employeeShare = Math.min(employeeShare, 100);
+
+    // Employer share is always 2%, capped at 100
+    const employerShare = Math.min(salary * 0.02, 100);
+
+    return {
+        employeeShare,
+        employerShare,
+        total: employeeShare + employerShare,
+    };
+};
+
 
 export const generateSssData = (employees, positions, selectedPayrollRun) => {
     const employeeMap = new Map(employees.map(e => [e.id, e]));
@@ -30,22 +75,23 @@ export const generateSssData = (employees, positions, selectedPayrollRun) => {
 
     const rows = selectedPayrollRun.records.map((record, index) => {
         const emp = employeeMap.get(record.empId);
-        if (!emp) return null; // Skip if employee record not found
+        if (!emp) return null;
 
         const position = positionMap.get(emp.positionId);
         const salary = position?.monthlySalary || 0;
-        const totalContribution = calculateSss(salary);
+        const contribution = calculateSssContribution(salary);
+
         return {
             no: index + 1,
             sssNo: emp.sssNo || '',
             lastName: emp.lastName || '',
             firstName: emp.firstName || '',
             middleName: emp.middleName || '',
-            employeeContribution: totalContribution / 2,
-            employerContribution: totalContribution / 2,
-            totalContribution: totalContribution,
+            employeeContribution: contribution.employeeShare,
+            employerContribution: contribution.employerShare,
+            totalContribution: contribution.total,
         };
-    }).filter(Boolean); // Filter out any null entries
+    }).filter(Boolean);
 
     return {
         title: 'SSS Contribution Report',
@@ -60,9 +106,9 @@ export const generateSssData = (employees, positions, selectedPayrollRun) => {
             { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
             { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
             { key: 'middleName', label: 'Middle Name', editable: false, isPermanent: true },
-            { key: 'employeeContribution', label: 'EE Share', editable: true, isPermanent: false },
-            { key: 'employerContribution', label: 'ER Share', editable: true, isPermanent: false },
-            { key: 'totalContribution', label: 'Total', editable: true, isPermanent: false },
+            { key: 'employeeContribution', label: 'EE Share', editable: false, isPermanent: true },
+            { key: 'employerContribution', label: 'ER Share', editable: false, isPermanent: true },
+            { key: 'totalContribution', label: 'Total', editable: false, isPermanent: true },
         ],
         rows,
     };
@@ -78,16 +124,17 @@ export const generatePhilhealthData = (employees, positions, selectedPayrollRun)
 
         const position = positionMap.get(emp.positionId);
         const salary = position?.monthlySalary || 0;
-        const totalContribution = calculatePhilhealth(salary);
+        const contribution = calculatePhilhealthContribution(salary);
+        
         return {
             no: index + 1,
             philhealthNo: emp.philhealthNo || '',
             lastName: emp.lastName || '',
             firstName: emp.firstName || '',
             middleName: emp.middleName || '',
-            employeeContribution: totalContribution / 2,
-            employerContribution: totalContribution / 2,
-            totalContribution: totalContribution,
+            employeeContribution: contribution.employeeShare,
+            employerContribution: contribution.employerShare,
+            totalContribution: contribution.total,
         };
     }).filter(Boolean);
 
@@ -103,9 +150,9 @@ export const generatePhilhealthData = (employees, positions, selectedPayrollRun)
             { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
             { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
             { key: 'middleName', label: 'Middle Name', editable: false, isPermanent: true },
-            { key: 'employeeContribution', label: 'EE Share', editable: true, isPermanent: false },
-            { key: 'employerContribution', label: 'ER Share', editable: true, isPermanent: false },
-            { key: 'totalContribution', label: 'Total', editable: true, isPermanent: false },
+            { key: 'employeeContribution', label: 'EE Share', editable: false, isPermanent: true },
+            { key: 'employerContribution', label: 'ER Share', editable: false, isPermanent: true },
+            { key: 'totalContribution', label: 'Total', editable: false, isPermanent: true },
         ],
         rows,
     };
@@ -121,8 +168,7 @@ export const generatePagibigData = (employees, positions, selectedPayrollRun) =>
 
         const position = positionMap.get(emp.positionId);
         const salary = position?.monthlySalary || 0;
-        const contribution = salary > 1500 ? 100 : salary * 0.02;
-        const totalContribution = contribution * 2;
+        const contribution = calculatePagibigContribution(salary);
 
         return {
             no: index + 1,
@@ -130,9 +176,9 @@ export const generatePagibigData = (employees, positions, selectedPayrollRun) =>
             lastName: emp.lastName || '',
             firstName: emp.firstName || '',
             middleName: emp.middleName || '',
-            employeeContribution: contribution,
-            employerContribution: contribution,
-            totalContribution: totalContribution,
+            employeeContribution: contribution.employeeShare,
+            employerContribution: contribution.employerShare,
+            totalContribution: contribution.total,
         };
     }).filter(Boolean);
     
@@ -148,9 +194,9 @@ export const generatePagibigData = (employees, positions, selectedPayrollRun) =>
             { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
             { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
             { key: 'middleName', label: 'Middle Name', editable: false, isPermanent: true },
-            { key: 'employeeContribution', label: 'EE Share', editable: true, isPermanent: false },
-            { key: 'employerContribution', label: 'ER Share', editable: true, isPermanent: false },
-            { key: 'totalContribution', label: 'Total', editable: true, isPermanent: false },
+            { key: 'employeeContribution', label: 'EE Share', editable: false, isPermanent: true },
+            { key: 'employerContribution', label: 'ER Share', editable: false, isPermanent: true },
+            { key: 'totalContribution', label: 'Total', editable: false, isPermanent: true },
         ],
         rows,
     };

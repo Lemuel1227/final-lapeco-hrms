@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import IncomeBreakdownModal from '../../modals/IncomeBreakdownModal';
+import { calculateSssContribution, calculatePhilhealthContribution, calculatePagibigContribution } from '../../hooks/contributionUtils';
+import { calculateLatenessDeductions } from '../../hooks/payrollUtils';
 
 const formatCurrency = (value) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -13,14 +15,15 @@ const PayrollGenerationPage = ({ employees, positions, schedules, attendanceLogs
 
   const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p])), [positions]);
   const holidayMap = useMemo(() => new Map(holidays.map(h => [h.date, h])), [holidays]);
-  const scheduleMap = useMemo(() => new Map(schedules.map(s => [`${s.empId}-${s.date}`, s])), [schedules]);
-  const attendanceMap = useMemo(() => new Map(attendanceLogs.map(a => [`${a.empId}-${a.date}`, a])), [attendanceLogs]);
-
+  
   const calculatedData = useMemo(() => {
     if (!startDate || !endDate || new Date(endDate) < new Date(startDate)) {
       return [];
     }
     
+    const periodSchedules = schedules.filter(s => s.date >= startDate && s.date <= endDate);
+    const periodLogs = attendanceLogs.filter(a => a.date >= startDate && a.date <= endDate);
+
     return employees.map(emp => {
       const position = positionMap.get(emp.positionId);
       if (!position) return null;
@@ -33,15 +36,18 @@ const PayrollGenerationPage = ({ employees, positions, schedules, attendanceLogs
       let workdays = 0;
       let totalHours = 0;
 
+      const empSchedulesInPeriod = periodSchedules.filter(s => s.empId === emp.id);
+      const empLogsMap = new Map(periodLogs.filter(l => l.empId === emp.id).map(l => [l.date, l]));
+
       for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
         const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
-        const schedule = scheduleMap.get(`${emp.id}-${dateStr}`);
+        const schedule = empSchedulesInPeriod.find(s => s.date === dateStr);
         if (!schedule) continue;
 
-        const attendance = attendanceMap.get(`${emp.id}-${dateStr}`);
+        const attendance = empLogsMap.get(dateStr);
         const holiday = holidayMap.get(dateStr);
         
         let dailyPay = 0;
@@ -81,12 +87,30 @@ const PayrollGenerationPage = ({ employees, positions, schedules, attendanceLogs
       const basePay = totalGross - totalHolidayPay;
       
       const earnings = [];
-      if (basePay > 0) earnings.push({ description: 'Regular Pay', hours: totalHours, amount: basePay });
-      if (totalHolidayPay > 0) earnings.push({ description: 'Holiday Pay', hours: 0, amount: totalHolidayPay });
+      if (basePay > 0) earnings.push({ description: 'Regular Pay', hours: totalHours, amount: parseFloat(basePay.toFixed(2)) });
+      if (totalHolidayPay > 0) earnings.push({ description: 'Holiday Pay', hours: 0, amount: parseFloat(totalHolidayPay.toFixed(2)) });
 
-      return { emp, totalGross, breakdown, workdays, earnings, absences };
+      const isHr = position.id === 1;
+      const latenessDeduction = calculateLatenessDeductions({
+          employee: emp,
+          position,
+          periodSchedules,
+          periodLogs,
+          isHr,
+      });
+
+      const otherDeductions = [];
+      if (latenessDeduction > 0) {
+          otherDeductions.push({
+              description: 'Late Deduction',
+              amount: parseFloat(latenessDeduction.toFixed(2)),
+              isSystemGenerated: true,
+          });
+      }
+
+      return { emp, totalGross, breakdown, workdays, earnings, absences, otherDeductions };
     }).filter(Boolean);
-  }, [startDate, endDate, employees, positions, schedules, attendanceLogs, holidays, positionMap, holidayMap, scheduleMap, attendanceMap]);
+  }, [startDate, endDate, employees, positions, schedules, attendanceLogs, holidays, positionMap, holidayMap]);
 
   const summary = useMemo(() => {
     return calculatedData.reduce((acc, curr) => {
@@ -100,7 +124,20 @@ const PayrollGenerationPage = ({ employees, positions, schedules, attendanceLogs
     const payrollRun = {
       cutOff: `${startDate} to ${endDate}`,
       records: calculatedData.map(item => {
-        const deductions = { tax: item.totalGross * 0.1, sss: 581.30, philhealth: 400, hdmf: 100 };
+        const position = positionMap.get(item.emp.positionId);
+        const monthlySalary = position?.monthlySalary || 0;
+
+        const sss = calculateSssContribution(monthlySalary);
+        const philhealth = calculatePhilhealthContribution(monthlySalary);
+        const pagibig = calculatePagibigContribution(monthlySalary);
+
+        const deductions = {
+            tax: parseFloat((item.totalGross * 0.1).toFixed(2)),
+            sss: parseFloat((sss.employeeShare / 2).toFixed(2)),
+            philhealth: parseFloat((philhealth.employeeShare / 2).toFixed(2)),
+            hdmf: parseFloat((pagibig.employeeShare / 2).toFixed(2)),
+        };
+
         return {
             empId: item.emp.id,
             employeeName: item.emp.name,
@@ -110,7 +147,7 @@ const PayrollGenerationPage = ({ employees, positions, schedules, attendanceLogs
             cutOffEnd: endDate,
             earnings: item.earnings,
             deductions: deductions,
-            otherDeductions: [],
+            otherDeductions: item.otherDeductions,
             absences: item.absences,
             leaveBalances: { vacation: 12, sick: 8 },
             status: 'Pending',
@@ -118,7 +155,6 @@ const PayrollGenerationPage = ({ employees, positions, schedules, attendanceLogs
       })
     };
     onGenerate(payrollRun);
-    alert(`Payroll for ${payrollRun.cutOff} has been generated successfully!`);
     navigate('/dashboard/payroll/history');
   };
   

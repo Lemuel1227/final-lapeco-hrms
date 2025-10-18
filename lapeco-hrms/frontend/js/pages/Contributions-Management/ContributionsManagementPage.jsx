@@ -249,7 +249,18 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
               ) : !activePayrollRun ? (
                 <div className="text-center p-5 bg-light rounded mt-3"><i className="bi bi-check2-all fs-1 text-success mb-3 d-block"></i><h4 className="text-muted">All Reports Finalized</h4><p className="text-muted">There are no pending contribution reports to generate.</p></div>
               ) : (
-                <EditableContributionTable columns={columns} rows={rows} onCellChange={handleCellChange} onAddRow={handleAddRow} onDeleteRow={handleDeleteRow} onAddColumn={() => setShowAddColumnModal(true)} onDeleteColumn={handleDeleteColumn} />
+                <EditableContributionTable 
+                  columns={columns} 
+                  rows={rows} 
+                  onCellChange={handleCellChange} 
+                  onAddRow={handleAddRow} 
+                  onDeleteRow={handleDeleteRow} 
+                  onAddColumn={() => setShowAddColumnModal(true)} 
+                  onDeleteColumn={handleDeleteColumn}
+                  onHeaderClick={handleHeaderClick}
+                  onHeaderChange={handleColumnHeaderChange}
+                  editingHeaderKey={editingHeaderKey}
+                />
               )}
             </div>
           </div>

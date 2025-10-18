@@ -1,5 +1,3 @@
-/* src/components/pages/Contributions-Management/ContributionsManagement.css */
-
 /* ==========================================================================
    Main Page Layout & Top-Level Tabs
    ========================================================================== */
@@ -137,6 +135,13 @@
 }
 .editable-table thead th {
     background-color: var(--bg-secondary);
+    vertical-align: middle;
+}
+.editable-table th.is-editing {
+    min-width: 150px;
+}
+.editable-table .header-input {
+    width: 100%; 
 }
 .editable-table th:last-child, .editable-table td:last-child {
     border-right: none;
