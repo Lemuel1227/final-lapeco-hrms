@@ -17,7 +17,7 @@ const formatDate = (dateString) => {
     });
 };
 
-const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle }) => {
+const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewResume }) => {
   const [activeTab, setActiveTab] = useState('personal');
   const [fullApplicantData, setFullApplicantData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -92,7 +92,13 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle }) => {
                     <div className="info-item"><i className="bi bi-calendar-plus-fill"></i><span>Applied: {formatDate(displayData.application_date)}</span></div>
                     <div className="info-item"><i className="bi bi-calendar-check-fill"></i><span>Interview: {displayData.interview_schedule ? `${formatDate(displayData.interview_schedule.date)} at ${displayData.interview_schedule.time}` : 'Not Scheduled'}</span></div>
                 </div>
-                <a href={displayData.resume_url || '#'} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-resume"><i className="bi bi-file-earmark-text-fill me-2"></i>View Resume</a>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-resume"
+                  onClick={() => onViewResume && onViewResume(displayData)}
+                >
+                  <i className="bi bi-file-earmark-text-fill me-2"></i>View Resume
+                </button>
               </div>
               <div className="profile-main">
                  <button type="button" className="btn-close float-end" onClick={onClose} aria-label="Close"></button>

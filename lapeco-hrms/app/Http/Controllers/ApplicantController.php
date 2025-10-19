@@ -6,6 +6,8 @@ use App\Models\Applicant;
 use App\Models\User;
 use App\Models\Position;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -104,26 +106,24 @@ class ApplicantController extends Controller
                 ], 422);
             }
 
-            $data = $request->all();
+            $data = $request->except(['resume', 'profile_picture']);
             $data['application_date'] = now()->toDateString();
 
-            // Handle resume file upload
-            if ($request->hasFile('resume')) {
+            $applicant = Applicant::create($data);
+
+            if ($request->hasFile('resume') && $request->file('resume')->isValid()) {
                 $file = $request->file('resume');
-                $filename = time() . '_resume_' . $file->getClientOriginalName();
-                $path = $file->storeAs('resumes', $filename);
-                $data['resume_file'] = $path;
+                $filename = time() . '_resume_' . preg_replace('/[^A-Za-z0-9_\-.]/', '_', $file->getClientOriginalName());
+                $storedPath = $file->storeAs('resumes', $filename, 'local');
+                $applicant->update(['resume_file' => $storedPath]);
             }
 
-            // Handle profile picture upload
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
-                $filename = time() . '_profile_' . $file->getClientOriginalName();
+                $filename = time() . '_profile_' . preg_replace('/[^A-Za-z0-9_\-.]/', '_', $file->getClientOriginalName());
                 $path = $file->storeAs('profile_pictures', $filename, 'public');
-                $data['profile_picture'] = $path;
+                $applicant->update(['profile_picture' => $path]);
             }
-
-            $applicant = Applicant::create($data);
 
             return response()->json([
                 'message' => 'Applicant created successfully',
@@ -175,22 +175,24 @@ class ApplicantController extends Controller
             ], 422);
         }
 
-        $data = $request->all();
+        $data = $request->except(['resume_file']);
 
         // Handle file upload
         if ($request->hasFile('resume_file')) {
-            // Delete old file if exists
-            if ($applicant->resume_file) {
-                Storage::disk('public')->delete($applicant->resume_file);
+            $file = $request->file('resume_file');
+            $filename = time() . '_' . preg_replace('/[^A-Za-z0-9_\-.]/', '_', $file->getClientOriginalName());
+            $storedPath = $file->storeAs("resumes" , $filename, 'local');
+
+            if ($applicant->resume_file && Storage::disk('local')->exists($applicant->resume_file)) {
+                Storage::disk('local')->delete($applicant->resume_file);
             }
 
-            $file = $request->file('resume_file');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('resumes', $filename, 'public');
-            $data['resume_file'] = $path;
+            $data['resume_file'] = $storedPath;
         }
 
-        $applicant->update($data);
+        if (!empty($data)) {
+            $applicant->update($data);
+        }
 
         return response()->json([
             'message' => 'Applicant updated successfully',
@@ -295,17 +297,37 @@ class ApplicantController extends Controller
             DB::beginTransaction();
 
             // Convert applicant to employee using User model method
+            \Log::info('Hiring applicant: starting conversion', [
+                'applicant_id' => $applicant->id,
+                'position_id' => $request->position_id,
+                'applicant_has_resume' => !empty($applicant->resume_file),
+                'resume_exists' => $applicant->resume_file ? Storage::disk('local')->exists($applicant->resume_file) : null,
+            ]);
+
             $employee = User::createFromApplicant(
                 $applicant->toArray(),
                 $request->position_id
             );
 
+            \Log::info('Hiring applicant: employee created', [
+                'employee_id' => $employee->id,
+                'employee_resume_file' => $employee->resume_file,
+                'employee_resume_exists' => $employee->resume_file ? Storage::disk('local')->exists($employee->resume_file) : null,
+            ]);
+
             // Override joining date if provided
             if ($request->start_date) {
+                \Log::info('Hiring applicant: overriding joining date', [
+                    'employee_id' => $employee->id,
+                    'new_joining_date' => $request->start_date,
+                ]);
                 $employee->update(['joining_date' => $request->start_date]);
             }
 
             // Update applicant status to hired
+            \Log::info('Hiring applicant: updating applicant status to Hired', [
+                'applicant_id' => $applicant->id,
+            ]);
             $applicant->update(['status' => 'Hired']);
 
             DB::commit();
@@ -325,18 +347,25 @@ class ApplicantController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
+            \Log::error('Hiring applicant failed', [
+                'applicant_id' => $applicant->id,
+                'position_id' => $request->position_id,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             // Handle specific database constraint violations with user-friendly messages
             $errorMessage = $e->getMessage();
             $userFriendlyMessage = 'Failed to hire applicant';
             
             if (str_contains($errorMessage, 'Duplicate entry') && str_contains($errorMessage, 'users_email_unique')) {
-                 $userFriendlyMessage = 'Email address already exists. Please use a different email.';
-             } elseif (str_contains($errorMessage, 'Duplicate entry') && str_contains($errorMessage, 'users_employee_id_unique')) {
-                 $userFriendlyMessage = 'Employee ID already exists. Please use a different ID.';
-             } elseif (str_contains($errorMessage, 'Integrity constraint violation')) {
-                 $userFriendlyMessage = 'Data conflict detected. Please check all information and try again.';
-             }
+                $userFriendlyMessage = 'Email address already exists. Please use a different email.';
+            } else if (str_contains($errorMessage, 'Duplicate entry') && str_contains($errorMessage, 'users_employee_id_unique')) {
+                $userFriendlyMessage = 'Employee ID already exists. Please use a different ID.';
+            } else if (str_contains($errorMessage, 'Integrity constraint violation')) {
+                $userFriendlyMessage = 'Data conflict detected. Please check all information and try again.';
+            }
             
             return response()->json([
                 'message' => $userFriendlyMessage,
@@ -353,8 +382,8 @@ class ApplicantController extends Controller
         $applicant = Applicant::findOrFail($id);
 
         // Delete resume file if exists
-        if ($applicant->resume_file) {
-            Storage::disk('public')->delete($applicant->resume_file);
+        if ($applicant->resume_file && Storage::disk('local')->exists($applicant->resume_file)) {
+            Storage::disk('local')->delete($applicant->resume_file);
         }
 
         $applicant->delete();
@@ -362,6 +391,19 @@ class ApplicantController extends Controller
         return response()->json([
             'message' => 'Applicant deleted successfully'
         ]);
+    }
+
+    /**
+     * Download an applicant's resume from private storage.
+     */
+    public function downloadResume(Request $request, Applicant $applicant)
+    {
+        if (!$applicant->resume_file || !Storage::disk('local')->exists($applicant->resume_file)) {
+            return response()->json(['message' => 'Resume not found'], 404);
+        }
+
+        $filename = basename($applicant->resume_file);
+        return Storage::disk('local')->download($applicant->resume_file, $filename);
     }
 
     /**

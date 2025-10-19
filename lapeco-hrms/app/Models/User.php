@@ -148,6 +148,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'name' => trim($applicantData['first_name'] . ' ' . 
                           ($applicantData['middle_name'] ? $applicantData['middle_name'] . ' ' : '') . 
                           $applicantData['last_name']),
+            'first_name' => $applicantData['first_name'],
+            'middle_name' => $applicantData['middle_name'] ?? null,
+            'last_name' => $applicantData['last_name'],
             'email' => $applicantData['email'],
             'password' => bcrypt('temporary'), // Temporary password, will be updated after creation
             'role' => 'Employee',
