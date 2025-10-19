@@ -35,10 +35,19 @@ class DisciplinaryCaseController extends Controller
             'reason' => 'required|string|max:255',
             'status' => 'required|string|max:255',
             'resolution_taken' => 'nullable|string',
-            'attachment' => 'nullable|string|max:255'
+            'attachment' => 'nullable|string|max:255',
+            'reported_by' => 'nullable|exists:users,id',
+            'approval_status' => 'nullable|in:pending,approved'
         ]);
 
-        $case = DisciplinaryCase::create($validated);
+        $user = $request->user();
+        $reportedById = $validated['reported_by'] ?? ($user ? $user->id : null);
+        $approvalStatus = $validated['approval_status'] ?? (($user && $user->role === 'HR_PERSONNEL') ? 'approved' : 'pending');
+
+        $case = DisciplinaryCase::create(array_merge($validated, [
+            'reported_by' => $reportedById,
+            'approval_status' => $approvalStatus,
+        ]));
 
         // Load the employee relationship
         $case->load('employee:id,first_name,middle_name,last_name');
@@ -68,7 +77,9 @@ class DisciplinaryCaseController extends Controller
             'reason' => 'sometimes|string|max:255',
             'status' => 'sometimes|string|max:255',
             'resolution_taken' => 'nullable|string',
-            'attachment' => 'nullable|string|max:255'
+            'attachment' => 'nullable|string|max:255',
+            'reported_by' => 'sometimes|nullable|exists:users,id',
+            'approval_status' => 'sometimes|in:pending,approved'
         ]);
 
         $disciplinaryCase->update($validated);

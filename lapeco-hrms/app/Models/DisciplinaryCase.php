@@ -16,6 +16,8 @@ class DisciplinaryCase extends Model
         'incident_date', // date of incident in frontend
         'reason', // Reason / Infraction in frontend
         'status', // case_status in frontend
+        'approval_status', // pending or approved
+        'reported_by', // user id who reported/created the case
         'resolution_taken', // Resolution / Next Steps in frontend
         'attachment' // PDF attachment only
     ];
@@ -27,6 +29,11 @@ class DisciplinaryCase extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'employee_id');
+    }
+
+    public function reportedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reported_by');
     }
 
     /**

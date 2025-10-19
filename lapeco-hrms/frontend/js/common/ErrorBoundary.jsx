@@ -1,1 +1,0 @@
-// This file has been removed - use ./components/ErrorBoundary.jsx instead

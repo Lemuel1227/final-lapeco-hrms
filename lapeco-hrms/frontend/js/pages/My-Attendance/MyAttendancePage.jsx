@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './MyAttendancePage.css';
+import attendanceAPI from '../../services/attendanceAPI';
 
 const calculateHoursWorked = (signIn, signOut, breakOut, breakIn) => {
   if (!signIn || !signOut) return '0h 0m';
@@ -29,77 +30,60 @@ const calculateHoursWorked = (signIn, signOut, breakOut, breakIn) => {
   return `${hours}h ${minutes}m`;
 };
 
-const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
-  // Use stored user if currentUser prop is not provided
-  const storedUser = (() => {
-    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
-  })();
-  
-  const user = currentUser || storedUser;
-  
-  // Mock data for schedules and logs if not provided
-  const schedules = allSchedules || [
-    { empId: user?.id, date: '2023-06-01', shift: '09:00 - 17:00' },
-    { empId: user?.id, date: '2023-06-02', shift: '09:00 - 17:00' },
-    { empId: user?.id, date: '2023-06-05', shift: '09:00 - 17:00' },
-    { empId: user?.id, date: '2023-06-06', shift: '09:00 - 17:00' },
-    { empId: user?.id, date: '2023-06-07', shift: '09:00 - 17:00' },
-  ];
-  
-  const logs = attendanceLogs || [
-    { empId: user?.id, date: '2023-06-01', signIn: '08:55', signOut: '17:05', breakOut: '12:00', breakIn: '13:00' },
-    { empId: user?.id, date: '2023-06-02', signIn: '09:10', signOut: '17:15', breakOut: '12:00', breakIn: '13:00' },
-  ];
+const MyAttendancePage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentUser, setCurrentUser] = useState(null);
+  const [myAttendanceData, setMyAttendanceData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const myAttendanceData = useMemo(() => {
-    if (!currentUser || !allSchedules || !attendanceLogs) return [];
-
-    const mySchedules = allSchedules.filter(s => s.empId === currentUser.id);
-    const myLogs = new Map(attendanceLogs.filter(log => log.empId === currentUser.id).map(log => [log.date, log]));
-
-    return mySchedules.map(schedule => {
-      const log = myLogs.get(schedule.date);
-      const today = new Date(); today.setHours(0,0,0,0);
-      const scheduleDate = new Date(schedule.date); scheduleDate.setHours(0,0,0,0);
-
-      let status = 'Scheduled';
-      let statusClass = 'scheduled';
-
-      if (log && log.signIn) {
-        const shiftStartTime = schedule.shift?.split(' - ')[0] || '00:00';
-        
-        // Parse times for comparison with 15-minute late threshold
-        const [shiftHour, shiftMin] = shiftStartTime.split(':').map(Number);
-        const [signInHour, signInMin] = log.signIn.split(':').map(Number);
-        
-        // Convert to minutes for easier comparison
-        const shiftStartMinutes = shiftHour * 60 + shiftMin;
-        const signInMinutes = signInHour * 60 + signInMin;
-        const lateThresholdMinutes = shiftStartMinutes + 15; // 15 minutes late threshold
-        
-        status = signInMinutes > lateThresholdMinutes ? 'Late' : 'Present';
-        statusClass = status.toLowerCase();
-      } else {
-        if (scheduleDate < today) {
-          status = 'Absent';
-          statusClass = 'absent';
-        }
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        setCurrentUser(JSON.parse(userStr));
       }
+    } catch (e) {
+      console.error('Failed to parse current user', e);
+    }
+  }, []);
 
-      return {
-        date: schedule.date,
-        schedule: schedule.shift,
-        signIn: log?.signIn || '---',
-        signOut: log?.signOut || '---',
-        breakOut: log?.breakOut || '---',
-        breakIn: log?.breakIn || '---',
-        hoursWorked: calculateHoursWorked(log?.signIn, log?.signOut, log?.breakOut, log?.breakIn),
-        status,
-        statusClass,
-      };
-    });
-  }, [currentUser, allSchedules, attendanceLogs]);
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    setLoading(true);
+    setError(null);
+    attendanceAPI.getEmployeeAttendance(currentUser.id)
+      .then(res => {
+        const payload = res.data;
+        const records = Array.isArray(payload) ? payload : payload?.data;
+        const normalized = (records || []).map(r => {
+          const signIn = r.timeIn || null;
+          const signOut = r.timeOut || null;
+          const breakOut = r.breakOut || null;
+          const breakIn = r.breakIn || null;
+          const status = r.status || 'Scheduled';
+          return {
+            date: r.date,
+            schedule: r.shift || 'N/A',
+            signIn: signIn || '---',
+            signOut: signOut || '---',
+            breakOut: breakOut || '---',
+            breakIn: breakIn || '---',
+            hoursWorked: calculateHoursWorked(signIn, signOut, breakOut, breakIn),
+            status,
+            statusClass: status.toLowerCase(),
+          };
+        });
+        setMyAttendanceData(normalized);
+      })
+      .catch(err => {
+        console.error('Failed to fetch attendance', err);
+        setError('Failed to load attendance data.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [currentUser]);
 
   const eventsForCalendar = useMemo(() => (
     myAttendanceData.map(d => ({
@@ -114,7 +98,7 @@ const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
     const year = currentDate.getFullYear();
     
     const recordsThisMonth = myAttendanceData.filter(d => {
-      const recordDate = new Date(d.date);
+      const recordDate = new Date(d.date + 'T00:00:00');
       return recordDate.getMonth() === month && recordDate.getFullYear() === year;
     });
 
@@ -128,10 +112,12 @@ const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
   
   const recordsForSelectedMonth = useMemo(() => (
       myAttendanceData.filter(d => {
-        const recordDate = new Date(d.date);
+        const recordDate = new Date(d.date + 'T00:00:00');
         return recordDate.getMonth() === currentDate.getMonth() && recordDate.getFullYear() === currentDate.getFullYear();
       }).sort((a,b) => new Date(b.date) - new Date(a.date))
   ), [currentDate, myAttendanceData]);
+  
+  const displayedMonthYear = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
     <div className="container-fluid p-0 page-module-container">
@@ -140,10 +126,22 @@ const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
       </header>
 
       <div className="my-attendance-stats-bar">
-        <div className="stat-card"><span className="stat-value">{monthlyStats.scheduled}</span><span className="stat-label">Days Scheduled</span></div>
-        <div className="stat-card"><span className="stat-value text-success">{monthlyStats.worked}</span><span className="stat-label">Days Worked</span></div>
-        <div className="stat-card"><span className="stat-value text-warning">{monthlyStats.late}</span><span className="stat-label">Late Arrivals</span></div>
-        <div className="stat-card"><span className="stat-value text-danger">{monthlyStats.absent}</span><span className="stat-label">Days Absent</span></div>
+        <div className="stat-card">
+          <span className="stat-value">{monthlyStats.scheduled}</span>
+          <span className="stat-label">Days Scheduled in {displayedMonthYear}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value text-success">{monthlyStats.worked}</span>
+          <span className="stat-label">Days Worked</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value text-warning">{monthlyStats.late}</span>
+          <span className="stat-label">Late Arrivals</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value text-danger">{monthlyStats.absent}</span>
+          <span className="stat-label">Days Absent</span>
+        </div>
       </div>
       
       <div className="my-attendance-grid">
@@ -159,7 +157,7 @@ const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
         </div>
         <div className="log-container card">
           <div className="card-header">
-            <h6 className="mb-0">Daily Logs for {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h6>
+            <h6 className="mb-0">Daily Logs for {displayedMonthYear}</h6>
           </div>
           <div className="table-responsive">
             <table className="table data-table mb-0">
@@ -182,7 +180,13 @@ const MyAttendancePage = ({ currentUser, allSchedules, attendanceLogs }) => {
                     <td>{log.hoursWorked}</td>
                   </tr>
                 )) : (
-                  <tr><td colSpan="5" className="text-center p-4 text-muted">No schedule found for this month.</td></tr>
+                  <tr>
+                    <td colSpan="5">
+                      <div className="text-center p-4 text-muted">
+                        No schedule found for this month.
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

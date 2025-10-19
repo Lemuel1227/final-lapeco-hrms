@@ -71,10 +71,20 @@ class ResignationController extends Controller
 
         // Update employee status if resignation is approved
         if (isset($validated['status']) && $validated['status'] === 'approved') {
+            // Mark as resigned but keep account active until effective date
             $resignation->employee->update([
                 'employment_status' => 'resigned',
-                'account_status' => 'Deactivated'
             ]);
+
+            // If effective date is today or in the past, deactivate now
+            if ($resignation->effective_date) {
+                $effective = \Carbon\Carbon::parse($resignation->effective_date);
+                if ($effective->lte(\Carbon\Carbon::today())) {
+                    $resignation->employee->update([
+                        'account_status' => 'Deactivated'
+                    ]);
+                }
+            }
         }
 
         return response()->json($resignation);
@@ -96,11 +106,20 @@ class ResignationController extends Controller
             $updateData['approved_by'] = Auth::id();
             $updateData['approved_at'] = now();
             
-            // Update employee status
+            // Mark as resigned but keep account active until effective date
             $resignation->employee->update([
                 'employment_status' => 'resigned',
-                'account_status' => 'Deactivated'
             ]);
+
+            // If effective date is today or in the past, deactivate now
+            if ($resignation->effective_date) {
+                $effective = \Carbon\Carbon::parse($resignation->effective_date);
+                if ($effective->lte(\Carbon\Carbon::today())) {
+                    $resignation->employee->update([
+                        'account_status' => 'Deactivated'
+                    ]);
+                }
+            }
         }
 
         $resignation->update($updateData);
@@ -120,6 +139,16 @@ class ResignationController extends Controller
 
         $resignation->update($validated);
         $resignation->load(['employee', 'approver']);
+
+        // If already approved and effective date is today/past, deactivate account
+        if ($resignation->status === 'approved' && $resignation->effective_date) {
+            $effective = \Carbon\Carbon::parse($resignation->effective_date);
+            if ($effective->lte(\Carbon\Carbon::today())) {
+                $resignation->employee->update([
+                    'account_status' => 'Deactivated'
+                ]);
+            }
+        }
 
         return response()->json($resignation);
     }

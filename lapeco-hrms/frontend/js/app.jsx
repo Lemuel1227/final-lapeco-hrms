@@ -5,7 +5,6 @@ import './bootstrap';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { templateAPI } from './services/api';
 
 // Import components
 
@@ -46,6 +45,9 @@ import ResignationManagementPage from './pages/Resignation-Management/Resignatio
 import MyResignationPage from './pages/My-Resignation/MyResignationPage';
 import EmailVerificationHandler from './pages/Verify-Email/EmailVerificationHandler';
 import ErrorBoundary from './components/ErrorBoundary';
+import MyCasesPage from './pages/My-Cases/MyCasesPage';
+import IncedentReport from './pages/My-Cases/EmployeeCaseCard';
+import NotFoundPage from './pages/NotFound/NotFoundPage';
 
 // Import layout, context, and components
 import Layout from './layout/Layout';
@@ -130,13 +132,15 @@ function App() {
             <Route path="dashboard/evaluate-team" element={<div className="p-5 text-center"><h1>Evaluate Team</h1><p>This page is under construction.</p></div>} />
             <Route path="dashboard/my-leave" element={<MyLeavePage />} />
             <Route path="dashboard/my-attendance" element={<MyAttendancePage />} />
+            <Route path="dashboard/my-cases" element={<MyCasesPage />} />
+            <Route path="dashboard/submit-report" element={<IncedentReport />} />
             <Route path="dashboard/my-payroll" element={<div className="p-5 text-center"><h1>My Payroll</h1><p>This page is under construction.</p></div>} />
             <Route path="dashboard/evaluate-self" element={<div className="p-5 text-center"><h1>My Evaluations</h1><p>This page is under construction.</p></div>} />
             <Route path="dashboard/my-resignation" element={<MyResignationPage />} />
           </Route>
 
           {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Router>
       </ThemeProvider>

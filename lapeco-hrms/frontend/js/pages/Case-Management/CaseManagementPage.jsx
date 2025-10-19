@@ -9,6 +9,10 @@ import CaseDetailView from './CaseDetailView';
 import CaseSummaryByEmployee from './CaseSummaryByEmployee';
 import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
+import ActionCaseSubmissionModal from '../../modals/ActionCaseSubmissionModal';
+import ViewReasonModal from '../../modals/ViewReasonModal';
+import ActionsDropdown from '../../common/ActionsDropdown';
+import ConfirmationModal from '../../modals/ConfirmationModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig } from '../../config/reports.config'; 
 import { disciplinaryCaseAPI, employeeAPI } from '../../services/api';
@@ -28,9 +32,15 @@ const CaseManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
+  const [submissionToAction, setSubmissionToAction] = useState(null);
+  const [submissionActionType, setSubmissionActionType] = useState('');
+  const [viewingSubmission, setViewingSubmission] = useState(null);
+
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+  const [caseToDelete, setCaseToDelete] = useState(null);
+  const [pendingSubmissions, setPendingSubmissions] = useState([]);
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -60,20 +70,27 @@ const CaseManagementPage = () => {
           employeeId: c.employee_id,
           actionType: c.action_type,
           description: c.description,
-          incidentDate: c.incident_date,
+          incidentDate: c.incident_date ? String(c.incident_date).slice(0,10) : '',
           reason: c.reason,
           status: c.status,
           resolutionTaken: c.resolution_taken,
           attachment: c.attachment,
-          issueDate: c.incident_date, // Using incident_date as issueDate for compatibility
+          issueDate: c.incident_date ? String(c.incident_date).slice(0,10) : '', // Ensure YYYY-MM-DD for date input
           updatedAt: c.updated_at, // Add updated_at field for proper sorting
+          approvalStatus: c.approval_status,
+          submittedBy: c.reported_by || 'Unknown',
           actionLog: (c.action_logs || []).map(log => ({
+            id: log.id,
             date: log.date_created,
             action: log.description
           })),
           attachments: c.attachment ? [c.attachment] : [], // Convert single attachment to array
           nextSteps: c.resolution_taken, // Map resolution_taken to nextSteps
         }));
+        
+        // Split approved vs pending for UI rules
+        const approvedCases = transformedCases.filter(c => c.approvalStatus === 'approved');
+        const pendingCases = transformedCases.filter(c => c.approvalStatus === 'pending');
         
         // Transform employees data to match expected format
         const transformedEmployees = employeesData.map(emp => ({
@@ -83,8 +100,9 @@ const CaseManagementPage = () => {
           position: emp.position?.name || 'N/A',
         }));
         
-        setCases(transformedCases);
+        setCases(approvedCases);
         setEmployees(transformedEmployees);
+        setPendingSubmissions(pendingCases);
       } catch (err) {
         setCases([]);
         setEmployees([]);
@@ -107,9 +125,10 @@ const CaseManagementPage = () => {
     return {
       total: cases.length,
       ongoing: cases.filter(c => c.status === 'Ongoing').length,
-      closed: cases.filter(c => c.status === 'Closed').length
+      closed: cases.filter(c => c.status === 'Closed').length,
+      pendingSubmissions: pendingSubmissions.length,
     };
-  }, [cases]);
+  }, [cases, pendingSubmissions]);
 
   const chartData = useMemo(() => {
     const actionTypes = cases.reduce((acc, c) => {
@@ -173,7 +192,22 @@ const CaseManagementPage = () => {
   const handleViewDetails = (caseData) => {
     setSelectedCase(caseData);
   };
-  
+
+  const handleOpenSubmissionActionModal = (submission, action) => {
+    setSubmissionToAction(submission);
+    setSubmissionActionType(action);
+  };
+
+  const handleCloseSubmissionActionModal = () => {
+    setSubmissionToAction(null);
+    setSubmissionActionType('');
+  };
+
+  const handleConfirmSubmissionAction = (submissionId, status, comments) => {
+    handlers.updateCaseSubmissionStatus(submissionId, status, comments);
+    handleCloseSubmissionActionModal();
+  };
+
   const caseReportConfig = reportsConfig.find(r => r.id === 'disciplinary_cases');
 
   const handleGenerateReportClick = () => {
@@ -225,19 +259,26 @@ const CaseManagementPage = () => {
         employeeId: response.data.employee_id,
         actionType: response.data.action_type,
         description: response.data.description,
-        incidentDate: response.data.incident_date,
+        incidentDate: response.data.incident_date ? String(response.data.incident_date).slice(0,10) : '',
         reason: response.data.reason,
         status: response.data.status,
         resolutionTaken: response.data.resolution_taken,
         attachment: response.data.attachment,
-        issueDate: response.data.incident_date,
+        issueDate: response.data.incident_date ? String(response.data.incident_date).slice(0,10) : '',
         updatedAt: response.data.updated_at, // Add updated_at field
+        approvalStatus: response.data.approval_status,
+        submittedBy: response.data.reported_by,
         actionLog: [], // New cases won't have action logs initially
         attachments: response.data.attachment ? [response.data.attachment] : [], // Convert single attachment to array
         nextSteps: response.data.resolution_taken, // Map resolution_taken to nextSteps
       };
       
-      setCases(prev => [...prev, addedCase]);
+      // Add to appropriate list based on approval_status
+      if (addedCase.approvalStatus === 'approved') {
+        setCases(prev => [...prev, addedCase]);
+      } else {
+        setPendingSubmissions(prev => [...prev, addedCase]);
+      }
       setShowModal(false);
     } catch (err) {
       console.error('Failed to add case:', err);
@@ -266,14 +307,17 @@ const CaseManagementPage = () => {
         employeeId: response.data.employee_id,
         actionType: response.data.action_type,
         description: response.data.description,
-        incidentDate: response.data.incident_date,
+        incidentDate: response.data.incident_date ? String(response.data.incident_date).slice(0,10) : '',
         reason: response.data.reason,
         status: response.data.status,
         resolutionTaken: response.data.resolution_taken,
         attachment: response.data.attachment,
-        issueDate: response.data.incident_date,
+        issueDate: response.data.incident_date ? String(response.data.incident_date).slice(0,10) : '',
         updatedAt: response.data.updated_at, // Add updated_at field
+        approvalStatus: response.data.approval_status,
+        submittedBy: response.data.reported_by,
         actionLog: (response.data.action_logs || []).map(log => ({
+          id: log.id,
           date: log.date_created,
           action: log.description
         })),
@@ -298,11 +342,49 @@ const CaseManagementPage = () => {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    try {
+      if (!caseToDelete) return;
+      await handleDeleteCase(caseToDelete.caseId);
+      setCaseToDelete(null);
+      if (selectedCase?.caseId === caseToDelete.caseId) {
+        setSelectedCase(null);
+      }
+    } catch (err) {
+      console.error('Failed to confirm deletion:', err);
+    }
+  };
+
   const handlers = {
     saveCase: editingCase ? handleEditCase : handleAddCase,
     addCaseLogEntry: (caseId, logEntry) => {
-      // Implementation for adding case log entries
-      console.log('Adding log entry for case:', caseId, logEntry);
+      // Append log entry to the selected case and cases list
+      setSelectedCase(prev => prev && prev.caseId === caseId ? {
+        ...prev,
+        actionLog: [...(prev.actionLog || []), logEntry]
+      } : prev);
+
+      setCases(prev => prev.map(c => c.caseId === caseId ? {
+        ...c,
+        actionLog: [...(c.actionLog || []), logEntry]
+      } : c));
+    },
+    deleteCaseLogEntry: async (caseId, logId, index) => {
+      try {
+        if (logId) {
+          await disciplinaryCaseAPI.deleteActionLog(logId);
+        }
+        setSelectedCase(prev => prev && prev.caseId === caseId ? {
+          ...prev,
+          actionLog: (prev.actionLog || []).filter((log, i) => logId ? log.id !== logId : i !== index)
+        } : prev);
+        setCases(prev => prev.map(c => c.caseId === caseId ? {
+          ...c,
+          actionLog: (c.actionLog || []).filter((log, i) => logId ? log.id !== logId : i !== index)
+        } : c));
+      } catch (err) {
+        console.error('Failed to delete action log:', err);
+      }
     }
   };
 
@@ -366,17 +448,78 @@ const CaseManagementPage = () => {
     </>
   );
 
+  const renderCaseReports = () => (
+    <div className="card data-table-card shadow-sm">
+      <div className="card-header">
+        <h6 className="mb-0">Pending Case Report Submissions ({pendingSubmissions.length})</h6>
+      </div>
+      <div className="table-responsive">
+        <table className="table data-table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Submitted By</th>
+              <th>Regarding</th>
+              <th>Date of Incident</th>
+              <th className="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pendingSubmissions.length > 0 ? pendingSubmissions.map(sub => {
+              const submittedByName = employeeMap.get(sub.submittedBy)?.name || sub.submittedBy;
+              const employeeName = employeeMap.get(sub.employeeId)?.name || sub.employeeId;
+              return (
+                <tr key={sub.caseId || sub.id}>
+                  <td>{submittedByName}</td>
+                  <td>{employeeName}</td>
+                  <td>{sub.issueDate}</td>
+                  <td className="text-center">
+                    <ActionsDropdown>
+                        <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setViewingSubmission(sub); }}>
+                            <i className="bi bi-info-circle me-2"></i> View Description
+                        </a>
+                        <a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()} disabled>
+                            <i className="bi bi-paperclip me-2"></i> View Attachments
+                        </a>
+                        <div className="dropdown-divider"></div>
+                        <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); handleOpenSubmissionActionModal(sub, 'Approved'); }}>
+                            <i className="bi bi-check-circle-fill me-2"></i> Approve
+                        </a>
+                        <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleOpenSubmissionActionModal(sub, 'Declined'); }}>
+                            <i className="bi bi-x-circle-fill me-2"></i> Decline
+                        </a>
+                    </ActionsDropdown>
+                  </td>
+                </tr>
+              );
+            }) : (
+              <tr><td colSpan="4" className="text-center p-4 text-muted">There are no pending case reports for review.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   const renderCaseList = () => (
     <>
+         <div className="my-cases-stats-grid">
+            <div className={`stat-card-my-cases all ${statusFilter === 'All' ? 'active' : ''}`} onClick={() => setStatusFilter('All')}>
+                <span className="stat-value">{stats.total}</span>
+                <span className="stat-label">All Cases</span>
+            </div>
+            <div className={`stat-card-my-cases ongoing ${statusFilter === 'Ongoing' ? 'active' : ''}`} onClick={() => setStatusFilter('Ongoing')}>
+                <span className="stat-value">{stats.ongoing}</span>
+                <span className="stat-label">Ongoing</span>
+            </div>
+            <div className={`stat-card-my-cases closed ${statusFilter === 'Closed' ? 'active' : ''}`} onClick={() => setStatusFilter('Closed')}>
+                <span className="stat-value">{stats.closed}</span>
+                <span className="stat-label">Closed</span>
+            </div>
+        </div>
         <div className="controls-bar d-flex justify-content-between mb-4">
             <div className="input-group" style={{ maxWidth: '400px' }}>
                 <span className="input-group-text"><i className="bi bi-search"></i></span>
                 <input type="text" className="form-control" placeholder="Search by Case ID, Name, Reason..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-            </div>
-            <div className="btn-group" role="group">
-                <button type="button" className={`btn ${statusFilter === 'All' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setStatusFilter('All')}>All</button>
-                <button type="button" className={`btn ${statusFilter === 'Ongoing' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setStatusFilter('Ongoing')}>Ongoing</button>
-                <button type="button" className={`btn ${statusFilter === 'Closed' ? 'btn-dark' : 'btn-outline-dark'}`} onClick={() => setStatusFilter('Closed')}>Closed</button>
             </div>
         </div>
         <div className="case-card-grid">
@@ -386,6 +529,7 @@ const CaseManagementPage = () => {
                 caseInfo={c} 
                 employee={employeeMap.get(c.employeeId)}
                 onView={handleViewDetails} 
+                onDelete={(ci) => setCaseToDelete(ci)}
               />
             )}
         </div>
@@ -395,25 +539,15 @@ const CaseManagementPage = () => {
 
   if (selectedCase) {
     return (
-      <div className="container-fluid p-0 page-module-container">
-        <header className="page-header d-flex justify-content-between align-items-center mb-4">
-          <h1 className="page-main-title">Case Management</h1>
-          <div className="d-flex gap-2">
-              <button className="btn btn-outline-secondary" onClick={handleGenerateReportClick}>
-                  <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
-              </button>
-              <button className="btn btn-success" onClick={() => handleOpenModal()}>
-                  <i className="bi bi-plus-circle-fill me-2"></i>Log New Case
-              </button>
-          </div>
-        </header>
-        
+      <div>
         <CaseDetailView 
             caseInfo={selectedCase}
             employee={employeeMap.get(selectedCase.employeeId)}
             onBack={() => setSelectedCase(null)}
             onSaveLog={handlers.addCaseLogEntry}
             onEdit={handleOpenModal}
+            onDelete={(ci) => setCaseToDelete(ci)}
+            onDeleteLog={handlers.deleteCaseLogEntry}
         />
         <AddEditCaseModal 
           show={showModal}
@@ -460,12 +594,19 @@ const CaseManagementPage = () => {
         <>
           <ul className="nav nav-tabs case-management-tabs mb-4">
             <li className="nav-item"><button className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Dashboard</button></li>
+            <li className="nav-item">
+              <button className={`nav-link ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
+                Case Reports
+                {stats.pendingSubmissions > 0 && <span className="badge rounded-pill bg-warning text-dark ms-2">{stats.pendingSubmissions}</span>}
+              </button>
+            </li>
             <li className="nav-item"><button className={`nav-link ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>All Cases</button></li>
             <li className="nav-item"><button className={`nav-link ${activeTab === 'byEmployee' ? 'active' : ''}`} onClick={() => setActiveTab('byEmployee')}>By Employee</button></li>
           </ul>
 
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'list' && renderCaseList()}
+          {activeTab === 'reports' && renderCaseReports()}
           {activeTab === 'byEmployee' && (
             <CaseSummaryByEmployee 
               employees={employees}
@@ -499,6 +640,19 @@ const CaseManagementPage = () => {
           reportTitle="Disciplinary Cases Report"
         />
       )}
+      <ConfirmationModal
+          show={!!caseToDelete}
+          onClose={() => setCaseToDelete(null)}
+          onConfirm={handleConfirmDelete}
+          title="Confirm Case Deletion"
+          confirmText="Yes, Delete Case"
+          confirmVariant="danger"
+      >
+          {caseToDelete && (
+              <p>Are you sure you want to permanently delete the case "<strong>{caseToDelete.reason}</strong>" for <strong>{employeeMap.get(caseToDelete.employeeId)?.name}</strong>?</p>
+          )}
+          <p className="text-danger">This action cannot be undone.</p>
+      </ConfirmationModal>
     </div>
   );
 };

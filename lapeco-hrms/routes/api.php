@@ -19,11 +19,14 @@ use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\DisciplinaryCaseController;
+use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ResignationController;
 use App\Http\Controllers\TerminationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TeamLeaderDashboardController;
+use App\Http\Controllers\EmployeeDashboardController;
 use App\Models\User;
 use App\Models\Position;
 
@@ -117,6 +120,10 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:attendance,view'])->get('/attendance/{attendance}', [AttendanceController::class, 'show']);
     Route::middleware(['role.access:attendance,update'])->put('/attendance/{attendance}', [AttendanceController::class, 'update']);
     Route::middleware(['role.access:attendance,destroy'])->delete('/attendance/{attendance}', [AttendanceController::class, 'destroy']);
+
+    // Dashboard summaries
+    Route::middleware(['role.access:employee,index'])->get('/dashboard/team-leader/summary', [TeamLeaderDashboardController::class, 'summary']);
+    Route::middleware(['role.access:employee,index'])->get('/dashboard/employee/summary', [EmployeeDashboardController::class, 'summary']);
 
     // Schedule Management - with role-based access control
     Route::middleware(['role.access:schedule,index'])->get('/schedules', [ScheduleController::class, 'index']);
@@ -218,6 +225,9 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases/status/{status}', [DisciplinaryCaseController::class, 'getByStatus']);
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-grouped-by-employee', [DisciplinaryCaseController::class, 'getGroupedByEmployee']);
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-statistics', [DisciplinaryCaseController::class, 'getStatistics']);
+
+    // Action Logs - with role-based access control (disciplinary domain)
+    Route::middleware(['role.access:disciplinary,destroy'])->delete('/action-logs/{actionLog}', [ActionLogController::class, 'destroy']);
 
     // Resignation Management - with role-based access control
     Route::middleware(['role.access:resignation,index'])->get('/resignations', [ResignationController::class, 'index']);

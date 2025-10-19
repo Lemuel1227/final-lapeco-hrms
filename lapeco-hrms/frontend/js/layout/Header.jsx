@@ -29,7 +29,7 @@ const Header = ({ currentUser, notifications, appLevelHandlers, theme, isMobileV
   };
 
   const avatarSrc = currentUser?.image_url || placeholderAvatar;
-  const displayName = currentUser?.name || '—';
+  const displayName = `${currentUser?.first_name || ''} ${currentUser?.middle_name || ''} ${currentUser?.last_name || ''}`.trim() || '—';
   const displayRole = formatRole(currentUser?.role) || '';
   const displayEmployeeId = currentUser?.id || '';
 

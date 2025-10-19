@@ -514,7 +514,7 @@ const ResignationManagementPage = () => {
                     confirmVariant={action.type === 'Approved' ? 'success' : 'danger'}
                 >
                     <p>Are you sure you want to <strong>{action.type.toLowerCase()}</strong> the resignation request for <strong>{requestToAction.employeeName}</strong>?</p>
-                    {action.type === 'Approved' && <p className="small text-muted">Approving will change the employee's status to "Resigned" and they will appear in the Resigned Employees tab.</p>}
+                    {action.type === 'Approved' && <p className="small text-muted">Approving changes status to "Resigned". The account deactivates on the effective date.</p>}
                     <label htmlFor="hrComments" className="form-label">Comments (Optional)</label>
                     <textarea id="hrComments" className="form-control" rows="2" value={action.comments} onChange={(e) => setAction({...action, comments: e.target.value})}></textarea>
                 </ConfirmationModal>

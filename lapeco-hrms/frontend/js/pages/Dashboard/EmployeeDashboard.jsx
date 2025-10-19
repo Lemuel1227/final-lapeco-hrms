@@ -1,90 +1,115 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { format, parseISO, isSameMonth, isAfter, startOfToday } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
+import { dashboardAPI } from '../../services/api';
 
-const EmployeeDashboard = ({ 
-  currentUser = { name: 'Employee', id: '' }, 
-  schedules = [], 
-  holidays = [],
-  leaveRequests = [],
-  evaluations = [],
-  employees = [],
-  attendanceLogs = []
-}) => {
-  const today = startOfToday();
-  const todayISO = today.toISOString().split('T')[0];
-  
-  const leaveBalances = { vl: 12, sl: 8 };
-  const myScheduleToday = schedules.find(s => s.empId === currentUser.id && s.date === todayISO);
+const defaultSummary = {
+  currentUser: null,
+  scheduleToday: null,
+  teamMembers: [],
+  leaderEvaluation: { leader: null, isDue: false },
+  leaveBalances: { vl: 0, sl: 0 },
+  recentActivity: [],
+  upcomingHolidays: [],
+  upcomingLeaveRequests: [],
+};
 
-  const myTeam = useMemo(() => {
-    if (!currentUser.positionId) return [];
-    return employees.filter(e => e.positionId === currentUser.positionId && e.id !== currentUser.id);
-  }, [currentUser, employees]);
-  
-  const leaderEvaluation = useMemo(() => {
-    if (!currentUser?.positionId) return { leader: null, isDue: false };
-    const leader = employees.find(emp => emp.positionId === currentUser.positionId && emp.isTeamLeader);
-    if (!leader) return { leader: null, isDue: false };
-    
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const hasEvaluated = evaluations.some(ev => 
-        ev.evaluatorId === currentUser.id && 
-        ev.employeeId === leader.id &&
-        new Date(ev.periodEnd) > sixMonthsAgo
+const EmployeeDashboard = () => {
+  const [summary, setSummary] = useState(defaultSummary);
+  const [fallbackUser, setFallbackUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        setFallbackUser(JSON.parse(stored));
+      }
+    } catch (err) {
+      console.error('Failed to parse stored user for EmployeeDashboard', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSummary = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await dashboardAPI.getEmployeeSummary();
+        if (!isMounted) return;
+
+        const data = response.data || {};
+        setSummary({
+          currentUser: data.currentUser || null,
+          scheduleToday: data.scheduleToday || null,
+          teamMembers: Array.isArray(data.teamMembers) ? data.teamMembers : [],
+          leaderEvaluation: data.leaderEvaluation || { leader: null, isDue: false },
+          leaveBalances: data.leaveBalances || { vl: 0, sl: 0 },
+          recentActivity: Array.isArray(data.recentActivity) ? data.recentActivity : [],
+          upcomingHolidays: Array.isArray(data.upcomingHolidays) ? data.upcomingHolidays : [],
+          upcomingLeaveRequests: Array.isArray(data.upcomingLeaveRequests) ? data.upcomingLeaveRequests : [],
+        });
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('Failed to load employee dashboard summary', err);
+        if (err.response?.status === 403) {
+          setError('You do not have access to the employee dashboard.');
+        } else {
+          setError('Unable to load your dashboard right now. Please try again later.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentUser = summary.currentUser || fallbackUser || { name: 'Employee', id: null, positionId: null };
+  const firstName = currentUser?.name ? currentUser.name.split(' ')[0] : 'Employee';
+  const myScheduleToday = summary.scheduleToday;
+  const leaveBalances = summary.leaveBalances || { vl: 0, sl: 0, el: 0 };
+  const leaderEvaluation = summary.leaderEvaluation || { leader: null, isDue: false };
+
+  const myTeam = useMemo(() => summary.teamMembers || [], [summary.teamMembers]);
+  const recentActivity = useMemo(() => summary.recentActivity || [], [summary.recentActivity]);
+  const upcomingHolidays = useMemo(() => summary.upcomingHolidays || [], [summary.upcomingHolidays]);
+
+  if (isLoading) {
+    return (
+      <div className="p-5 text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading dashboard...</span>
+        </div>
+      </div>
     );
-    return { leader, isDue: !hasEvaluated };
-  }, [currentUser, employees, evaluations]);
+  }
 
-  const recentActivity = useMemo(() => {
-    const myLogsMap = new Map(attendanceLogs.filter(log => log.empId === currentUser.id).map(log => [log.date, log]));
-    return schedules
-        .filter(s => s.empId === currentUser.id && isSameMonth(parseISO(s.date), today))
-        .map(schedule => {
-            const log = myLogsMap.get(schedule.date);
-            let status = 'Scheduled';
-            let statusClass = 'scheduled';
-            let details = `Shift: ${schedule.shift}`;
-
-            if (log && log.signIn) {
-                const shiftStartTime = schedule.shift?.split(' - ')[0] || '09:00';
-                
-                // Parse times for comparison with 15-minute late threshold
-                const [shiftHour, shiftMin] = shiftStartTime.split(':').map(Number);
-                const [signInHour, signInMin] = log.signIn.split(':').map(Number);
-                
-                // Convert to minutes for easier comparison
-                const shiftStartMinutes = shiftHour * 60 + shiftMin;
-                const signInMinutes = signInHour * 60 + signInMin;
-                const lateThresholdMinutes = shiftStartMinutes + 15; // 15 minutes late threshold
-                
-                status = signInMinutes > lateThresholdMinutes ? 'Late' : 'Present';
-                statusClass = status.toLowerCase();
-                details = `Clocked In: ${log.signIn}`;
-            } else if (isAfter(today, parseISO(schedule.date))) {
-                status = 'Absent';
-                statusClass = 'absent';
-            }
-            return { date: schedule.date, status, statusClass, details };
-        })
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 5);
-  }, [attendanceLogs, schedules, currentUser.id, today]);
-
-  const upcomingHolidays = useMemo(() => {
-    return holidays
-      .filter(h => isAfter(new Date(h.date), today))
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(0, 3);
-  }, [holidays, today]);
+  if (error) {
+    return (
+      <div className="dashboard-grid">
+        <div className="dashboard-grid-span-4">
+          <div className="dashboard-card p-4 text-center text-danger">{error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="dashboard-grid-span-4 mb-3">
         <div className="welcome-header">
-          <h2>Welcome, {currentUser.name.split(' ')[0]}!</h2>
+          <h2>Welcome, {firstName}!</h2>
           <p>This is your personal dashboard. Here’s what you need to know for today.</p>
         </div>
       </div>
@@ -93,8 +118,8 @@ const EmployeeDashboard = ({
         <div className={`dashboard-card my-status-card-revised ${!myScheduleToday ? 'day-off' : ''}`}>
             <div className="card-body">
                 <i className={`bi ${myScheduleToday ? 'bi-calendar-check' : 'bi-calendar-x'} status-icon`}></i>
-                <h5 className="status-text">{myScheduleToday ? "On Schedule Today" : "Day Off"}</h5>
-                {myScheduleToday && <p className="status-detail">{myScheduleToday.shift}</p>}
+                <h5 className="status-text">{myScheduleToday ? 'On Schedule Today' : 'Day Off'}</h5>
+                {myScheduleToday?.shift && <p className="status-detail">{myScheduleToday.shift}</p>}
             </div>
         </div>
 
@@ -130,20 +155,33 @@ const EmployeeDashboard = ({
                           <span className="action-value">{leaveBalances.sl}<span className="action-unit">days</span></span>
                       </Link>
                   </li>
+                  <li className="action-hub-item">
+                      <Link to="/dashboard/my-leave">
+                          <i className="action-icon bi bi-exclamation-triangle-fill"></i>
+                          <span className="action-label">Emergency Leaves</span>
+                          <span className="action-value">{leaveBalances.el}<span className="action-unit">days</span></span>
+                      </Link>
+                  </li>
               </ul>
           </div>
         </div>
 
         <div className="dashboard-card my-team-card">
-          <div className="card-header"><h6><i className="bi bi-people-fill me-2"></i>My Team</h6></div>
-          <div className="card-body">
+          <div className="card-header">
+            <Link to="/dashboard/team-employees" className="card-link-header">
+              <i className="bi bi-people-fill"></i>
+              <span>My Team</span>
+            </Link>
+          </div>
+          <div className="card-body my-team-scroll">
             <ul className="roster-snapshot-list">
-              {myTeam.slice(0, 3).map(member => (
+              {myTeam.map(member => (
                 <li key={member.id} className="roster-item">
                   <img src={member.avatarUrl || placeholderAvatar} alt={member.name} className="avatar" />
                   <span className="name">{member.name}</span>
                 </li>
               ))}
+              {myTeam.length === 0 && <li className="text-muted">No teammates assigned yet.</li>}
             </ul>
           </div>
         </div>
@@ -177,7 +215,7 @@ const EmployeeDashboard = ({
             {upcomingHolidays.map(h => (
               <li key={h.id} className="holiday-item">
                 <i className="bi bi-dot"></i>
-                <span>{h.name} - {format(new Date(h.date), 'MMM dd')}</span>
+                <span>{h.name} - {format(parseISO(h.date), 'MMM dd')}</span>
               </li>
             ))}
             {upcomingHolidays.length === 0 && <li className='text-muted'>No upcoming holidays.</li>}

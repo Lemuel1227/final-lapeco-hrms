@@ -2,8 +2,13 @@ import React from 'react';
 import { format } from 'date-fns';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
-const CaseCard = ({ caseInfo, employee, onView }) => {
+const CaseCard = ({ caseInfo, employee, onView, onDelete }) => {
   const statusClass = caseInfo.status.toLowerCase();
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    onDelete(caseInfo);
+  };
 
   return (
     <div className="case-card-revised" onClick={() => onView(caseInfo)}>
@@ -15,7 +20,18 @@ const CaseCard = ({ caseInfo, employee, onView }) => {
             <div className="id">{caseInfo.employeeId}</div>
           </div>
         </div>
-        <span className={`status-badge status-${statusClass}`}>{caseInfo.status}</span>
+ <div className="dropdown">
+            <button className="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" onClick={(e) => e.stopPropagation()} aria-expanded="false">
+                <i className="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul className="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a className="dropdown-item text-danger" href="#" onClick={handleDeleteClick}>
+                        <i className="bi bi-trash-fill me-2"></i>Delete Case
+                    </a>
+                </li>
+            </ul>
+        </div>
       </div>
 
       <div className="case-card-revised-body">
@@ -31,6 +47,9 @@ const CaseCard = ({ caseInfo, employee, onView }) => {
           <i className="bi bi-calendar-event"></i>
           <span className="text-muted">Incident on {format(new Date(caseInfo.issueDate), 'MMM dd, yyyy')}</span>
         </div>
+      </div>
+      <div className="case-card-revised-footer">
+        <span className={`status-badge status-${statusClass}`}>{caseInfo.status}</span>
       </div>
     </div>
   );

@@ -87,6 +87,8 @@ export const authAPI = {
 // Dashboard API calls
 export const dashboardAPI = {
   getDashboard: () => api.get('/dashboard'),
+  getTeamLeaderSummary: () => api.get('/dashboard/team-leader/summary'),
+  getEmployeeSummary: () => api.get('/dashboard/employee/summary'),
 };
 
 // Employee API calls
@@ -224,6 +226,7 @@ export const disciplinaryCaseAPI = {
   getByStatus: (status) => api.get(`/disciplinary-cases/status/${status}`),
   getStatistics: () => api.get('/disciplinary-cases-statistics'),
   getGroupedByEmployee: () => api.get('/disciplinary-cases-grouped-by-employee'),
+  deleteActionLog: (id) => api.delete(`/action-logs/${id}`),
 };
 
 // Resignation API calls

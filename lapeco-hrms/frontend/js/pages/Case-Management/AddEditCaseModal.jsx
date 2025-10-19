@@ -34,14 +34,14 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees }) => {
     setFormData(prev => ({ ...prev, employeeId: selectedOption ? selectedOption.value : '' }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.employeeId || !formData.reason) {
       alert('Employee and Reason are required fields.');
       return;
     }
-    onSave(formData, caseData?.caseId);
-    onClose();
+    await onSave(formData, caseData?.caseId);
+    // Parent will close modal on successful save
   };
 
   if (!show) return null;

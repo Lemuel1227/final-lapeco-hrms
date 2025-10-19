@@ -24,72 +24,202 @@
     white-space: pre-wrap;
     font-family: 'Courier New', Courier, monospace;
     font-size: 0.9rem;
-    max-height: 400px;
+    height: 100%;
+    min-height: 150px;
     overflow-y: auto;
 }
 
 /* --- Submission Form View --- */
-.info-panel {
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    height: 100%;
-    box-shadow: var(--card-shadow);
+.submission-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    align-items: flex-start;
 }
-.info-panel h5 {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 1rem;
-}
-.info-panel p {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-.info-panel ul {
-    font-size: 0.9rem;
-    padding-left: 1.25rem;
-}
-.info-panel ul li {
-    margin-bottom: 0.75rem;
-}
-
-/* --- Status View --- */
-.resignation-status-view {
-    max-width: 1000px;
-    margin: 0 auto;
-}
-.status-badge {
-    font-size: 0.8rem;
-    font-weight: 600;
-    padding: 0.4em 0.8em;
-}
-
-/* --- Offboarding Stepper --- */
-.offboarding-stepper {
+.submission-main {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
 }
-.step-item {
+.notice-period-info {
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    opacity: 0.5;
+    gap: 0.75rem;
 }
-.step-item .step-circle {
-    width: 36px;
-    height: 36px;
+.notice-period-info.notice-standard {
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+.notice-period-info.notice-warning {
+    background-color: rgba(var(--warning-rgb), 0.15);
+    color: var(--warning-color);
+}
+.dark-theme .notice-period-info.notice-warning {
+    color: var(--warning-color);
+}
+.final-submission-section {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.final-submission-section .form-check-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.process-overview-card {
+    position: sticky;
+    top: calc(var(--app-header-height) + 1.5rem);
+}
+.process-step {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding-bottom: 1.25rem;
+    position: relative;
+}
+.process-step:last-child {
+    padding-bottom: 0;
+}
+.process-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: -1.25rem;
+    width: 2px;
+    background-color: var(--border-color);
+}
+.process-step .step-circle {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     border: 2px solid var(--border-color);
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-primary);
     color: var(--text-secondary);
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    z-index: 1;
+}
+.process-step .step-circle.active {
+    border-color: var(--app-success-color);
+    color: var(--app-success-color);
+}
+.process-step .step-text strong {
+    color: var(--text-primary);
+}
+.process-step .step-text p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* --- Resignation Status View --- */
+.resignation-status-view {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+.status-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+.status-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.4em 0.8em;
+}
+.key-dates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+.key-date-card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.25rem;
+    text-align: center;
+}
+.key-date-card .date-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--app-success-color);
+}
+.key-date-card .date-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.key-date-card .date-year {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* --- Offboarding Stepper --- */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(var(--app-success-rgb), 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(var(--app-success-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--app-success-rgb), 0); }
+}
+
+.offboarding-stepper {
+    display: flex;
+    flex-direction: column;
+}
+.step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    position: relative;
+    padding-bottom: 2rem;
+}
+.step-item:last-child {
+    padding-bottom: 0;
+}
+.step-item:not(:last-child) .step-graphic::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 40px;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--border-color);
+    z-index: 1;
+}
+.step-graphic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 2;
+}
+.step-item .step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     transition: all 0.3s ease;
+}
+.step-item .step-content {
+    padding-top: 0.5rem;
 }
 .step-item .step-label {
     font-weight: 600;
@@ -97,22 +227,17 @@
     transition: color 0.3s ease;
 }
 .step-item .step-description {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
-}
-.step-item.active {
-    opacity: 1;
 }
 .step-item.active .step-circle {
     border-color: var(--app-success-color);
     background-color: var(--app-success-color);
     color: var(--text-on-success);
+    animation: pulse 2s infinite;
 }
 .step-item.active .step-label {
     color: var(--text-primary);
-}
-.step-item.completed {
-    opacity: 1;
 }
 .step-item.completed .step-circle {
     border-color: var(--app-success-color);
@@ -122,9 +247,16 @@
 .step-item.completed .step-label {
     color: var(--text-primary);
 }
+.step-item.completed .step-graphic::after {
+    background-color: var(--app-success-color);
+}
 
 @media (max-width: 992px) {
-    .info-panel {
-        margin-top: 1rem;
+    .submission-grid {
+        grid-template-columns: 1fr;
+    }
+    .process-overview-card {
+        position: static;
+        margin-top: 1.5rem;
     }
 }

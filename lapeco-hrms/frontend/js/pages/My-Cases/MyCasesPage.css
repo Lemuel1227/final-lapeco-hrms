@@ -1,0 +1,141 @@
+@import '../Case-Management/CaseManagement.css';
+
+.my-cases-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card-my-cases {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-left-width: 4px;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.stat-card-my-cases:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow);
+}
+
+.stat-card-my-cases.active {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow);
+}
+
+.stat-card-my-cases .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+}
+
+.stat-card-my-cases .stat-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.stat-card-my-cases.all { border-left-color: var(--text-secondary); }
+.stat-card-my-cases.ongoing { border-left-color: var(--warning-color); }
+.stat-card-my-cases.closed { border-left-color: var(--app-success-color); }
+
+.stat-card-my-cases.all.active { background-color: var(--bg-secondary); }
+.stat-card-my-cases.ongoing.active { background-color: rgba(var(--warning-rgb), 0.1); }
+.stat-card-my-cases.closed.active { background-color: rgba(var(--app-success-rgb), 0.1); }
+
+.stat-card-my-cases.ongoing.active .stat-value { color: var(--warning-color); }
+.stat-card-my-cases.closed.active .stat-value { color: var(--app-success-color); }
+
+/* Renamed from my-cases-list to match the imported class */
+/* .my-cases-grid is now .case-card-grid */
+
+.employee-case-card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Ensures cards in a grid row take up full height */
+}
+
+.employee-case-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+    border-color: var(--app-success-color);
+}
+
+.employee-case-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.employee-case-card-header .case-reason {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0;
+}
+
+.employee-case-card-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    flex-grow: 1; /* Pushes the footer down */
+}
+
+.employee-case-card-body .detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.employee-case-card-body .detail-item i {
+    color: var(--text-secondary);
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+.employee-case-card-body .detail-item .label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.employee-case-card-footer {
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    text-align: right;
+}
+
+.status-badge {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.3em 0.8em;
+    border-radius: 20px;
+    color: var(--text-on-success);
+}
+.status-badge.status-ongoing {
+    background-color: var(--warning-color);
+    color: var(--text-primary);
+}
+.status-badge.status-closed {
+    background-color: var(--text-secondary);
+}
+.status-badge.status-resolved {
+    background: var(--app-success-color);
+}

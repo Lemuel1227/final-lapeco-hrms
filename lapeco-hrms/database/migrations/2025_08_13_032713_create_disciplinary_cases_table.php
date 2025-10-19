@@ -19,6 +19,8 @@ return new class extends Migration
             $table->date('incident_date'); // date of incident in frontend
             $table->string('reason'); // Reason / Infraction in frontend
             $table->string('status'); // case_status in frontend
+            $table->enum('approval_status', ['pending', 'approved'])->default('pending'); // approval status for visibility
+            $table->foreignId('reported_by')->nullable()->constrained('users')->nullOnDelete(); // who reported/created the case
             $table->text('resolution_taken')->nullable(); // Resolution / Next Steps in frontend
             $table->string('attachment')->nullable(); // PDF attachment only
             $table->timestamps();
