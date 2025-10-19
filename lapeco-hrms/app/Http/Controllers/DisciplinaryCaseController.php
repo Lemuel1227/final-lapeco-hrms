@@ -46,7 +46,7 @@
              'reason' => ['required', 'string', 'max:255', Rule::in(self::ALLOWED_REASONS)],
              'status' => 'nullable|string|max:255',
              'resolution_taken' => 'nullable|string',
-             'attachment' => 'nullable|string|max:255',
+             'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,txt|max:5120',
              'reported_by' => 'nullable|exists:users,id',
              'approval_status' => 'nullable|in:pending,approved'
          ]);
@@ -65,16 +65,38 @@
              $status = $status ?? 'Ongoing';
          }
  
-         $case = DisciplinaryCase::create(array_merge($validated, [
+         $caseData = $validated;
+         unset($caseData['attachment']);
+ 
+         $case = DisciplinaryCase::create(array_merge($caseData, [
              'reported_by' => $reportedById,
              'approval_status' => $approvalStatus,
              'status' => $status,
          ]));
  
+         $attachments = [];
+         if ($request->hasFile('attachment')) {
+             $file = $request->file('attachment');
+             $safeName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-.]/', '_', $file->getClientOriginalName());
+             $storedPath = $file->storeAs("private/disciplinary_cases/{$case->id}", $safeName, 'local');
+             $case->attachment = basename($storedPath);
+             $case->save();
+             $attachments[] = basename($storedPath);
+         }
+ 
+         if (empty($attachments)) {
+             $dir = "private/disciplinary_cases/{$case->id}";
+             if (Storage::disk('local')->exists($dir)) {
+                 $attachments = array_map('basename', Storage::disk('local')->files($dir));
+             }
+         }
+ 
          // Load the employee relationship
          $case->load('employee:id,first_name,middle_name,last_name');
  
-         return response()->json($case, 201);
+         return response()->json(array_merge($case->toArray(), [
+             'attachments' => $attachments,
+         ]), 201);
      }
  
      /**
@@ -106,15 +128,44 @@
              'reason' => ['sometimes', 'string', 'max:255', Rule::in(self::ALLOWED_REASONS)],
              'status' => 'sometimes|string|max:255',
              'resolution_taken' => 'nullable|string',
-             'attachment' => 'nullable|string|max:255',
+             'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,txt|max:5120',
              'reported_by' => 'sometimes|nullable|exists:users,id',
              'approval_status' => 'sometimes|in:pending,approved,declined'
          ]);
  
-         $disciplinaryCase->update($validated);
+         $updateData = $validated;
+         unset($updateData['attachment']);
+ 
+         if ($request->hasFile('attachment')) {
+             $file = $request->file('attachment');
+             $safeName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-.]/', '_', $file->getClientOriginalName());
+             $storedPath = $file->storeAs("private/disciplinary_cases/{$disciplinaryCase->id}", $safeName, 'local');
+ 
+             $existingAttachment = $disciplinaryCase->attachment;
+             if ($existingAttachment) {
+                 $existingPath = "private/disciplinary_cases/{$disciplinaryCase->id}/{$existingAttachment}";
+                 if (Storage::disk('local')->exists($existingPath)) {
+                     Storage::disk('local')->delete($existingPath);
+                 }
+             }
+ 
+             $updateData['attachment'] = basename($storedPath);
+         }
+ 
+         if (!empty($updateData)) {
+             $disciplinaryCase->update($updateData);
+         }
+ 
+         $dir = "private/disciplinary_cases/{$disciplinaryCase->id}";
+         $attachments = Storage::disk('local')->exists($dir)
+             ? array_map('basename', Storage::disk('local')->files($dir))
+             : [];
+ 
          $disciplinaryCase->load('employee:id,first_name,middle_name,last_name');
  
-         return response()->json($disciplinaryCase);
+         return response()->json(array_merge($disciplinaryCase->toArray(), [
+             'attachments' => $attachments,
+         ]));
      }
  
      /**
