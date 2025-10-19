@@ -225,6 +225,11 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases/status/{status}', [DisciplinaryCaseController::class, 'getByStatus']);
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-grouped-by-employee', [DisciplinaryCaseController::class, 'getGroupedByEmployee']);
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-statistics', [DisciplinaryCaseController::class, 'getStatistics']);
+    
+    // Disciplinary Case Attachments
+    Route::middleware(['role.access:disciplinary,store'])->post('/disciplinary-cases/{disciplinaryCase}/attachments', [DisciplinaryCaseController::class, 'uploadAttachment']);
+    Route::middleware(['role.access:disciplinary,view'])->get('/disciplinary-cases/{disciplinaryCase}/attachments/{filename}', [DisciplinaryCaseController::class, 'downloadAttachment']);
+    Route::middleware(['role.access:disciplinary,destroy'])->delete('/disciplinary-cases/{disciplinaryCase}/attachments/{filename}', [DisciplinaryCaseController::class, 'deleteAttachment']);
 
     // Action Logs - with role-based access control (disciplinary domain)
     Route::middleware(['role.access:disciplinary,destroy'])->delete('/action-logs/{actionLog}', [ActionLogController::class, 'destroy']);

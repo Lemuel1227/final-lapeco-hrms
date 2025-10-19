@@ -1,9 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { format } from 'date-fns';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
+import ConfirmationModal from '../../modals/ConfirmationModal';
 
-const CaseDetailView = ({ caseInfo, employee, onBack, onSaveLog, onEdit, onDelete, onDeleteLog }) => {
+export default function CaseDetailView({
+  caseInfo,
+  employee,
+  onBack,
+  onSaveLog,
+  onEdit,
+  onDelete,
+  onDeleteLog,
+  onConfirmDeleteCase,
+  onUploadAttachment,
+  onDeleteAttachment,
+  onDownloadAttachment,
+}) {
   const [newLogEntry, setNewLogEntry] = useState('');
+  const [logToDelete, setLogToDelete] = useState(null);
+  const [showDeleteCaseModal, setShowDeleteCaseModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleSaveLog = () => {
     if (!newLogEntry.trim()) return;
@@ -13,6 +31,36 @@ const CaseDetailView = ({ caseInfo, employee, onBack, onSaveLog, onEdit, onDelet
     };
     onSaveLog(caseInfo.caseId, entry);
     setNewLogEntry('');
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUploadFile = async () => {
+    if (!selectedFile || !onUploadAttachment) return;
+    
+    setIsUploading(true);
+    try {
+      await onUploadAttachment(caseInfo.caseId, selectedFile);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentName) => {
+    if (onDeleteAttachment) {
+      await onDeleteAttachment(caseInfo.caseId, attachmentName);
+    }
   };
 
   return (
@@ -42,7 +90,7 @@ const CaseDetailView = ({ caseInfo, employee, onBack, onSaveLog, onEdit, onDelet
                     </li>
                     <li><hr className="dropdown-divider" /></li>
                     <li>
-                        <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); onDelete(caseInfo); }}>
+                        <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); setShowDeleteCaseModal(true); }}>
                            <i className="bi bi-trash-fill me-2"></i>Delete Case
                         </a>
                     </li>
@@ -81,7 +129,7 @@ const CaseDetailView = ({ caseInfo, employee, onBack, onSaveLog, onEdit, onDelet
                     <div className="log-date">{format(new Date(log.date), 'MMM dd, yyyy')}</div>
                     <div className="log-action d-flex align-items-center justify-content-between">
                       <span>{log.action}</span>
-                      <button className="btn btn-sm btn-outline-danger" onClick={(e) => { e.preventDefault(); onDeleteLog(caseInfo.caseId, log.id, index); }}>
+                      <button className="btn btn-sm btn-outline-danger" onClick={(e) => { e.preventDefault(); setLogToDelete({ caseId: caseInfo.caseId, logId: log.id, index }); }}>
                         <i className="bi bi-trash-fill"></i>
                       </button>
                     </div>
@@ -109,22 +157,97 @@ const CaseDetailView = ({ caseInfo, employee, onBack, onSaveLog, onEdit, onDelet
              <div className="card-header"><h5><i className="bi bi-paperclip me-2"></i>Attachments</h5></div>
              <div className="card-body">
                 <ul className="attachment-list">
-                  {(caseInfo.attachments || []).length > 0 ? (caseInfo.attachments || []).map(file => (
-                    <li key={file} className="attachment-item">
-                      <a href="#" className="file-info"><i className="bi bi-file-earmark-text-fill"></i><span>{file}</span></a>
-                      <button className="btn btn-sm btn-outline-secondary"><i className="bi bi-download"></i></button>
+                  {(caseInfo.attachments || []).length > 0 ? (caseInfo.attachments || []).map((file, index) => (
+                    <li key={index} className="attachment-item d-flex justify-content-between align-items-center mb-2">
+                      <div className="file-info d-flex align-items-center">
+                        <i className="bi bi-file-earmark-text-fill me-2"></i>
+                        <span>{typeof file === 'string' ? file : file.name}</span>
+                      </div>
+                      <div className="attachment-actions">
+                        <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => onDownloadAttachment && onDownloadAttachment(caseInfo.caseId, typeof file === 'string' ? file : file.name)}>
+                          <i className="bi bi-download"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleDeleteAttachment(typeof file === 'string' ? file : file.name)}
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
+                      </div>
                     </li>
                   )) : <p className="text-muted small">No attachments for this case.</p>}
                 </ul>
-                <button className="btn btn-sm btn-outline-secondary w-100 mt-2">
-                    <i className="bi bi-upload me-2"></i>Upload File
-                </button>
+                
+                {/* File Upload Section */}
+                <div className="upload-section mt-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="form-control mb-2"
+                    onChange={handleFileSelect}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+                  />
+                  {selectedFile && (
+                    <div className="selected-file-preview mb-2 p-2 bg-light rounded">
+                      <small className="text-muted">Selected: {selectedFile.name}</small>
+                    </div>
+                  )}
+                  <button 
+                    className="btn btn-sm btn-success w-100"
+                    onClick={handleUploadFile}
+                    disabled={!selectedFile || isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-upload me-2"></i>Upload File
+                      </>
+                    )}
+                  </button>
+                </div>
              </div>
            </div>
         </div>
       </div>
+
+      {/* Local confirmation modals within CaseDetailView */}
+      <ConfirmationModal
+        show={showDeleteCaseModal}
+        onClose={() => setShowDeleteCaseModal(false)}
+        onConfirm={async () => {
+          if (onConfirmDeleteCase) {
+            await onConfirmDeleteCase(caseInfo);
+          } else if (onDelete) {
+            await onDelete(caseInfo);
+          }
+          setShowDeleteCaseModal(false);
+        }}
+        title="Delete Case"
+        confirmText="Delete"
+        confirmVariant="danger"
+      >
+        <p>Are you sure you want to permanently delete this case?</p>
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        show={!!logToDelete}
+        onClose={() => setLogToDelete(null)}
+        onConfirm={() => {
+          if (logToDelete) {
+            onDeleteLog(logToDelete.caseId, logToDelete.logId, logToDelete.index);
+          }
+          setLogToDelete(null);
+        }}
+        title="Delete Case Log Entry"
+        confirmText="Delete"
+        confirmVariant="danger"
+      >
+        <p>Are you sure you want to delete this log entry?</p>
+      </ConfirmationModal>
     </div>
   );
-};
-
-export default CaseDetailView;
+}

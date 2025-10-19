@@ -46,7 +46,7 @@ import MyResignationPage from './pages/My-Resignation/MyResignationPage';
 import EmailVerificationHandler from './pages/Verify-Email/EmailVerificationHandler';
 import ErrorBoundary from './components/ErrorBoundary';
 import MyCasesPage from './pages/My-Cases/MyCasesPage';
-import IncedentReport from './pages/My-Cases/EmployeeCaseCard';
+import IncedentReport from './pages/Submit-Report/SubmitReportPage';
 import NotFoundPage from './pages/NotFound/NotFoundPage';
 
 // Import layout, context, and components

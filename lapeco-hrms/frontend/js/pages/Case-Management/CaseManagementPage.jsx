@@ -20,6 +20,45 @@ import './CaseManagement.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+const normalizeActionLogs = (logs = []) => logs.map(log => ({
+  id: log.id,
+  date: log.date_created
+    ? new Date(log.date_created).toISOString().slice(0, 10)
+    : (log.date ? String(log.date).slice(0, 10) : ''),
+  action: log.description || log.action,
+}));
+
+const mapCaseFromApi = (caseData, fallbackActionLogs = []) => {
+  if (!caseData) {
+    return null;
+  }
+
+  const actionLogsSource = Array.isArray(caseData.action_logs) && caseData.action_logs.length > 0
+    ? caseData.action_logs
+    : fallbackActionLogs;
+
+  const incidentDate = caseData.incident_date ? String(caseData.incident_date).slice(0, 10) : '';
+
+  return {
+    caseId: caseData.id,
+    employeeId: caseData.employee_id,
+    actionType: caseData.action_type,
+    description: caseData.description,
+    incidentDate,
+    reason: caseData.reason,
+    status: caseData.status,
+    resolutionTaken: caseData.resolution_taken,
+    attachment: caseData.attachment,
+    issueDate: incidentDate,
+    updatedAt: caseData.updated_at,
+    approvalStatus: caseData.approval_status,
+    submittedBy: caseData.reported_by ?? null,
+    actionLog: normalizeActionLogs(actionLogsSource),
+    attachments: caseData.attachment ? [caseData.attachment] : [],
+    nextSteps: caseData.resolution_taken,
+  };
+};
+
 const CaseManagementPage = () => {
   const [cases, setCases] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -35,6 +74,7 @@ const CaseManagementPage = () => {
   const [submissionToAction, setSubmissionToAction] = useState(null);
   const [submissionActionType, setSubmissionActionType] = useState('');
   const [viewingSubmission, setViewingSubmission] = useState(null);
+  const [isProcessingSubmission, setIsProcessingSubmission] = useState(false);
 
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -93,12 +133,18 @@ const CaseManagementPage = () => {
         const pendingCases = transformedCases.filter(c => c.approvalStatus === 'pending');
         
         // Transform employees data to match expected format
-        const transformedEmployees = employeesData.map(emp => ({
-          id: emp.id,
-          name: emp.name,
-          email: emp.email,
-          position: emp.position?.name || 'N/A',
-        }));
+        const transformedEmployees = employeesData.map(emp => {
+          const fullName = emp.name ?? [emp.first_name, emp.middle_name, emp.last_name]
+            .filter(Boolean)
+            .join(' ');
+
+          return {
+            id: emp.id,
+            name: fullName,
+            email: emp.email,
+            position: emp.position?.name || 'N/A',
+          };
+        });
         
         setCases(approvedCases);
         setEmployees(transformedEmployees);
@@ -189,8 +235,38 @@ const CaseManagementPage = () => {
     setShowModal(false);
   };
 
-  const handleViewDetails = (caseData) => {
-    setSelectedCase(caseData);
+  const handleViewDetails = async (caseData) => {
+    try {
+      const { data } = await disciplinaryCaseAPI.getById(caseData.caseId);
+      const actionLogsSource = data.action_logs ?? caseData.actionLog ?? [];
+      const attachments = Array.isArray(data.attachments) ? data.attachments : (data.attachment ? [data.attachment] : []);
+      const detailedCase = {
+        caseId: data.id,
+        employeeId: data.employee_id,
+        actionType: data.action_type,
+        description: data.description,
+        incidentDate: data.incident_date ? String(data.incident_date).slice(0,10) : '',
+        reason: data.reason,
+        status: data.status,
+        resolutionTaken: data.resolution_taken,
+        attachment: data.attachment,
+        issueDate: data.incident_date ? String(data.incident_date).slice(0,10) : '',
+        updatedAt: data.updated_at,
+        approvalStatus: data.approval_status,
+        submittedBy: data.reported_by,
+        actionLog: actionLogsSource.map(log => ({
+          id: log.id,
+          date: log.date_created ? new Date(log.date_created).toISOString().slice(0,10) : (log.date ? String(log.date).slice(0,10) : ''),
+          action: log.description || log.action
+        })),
+        attachments,
+        nextSteps: data.resolution_taken,
+      };
+      setSelectedCase(detailedCase);
+    } catch (err) {
+      console.error('Failed to load case details:', err);
+      setSelectedCase(caseData);
+    }
   };
 
   const handleOpenSubmissionActionModal = (submission, action) => {
@@ -203,9 +279,37 @@ const CaseManagementPage = () => {
     setSubmissionActionType('');
   };
 
-  const handleConfirmSubmissionAction = (submissionId, status, comments) => {
-    handlers.updateCaseSubmissionStatus(submissionId, status, comments);
-    handleCloseSubmissionActionModal();
+  const handleViewSubmissionAttachment = async (submission) => {
+    if (!submission) return;
+
+    const caseId = submission.caseId ?? submission.id;
+    const attachments = Array.isArray(submission.attachments)
+      ? submission.attachments
+      : (submission.attachment ? [submission.attachment] : []);
+
+    if (!caseId || attachments.length === 0) {
+      return;
+    }
+
+    try {
+      await handlers.downloadAttachment(caseId, attachments[0]);
+    } catch (err) {
+      console.error('Failed to open submission attachment:', err);
+    }
+  };
+
+  const handleConfirmSubmissionAction = async (submissionId, status, comments) => {
+    if (!submissionId || !status) return;
+
+    try {
+      setIsProcessingSubmission(true);
+      await handlers.updateCaseSubmissionStatus(submissionId, status, comments);
+      handleCloseSubmissionActionModal();
+    } catch (err) {
+      console.error('Failed to update submission status:', err);
+    } finally {
+      setIsProcessingSubmission(false);
+    }
   };
 
   const caseReportConfig = reportsConfig.find(r => r.id === 'disciplinary_cases');
@@ -302,6 +406,8 @@ const CaseManagementPage = () => {
       const response = await disciplinaryCaseAPI.update(editingCase.caseId, transformedCase);
       
       // Transform the response data to match the expected format
+      const actionLogsSource = response.data.action_logs ?? editingCase?.actionLog ?? [];
+
       const editedCase = {
         caseId: response.data.id,
         employeeId: response.data.employee_id,
@@ -316,16 +422,17 @@ const CaseManagementPage = () => {
         updatedAt: response.data.updated_at, // Add updated_at field
         approvalStatus: response.data.approval_status,
         submittedBy: response.data.reported_by,
-        actionLog: (response.data.action_logs || []).map(log => ({
+        actionLog: actionLogsSource.map(log => ({
           id: log.id,
-          date: log.date_created,
-          action: log.description
+          date: log.date_created ? new Date(log.date_created).toISOString().slice(0,10) : (log.date ? String(log.date).slice(0,10) : ''),
+          action: log.description || log.action
         })),
         attachments: response.data.attachment ? [response.data.attachment] : [], // Convert single attachment to array
         nextSteps: response.data.resolution_taken, // Map resolution_taken to nextSteps
       };
       
       setCases(prev => prev.map(c => c.caseId === editingCase.caseId ? editedCase : c));
+      setSelectedCase(prev => prev && prev.caseId === editingCase.caseId ? editedCase : prev);
       setEditingCase(null);
       setShowModal(false);
     } catch (err) {
@@ -385,7 +492,87 @@ const CaseManagementPage = () => {
       } catch (err) {
         console.error('Failed to delete action log:', err);
       }
-    }
+    },
+    updateCaseSubmissionStatus: async (submissionId, status, comments) => {
+      try {
+        const normalizedStatus = status === 'Approved' ? 'approved' : 'declined';
+        const payload = {
+          approval_status: normalizedStatus,
+          status: status === 'Approved' ? 'Ongoing' : 'Closed',
+        };
+
+        if (comments && comments.trim()) {
+          payload.resolution_taken = comments.trim();
+        }
+
+        const response = await disciplinaryCaseAPI.update(submissionId, payload);
+        const updatedCase = mapCaseFromApi(response.data);
+
+        setPendingSubmissions(prev => prev.filter(sub => (sub.caseId ?? sub.id) !== submissionId));
+
+        if (normalizedStatus === 'approved' && updatedCase) {
+          setCases(prev => {
+            const exists = prev.some(c => c.caseId === updatedCase.caseId);
+            if (exists) {
+              return prev.map(c => c.caseId === updatedCase.caseId ? updatedCase : c);
+            }
+            return [...prev, updatedCase];
+          });
+        }
+      } catch (err) {
+        console.error('Failed to update case submission status:', err);
+        throw err;
+      }
+    },
+    uploadAttachment: async (caseId, file) => {
+      try {
+        const res = await disciplinaryCaseAPI.uploadAttachment(caseId, file);
+        const filename = res.data?.filename || file.name;
+        setSelectedCase(prev => prev && prev.caseId === caseId ? {
+          ...prev,
+          attachments: [...(prev.attachments || []), filename]
+        } : prev);
+        setCases(prev => prev.map(c => c.caseId === caseId ? {
+          ...c,
+          attachments: [...(c.attachments || []), filename]
+        } : c));
+      } catch (err) {
+        console.error('Failed to upload attachment:', err);
+        throw err;
+      }
+    },
+    deleteAttachment: async (caseId, filename) => {
+      try {
+        await disciplinaryCaseAPI.deleteAttachment(caseId, filename);
+        setSelectedCase(prev => prev && prev.caseId === caseId ? {
+          ...prev,
+          attachments: (prev.attachments || []).filter(f => f !== filename)
+        } : prev);
+        setCases(prev => prev.map(c => c.caseId === caseId ? {
+          ...c,
+          attachments: (c.attachments || []).filter(f => f !== filename)
+        } : c));
+      } catch (err) {
+        console.error('Failed to delete attachment:', err);
+        throw err;
+      }
+    },
+    downloadAttachment: async (caseId, filename) => {
+      try {
+        const res = await disciplinaryCaseAPI.downloadAttachment(caseId, filename);
+        const blob = res.data;
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Failed to download attachment:', err);
+      }
+    },
   };
 
   const renderDashboard = () => (
@@ -467,6 +654,8 @@ const CaseManagementPage = () => {
             {pendingSubmissions.length > 0 ? pendingSubmissions.map(sub => {
               const submittedByName = employeeMap.get(sub.submittedBy)?.name || sub.submittedBy;
               const employeeName = employeeMap.get(sub.employeeId)?.name || sub.employeeId;
+              const submissionAttachments = Array.isArray(sub.attachments) ? sub.attachments : (sub.attachment ? [sub.attachment] : []);
+              const hasAttachments = submissionAttachments.length > 0;
               return (
                 <tr key={sub.caseId || sub.id}>
                   <td>{submittedByName}</td>
@@ -477,7 +666,16 @@ const CaseManagementPage = () => {
                         <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setViewingSubmission(sub); }}>
                             <i className="bi bi-info-circle me-2"></i> View Description
                         </a>
-                        <a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()} disabled>
+                        <a
+                          className={`dropdown-item ${hasAttachments ? '' : 'disabled'}`}
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (hasAttachments) {
+                              handleViewSubmissionAttachment(sub);
+                            }
+                          }}
+                        >
                             <i className="bi bi-paperclip me-2"></i> View Attachments
                         </a>
                         <div className="dropdown-divider"></div>
@@ -548,6 +746,10 @@ const CaseManagementPage = () => {
             onEdit={handleOpenModal}
             onDelete={(ci) => setCaseToDelete(ci)}
             onDeleteLog={handlers.deleteCaseLogEntry}
+            onConfirmDeleteCase={async (ci) => { await handleDeleteCase(ci.caseId); if (selectedCase?.caseId === ci.caseId) setSelectedCase(null); }}
+            onUploadAttachment={handlers.uploadAttachment}
+            onDeleteAttachment={handlers.deleteAttachment}
+            onDownloadAttachment={handlers.downloadAttachment}
         />
         <AddEditCaseModal 
           show={showModal}
@@ -555,6 +757,7 @@ const CaseManagementPage = () => {
           onSave={handlers.saveCase}
           caseData={editingCase}
           employees={employees}
+          onDelete={(ci) => { setCaseToDelete(ci); setShowModal(false); setEditingCase(null); }}
         />
       </div>
     );
@@ -653,6 +856,35 @@ const CaseManagementPage = () => {
           )}
           <p className="text-danger">This action cannot be undone.</p>
       </ConfirmationModal>
+      <ViewReasonModal
+        show={!!viewingSubmission}
+        onClose={() => setViewingSubmission(null)}
+        title="Case Report Description"
+        request={viewingSubmission ? {
+          employeeName: employeeMap.get(viewingSubmission.employeeId)?.name || viewingSubmission.employeeName || viewingSubmission.employeeId,
+          employeeId: viewingSubmission.employeeId,
+          submittedByName: employeeMap.get(viewingSubmission.submittedBy)?.name || viewingSubmission.submittedByName || viewingSubmission.submittedBy,
+          type: viewingSubmission.actionType || 'Case Report',
+          reason: viewingSubmission.reason,
+          description: viewingSubmission.description,
+        } : null}
+      />
+      <ActionCaseSubmissionModal
+        show={!!submissionToAction && !!submissionActionType}
+        onClose={handleCloseSubmissionActionModal}
+        onConfirm={handleConfirmSubmissionAction}
+        submissionData={submissionToAction ? {
+          submission: {
+            caseId: submissionToAction.caseId ?? submissionToAction.id,
+            employeeId: submissionToAction.employeeId,
+            employeeName: employeeMap.get(submissionToAction.employeeId)?.name || submissionToAction.employeeName || submissionToAction.employeeId,
+            reason: submissionToAction.reason,
+            submittedByName: employeeMap.get(submissionToAction.submittedBy)?.name || submissionToAction.submittedByName || submissionToAction.submittedBy,
+          },
+          action: submissionActionType,
+        } : null}
+        isProcessing={isProcessingSubmission}
+      />
     </div>
   );
 };

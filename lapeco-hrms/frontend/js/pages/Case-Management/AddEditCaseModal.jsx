@@ -1,12 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 
-const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees }) => {
+const INCIDENT_TYPES = [
+  'Tardiness / Punctuality',
+  'Safety Violation',
+  'Insubordination',
+  'Company Policy Violation',
+  'Poor Performance',
+  'Misconduct',
+  'Other',
+];
+
+const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees, onDelete }) => {
   const initialFormState = {
     employeeId: '',
     issueDate: new Date().toISOString().split('T')[0],
     actionType: 'Verbal Warning',
-    reason: '',
+    reason: INCIDENT_TYPES[0],
     description: '',
     nextSteps: '',
     status: 'Ongoing',
@@ -93,7 +103,18 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees }) => {
                 </div>
                 <div className="col-12">
                   <label htmlFor="reason" className="form-label">Reason / Infraction*</label>
-                  <input type="text" id="reason" name="reason" className="form-control" value={formData.reason} onChange={handleChange} placeholder="e.g., Tardiness, Safety Violation, Insubordination" required />
+                  <select
+                    id="reason"
+                    name="reason"
+                    className="form-select"
+                    value={formData.reason}
+                    onChange={handleChange}
+                    required
+                  >
+                    {INCIDENT_TYPES.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="col-12">
                   <label htmlFor="description" className="form-label">Description of Incident</label>

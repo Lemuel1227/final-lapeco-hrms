@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-const ActionCaseSubmissionModal = ({ show, onClose, onConfirm, submissionData }) => {
+const ActionCaseSubmissionModal = ({ show, onClose, onConfirm, submissionData, isProcessing = false }) => {
     const [comments, setComments] = useState('');
 
-    if (!show) return null;
+    useEffect(() => {
+        if (show) {
+            setComments('');
+        }
+    }, [show, submissionData?.action, submissionData?.submission?.caseId]);
+
+    if (!show || !submissionData?.submission || !submissionData?.action) return null;
 
     const { submission, action } = submissionData;
     const isApproving = action === 'Approved';
 
+    const submissionId = submission.caseId ?? submission.id;
+
     const handleConfirm = () => {
-        onConfirm(submission.id, action, comments);
+        if (!submissionId || isProcessing) return;
+        onConfirm(submissionId, action, comments);
     };
 
     return (
@@ -21,8 +30,8 @@ const ActionCaseSubmissionModal = ({ show, onClose, onConfirm, submissionData })
                         <button type="button" className="btn-close" onClick={onClose}></button>
                     </div>
                     <div className="modal-body">
-                        <p>You are about to <strong>{action.toLowerCase()}</strong> the case report regarding <strong>{submission.employeeName}</strong> for "{submission.reason}".</p>
-                        
+                        <p>You are about to <strong>{action.toLowerCase()}</strong> the case report submitted by <strong>{submission.submittedByName || 'Unknown submitter'}</strong> regarding <strong>{submission.employeeName || `Employee #${submission.employeeId}`}</strong> for "{submission.reason}".</p>
+
                         {isApproving ? (
                             <div className="alert alert-success">
                                 Approving this submission will create a new, formal disciplinary case record.
@@ -51,7 +60,9 @@ const ActionCaseSubmissionModal = ({ show, onClose, onConfirm, submissionData })
                             type="button"
                             className={`btn btn-${isApproving ? 'success' : 'danger'}`}
                             onClick={handleConfirm}
+                            disabled={isProcessing}
                         >
+                            {isProcessing && <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>}
                             Confirm & {action}
                         </button>
                     </div>

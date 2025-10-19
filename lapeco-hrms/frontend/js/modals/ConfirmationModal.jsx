@@ -8,7 +8,9 @@ const ConfirmationModal = ({
     children, 
     message,
     confirmText = "Confirm", 
-    confirmVariant = "danger" 
+    confirmVariant = "danger",
+    confirmDisabled = false,
+    confirmLoading = false,
 }) => {
   if (!show) return null;
 
@@ -26,7 +28,15 @@ const ConfirmationModal = ({
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>
-            <button type="button" className={`btn btn-${confirmVariant}`} onClick={onConfirm}>{confirmText}</button>
+            <button 
+              type="button" 
+              className={`btn btn-${confirmVariant}`} 
+              onClick={onConfirm}
+              disabled={confirmDisabled || confirmLoading}
+            >
+              {confirmLoading && <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>}
+              {confirmText}
+            </button>
           </div>
         </div>
       </div>
