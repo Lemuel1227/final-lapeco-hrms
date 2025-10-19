@@ -560,15 +560,42 @@ const CaseManagementPage = () => {
     downloadAttachment: async (caseId, filename) => {
       try {
         const res = await disciplinaryCaseAPI.downloadAttachment(caseId, filename);
-        const blob = res.data;
+        const fileData = res && typeof res === 'object' ? res.data : null;
+        if (!fileData) {
+          throw new Error('Empty download response');
+        }
+
+        const blob = fileData instanceof Blob ? fileData : new Blob([fileData]);
+
+        if (!(blob instanceof Blob)) {
+          throw new Error('Download response was not a file');
+        }
+
+        const disposition = res.headers?.['content-disposition'] || res.headers?.get?.('content-disposition');
+        if (disposition) {
+          const match = /filename="?(.+?)"?(;|$)/i.exec(disposition);
+          if (match && match[1]) {
+            filename = decodeURIComponent(match[1]);
+          }
+        }
+
         const url = window.URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        window.URL.revokeObjectURL(url);
+
+        const mimeType = blob.type || '';
+        const inlineTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'text/plain'];
+
+        if (inlineTypes.some(type => mimeType.startsWith(type))) {
+          window.open(url, '_blank', 'noopener');
+          window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+        } else {
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = filename;
+          document.body.appendChild(anchor);
+          anchor.click();
+          document.body.removeChild(anchor);
+          window.URL.revokeObjectURL(url);
+        }
       } catch (err) {
         console.error('Failed to download attachment:', err);
       }
