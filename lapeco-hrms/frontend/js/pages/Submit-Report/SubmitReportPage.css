@@ -1,0 +1,77 @@
+.submit-report-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.report-form-main .card-header h5 {
+    font-weight: 600;
+}
+
+.report-form-main .form-label {
+    font-weight: 500;
+}
+
+.report-form-main .card-footer {
+    background-color: var(--bg-secondary);
+}
+
+.instructions-card {
+    position: sticky;
+    top: calc(var(--app-header-height) + 1.5rem);
+    border-left: 3px solid var(--info-color);
+}
+
+.instructions-card .card-header {
+    background-color: rgba(var(--info-rgb), 0.1);
+}
+
+.instructions-card .card-header h6 {
+    color: var(--info-color);
+    font-weight: 600;
+}
+
+.instructions-card .card-body p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.instructions-card .card-body p:last-child {
+    margin-bottom: 0;
+}
+
+.attachment-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.attachment-display i {
+    font-size: 1rem;
+}
+
+.attachment-display .btn-close {
+    margin-left: 0.5rem;
+}
+
+@media (max-width: 992px) {
+    .submit-report-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-form-sidebar {
+        grid-row-start: 1;
+    }
+
+    .instructions-card {
+        position: static;
+    }
+}

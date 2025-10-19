@@ -5,28 +5,41 @@ import './MyCasesPage.css';
 import { disciplinaryCaseAPI } from '../../services/api';
 import { getUserProfile } from '../../services/accountService';
 
-const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp = [] }) => {
+const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp }) => {
+    const initialCases = useMemo(() => (Array.isArray(casesProp) ? casesProp : []), [casesProp]);
     const [currentUser, setCurrentUser] = useState(currentUserProp);
-    const [caseRecords, setCaseRecords] = useState(casesProp);
+    const [caseRecords, setCaseRecords] = useState(initialCases);
     const [selectedCase, setSelectedCase] = useState(null);
     const [statusFilter, setStatusFilter] = useState('All');
-    const [loading, setLoading] = useState(!currentUserProp || casesProp.length === 0);
+    const [loading, setLoading] = useState(() => !(currentUserProp && initialCases.length > 0));
     const [error, setError] = useState(null);
     const [reloadKey, setReloadKey] = useState(0);
+    const [lastReloadValue, setLastReloadValue] = useState(0);
+    const [hasFetched, setHasFetched] = useState(() => initialCases.length > 0);
 
     useEffect(() => {
         setCurrentUser(currentUserProp);
     }, [currentUserProp]);
 
     useEffect(() => {
-        setCaseRecords(casesProp);
+        if (Array.isArray(casesProp)) {
+            setCaseRecords(casesProp);
+            setHasFetched(casesProp.length > 0);
+            if (casesProp.length > 0) {
+                setLoading(false);
+                setError(null);
+            }
+        }
     }, [casesProp]);
 
     useEffect(() => {
-        const shouldFetch = !currentUserProp || casesProp.length === 0;
-        if (!shouldFetch && currentUserProp && casesProp.length > 0) {
-            setLoading(false);
-            setError(null);
+        const reloadRequested = reloadKey !== lastReloadValue;
+        const needsInitialFetch = !hasFetched;
+
+        if (!reloadRequested && !needsInitialFetch) {
+            if (!currentUser && currentUserProp) {
+                setCurrentUser(currentUserProp);
+            }
             return;
         }
 
@@ -36,15 +49,19 @@ const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp = [
             try {
                 setLoading(true);
 
-                const userProfile = currentUserProp || await getUserProfile();
-                if (!isMounted) return;
+                let resolvedUser = currentUserProp || currentUser;
 
-                const employeeId = userProfile?.id || userProfile?.data?.id;
+                if (!resolvedUser) {
+                    const profile = await getUserProfile();
+                    if (!isMounted) return;
+                    resolvedUser = profile;
+                    setCurrentUser(profile);
+                }
+
+                const employeeId = resolvedUser?.id ?? resolvedUser?.data?.id;
                 if (!employeeId) {
                     throw new Error('Unable to determine your employee profile.');
                 }
-
-                setCurrentUser(userProfile);
 
                 const response = await disciplinaryCaseAPI.getByEmployee(employeeId);
                 if (!isMounted) return;
@@ -78,6 +95,8 @@ const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp = [
                 setError('Failed to load your cases. Please try again later.');
             } finally {
                 if (isMounted) {
+                    setHasFetched(true);
+                    setLastReloadValue(reloadKey);
                     setLoading(false);
                 }
             }
@@ -86,18 +105,17 @@ const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp = [
         return () => {
             isMounted = false;
         };
-    }, [currentUserProp, casesProp, reloadKey]);
+    }, [currentUserProp, currentUser, hasFetched, reloadKey, lastReloadValue]);
 
     const myCases = useMemo(() => {
         if (!currentUser) return [];
 
         const employeeId = currentUser?.id || currentUser?.data?.id;
-        const source = caseRecords.length > 0 ? caseRecords : casesProp;
 
-        return source
+        return caseRecords
             .filter(c => (employeeId ? c.employeeId === employeeId : true))
             .sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
-    }, [caseRecords, casesProp, currentUser]);
+    }, [caseRecords, currentUser]);
 
     const stats = useMemo(() => {
         return myCases.reduce((acc, caseInfo) => {

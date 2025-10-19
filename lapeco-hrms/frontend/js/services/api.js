@@ -227,6 +227,14 @@ export const disciplinaryCaseAPI = {
   getStatistics: () => api.get('/disciplinary-cases-statistics'),
   getGroupedByEmployee: () => api.get('/disciplinary-cases-grouped-by-employee'),
   deleteActionLog: (id) => api.delete(`/action-logs/${id}`),
+  // Attachment operations
+  uploadAttachment: (caseId, file) => {
+    const formData = new FormData();
+    formData.append('attachment', file);
+    return api.post(`/disciplinary-cases/${caseId}/attachments`, formData);
+  },
+  downloadAttachment: (caseId, filename) => api.get(`/disciplinary-cases/${caseId}/attachments/${filename}`),
+  deleteAttachment: (caseId, filename) => api.delete(`/disciplinary-cases/${caseId}/attachments/${filename}`),
 };
 
 // Resignation API calls
