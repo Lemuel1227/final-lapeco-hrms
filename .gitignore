@@ -1,0 +1,43 @@
+*.log
+Thumbs.db
+.DS_Store
+
+# Global config files
+.phpactor.json
+
+# IDE & tooling folders
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+
+# --- lapeco-hrms (Laravel app) ---
+lapeco-hrms/.env
+lapeco-hrms/.env.backup
+lapeco-hrms/.env.production
+lapeco-hrms/auth.json
+lapeco-hrms/node_modules/
+lapeco-hrms/public/build
+lapeco-hrms/public/hot
+lapeco-hrms/public/storage
+lapeco-hrms/storage/*.key
+lapeco-hrms/storage/pail
+lapeco-hrms/vendor/
+lapeco-hrms/Homestead.json
+lapeco-hrms/Homestead.yaml
+
+# --- Recr_LAPECO (React app) ---
+Recr_LAPECO/node_modules/
+Recr_LAPECO/.pnp
+Recr_LAPECO/.pnp.js
+Recr_LAPECO/coverage/
+Recr_LAPECO/build/
+Recr_LAPECO/.env.local
+Recr_LAPECO/.env.development.local
+Recr_LAPECO/.env.test.local
+Recr_LAPECO/.env.production.local
+Recr_LAPECO/npm-debug.log*
+Recr_LAPECO/yarn-debug.log*
+Recr_LAPECO/yarn-error.log*
