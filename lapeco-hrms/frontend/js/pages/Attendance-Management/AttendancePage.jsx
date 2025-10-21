@@ -99,21 +99,45 @@ const AttendancePage = () => {
     return dailyAttendanceData.map((record, index) => {
       // Extract time from shift datetime strings and format to HH:MM
       let shiftDisplay = record.shift;
-      
-      // Working hours calculation (if needed for compatibility)
-      let workingHours = '0:00';
+
+      // Working hours calculation (rounded down to whole hours)
+      let workingHours = 0;
       if (record.signIn && record.signOut) {
         try {
           const signInTime = new Date(`1970-01-01T${record.signIn}:00`);
           const signOutTime = new Date(`1970-01-01T${record.signOut}:00`);
-          const diffMs = signOutTime - signInTime;
-          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-          const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-          workingHours = `${diffHours}:${diffMinutes.toString().padStart(2, '0')}`;
+
+          if (signOutTime <= signInTime) {
+            signOutTime.setDate(signOutTime.getDate() + 1);
+          }
+
+          let totalMinutes = (signOutTime - signInTime) / (1000 * 60);
+
+          if (record.breakOut && record.breakIn) {
+            const breakOutTime = new Date(`1970-01-01T${record.breakOut}:00`);
+            const breakInTime = new Date(`1970-01-01T${record.breakIn}:00`);
+
+            if (breakInTime <= breakOutTime) {
+              breakInTime.setDate(breakInTime.getDate() + 1);
+            }
+
+            const breakMinutes = (breakInTime - breakOutTime) / (1000 * 60);
+            if (breakMinutes > 0) {
+              totalMinutes -= breakMinutes;
+            }
+          }
+
+          if (totalMinutes < 0 || Number.isNaN(totalMinutes)) {
+            totalMinutes = 0;
+          }
+
+          workingHours = Math.max(Math.floor(totalMinutes / 60), 0);
         } catch (error) {
-          workingHours = '0:00';
+          workingHours = 0;
         }
       }
+
+      const overtimeHours = Math.max(Math.floor(Number(record.otHours ?? record.ot_hours ?? 0) || 0), 0);
 
       return {
         empId: record.empId,
@@ -127,8 +151,8 @@ const AttendancePage = () => {
         breakIn: record.breakIn,
         signOut: record.signOut,
         status: record.status,
-        workingHours: workingHours,
-        otHours: record.otHours || '0'
+        workingHours,
+        otHours: overtimeHours
       };
     });
   }, [dailyAttendanceData]);

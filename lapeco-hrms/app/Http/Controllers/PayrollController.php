@@ -37,7 +37,7 @@ class PayrollController extends Controller
                 $earnings = $payroll->earnings->map(function (PayrollEarning $earning) {
                     return [
                         'description' => $earning->earning_type,
-                        'hours' => (float) $earning->earning_hours,
+                        'hours' => (int) floor((float) $earning->earning_hours),
                         'amount' => (float) $earning->earning_pay,
                     ];
                 })->values()->all();
@@ -230,9 +230,9 @@ class PayrollController extends Controller
                     $breakdown[] = [
                         'date' => $scheduleDate->toDateString(),
                         'status' => $this->determineAttendanceStatus($attendance, $scheduleDate),
-                        'scheduled_hours' => round($scheduledHours, 2),
-                        'attended_hours' => round($attendedHours, 2),
-                        'overtime_hours' => round($overtimeHours, 2),
+                        'scheduled_hours' => max((int) floor($scheduledHours), 0),
+                        'attended_hours' => max((int) floor($attendedHours), 0),
+                        'overtime_hours' => max((int) floor($overtimeHours), 0),
                         'pay' => $dailyPay,
                     ];
                 }
@@ -633,7 +633,9 @@ class PayrollController extends Controller
 
     protected function addEarning(array &$earnings, string $type, float $hours, float $pay): void
     {
-        if ($hours <= 0 || $pay <= 0) {
+        if (isset($earnings[$type])) {
+            $earnings[$type]['hours'] += $hours;
+            $earnings[$type]['pay'] += $pay;
             return;
         }
 

@@ -601,6 +601,12 @@ const ScheduleManagementPage = (props) => {
 
     if (deleteSucceeded) {
       setToast({ show: true, message: formatDateInMessage(successMessage), type: 'success' });
+
+      setBasicSchedules(prev => prev.filter(schedule => schedule.id !== scheduleId));
+      setSchedules(prev => prev.filter(assignment => assignment.id !== scheduleId));
+
+      setItemToDelete(null);
+
       try {
         const response = await scheduleAPI.getAll();
         const transformedSchedules = [];
@@ -738,7 +744,6 @@ const ScheduleManagementPage = (props) => {
 
   const handleOpenDeleteConfirm = (item, type) => {
     setItemToDelete({ item, type });
-    setShowDeleteConfirm(true);
   };
 
   const handleViewScheduleDetails = async (scheduleInfo) => {
