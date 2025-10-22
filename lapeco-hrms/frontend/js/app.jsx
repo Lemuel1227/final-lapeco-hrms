@@ -53,6 +53,7 @@ import MyPayrollHistoryPage from './pages/My-Payroll/MyPayrollHistoryPage';
 import MyPayrollLayout from './pages/My-Payroll/MyPayrollLayout';
 import EvaluateLeaderPage from './pages/Performance-Management/EvaluateLeaderPage';
 import EvaluateTeamPage from './pages/Performance-Management/EvaluateTeamPage';
+import EvaluationFormPage from './pages/Performance-Management/EvaluationFormPage';
 
 // Import layout, context, and components
 import Layout from './layout/Layout';
@@ -137,6 +138,7 @@ function App() {
             <Route path="dashboard/team-employees" element={<MyTeamPage />} />
             <Route path="dashboard/evaluate-team" element={<EvaluateTeamPage />} />
             <Route path="dashboard/evaluate-leader" element={<EvaluateLeaderPage />} />
+            <Route path="dashboard/performance/evaluate" element={<EvaluationFormPage/>} />
             <Route path="dashboard/my-leave" element={<MyLeavePage />} />
             <Route path="dashboard/my-attendance" element={<MyAttendancePage />} />
             <Route path="dashboard/my-cases" element={<MyCasesPage />} />

@@ -23,22 +23,26 @@ const EvaluationSelectorCard = ({ employee, positionTitle, lastEvaluation, onAct
   }, [activePeriod, submissionForActivePeriod]);
 
   const { status, statusClass, lastEvalDateFormatted } = useMemo(() => {
-    if (!lastEvaluation) {
-      return { status: 'Due for Review', statusClass: 'due', lastEvalDateFormatted: 'N/A' };
+    // Status is based on whether YOU have submitted your evaluation
+    if (submissionForActivePeriod) {
+      // You have submitted - show as completed
+      const submittedDate = submissionForActivePeriod.evaluatedOn 
+        ? format(parseISO(submissionForActivePeriod.evaluatedOn), 'MMM dd, yyyy')
+        : 'N/A';
+      return {
+        status: 'Completed',
+        statusClass: 'completed',
+        lastEvalDateFormatted: submittedDate
+      };
     }
     
-    const lastEvalDate = parseISO(lastEvaluation.periodEnd);
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
-    const isDue = lastEvalDate < sixMonthsAgo;
-
+    // You haven't submitted yet - show as due
     return {
-      status: isDue ? 'Due for Review' : 'Completed',
-      statusClass: isDue ? 'due' : 'completed',
-      lastEvalDateFormatted: format(lastEvalDate, 'MMM dd, yyyy')
+      status: 'Due for Review',
+      statusClass: 'due',
+      lastEvalDateFormatted: 'N/A'
     };
-  }, [lastEvaluation]);
+  }, [submissionForActivePeriod]);
 
   const avatarSrc = employee.avatarUrl || employee.imageUrl || undefined;
 
@@ -48,7 +52,7 @@ const EvaluationSelectorCard = ({ employee, positionTitle, lastEvaluation, onAct
         <>
           <button 
             className="btn btn-sm btn-outline-secondary"
-            onClick={() => onAction('review', submissionForActivePeriod)} // Pass submission data
+            onClick={() => onAction('review', { employee, submission: submissionForActivePeriod })}
           >
             Review Evaluation
           </button>
@@ -81,12 +85,15 @@ const EvaluationSelectorCard = ({ employee, positionTitle, lastEvaluation, onAct
   return (
     <div className="evaluation-selector-card-revised">
       <div className="card-main-info">
-        <Avatar
-          src={avatarSrc}
-          alt={employee.name}
-          size="lg"
-          className="selector-avatar"
-        />
+        <div className="selector-avatar">
+          {avatarSrc ? (
+            <img src={avatarSrc} alt={employee.name} className="rounded-circle" style={{ width: '60px', height: '60px', objectFit: 'cover' }} />
+          ) : (
+            <div className="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white" style={{ width: '60px', height: '60px', fontSize: '24px' }}>
+              {employee.name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+          )}
+        </div>
         <div className="selector-info">
           <h5 className="selector-name">{employee.name}</h5>
           <p className="selector-position text-muted mb-0">{positionTitle}</p>

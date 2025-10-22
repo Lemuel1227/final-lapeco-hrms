@@ -1,17 +1,154 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Accordion } from 'react-bootstrap';
 import TeamEvaluationCard from './TeamEvaluationCard';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 import './EvaluationTracker.css';
+import { performanceAPI } from '../../services/api';
 
-const EvaluationTracker = ({ teams, activePeriod, onViewEvaluation }) => {
+const EvaluationTracker = ({ teams, activePeriod, onViewEvaluation, onLoadingChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [completionFilter, setCompletionFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: 'completion', direction: 'ascending' });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [teamsOverride, setTeamsOverride] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchPeriodDetail = useCallback(async () => {
+    if (!activePeriod?.id) {
+      setTeamsOverride(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      onLoadingChange?.(true);
+      console.log('Fetching period details for period ID:', activePeriod.id);
+      const response = await performanceAPI.getPeriodicEvaluations(activePeriod.id);
+      console.log('API response:', response);
+      const detail = response.data?.period || null;
+
+      if (!detail?.evaluations?.length) {
+        console.log('No evaluations found in period detail');
+        setTeamsOverride(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const evaluationMap = new Map(detail.evaluations.map(ev => [ev.employeeId, ev]));
+
+      const responsesByEvaluator = detail.evaluations.reduce((acc, evaluation) => {
+        (evaluation.responses || []).forEach(response => {
+          if (!acc.has(response.evaluatorId)) {
+            acc.set(response.evaluatorId, new Set());
+          }
+          acc.get(response.evaluatorId).add(evaluation.employeeId);
+        });
+        return acc;
+      }, new Map());
+
+      const overrideTeams = teams.map(team => {
+        const memberMap = new Map();
+        team.completedMembers.forEach(member => memberMap.set(member.id, { ...member }));
+        team.pendingMembers.forEach(member => {
+          memberMap.set(member.id, { ...(memberMap.get(member.id) || {}), ...member });
+        });
+        const allMembers = Array.from(memberMap.values());
+        
+        // Track loading state for data fetching
+        setIsLoading(true);
+
+        const completedMembers = [];
+        const pendingMembers = [];
+
+        allMembers.forEach(member => {
+          const evaluation = evaluationMap.get(member.id) || member.evaluation;
+          const normalizedEvaluation = evaluation
+            ? {
+                ...evaluation,
+                periodStart: evaluation.periodStart || detail.evaluationStart,
+                periodEnd: evaluation.periodEnd || detail.evaluationEnd,
+              }
+            : evaluation;
+          const normalizedMember = { ...member, evaluation: normalizedEvaluation };
+          const isComplete = Boolean(
+            normalizedEvaluation?.completedAt ||
+            (normalizedEvaluation?.responsesCount ?? 0) > 0
+          );
+          if (isComplete) {
+            completedMembers.push(normalizedMember);
+          } else {
+            pendingMembers.push(normalizedMember);
+          }
+        });
+
+        let leaderStatus = team.leaderStatus;
+        if (team.teamLeader) {
+          const leaderEvaluation = evaluationMap.get(team.teamLeader.id) || leaderStatus?.evaluation || null;
+          const leaderCompleted = Boolean(
+            leaderEvaluation?.completedAt ||
+            (leaderEvaluation?.responsesCount ?? 0) > 0
+          );
+
+          const completedByLeader = responsesByEvaluator.get(team.teamLeader.id) || new Set();
+          const pendingMemberEvals = allMembers.filter(member => !completedByLeader.has(member.id));
+          const evalsOfLeaderByMembers = detail.evaluations
+            .filter(ev => ev.employeeId === team.teamLeader.id)
+            .reduce((sum, ev) => {
+              const memberResponses = (ev.responses || []).filter(response =>
+                allMembers.some(member => member.id === response.evaluatorId)
+              );
+              return sum + memberResponses.length;
+            }, 0);
+
+          leaderStatus = {
+            ...leaderStatus,
+            isEvaluated: leaderCompleted,
+            evaluation: leaderEvaluation,
+            pendingMemberEvals,
+            evalsOfLeaderByMembers,
+          };
+        }
+
+        return {
+          ...team,
+          completedMembers,
+          pendingMembers,
+          leaderStatus,
+        };
+      });
+
+      setTeamsOverride(overrideTeams);
+      console.log('Teams override set:', overrideTeams);
+    } catch (error) {
+      console.error('Failed to load active period details', error);
+      setTeamsOverride(null);
+    } finally {
+      setIsLoading(false);
+      onLoadingChange?.(false);
+    }
+  }, [activePeriod, teams, onLoadingChange]);
+  
+  // Add useEffect to trigger data fetching when activePeriod changes
+  useEffect(() => {
+    console.log('Active period changed:', activePeriod);
+    fetchPeriodDetail();
+  }, [activePeriod, fetchPeriodDetail]);
+
+  useEffect(() => {
+    fetchPeriodDetail();
+  }, [fetchPeriodDetail]);
+
+  useEffect(() => {
+    if (!activePeriod?.id) {
+      setTeamsOverride(null);
+    }
+  }, [activePeriod]);
+
+  const effectiveTeams = teamsOverride || teams;
 
   const teamsWithCompletion = useMemo(() => {
-    return teams.map(team => {
+    return effectiveTeams.map(team => {
       const totalMembers = team.completedMembers.length + team.pendingMembers.length;
       const totalTasks = (team.teamLeader ? 1 : 0) + totalMembers + (team.teamLeader ? totalMembers : 0);
       const completedTasks = team.completedMembers.length + (team.leaderStatus?.isEvaluated ? 1 : 0) + (team.leaderStatus?.evalsOfLeaderByMembers || 0);
@@ -19,7 +156,7 @@ const EvaluationTracker = ({ teams, activePeriod, onViewEvaluation }) => {
       const pendingCount = totalTasks - completedTasks;
       return { ...team, completion, pendingCount };
     });
-  }, [teams]);
+  }, [effectiveTeams]);
 
   const filteredAndSortedTeams = useMemo(() => {
     let results = [...teamsWithCompletion];

@@ -73,6 +73,9 @@ class RoleBasedAccess
             case 'resignation':
                 return $this->checkResignationPermission($user, $action, $request);
             
+            case 'performance':
+                return $this->checkPerformancePermission($user, $action, $request);
+            
             default:
                 return false;
         }
@@ -337,6 +340,43 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage recruitment
+                return $role === 'HR_PERSONNEL';
+            
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Check performance-related permissions
+     */
+    private function checkPerformancePermission($user, string $action, Request $request): bool
+    {
+        $role = $user->role;
+        
+        switch ($action) {
+            case 'view':
+            case 'index':
+                // All authenticated users can view performance data
+                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+            
+            case 'evaluate':
+                // Team leaders can evaluate their team members
+                // Regular employees can evaluate their team leader
+                return in_array($role, ['TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+            
+            case 'create':
+            case 'store':
+                // Only HR can create evaluation periods and evaluations
+                return $role === 'HR_PERSONNEL';
+            
+            case 'update':
+                // Only HR can update evaluation periods and evaluations
+                return $role === 'HR_PERSONNEL';
+            
+            case 'delete':
+            case 'destroy':
+                // Only HR can delete evaluation periods
                 return $role === 'HR_PERSONNEL';
             
             default:

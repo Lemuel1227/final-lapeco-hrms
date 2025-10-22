@@ -1,70 +1,113 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './EvaluationPages.css';
 import EvaluationSelectorCard from './EvaluationSelectorCard';
-import ViewEvaluationModal from '../../modals/ViewEvaluationModal';
+import ReviewSubmissionModal from '../../modals/ReviewSubmissionModal';
+import { performanceAPI } from '../../services/api';
+import { evaluationFactorsConfig } from '../../config/evaluation.config';
 
-const EvaluateLeaderPage = ({ currentUser, employees, positions, evaluations, activeEvaluationPeriod, evaluationFactors }) => {
+const EvaluateLeaderPage = () => {
   const navigate = useNavigate();
-  const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);
-  const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]); 
-
+  
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingEvaluation, setViewingEvaluation] = useState(null);
+  const [teamLeader, setTeamLeader] = useState(null);
+  const [activePeriod, setActivePeriod] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchLeaderData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await performanceAPI.getLeaderToEvaluate();
+        const data = response.data || response; // Handle both axios response and direct data
+        setTeamLeader(data.teamLeader);
+        setActivePeriod(data.activePeriod);
+      } catch (err) {
+        console.error('Error fetching leader to evaluate:', err);
+        setError(err.message || 'Failed to load evaluation data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderData();
+  }, []);
 
   const modalProps = useMemo(() => {
-    if (!viewingEvaluation) return null;
-    const employee = employeeMap.get(viewingEvaluation.employeeId);
-    const position = employee ? positions.find(p => p.id === employee.positionId) : null;
-    return { evaluation: viewingEvaluation, employee, position };
-  }, [viewingEvaluation, employeeMap, positions]);
+    if (!viewingEvaluation || !teamLeader) return null;
+    return { 
+      evaluation: viewingEvaluation, 
+      employee: teamLeader,
+      position: { id: teamLeader.positionId, title: teamLeader.position }
+    };
+  }, [viewingEvaluation, teamLeader]);
 
-  const teamLeader = useMemo(() => {
-    if (!currentUser?.positionId) return null;
-    return employees.find(emp => 
-      emp.positionId === currentUser.positionId && emp.isTeamLeader
-    );
-  }, [currentUser, employees]);
-
-  const { leaderLastEvaluation, submissionForActivePeriod, isEditable } = useMemo(() => {
-    if (!teamLeader) return { leaderLastEvaluation: null, submissionForActivePeriod: null, isEditable: false };
+  const { submissionForActivePeriod, isEditable } = useMemo(() => {
+    if (!teamLeader || !activePeriod) {
+      return { submissionForActivePeriod: null, isEditable: false };
+    }
     
-    const leaderEvals = (evaluations || [])
-      .filter(ev => ev.employeeId === teamLeader.id)
-      .sort((a, b) => new Date(b.periodEnd) - new Date(a.periodEnd));
-      
-    const lastEval = leaderEvals[0] || null;
-
-    const submission = activeEvaluationPeriod ? leaderEvals.find(ev => 
-        ev.evaluatorId === currentUser.id &&
-        ev.periodStart === activeEvaluationPeriod.evaluationStart &&
-        ev.periodEnd === activeEvaluationPeriod.evaluationEnd
-    ) : null;
+    const submission = teamLeader.submissionId ? {
+      id: teamLeader.submissionId,
+      overallScore: teamLeader.submissionScore,
+      evaluatedOn: teamLeader.submittedAt
+    } : null;
     
-    const editable = activeEvaluationPeriod ? new Date() <= new Date(activeEvaluationPeriod.activationEnd) : false;
+    const isEditable = activePeriod.closeDate ? new Date() <= new Date(activePeriod.closeDate) : false;
 
-    return { leaderLastEvaluation: lastEval, submissionForActivePeriod: submission, isEditable: editable };
-  }, [teamLeader, evaluations, currentUser, activeEvaluationPeriod]);
+    return { submissionForActivePeriod: submission, isEditable };
+  }, [teamLeader, activePeriod]);
   
   const handleAction = (action, data) => {
-    if ((action === 'start' || action === 'edit') && teamLeader && activeEvaluationPeriod) {
+    if ((action === 'start' || action === 'edit') && teamLeader && activePeriod) {
         const state = {
             employeeId: teamLeader.id,
-            evaluationStart: activeEvaluationPeriod.evaluationStart,
-            evaluationEnd: activeEvaluationPeriod.evaluationEnd
+            employeeName: teamLeader.name,
+            evaluationStart: activePeriod.evaluationStart,
+            evaluationEnd: activePeriod.evaluationEnd,
+            evaluationId: teamLeader.evaluationId // The evaluation record ID for the active period
         };
         if (action === 'edit' && data.submission) {
-            state.evalId = data.submission.id;
+            state.responseId = data.submission.id; // This is the response ID, not evaluation ID
         }
         navigate('/dashboard/performance/evaluate', { state });
     } else if (action === 'review') {
-      // --- MODIFIED LOGIC ---
-      setViewingEvaluation(data);
+      // data contains { employee, submission }
+      setViewingEvaluation({ 
+        employeeId: data.employee.id,
+        submissionId: data.submission.id 
+      });
       setShowViewModal(true);
-      // --- END MODIFICATION ---
     }
   };
   
+  if (loading) {
+    return (
+      <div className="container-fluid p-0 page-module-container">
+        <div className="text-center p-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 text-muted">Loading evaluation data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container-fluid p-0 page-module-container">
+        <div className="alert alert-danger" role="alert">
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="container-fluid p-0 page-module-container">
@@ -73,12 +116,12 @@ const EvaluateLeaderPage = ({ currentUser, employees, positions, evaluations, ac
           <p className="page-subtitle text-muted">Provide your feedback on your team leader's performance.</p>
         </header>
         
-        {activeEvaluationPeriod ? (
+        {activePeriod ? (
           <div className="alert alert-success d-flex align-items-center" role="alert">
             <i className="bi bi-broadcast-pin me-3 fs-4"></i>
             <div>
-              <h6 className="alert-heading mb-0">ACTIVE: {activeEvaluationPeriod.name}</h6>
-              <small>You are evaluating performance for the period of <strong>{activeEvaluationPeriod.evaluationStart} to {activeEvaluationPeriod.evaluationEnd}</strong>. Submissions are open until <strong>{activeEvaluationPeriod.activationEnd}</strong>.</small>
+              <h6 className="alert-heading mb-0">ACTIVE: {activePeriod.name}</h6>
+              <small>You are evaluating performance for the period of <strong>{activePeriod.evaluationStart} to {activePeriod.evaluationEnd}</strong>. Submissions are open until <strong>{activePeriod.closeDate}</strong>.</small>
             </div>
           </div>
         ) : (
@@ -94,11 +137,16 @@ const EvaluateLeaderPage = ({ currentUser, employees, positions, evaluations, ac
         {teamLeader ? (
           <div className="evaluation-selector-grid mt-4">
             <EvaluationSelectorCard
-              employee={teamLeader}
-              positionTitle={`Team Leader, ${positionMap.get(teamLeader.positionId) || 'Unassigned'}`}
-              lastEvaluation={leaderLastEvaluation}
+              employee={{
+                id: teamLeader.id,
+                name: teamLeader.name,
+                imageUrl: teamLeader.profilePictureUrl,
+                email: teamLeader.email
+              }}
+              positionTitle={`Team Leader, ${teamLeader.position || 'Unassigned'}`}
+              lastEvaluation={teamLeader.currentEvaluation}
               onAction={handleAction}
-              activePeriod={activeEvaluationPeriod}
+              activePeriod={activePeriod}
               submissionForActivePeriod={submissionForActivePeriod}
               isEditable={isEditable}
             />
@@ -112,14 +160,13 @@ const EvaluateLeaderPage = ({ currentUser, employees, positions, evaluations, ac
         )}
       </div>
 
-      {modalProps && (
-        <ViewEvaluationModal
+      {viewingEvaluation && teamLeader && (
+        <ReviewSubmissionModal
           show={showViewModal}
           onClose={() => setShowViewModal(false)}
-          evaluation={modalProps.evaluation}
-          employee={modalProps.employee}
-          position={modalProps.position}
-          evaluationFactors={evaluationFactors}
+          employeeId={viewingEvaluation.employeeId}
+          employeeName={teamLeader.name}
+          submissionId={viewingEvaluation.submissionId}
         />
       )}
     </>

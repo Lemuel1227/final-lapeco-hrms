@@ -2,6 +2,19 @@ import React from 'react';
 
 const StatusListItem = ({ employee, status, onView }) => {
   const isPending = status === 'pending';
+  
+  // Handle different employee data structures
+  const employeeName = employee.name || 
+    (employee.employee ? 
+      `${employee.employee.firstName} ${employee.employee.lastName}` : 
+      (employee.firstName && employee.lastName ? 
+        `${employee.firstName} ${employee.lastName}` : 
+        'Unknown Employee'));
+  
+  const profilePic = employee.imageUrl || 
+    (employee.employee?.profilePictureUrl || 
+    employee.profilePictureUrl || 
+    '/placeholder-profile.jpg');
 
   return (
     <li className="status-list-item">
@@ -12,8 +25,8 @@ const StatusListItem = ({ employee, status, onView }) => {
           <i className="bi bi-check-circle-fill text-success" title="Completed"></i>
         )}
       </div>
-      <img src={employee.imageUrl} alt={employee.name} size="sm" />
-      <span className="employee-name">{employee.name}</span>
+      <img src={profilePic} alt={employeeName} size="sm" />
+      <span className="employee-name">{employeeName}</span>
       {isPending ? null : (
         <button 
           className="btn btn-sm btn-outline-secondary view-btn"

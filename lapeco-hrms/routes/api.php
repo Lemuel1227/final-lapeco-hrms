@@ -201,15 +201,24 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:recruitment,update'])->post('/applicants/{applicant}/hire', [ApplicantController::class, 'hire']);
 
     // Performance Management - with role-based access control
-    Route::middleware(['role.access:employee,index'])->get('/performance', [PerformanceController::class, 'index']);
-    Route::middleware(['role.access:employee,index'])->get('/performance/overview', [PerformanceController::class, 'overview']);
-    Route::middleware(['role.access:employee,index'])->get('/performance/employees/{employee}/history', [PerformanceController::class, 'employeeHistory']);
-    Route::middleware(['role.access:employee,index'])->get('/performance/evaluations/{evaluation}/responses', [PerformanceController::class, 'employeeEvaluationResponses']);
-    Route::middleware(['role.access:employee,index'])->get('/performance/evaluation-responses/{response}', [PerformanceController::class, 'evaluationResponseDetail']);
-    Route::middleware(['role.access:employee,store'])->post('/performance/periods', [PerformanceController::class, 'storePeriod']);
-    Route::middleware(['role.access:employee,update'])->put('/performance/periods/{period}', [PerformanceController::class, 'updatePeriod']);
-    Route::middleware(['role.access:employee,store'])->post('/performance/evaluations', [PerformanceController::class, 'storeEvaluation']);
-    Route::middleware(['role.access:employee,update'])->put('/performance/evaluations/{evaluation}', [PerformanceController::class, 'updateEvaluation']);
+    Route::middleware(['role.access:performance,index'])->get('/performance', [PerformanceController::class, 'index']);
+    Route::middleware(['role.access:performance,index'])->get('/performance/periods/{period}', [PerformanceController::class, 'showPeriod']);
+    Route::middleware(['role.access:performance,index'])->get('/performance/overview', [PerformanceController::class, 'overview']);
+    Route::middleware(['role.access:performance,index'])->get('/performance/employees/{employee}/history', [PerformanceController::class, 'employeeHistory']);
+    Route::middleware(['role.access:performance,index'])->get('/performance/evaluations/{evaluation}/responses', [PerformanceController::class, 'employeeEvaluationResponses']);
+    Route::middleware(['role.access:performance,index'])->get('/performance/evaluation-responses/{response}', [PerformanceController::class, 'evaluationResponseDetail']);
+    
+    // Evaluation routes - accessible by team leaders and regular employees
+    Route::middleware(['role.access:performance,evaluate'])->get('/performance/team-members-to-evaluate', [PerformanceController::class, 'getTeamMembersToEvaluate']);
+    Route::middleware(['role.access:performance,evaluate'])->get('/performance/leader-to-evaluate', [PerformanceController::class, 'getLeaderToEvaluate']);
+    Route::middleware(['role.access:performance,evaluate'])->post('/performance/evaluations/{evaluation}/responses', [PerformanceController::class, 'storeEvaluationResponse']);
+    Route::middleware(['role.access:performance,evaluate'])->put('/performance/evaluation-responses/{response}', [PerformanceController::class, 'updateEvaluationResponse']);
+    
+    // Period management - HR/Admin only
+    Route::middleware(['role.access:performance,store'])->post('/performance/periods', [PerformanceController::class, 'storePeriod']);
+    Route::middleware(['role.access:performance,update'])->put('/performance/periods/{period}', [PerformanceController::class, 'updatePeriod']);
+    Route::middleware(['role.access:performance,store'])->post('/performance/evaluations', [PerformanceController::class, 'storeEvaluation']);
+    Route::middleware(['role.access:performance,update'])->put('/performance/evaluations/{evaluation}', [PerformanceController::class, 'updateEvaluation']);
 
     // Training and Development - with role-based access control
     Route::middleware(['role.access:training,index'])->get('/training', [TrainingController::class, 'index']);
