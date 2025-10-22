@@ -5,12 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Applicant;
 use App\Models\User;
 use App\Models\Position;
+use App\Models\Notification;
+use App\Mail\ApplicantApplicationReceived;
+use App\Mail\ApplicantStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class ApplicantController extends Controller
 {
@@ -125,6 +130,11 @@ class ApplicantController extends Controller
                 $applicant->update(['profile_picture' => $path]);
             }
 
+            $applicant->refresh();
+
+            $this->sendApplicationReceivedEmail($applicant);
+            $this->notifyHrOfNewApplicant($applicant);
+
             return response()->json([
                 'message' => 'Applicant created successfully',
                 'applicant' => $applicant
@@ -163,7 +173,7 @@ class ApplicantController extends Controller
             'phone' => 'nullable|string|max:20',
             'birthday' => 'nullable|date',
             'gender' => 'nullable|in:Male,Female,Other',
-            'status' => 'nullable|in:New Applicant,Screening,Interview,Offer,Hired,Rejected',
+            'status' => 'nullable|in:New Applicant,Interview,Offer,Hired,Rejected',
             'notes' => 'nullable|string',
             'resume_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
         ]);
@@ -208,7 +218,7 @@ class ApplicantController extends Controller
         $applicant = Applicant::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:New Applicant,Screening,Interview,Offer,Hired,Rejected',
+            'status' => 'required|in:New Applicant,Interview,Offer,Hired,Rejected',
             'notes' => 'nullable|string',
         ]);
 
@@ -223,6 +233,9 @@ class ApplicantController extends Controller
             'status' => $request->status,
             'notes' => $request->notes ?? $applicant->notes,
         ]);
+
+        $applicant->refresh();
+        $this->sendApplicantStatusUpdatedEmail($applicant);
 
         return response()->json([
             'message' => 'Applicant status updated successfully',
@@ -414,7 +427,6 @@ class ApplicantController extends Controller
         $stats = [
             'total_applicants' => Applicant::count(),
             'new_applicants' => Applicant::where('status', 'New Applicant')->count(),
-            'in_screening' => Applicant::where('status', 'Screening')->count(),
             'interviews_scheduled' => Applicant::where('status', 'Interview')->count(),
             'offers_made' => Applicant::where('status', 'Offer')->count(),
             'hired' => Applicant::where('status', 'Hired')->count(),
@@ -425,5 +437,55 @@ class ApplicantController extends Controller
         ];
 
         return response()->json($stats);
+    }
+
+    protected function sendApplicationReceivedEmail(Applicant $applicant): void
+    {
+        try {
+            Mail::to($applicant->email)->send(new ApplicantApplicationReceived($applicant));
+        } catch (\Throwable $exception) {
+            Log::error('Failed to send application received email', [
+                'applicant_id' => $applicant->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    protected function notifyHrOfNewApplicant(Applicant $applicant): void
+    {
+        $hrUsers = User::where('role', 'HR_PERSONNEL')->get(['id', 'first_name', 'last_name']);
+
+        foreach ($hrUsers as $hrUser) {
+            try {
+                Notification::create([
+                    'user_id' => $hrUser->id,
+                    'type' => 'recruitment',
+                    'title' => 'New applicant received',
+                    'message' => sprintf('%s has submitted a new application.', $applicant->full_name),
+                    'data' => [
+                        'applicant_id' => $applicant->id,
+                        'status' => $applicant->status,
+                    ],
+                ]);
+            } catch (\Throwable $exception) {
+                Log::error('Failed to create HR notification for applicant', [
+                    'applicant_id' => $applicant->id,
+                    'hr_user_id' => $hrUser->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    protected function sendApplicantStatusUpdatedEmail(Applicant $applicant): void
+    {
+        try {
+            Mail::to($applicant->email)->send(new ApplicantStatusUpdated($applicant));
+        } catch (\Throwable $exception) {
+            Log::error('Failed to send applicant status update email', [
+                'applicant_id' => $applicant->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

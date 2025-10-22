@@ -1,22 +1,29 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { subDays, startOfYear } from 'date-fns';
-import { useLeaderboardAnalytics } from '../../hooks/useLeaderboardAnalytics';
 import AnalyticsStatCard from './AnalyticsStatCard';
 import LeaderboardCard from './LeaderboardCard';
 import './LeaderboardsPage.css';
-import { employeeAPI, positionAPI, scheduleAPI, leaveAPI, performanceAPI } from "../../services/api";
-import attendanceAPI from "../../services/attendanceAPI";
+import { leaderboardAPI } from '../../services/api';
+import placeholderAvatar from '../../assets/placeholder-profile.jpg';
+
+const createDefaultSummary = () => ({
+  totalPresentDays: 0,
+  totalAbsences: 0,
+  totalLates: 0,
+  totalOvertime: 0,
+  totalLeaveDays: 0,
+});
+
+const createDefaultLeaderboards = () => ({
+  overall: [],
+  teamLeader: [],
+  presence: [],
+  tardiness: [],
+  overtime: [],
+  leave: [],
+});
 
 const LeaderboardsPage = () => {
-  // Data state
-  const [employees, setEmployees] = useState([]);
-  const [positions, setPositions] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-  const [attendanceLogs, setAttendanceLogs] = useState([]);
-  const [leaveRequests, setLeaveRequests] = useState([]);
-  const [evaluations, setEvaluations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // Filter state
   const [startDate, setStartDate] = useState(subDays(new Date(), 89).toISOString().split('T')[0]);
@@ -34,111 +41,57 @@ const LeaderboardsPage = () => {
   const [overtimeSort, setOvertimeSort] = useState('most');
   const [leaveSort, setLeaveSort] = useState('most');
 
-  // Fetch data on component mount
+  const [summaryStats, setSummaryStats] = useState(createDefaultSummary());
+  const [leaderboards, setLeaderboards] = useState(createDefaultLeaderboards());
+  const [positions, setPositions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchLeaderboardData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await leaderboardAPI.getAll({
+        start_date: startDate,
+        end_date: endDate,
+        position: positionFilter || undefined,
+      });
+
+      const data = response.data || {};
+      const summary = data.summary ? { ...createDefaultSummary(), ...data.summary } : createDefaultSummary();
+      const boards = data.leaderboards ? { ...createDefaultLeaderboards(), ...data.leaderboards } : createDefaultLeaderboards();
+      const fetchedPositions = data.filters?.positions || [];
+
+      setSummaryStats(summary);
+      setLeaderboards(boards);
+      setPositions(fetchedPositions);
+    } catch (err) {
+      console.error('Failed to load leaderboard data:', err);
+      setError('Failed to load leaderboard data. Please try again.');
+      setSummaryStats(createDefaultSummary());
+      setLeaderboards(createDefaultLeaderboards());
+      setPositions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [startDate, endDate, positionFilter]);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Fetch all required data
-        const [
-          employeesResponse, 
-          positionsResponse, 
-          schedulesResponse, 
-          attendanceResponse, 
-          leaveResponse, 
-          evaluationsResponse
-        ] = await Promise.all([
-          employeeAPI.getAll(),
-          positionAPI.getAll(),
-          scheduleAPI.getAll(),
-          attendanceAPI.getAll(),
-          leaveAPI.getAll(),
-          performanceAPI.getAll()
-        ]);
-        
-        // Set employees data
-        setEmployees(employeesResponse.data || []);
-        
-        // Set positions data
-        setPositions(positionsResponse.data || []);
-        
-        // Transform schedule data to match expected format
-        const scheduleData = schedulesResponse.data;
-        if (scheduleData && scheduleData.schedules) {
-          const transformedSchedules = [];
-          scheduleData.schedules.forEach(schedule => {
-            schedule.assignments.forEach(assignment => {
-              transformedSchedules.push({
-                scheduleId: assignment.id,
-                empId: assignment.employee_id,
-                date: schedule.date,
-                shift: `${assignment.start_time} - ${assignment.end_time}`,
-                name: schedule.name
-              });
-            });
-          });
-          setSchedules(transformedSchedules);
-        } else {
-          setSchedules([]);
-        }
-        
-        // Set attendance logs data
-        setAttendanceLogs(attendanceResponse.data || []);
-        
-        // Set leave requests data
-        setLeaveRequests(leaveResponse.data || []);
-        
-        // Set evaluations data
-        setEvaluations(evaluationsResponse.data || []);
-        
-      } catch (error) {
-        console.error('Error fetching leaderboard data:', error);
-        setError('Failed to load leaderboard data. Please try again.');
-        // Set default empty arrays to prevent undefined errors
-        setEmployees([]);
-        setPositions([]);
-        setSchedules([]);
-        setAttendanceLogs([]);
-        setLeaveRequests([]);
-        setEvaluations([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Create props object for the hook
-  const propsData = useMemo(() => ({
-    employees,
-    positions,
-    schedules,
-    attendanceLogs,
-    leaveRequests,
-    evaluations
-  }), [employees, positions, schedules, attendanceLogs, leaveRequests, evaluations]);
-
-  // Note: searchTerm is NOT passed to the hook anymore.
-  const {
-    sortedByOverallScore,
-    sortedByTeamScore,
-    sortedByPresence,
-    sortedByLates,
-    sortedByLeaveDays,
-    sortedByOvertime,
-    summaryStats,
-    isLoading: analyticsLoading,
-  } = useLeaderboardAnalytics(propsData, { startDate, endDate, positionFilter });
+    fetchLeaderboardData();
+  }, [fetchLeaderboardData]);
 
   // --- Client-side search and slicing logic ---
-  const processLeaderboardData = useCallback((fullData, sortDirection) => {
+  const processLeaderboardData = useCallback((fullData = [], sortDirection) => {
+    const normalizedData = fullData.map(item => ({
+      ...item,
+      imageUrl: item.avatarUrl || item.imageUrl || placeholderAvatar,
+    }));
+
     // 1. Determine sort order based on the toggle state
     const sortedData = (sortDirection === 'highest' || sortDirection === 'most')
-      ? fullData
-      : [...fullData].reverse();
+      ? normalizedData
+      : [...normalizedData].reverse();
 
     // 2. If there's a search term, find the single matching employee
     if (searchTerm) {
@@ -157,14 +110,17 @@ const LeaderboardsPage = () => {
     return sortedData.slice(0, displayLimit === Infinity ? sortedData.length : displayLimit);
   }, [searchTerm, displayLimit]);
 
-  const overallLeaderboardData = useMemo(() => processLeaderboardData(sortedByOverallScore, overallSort), [processLeaderboardData, sortedByOverallScore, overallSort]);
-  const teamLeaderLeaderboardData = useMemo(() => processLeaderboardData(sortedByTeamScore, teamLeaderSort), [processLeaderboardData, sortedByTeamScore, teamLeaderSort]);
-  const presenceData = useMemo(() => processLeaderboardData(sortedByPresence, presenceSort), [processLeaderboardData, sortedByPresence, presenceSort]);
-  const tardinessData = useMemo(() => processLeaderboardData(sortedByLates, tardinessSort), [processLeaderboardData, sortedByLates, tardinessSort]);
-  const overtimeData = useMemo(() => processLeaderboardData(sortedByOvertime, overtimeSort), [processLeaderboardData, sortedByOvertime, overtimeSort]);
-  const leaveData = useMemo(() => processLeaderboardData(sortedByLeaveDays, leaveSort), [processLeaderboardData, sortedByLeaveDays, leaveSort]);
+  const overallLeaderboardData = useMemo(() => processLeaderboardData(leaderboards.overall, overallSort), [processLeaderboardData, leaderboards.overall, overallSort]);
+  const teamLeaderLeaderboardData = useMemo(() => processLeaderboardData(leaderboards.teamLeader, teamLeaderSort), [processLeaderboardData, leaderboards.teamLeader, teamLeaderSort]);
+  const presenceData = useMemo(() => processLeaderboardData(leaderboards.presence, presenceSort), [processLeaderboardData, leaderboards.presence, presenceSort]);
+  const tardinessData = useMemo(() => processLeaderboardData(leaderboards.tardiness, tardinessSort), [processLeaderboardData, leaderboards.tardiness, tardinessSort]);
+  const overtimeData = useMemo(() => processLeaderboardData(leaderboards.overtime, overtimeSort), [processLeaderboardData, leaderboards.overtime, overtimeSort]);
+  const leaveData = useMemo(() => processLeaderboardData(leaderboards.leave, leaveSort), [processLeaderboardData, leaderboards.leave, leaveSort]);
 
-  const uniquePositions = ['All Positions', ...new Set(positions.map(p => p.title).sort())];
+  const uniquePositions = useMemo(() => {
+    const names = positions.map(pos => pos.name).filter(Boolean);
+    return ['All Positions', ...Array.from(new Set(names)).sort()];
+  }, [positions]);
 
   // --- Handlers ---
   const handleDateChange = useCallback((date, type) => {
@@ -202,26 +158,25 @@ const LeaderboardsPage = () => {
     setDisplayLimit(limit);
   }, []);
 
-  if (loading || analyticsLoading) {
+  if (isLoading) {
     return (
-      <div className="text-center p-5">
-        <div className="spinner-border text-success" role="status">
-          <span className="visually-hidden">Loading...</span>
+        <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
+            <div className="spinner-border text-success" role="status">
+                <span className="visually-hidden">Loading...</span>
+            </div>
         </div>
-        <p className="mt-3">Loading leaderboard data...</p>
-      </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center p-5">
+      <div className="container-fluid p-0 page-module-container">
         <div className="alert alert-danger" role="alert">
-          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          <i className="bi bi-exclamation-triangle me-2"></i>
           {error}
         </div>
-        <button className="btn btn-primary" onClick={() => window.location.reload()}>
-          Retry
+        <button className="btn btn-primary" onClick={fetchLeaderboardData}>
+          <i className="bi bi-arrow-repeat me-2"></i>Retry
         </button>
       </div>
     );
@@ -291,11 +246,11 @@ const LeaderboardsPage = () => {
 
         <div className="leaderboard-grid-span-4">
             <div className="dashboard-stats-container">
-                <AnalyticsStatCard title="Total Present Days" value={summaryStats.totalPresentDays} unit="days" icon="bi-calendar-check" iconClass="icon-present" />
-                <AnalyticsStatCard title="Total Absences" value={summaryStats.totalAbsences} unit="days" icon="bi-calendar-x" iconClass="icon-pending" />
-                <AnalyticsStatCard title="Total Tardiness" value={summaryStats.totalLates} unit="incidents" icon="bi-alarm" iconClass="icon-pending" />
-                <AnalyticsStatCard title="Total Leave Days" value={summaryStats.totalLeaveDays} unit="days" icon="bi-person-walking" iconClass="icon-on-leave" />
-                <AnalyticsStatCard title="Total Overtime" value={summaryStats.totalOvertime.toFixed(1)} unit="hrs" icon="bi-clock-history" iconClass="icon-on-leave" />
+                <AnalyticsStatCard title="Total Present Days" value={Number(summaryStats.totalPresentDays || 0)} unit="days" icon="bi-calendar-check" iconClass="icon-present" />
+                <AnalyticsStatCard title="Total Absences" value={Number(summaryStats.totalAbsences || 0)} unit="days" icon="bi-calendar-x" iconClass="icon-pending" />
+                <AnalyticsStatCard title="Total Tardiness" value={Number(summaryStats.totalLates || 0)} unit="incidents" icon="bi-alarm" iconClass="icon-pending" />
+                <AnalyticsStatCard title="Total Leave Days" value={Number(summaryStats.totalLeaveDays || 0)} unit="days" icon="bi-person-walking" iconClass="icon-on-leave" />
+                <AnalyticsStatCard title="Total Overtime" value={Number(summaryStats.totalOvertime || 0).toFixed(1)} unit="hrs" icon="bi-clock-history" iconClass="icon-on-leave" />
             </div>
         </div>
         
@@ -305,7 +260,7 @@ const LeaderboardsPage = () => {
                 icon={overallSort === 'highest' ? "bi-trophy-fill" : "bi-graph-down-arrow"}
                 data={overallLeaderboardData}
                 valueKey="overallScore"
-                valueFormatter={(score) => `${(score || 0).toFixed(1)}%`}
+                valueFormatter={(score) => `${score.toFixed(1)}%`}
                 rankOneLabel={overallSort === 'highest' ? "Best Employee" : "Lowest Score"}
                 isNegativeMetric={overallSort === 'lowest'}
                 actions={( <a href="#" className="leaderboard-sort-toggle" onClick={(e) => { e.preventDefault(); setOverallSort(prev => prev === 'highest' ? 'lowest' : 'highest'); }}> Sort by {overallSort === 'highest' ? 'Lowest Score' : 'Highest Score'} <i className="bi bi-arrow-repeat"></i></a> )}
@@ -317,8 +272,8 @@ const LeaderboardsPage = () => {
                 title="Team Leader Leaderboard"
                 icon={teamLeaderSort === 'highest' ? "bi-person-workspace" : "bi-people-fill"}
                 data={teamLeaderLeaderboardData}
-                valueKey="overallScore"
-                valueFormatter={(score) => `${(score || 0).toFixed(1)}%`}
+                valueKey="averageTeamScore"
+                valueFormatter={(score) => `${score.toFixed(1)}%`}
                 rankOneLabel={teamLeaderSort === 'highest' ? "Best Leader" : "Lowest Team Leader Score"}
                 isNegativeMetric={teamLeaderSort === 'lowest'}
                 actions={( <a href="#" className="leaderboard-sort-toggle" onClick={(e) => { e.preventDefault(); setTeamLeaderSort(prev => prev === 'highest' ? 'lowest' : 'highest'); }}> Sort by {teamLeaderSort === 'highest' ? 'Lowest Score' : 'Highest Score'} <i className="bi bi-arrow-repeat"></i></a> )}
@@ -359,7 +314,7 @@ const LeaderboardsPage = () => {
                 icon="bi-stopwatch-fill"
                 data={overtimeData}
                 valueKey="overtimeHours"
-                valueFormatter={(val) => `${(val || 0).toFixed(2)} hrs`}
+                valueFormatter={(val) => `${val.toFixed(2)} hrs`}
                 valueBar={false}
                 rankOneLabel={overtimeSort === 'most' ? 'Most Overtime' : 'Least Overtime'}
                 isNegativeMetric={overtimeSort === 'least'}

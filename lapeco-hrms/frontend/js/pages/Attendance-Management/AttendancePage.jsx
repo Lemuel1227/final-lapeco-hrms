@@ -25,12 +25,20 @@ const AttendancePage = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
   const [employeeDateFilter, setEmployeeDateFilter] = useState({ start: '', end: '' });
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState('');
 
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAttendanceRecord, setEditingAttendanceRecord] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingDate, setDeletingDate] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // CSV Import state
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importData, setImportData] = useState([]);
+  const [validatedImportData, setValidatedImportData] = useState([]);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Toast notification state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -45,6 +53,7 @@ const AttendancePage = () => {
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const fileInputRef = useRef(null);
+  const csvFileInputRef = useRef(null);
 
   // Fetch data based on active view
   useEffect(() => {
@@ -240,14 +249,47 @@ const AttendancePage = () => {
         });
       }
       
+      // Apply status filter if provided
+      if (employeeStatusFilter) {
+        filteredRecords = filteredRecords.filter(record => record.status === employeeStatusFilter);
+      }
+      
       // Sort by date descending
       const sortedRecords = filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
       
-      // Calculate stats
-      const totalScheduled = sortedRecords.length;
-      const totalPresent = sortedRecords.filter(r => r.status === 'Present').length;
-      const totalLate = sortedRecords.filter(r => r.status === 'Late').length;
-      const totalAbsent = sortedRecords.filter(r => r.status === 'Absent').length;
+      // Calculate stats from all records (before status filter for accurate percentages)
+      const allRecords = attendanceLogs.filter(log => log.empId === selectedEmployee.id);
+      let statsRecords = allRecords;
+      
+      // Apply date filter to stats records if provided
+      if (employeeDateFilter.start || employeeDateFilter.end) {
+        statsRecords = allRecords.filter(record => {
+          const recordDate = new Date(record.date);
+          recordDate.setHours(0, 0, 0, 0);
+          
+          let matchesStart = true;
+          let matchesEnd = true;
+          
+          if (employeeDateFilter.start) {
+            const startDate = new Date(employeeDateFilter.start);
+            startDate.setHours(0, 0, 0, 0);
+            matchesStart = recordDate >= startDate;
+          }
+          
+          if (employeeDateFilter.end) {
+            const endDate = new Date(employeeDateFilter.end);
+            endDate.setHours(0, 0, 0, 0);
+            matchesEnd = recordDate <= endDate;
+          }
+          
+          return matchesStart && matchesEnd;
+        });
+      }
+      
+      const totalScheduled = statsRecords.length;
+      const totalPresent = statsRecords.filter(r => r.status === 'Present').length;
+      const totalLate = statsRecords.filter(r => r.status === 'Late').length;
+      const totalAbsent = statsRecords.filter(r => r.status === 'Absent').length;
       
       const presentPercentage = totalScheduled > 0 ? Math.round((totalPresent / totalScheduled) * 100) : 0;
       const latePercentage = totalScheduled > 0 ? Math.round((totalLate / totalScheduled) * 100) : 0;
@@ -265,7 +307,7 @@ const AttendancePage = () => {
           absentPercentage
         }
       };
-  }, [selectedEmployee, attendanceLogs, employeeDateFilter]);
+  }, [selectedEmployee, attendanceLogs, employeeDateFilter, employeeStatusFilter]);
 
   const handleRequestSort = (key) => {
     let direction = 'ascending';
@@ -277,6 +319,10 @@ const AttendancePage = () => {
 
   const handleStatusFilterClick = (status) => {
     setStatusFilter(statusFilter === status ? '' : status);
+  };
+
+  const handleEmployeeStatusFilterClick = (status) => {
+    setEmployeeStatusFilter(employeeStatusFilter === status ? '' : status);
   };
 
   const getSortIcon = (key) => {
@@ -296,8 +342,9 @@ const AttendancePage = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deletingDate) return;
+    if (!deletingDate || isDeleting) return;
     
+    setIsDeleting(true);
     try {
       // First, fetch all attendance records for the specific date to get the schedule ID
       const dailyResponse = await attendanceAPI.getDaily({ date: deletingDate });
@@ -349,12 +396,14 @@ const AttendancePage = () => {
         type: 'error'
       });
     } finally {
+      setIsDeleting(false);
       setShowDeleteConfirm(false);
       setDeletingDate(null);
     }
   };
 
   const handleCancelDelete = () => {
+    setIsDeleting(false);
     setShowDeleteConfirm(false);
     setDeletingDate(null);
   };
@@ -386,6 +435,7 @@ const AttendancePage = () => {
       setEmployeesList([]);
       setSelectedEmployee(null);
       setAttendanceLogs([]);
+      setEmployeeStatusFilter('');
     }
     
     // Reset date to today when switching to daily view
@@ -635,8 +685,16 @@ const AttendancePage = () => {
       <header className="page-header attendance-page-header d-flex justify-content-between align-items-md-center p-3">
         <h1 className="page-main-title m-0">Attendance Management</h1>
         <div className="d-flex align-items-center gap-2">
-            <input type="file" ref={fileInputRef} onChange={handleImport} className="d-none" accept=".xlsx, .xls, .csv" />
-            <button className="btn btn-outline-secondary" onClick={handleImportClick}><i className="bi bi-upload me-2"></i>Import</button>
+            <input type="file" ref={fileInputRef} onChange={handleImport} className="d-none" accept=".xlsx, .xls" />
+            <div className="btn-group">
+              <button 
+                className="btn btn-outline-secondary" 
+                onClick={handleImportClick}
+                title="Import Excel files (.xlsx, .xls) - Direct import for current date"
+              >
+                <i className="bi bi-file-earmark me-2"></i>Import
+              </button>
+            </div>
             <button className="btn btn-outline-secondary" onClick={handleExport} disabled={activeView !== 'daily' || !sortedAndFilteredList || sortedAndFilteredList.length === 0}><i className="bi bi-download me-2"></i>Export</button>
             <button className="btn btn-outline-secondary" onClick={handleGenerateReport} disabled={activeView !== 'daily' || !sortedAndFilteredList || sortedAndFilteredList.length === 0}>
                 <i className="bi bi-file-earmark-text-fill me-2"></i>Generate Report
@@ -689,6 +747,8 @@ const AttendancePage = () => {
             setEmployeeSearchTerm={setEmployeeSearchTerm}
             filteredEmployeesForSelection={filteredEmployeesForSelection}
             onEmployeeSelect={handleEmployeeSelect}
+            employeeStatusFilter={employeeStatusFilter}
+            handleEmployeeStatusFilterClick={handleEmployeeStatusFilterClick}
           />
         )}
         
@@ -743,6 +803,16 @@ const AttendancePage = () => {
 
       {showEditModal && ( <EditAttendanceModal show={showEditModal} onClose={handleCloseEditModal} onSave={handleSaveEditedTime} attendanceRecord={editingAttendanceRecord}/> )}
       
+      {showImportPreview && (
+        <ImportPreviewModal
+          show={showImportPreview}
+          onClose={() => setShowImportPreview(false)}
+          importData={validatedImportData}
+          onConfirm={handleConfirmImport}
+          isLoading={isImporting}
+        />
+      )}
+      
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
@@ -761,8 +831,17 @@ const AttendancePage = () => {
                 <p className="text-muted">This action cannot be undone.</p>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={handleCancelDelete}>Cancel</button>
-                <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>Delete</button>
+                <button type="button" className="btn btn-secondary" onClick={handleCancelDelete} disabled={isDeleting}>Cancel</button>
+                <button type="button" className="btn btn-danger" onClick={handleConfirmDelete} disabled={isDeleting}>
+                  {isDeleting ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </button>
               </div>
             </div>
           </div>

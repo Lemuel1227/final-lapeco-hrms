@@ -46,7 +46,8 @@ class PerformanceEvaluatorResponse extends Model
         'personality',
         'appearance',
         'work_habits',
-        'remarks',
+        'evaluators_comment_summary',
+        'evaluators_comment_development',
     ];
 
     protected $casts = [

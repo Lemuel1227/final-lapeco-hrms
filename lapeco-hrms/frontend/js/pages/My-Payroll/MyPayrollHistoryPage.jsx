@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { addDays } from 'date-fns';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
-import useReportGenerator from '../../../hooks/useReportGenerator';
+import useReportGenerator from '../../hooks/useReportGenerator';
 import './MyPayrollPage.css';
 
 const formatCurrency = (value) => Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

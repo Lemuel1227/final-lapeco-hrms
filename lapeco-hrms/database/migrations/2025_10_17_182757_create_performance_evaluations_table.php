@@ -17,7 +17,9 @@ return new class extends Migration
             $table->date('evaluation_start');
             $table->date('evaluation_end');
             $table->string('status')->default('scheduled');
-            $table->text('description')->nullable();
+            $table->date('open_date')->nullable();
+            $table->date('close_date')->nullable();
+            $table->decimal('overall_score', 5, 2)->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
@@ -55,7 +57,8 @@ return new class extends Migration
             $table->unsignedTinyInteger('personality');
             $table->unsignedTinyInteger('appearance');
             $table->unsignedTinyInteger('work_habits');
-            $table->text('remarks')->nullable();
+            $table->text('evaluators_comment_summary')->nullable();
+            $table->text('evaluators_comment_development')->nullable();
             $table->timestamps();
 
             // Use a shorter explicit name to avoid MySQL 64-char identifier limit

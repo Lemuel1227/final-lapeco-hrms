@@ -9,7 +9,7 @@ const ProgramDetailHeader = ({ program, enrolledCount, onGenerateReport, onEnrol
 
   return (
     <header className="program-detail-header">
-      <Link to="/dashboard/training" className="btn btn-light me-3 back-button mb-3">
+      <Link to="/dashboard/training" className="btn btn-light me-3 btn-success back-button mb-3">
         <i className="bi bi-arrow-left"></i> Back to Programs
       </Link>
       <div className="row align-items-start">

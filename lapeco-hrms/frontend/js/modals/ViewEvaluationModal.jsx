@@ -1,185 +1,253 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
 import ScoreDonutChart from '../pages/Performance-Management/ScoreDonutChart';
 import StarRating from '../pages/Performance-Management/StarRating';
+import ScoreIndicator from '../pages/Performance-Management/ScoreIndicator';
 import './ViewEvaluationModal.css';
 
-const EvaluationItem = ({ name, comment, score }) => (
-  <div className="evaluation-item">
-    <div className="evaluation-item-info">
-      <p className="name mb-0">{name}</p>
-      {comment && <p className="comment mb-0">"{comment}"</p>}
-    </div>
-    <div className="evaluation-item-score">
-      <StarRating score={score || 0} onRate={() => {}} />
-    </div>
-  </div>
-);
+const ViewEvaluationModal = ({
+    show,
+    onClose,
+    evaluationContext, 
+    employeeHistoryContext,
+    employees,
+    positions,
+    evaluations,
+    evaluationFactors
+}) => {
+    const [view, setView] = useState('list'); // 'history', 'list', or 'detail'
+    const [selectedEvaluation, setSelectedEvaluation] = useState(null);
 
-const getIconForFactorType = (type) => {
-  switch (type) {
-    case 'kpi_section':
-      return 'bi bi-bullseye';
-    case 'rating_scale':
-      return 'bi bi-check2-circle';
-    case 'textarea':
-      return 'bi bi-chat-left-text-fill';
-    default:
-      return 'bi bi-file-earmark-text';
-  }
-};
-
-const ViewEvaluationModal = ({ show, onClose, evaluation, employee, position, kras, kpis, evaluationFactors }) => {
-  if (!show || !evaluation || !evaluationFactors || !employee) return null;
-
-  const getFactorData = (factorId) => evaluation.factorScores[factorId] || {};
-
-  const managerSummaryFactor = evaluationFactors.find(f => f.id === 'factor_evaluator_summary');
-  const developmentAreaFactor = evaluationFactors.find(f => f.id === 'factor_development_areas');
-  const textareaFactors = evaluationFactors.filter(f => f.type === 'textarea' && f.id !== 'factor_evaluator_summary' && f.id !== 'factor_development_areas');
-
-  const sectionAverages = useMemo(() => {
-    const averages = {};
-    evaluationFactors.forEach(factor => {
-      if (factor.type === 'rating_scale' && factor.id !== 'factor_potential' && factor.id !== 'factor_engagement') { // Exclude new sections for avg calculation if desired, or include them
-        let totalScore = 0;
-        let count = 0;
-        factor.items.forEach(item => {
-          totalScore += getFactorData(item.id).score || 0;
-          count++;
-        });
-        averages[factor.id] = count > 0 ? (totalScore / count).toFixed(1) : 'N/A';
-      }
-    });
+    const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
+    const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);
     
-    const relevantKpis = kpis.filter(kpi => kpi.appliesToPositionIds?.includes(position?.id));
-    if(relevantKpis.length > 0) {
-        let totalKpiScore = 0;
-        relevantKpis.forEach(kpi => {
-            totalKpiScore += getFactorData(kpi.id).score || 0;
-        });
-        averages['factor_kpis'] = (totalKpiScore / relevantKpis.length).toFixed(1);
-    }
+    // Determine the primary context and subject employee
+    const primaryContext = useMemo(() => employeeHistoryContext || evaluationContext, [employeeHistoryContext, evaluationContext]);
+    const subjectEmployee = useMemo(() => primaryContext ? employeeMap.get(primaryContext.employeeId) : null, [primaryContext, employeeMap]);
+
+    // Initialize modal state based on the context provided
+    useEffect(() => {
+        if (show) {
+            setView(employeeHistoryContext ? 'history' : 'list');
+            setSelectedEvaluation(null);
+        }
+    }, [show, employeeHistoryContext]);
+
+    // Derived data for the 'history' view
+    const employeeHistory = useMemo(() => {
+        if (!employeeHistoryContext) return [];
+
+        const historyEntries = employeeHistoryContext.history || [];
+        if (!historyEntries.length) return [];
+
+        const groupedByPeriod = historyEntries.reduce((acc, ev) => {
+            const periodKey = `${ev.periodStart}_${ev.periodEnd}`;
+            if (!acc[periodKey]) {
+                acc[periodKey] = { periodStart: ev.periodStart, periodEnd: ev.periodEnd, evals: [] };
+            }
+            acc[periodKey].evals.push(ev);
+            return acc;
+        }, {});
+
+        return Object.values(groupedByPeriod).sort((a,b) => new Date(b.periodStart) - new Date(a.periodStart));
+    }, [employeeHistoryContext]);
+
+    // Derived data for the 'list' view
+    const { positionTitle, evaluatorList, currentPeriodContext } = useMemo(() => {
+        const baseContext = selectedEvaluation
+            || evaluationContext
+            || (employeeHistoryContext?.history?.[0] ?? null);
+
+        if (!baseContext || !subjectEmployee) {
+            return { positionTitle: '', evaluatorList: [], currentPeriodContext: null };
+        }
+
+        const title = positionMap.get(subjectEmployee.positionId) || 'Unassigned';
+        const sourceEvals = employeeHistoryContext ? employeeHistoryContext.history : evaluations;
+
+        const evaluationsForSubject = sourceEvals.filter(ev =>
+            ev.employeeId === baseContext.employeeId &&
+            ev.periodStart === baseContext.periodStart &&
+            ev.periodEnd === baseContext.periodEnd
+        );
+
+        const evaluatorEntries = evaluationsForSubject.length > 0
+            ? evaluationsForSubject.map(ev => ({
+                evaluator: ev.evaluatorId ? employeeMap.get(ev.evaluatorId) : null,
+                evaluation: ev,
+            }))
+            : [{ evaluator: baseContext.evaluatorId ? employeeMap.get(baseContext.evaluatorId) : null, evaluation: baseContext }];
+
+        return { positionTitle: title, evaluatorList: evaluatorEntries, currentPeriodContext: baseContext };
+    }, [selectedEvaluation, evaluationContext, employeeHistoryContext, evaluations, employeeMap, positionMap, subjectEmployee]);
+
+    if (!show || !subjectEmployee) return null;
+
+    const handleSelectPeriod = (period) => {
+        if (!employeeHistoryContext) return;
+        const entries = employeeHistoryContext.history.filter(ev =>
+            ev.employeeId === subjectEmployee.id &&
+            ev.periodStart === period.periodStart &&
+            ev.periodEnd === period.periodEnd
+        );
+
+        if (entries.length > 0) {
+            setSelectedEvaluation(entries[0]);
+            setView('list');
+        }
+    };
+
+    const handleViewDetails = (evaluation) => {
+        if (evaluation?.isPlaceholder) return;
+        setSelectedEvaluation(evaluation);
+        setView('detail');
+    };
     
-    return averages;
-  }, [evaluation, evaluationFactors, kpis, position, getFactorData]); // Ensure dependencies are correct
+    const handleBackToList = () => {
+        setView(employeeHistoryContext ? 'history' : 'list');
+        setSelectedEvaluation(null); // Clear detailed selection
+    };
+    
+    const handleBackToHistory = () => {
+        setView('history');
+        setSelectedEvaluation(null);
+    };
 
-  return (
-    <div className="modal fade show d-block view-evaluation-modal" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-      <div className="modal-dialog modal-dialog-centered modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <ScoreDonutChart score={evaluation.overallScore} />
-            <div className="header-info">
-              <h5 className="modal-title">{employee?.name}</h5>
-              <p className="text-muted mb-0">
-                {position?.title} | Period: {evaluation.periodStart} to {evaluation.periodEnd}
-              </p>
-            </div>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-
-          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-            
-            {managerSummaryFactor && (
-              <div className="card featured-summary-card mb-3">
-                <div className="card-header"><i className="bi bi-chat-left-quote-fill me-2"></i>{managerSummaryFactor.title}</div>
-                <div className="card-body">
-                  <p className="text-muted fst-italic mb-0">
-                    {getFactorData(managerSummaryFactor.id).value || "No summary provided."}
-                  </p>
+    // --- RENDER FUNCTIONS ---
+    const renderHistoryView = () => (
+        <>
+            <div className="modal-header"><h5 className="modal-title">Evaluation History for {subjectEmployee.name}</h5></div>
+            <div className="modal-body evaluator-list-body">
+                <p className="text-muted">Showing all evaluation periods for this employee. Select a period to view the evaluators.</p>
+                <div className="evaluator-list">
+                    {employeeHistory.map(period => {
+                        const responseCount = period.evals[0]?.responsesCount ?? period.evals.filter(ev => !ev.isPlaceholder).length;
+                        return (
+                        <div key={`${period.periodStart}-${period.periodEnd}`} className="evaluator-card period-card" onClick={() => handleSelectPeriod(period)}>
+                            <div className="evaluator-info">
+                                <i className="bi bi-calendar-range fs-4 text-primary"></i>
+                                <div>
+                                    <div className="evaluator-name">{period.periodStart} to {period.periodEnd}</div>
+                                    <div className="evaluator-position">{responseCount} submission(s)</div>
+                                </div>
+                            </div>
+                            <div className="evaluation-actions">
+                                <button className="btn btn-sm btn-outline-primary">View</button>
+                            </div>
+                        </div>
+                    );
+                    })}
                 </div>
-              </div>
-            )}
-            
-            <div className="accordion evaluation-accordion" id="evaluationDetailsAccordion">
-              {evaluationFactors.map((factor) => {
-                const collapseId = `collapse-${factor.id}`;
-                const avgScore = sectionAverages[factor.id];
-                const iconClass = getIconForFactorType(factor.type); 
-
-                // Render KPIs if they are relevant for this employee's position
-                if (factor.type === 'kpi_section') {
-                  const relevantKpis = kpis.filter(kpi => kpi.appliesToPositionIds?.includes(position?.id));
-                  if (relevantKpis.length === 0) return null; // Skip if no relevant KPIs
-                  
-                  return (
-                    <div className="accordion-item" key={factor.id}>
-                      <h2 className="accordion-header">
-                        <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target={`#${collapseId}`}>
-                          <span className="d-flex align-items-center"><i className={`${iconClass} me-2`}></i>{factor.title}</span>
-                          {avgScore !== 'N/A' && <span className="section-avg-score">Avg: {avgScore} / 5.0</span>}
-                        </button>
-                      </h2>
-                      <div id={collapseId} className="accordion-collapse collapse" data-bs-parent="#evaluationDetailsAccordion">
-                        <div className="accordion-body">
-                          {relevantKpis.map(kpi => (
-                             <EvaluationItem
-                                key={kpi.id}
-                                name={`${kpi.title} (${kpi.weight}%)`}
-                                score={getFactorData(kpi.id).score}
-                                comment={getFactorData(kpi.id).comments}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (factor.type === 'rating_scale') {
-                  return (
-                    <div className="accordion-item" key={factor.id}>
-                      <h2 className="accordion-header">
-                        <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target={`#${collapseId}`}>
-                           <span className="d-flex align-items-center"><i className={`${iconClass} me-2`}></i>{factor.title}</span>
-                           {avgScore !== 'N/A' && <span className="section-avg-score">Avg: {avgScore} / 5.0</span>}
-                        </button>
-                      </h2>
-                      <div id={collapseId} className="accordion-collapse collapse" data-bs-parent="#evaluationDetailsAccordion">
-                        <div className="accordion-body">
-                          {factor.items.map(item => (
-                             <EvaluationItem
-                                key={item.id}
-                                name={item.name}
-                                score={getFactorData(item.id).score}
-                                comment={getFactorData(item.id).comments}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (textareaFactors.some(f => f.id === factor.id)) {
-                  return (
-                     <div className="accordion-item" key={factor.id}>
-                        <h2 className="accordion-header">
-                           <button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target={`#${collapseId}`}>
-                              <span className="d-flex align-items-center"><i className={`${iconClass} me-2`}></i>{factor.title}</span>
-                           </button>
-                        </h2>
-                        <div id={collapseId} className="accordion-collapse collapse" data-bs-parent="#evaluationDetailsAccordion">
-                           <div className="accordion-body p-3">
-                               <p className="text-muted fst-italic mb-0">{getFactorData(factor.id).value || "N/A"}</p>
-                           </div>
-                        </div>
-                     </div>
-                  );
-                }
-
-                return null;
-              })}
             </div>
-          </div>
+        </>
+    );
 
-          <div className="modal-footer">
-            <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Close</button>
-          </div>
+    const renderListView = () => (
+        <>
+            <div className="modal-header">
+                {employeeHistoryContext && <button className="btn btn-sm btn-light me-2 back-to-list-btn" onClick={handleBackToHistory}><i className="bi bi-arrow-left"></i></button>}
+                <div className="header-info">
+                    <h5 className="modal-title">Evaluations for {subjectEmployee.name}</h5>
+                    <p className="text-muted mb-0">Period: {currentPeriodContext.periodStart} to {currentPeriodContext.periodEnd}</p>
+                </div>
+            </div>
+            <div className="modal-body evaluator-list-body">
+                {evaluatorList.length === 0 || evaluatorList.every(item => item.evaluation.isPlaceholder) ? (
+                    <div className="text-center text-muted">No evaluations submitted for this period yet.</div>
+                ) : (
+                    evaluatorList.map(({ evaluator, evaluation }) => (
+                        <div key={evaluation.id} className="evaluator-card">
+                            <div className="evaluator-info">
+                                {evaluator ? (
+                                    <>
+                                        <img src={evaluator.imageUrl} alt={evaluator.name} size="md" />
+                                        <div>
+                                            <div className="evaluator-name">{evaluator.name}</div>
+                                            <div className="evaluator-position">{positionMap.get(evaluator.positionId) || 'N/A'}</div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div>
+                                        <div className="evaluator-name">Pending evaluator submission</div>
+                                        <div className="evaluator-position text-muted">Awaiting response</div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="evaluation-summary">
+                                {typeof evaluation.overallScore === 'number'
+                                    ? <ScoreIndicator score={evaluation.overallScore} />
+                                    : <span className="text-muted">N/A</span>}
+                            </div>
+                            <div className="evaluation-actions">
+                                {!evaluation.isPlaceholder && (
+                                    <button className="btn btn-sm btn-outline-primary" onClick={() => handleViewDetails(evaluation)}>View Evaluation</button>
+                                )}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </>
+    );
+
+    const renderDetailView = () => {
+        const evaluator = employeeMap.get(selectedEvaluation.evaluatorId);
+        const criteria = evaluationFactors.filter(f => f.type === 'criterion');
+        const getFactorData = (factorId) => selectedEvaluation.factorScores[factorId] || {};
+
+        return (
+            <>
+                <div className="modal-header">
+                    <button className="btn btn-sm btn-light me-2 back-to-list-btn" onClick={handleBackToList}><i className="bi bi-arrow-left"></i></button>
+                    <ScoreDonutChart score={selectedEvaluation.overallScore} />
+                    <div className="header-info">
+                        <h5 className="modal-title">{subjectEmployee.name}</h5>
+                        <p className="text-muted mb-0">Period: {selectedEvaluation.periodStart} to {selectedEvaluation.periodEnd}</p>
+                        {evaluator && <div className="evaluator-info">Evaluated by: <strong>{evaluator.name}</strong></div>}
+                    </div>
+                </div>
+                <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+                    {criteria.map(criterion => (
+                        <div className="card mb-3" key={criterion.id}><div className="card-header fw-bold">{criterion.title}</div>
+                            <ul className="list-group list-group-flush">
+                                {criterion.items.map(item => {
+                                    const data = getFactorData(item.id);
+                                    return (
+                                    <li key={item.id} className="list-group-item">
+                                        <div className="evaluation-item">
+                                            <div className="evaluation-item-info"><p className="name mb-0">{item.title}</p>{data.comments && <p className="comment mb-0">"{data.comments}"</p>}</div>
+                                            <div className="evaluation-item-score"><StarRating score={data.score || 0} onRate={() => {}} /></div>
+                                        </div>
+                                    </li>
+                                    )
+                                })}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
+            </>
+        );
+    };
+
+    const renderContent = () => {
+        switch (view) {
+            case 'history': return renderHistoryView();
+            case 'list': return renderListView();
+            case 'detail': return renderDetailView();
+            default: return null;
+        }
+    };
+
+    return (
+        <div className="modal fade show d-block view-evaluation-modal" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+                <div className="modal-content">
+                    {renderContent()}
+                    <div className="modal-footer"><button type="button" className="btn btn-outline-secondary" onClick={onClose}>Close</button></div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default ViewEvaluationModal;

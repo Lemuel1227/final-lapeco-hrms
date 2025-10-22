@@ -29,33 +29,40 @@ class PerformanceController extends Controller
             return [
                 'id' => $period->id,
                 'name' => $period->name,
-                'evaluation_start' => $period->evaluation_start?->toDateString(),
-                'evaluation_end' => $period->evaluation_end?->toDateString(),
+                'evaluationStart' => $period->evaluation_start?->toDateString(),
+                'evaluationEnd' => $period->evaluation_end?->toDateString(),
+                'openDate' => $period->open_date?->toDateString(),
+                'closeDate' => $period->close_date?->toDateString(),
                 'status' => $period->status,
-                'description' => $period->description,
-                'created_by' => $period->creator?->only(['id', 'first_name', 'middle_name', 'last_name', 'email']),
-                'updated_by' => $period->updater?->only(['id', 'first_name', 'middle_name', 'last_name', 'email']),
-                'created_at' => $period->created_at?->toDateTimeString(),
-                'updated_at' => $period->updated_at?->toDateTimeString(),
+                'overallScore' => $period->overall_score ? (float) $period->overall_score : null,
+                'createdBy' => $period->creator?->only(['id', 'first_name', 'middle_name', 'last_name', 'email']),
+                'updatedBy' => $period->updater?->only(['id', 'first_name', 'middle_name', 'last_name', 'email']),
+                'createdAt' => $period->created_at?->toIso8601String(),
+                'updatedAt' => $period->updated_at?->toIso8601String(),
                 'evaluations' => $period->evaluations->map(function (PerformanceEvaluation $evaluation) {
                     return [
                         'id' => $evaluation->id,
+                        'periodId' => $evaluation->period_id,
+                        'employeeId' => $evaluation->employee_id,
                         'employee' => $evaluation->employee?->only(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'position_id']),
-                        'average_score' => $evaluation->average_score ? (float) $evaluation->average_score : null,
-                        'responses_count' => $evaluation->responses_count,
-                        'completed_at' => $evaluation->completed_at?->toDateTimeString(),
+                        'averageScore' => $evaluation->average_score ? (float) $evaluation->average_score : null,
+                        'responsesCount' => $evaluation->responses_count,
+                        'completedAt' => $evaluation->completed_at?->toIso8601String(),
                         'responses' => $evaluation->responses->map(function (PerformanceEvaluatorResponse $response) {
                             return [
                                 'id' => $response->id,
+                                'evaluationId' => $response->evaluation_id,
+                                'evaluatorId' => $response->evaluator_id,
                                 'evaluator' => $response->evaluator?->only(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'position_id']),
-                                'evaluated_on' => $response->evaluated_on?->toDateTimeString(),
+                                'evaluatedOn' => $response->evaluated_on?->toIso8601String(),
                                 'scores' => collect(PerformanceEvaluatorResponse::SCORE_FIELDS)
                                     ->mapWithKeys(fn ($field) => [$field => (int) $response->{$field}])
                                     ->all(),
-                                'overall_score' => $response->overall_score,
-                                'remarks' => $response->remarks,
-                                'created_at' => $response->created_at?->toDateTimeString(),
-                                'updated_at' => $response->updated_at?->toDateTimeString(),
+                                'overallScore' => $response->overall_score,
+                                'commentSummary' => $response->evaluators_comment_summary,
+                                'commentDevelopment' => $response->evaluators_comment_development,
+                                'createdAt' => $response->created_at?->toIso8601String(),
+                                'updatedAt' => $response->updated_at?->toIso8601String(),
                             ];
                         }),
                     ];
@@ -63,7 +70,116 @@ class PerformanceController extends Controller
             ];
         });
 
-        return response()->json($data);
+        return response()->json([
+            'evaluationPeriods' => $data,
+        ]);
+    }
+
+    /**
+     * Get optimized performance overview data for active employees
+     * Returns only employee name, position, and combined average score
+     */
+    public function overview(Request $request)
+    {
+        // Get all active employees with their position information
+        $activeEmployees = User::query()
+            ->whereNotIn('employment_status', ['terminated', 'resigned'])
+            ->with(['position:id,name'])
+            ->select('id', 'first_name', 'middle_name', 'last_name', 'position_id', 'image_url')
+            ->get();
+
+        // Get all evaluations with their average scores
+        $evaluations = PerformanceEvaluation::query()
+            ->select('employee_id', 'average_score')
+            ->whereNotNull('average_score')
+            ->get();
+
+        // Group evaluations by employee and calculate combined average
+        $employeeScores = $evaluations->groupBy('employee_id')
+            ->map(function ($employeeEvaluations) {
+                $validScores = $employeeEvaluations->pluck('average_score')->filter();
+                return $validScores->isNotEmpty() ? $validScores->avg() : null;
+            });
+
+        // Build the response data
+        $performanceOverview = $activeEmployees->map(function ($employee) use ($employeeScores) {
+            return [
+                'id' => $employee->id,
+                'name' => trim($employee->first_name . ' ' . ($employee->middle_name ?? '') . ' ' . $employee->last_name),
+                'position' => $employee->position?->name ?? 'Unassigned',
+                'combinedAverageScore' => $employeeScores->get($employee->id) ? round($employeeScores->get($employee->id), 2) : null,
+                'profilePictureUrl' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
+            ];
+        });
+
+        return response()->json([
+            'employees' => $performanceOverview,
+        ]);
+    }
+
+    /**
+     * Get evaluation history for a specific employee, including periods and response counts.
+     */
+    public function employeeHistory(Request $request, User $employee)
+    {
+        $employee->load(['position:id,name']);
+
+        $evaluations = PerformanceEvaluation::query()
+            ->with([
+                'period:id,name,evaluation_start,evaluation_end,status,open_date,close_date',
+                'responses' => function ($query) {
+                    $query->with([
+                        'evaluator:id,first_name,middle_name,last_name,email,role,position_id',
+                    ])->orderBy('evaluated_on');
+                },
+            ])
+            ->where('employee_id', $employee->id)
+            ->orderByDesc('id')
+            ->get();
+
+        $history = $evaluations->map(function (PerformanceEvaluation $evaluation) {
+            $period = $evaluation->period;
+
+            return [
+                'evaluationId' => $evaluation->id,
+                'periodId' => $evaluation->period_id,
+                'periodName' => $period?->name,
+                'periodStart' => $period?->evaluation_start?->toDateString(),
+                'periodEnd' => $period?->evaluation_end?->toDateString(),
+                'openDate' => $period?->open_date?->toDateString(),
+                'closeDate' => $period?->close_date?->toDateString(),
+                'status' => $period?->status,
+                'averageScore' => $evaluation->average_score ? (float) $evaluation->average_score : null,
+                'responsesCount' => $evaluation->responses_count ?? $evaluation->responses->count(),
+                'responses' => $evaluation->responses->map(function (PerformanceEvaluatorResponse $response) {
+                    return [
+                        'id' => $response->id,
+                        'evaluationId' => $response->evaluation_id,
+                        'evaluatorId' => $response->evaluator_id,
+                        'evaluator' => $response->evaluator?->only(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'position_id']),
+                        'evaluatedOn' => $response->evaluated_on?->toIso8601String(),
+                        'scores' => collect(PerformanceEvaluatorResponse::SCORE_FIELDS)
+                            ->mapWithKeys(fn ($field) => [$field => (int) $response->{$field}])
+                            ->all(),
+                        'overallScore' => $response->overall_score ? (float) $response->overall_score : null,
+                        'commentSummary' => $response->evaluators_comment_summary,
+                        'commentDevelopment' => $response->evaluators_comment_development,
+                        'createdAt' => $response->created_at?->toIso8601String(),
+                        'updatedAt' => $response->updated_at?->toIso8601String(),
+                    ];
+                })->values(),
+            ];
+        })->values();
+
+        return response()->json([
+            'employee' => [
+                'id' => $employee->id,
+                'name' => trim(collect([$employee->first_name, $employee->middle_name, $employee->last_name])->filter()->implode(' ')),
+                'position' => $employee->position?->name ?? 'Unassigned',
+                'profilePictureUrl' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
+            ],
+            'history' => $history,
+        ]);
     }
 
     public function storePeriod(Request $request)
@@ -75,9 +191,9 @@ class PerformanceController extends Controller
             'evaluation_start' => 'required|date',
             'evaluation_end' => 'required|date|after_or_equal:evaluation_start',
             'status' => 'nullable|string|in:scheduled,active,closed',
-            'description' => 'nullable|string',
-            'employee_ids' => 'nullable|array',
-            'employee_ids.*' => 'exists:users,id',
+            'open_date' => 'nullable|date',
+            'close_date' => 'nullable|date|after_or_equal:open_date',
+            'overall_score' => 'nullable|numeric|min:0',
         ]);
 
         return DB::transaction(function () use ($validated, $user) {
@@ -86,21 +202,14 @@ class PerformanceController extends Controller
                 'evaluation_start' => $validated['evaluation_start'],
                 'evaluation_end' => $validated['evaluation_end'],
                 'status' => $validated['status'] ?? 'scheduled',
-                'description' => $validated['description'] ?? null,
+                'open_date' => $validated['open_date'] ?? null,
+                'close_date' => $validated['close_date'] ?? null,
+                'overall_score' => $validated['overall_score'] ?? null,
                 'created_by' => $user?->id,
                 'updated_by' => $user?->id,
             ]);
 
-            $employees = collect($validated['employee_ids'] ?? [])
-                ->unique()
-                ->values();
-
-            $employees->each(function ($employeeId) use ($period) {
-                PerformanceEvaluation::firstOrCreate([
-                    'period_id' => $period->id,
-                    'employee_id' => $employeeId,
-                ]);
-            });
+            $this->seedEvaluationsForPeriod($period);
 
             return response()->json([
                 'message' => 'Evaluation period created successfully.',
@@ -118,7 +227,9 @@ class PerformanceController extends Controller
             'evaluation_start' => 'sometimes|date',
             'evaluation_end' => 'sometimes|date|after_or_equal:evaluation_start',
             'status' => 'sometimes|string|in:scheduled,active,closed',
-            'description' => 'nullable|string',
+            'open_date' => 'nullable|date',
+            'close_date' => 'nullable|date|after_or_equal:open_date',
+            'overall_score' => 'nullable|numeric|min:0',
         ]);
 
         if (isset($validated['evaluation_start']) && !isset($validated['evaluation_end'])) {
@@ -147,42 +258,42 @@ class PerformanceController extends Controller
         ]);
     }
 
-    public function assignEmployees(Request $request, PerformanceEvaluationPeriod $period)
-    {
-        $validated = $request->validate([
-            'employee_ids' => 'required|array|min:1',
-            'employee_ids.*' => 'exists:users,id',
-        ]);
-
-        return DB::transaction(function () use ($validated, $period) {
-            $created = collect([]);
-            collect($validated['employee_ids'])
-                ->unique()
-                ->each(function ($employeeId) use ($period, $created) {
-                    $evaluation = PerformanceEvaluation::firstOrCreate([
-                        'period_id' => $period->id,
-                        'employee_id' => $employeeId,
-                    ]);
-                    $created->push($evaluation);
-                });
-
-            return response()->json([
-                'message' => 'Employees assigned to evaluation period successfully.',
-                'evaluations' => $period->evaluations()->with('employee')->get(),
-            ], 201);
-        });
-    }
-
     public function storeEvaluationResponse(Request $request, PerformanceEvaluation $evaluation)
     {
         $user = $request->user();
         $employee = $evaluation->employee;
+        $period = $evaluation->period;
 
         if (!$employee) {
             return response()->json([
                 'message' => 'The employee being evaluated could not be found.',
                 'error_type' => 'not_found',
             ], 404);
+        }
+
+        if (!$period) {
+            return response()->json([
+                'message' => 'The evaluation period could not be found.',
+                'error_type' => 'not_found',
+            ], 404);
+        }
+
+        $now = now();
+        $opensAt = $period->open_date?->startOfDay();
+        $closesAt = $period->close_date?->endOfDay();
+
+        if ($opensAt && $now->lt($opensAt)) {
+            return response()->json([
+                'message' => 'Evaluations are not yet open for this period.',
+                'error_type' => 'evaluation_window_closed',
+            ], 403);
+        }
+
+        if ($closesAt && $now->gt($closesAt)) {
+            return response()->json([
+                'message' => 'This evaluation period is closed for submissions.',
+                'error_type' => 'evaluation_window_closed',
+            ], 403);
         }
 
         if (!$this->canEvaluate($user, $employee)) {
@@ -197,7 +308,8 @@ class PerformanceController extends Controller
             ->all();
 
         $validated = $request->validate(array_merge($scoreRules, [
-            'remarks' => 'nullable|string',
+            'evaluators_comment_summary' => 'nullable|string',
+            'evaluators_comment_development' => 'nullable|string',
         ]));
 
         return DB::transaction(function () use ($evaluation, $user, $validated) {
@@ -228,12 +340,38 @@ class PerformanceController extends Controller
     {
         $user = $request->user();
         $evaluation = $response->evaluation;
+        $period = $evaluation?->period;
 
         if (!$evaluation) {
             return response()->json([
                 'message' => 'Evaluation not found.',
                 'error_type' => 'not_found',
             ], 404);
+        }
+
+        if (!$period) {
+            return response()->json([
+                'message' => 'The evaluation period could not be found.',
+                'error_type' => 'not_found',
+            ], 404);
+        }
+
+        $now = now();
+        $opensAt = $period->open_date?->startOfDay();
+        $closesAt = $period->close_date?->endOfDay();
+
+        if ($opensAt && $now->lt($opensAt)) {
+            return response()->json([
+                'message' => 'Evaluations are not yet open for this period.',
+                'error_type' => 'evaluation_window_closed',
+            ], 403);
+        }
+
+        if ($closesAt && $now->gt($closesAt)) {
+            return response()->json([
+                'message' => 'This evaluation period is closed for submissions.',
+                'error_type' => 'evaluation_window_closed',
+            ], 403);
         }
 
         if ($response->evaluator_id !== $user->id && $user->role !== 'HR_PERSONNEL') {
@@ -248,7 +386,8 @@ class PerformanceController extends Controller
             ->all();
 
         $validated = $request->validate(array_merge($scoreRules, [
-            'remarks' => 'nullable|string',
+            'evaluators_comment_summary' => 'nullable|string',
+            'evaluators_comment_development' => 'nullable|string',
         ]));
 
         $response->fill($validated);
@@ -277,6 +416,53 @@ class PerformanceController extends Controller
             'responses_count' => $responses->count(),
             'completed_at' => $responses->isNotEmpty() ? now() : null,
         ]);
+    }
+
+    private function seedEvaluationsForPeriod(PerformanceEvaluationPeriod $period): void
+    {
+        $activeEmployees = User::query()
+            ->whereNotIn('employment_status', ['terminated', 'resigned'])
+            ->get(['id', 'role', 'position_id']);
+
+        if ($activeEmployees->isEmpty()) {
+            return;
+        }
+
+        $leadersByPosition = $activeEmployees
+            ->where('role', 'TEAM_LEADER')
+            ->groupBy('position_id');
+
+        $employeesByPosition = $activeEmployees
+            ->where('role', 'REGULAR_EMPLOYEE')
+            ->groupBy('position_id');
+
+        // Leaders evaluating members
+        foreach ($leadersByPosition as $positionId => $leaders) {
+            $members = $employeesByPosition->get($positionId, collect());
+
+            foreach ($leaders as $leader) {
+                foreach ($members as $member) {
+                    PerformanceEvaluation::firstOrCreate([
+                        'period_id' => $period->id,
+                        'employee_id' => $member->id,
+                    ]);
+                }
+            }
+        }
+
+        // Members evaluating their leader
+        foreach ($employeesByPosition as $positionId => $members) {
+            $leader = $leadersByPosition->get($positionId, collect())->first();
+
+            if (!$leader) {
+                continue;
+            }
+
+            PerformanceEvaluation::firstOrCreate([
+                'period_id' => $period->id,
+                'employee_id' => $leader->id,
+            ]);
+        }
     }
 
     private function canEvaluate(User $evaluator, User $employee): bool

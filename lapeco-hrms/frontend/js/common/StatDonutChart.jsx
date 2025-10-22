@@ -1,13 +1,34 @@
 import React from 'react';
 import './StatDonutChart.css';
 
-const StatDonutChart = ({ percentage, label, size = 100, strokeWidth = 10, color }) => {
+const StatDonutChart = ({ 
+  percentage, 
+  label, 
+  size = 100, 
+  strokeWidth = 10, 
+  color, 
+  onClick, 
+  isActive = false,
+  isClickable = false 
+}) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
 
+  const containerClasses = [
+    'stat-donut-chart-container',
+    isClickable ? 'clickable' : '',
+    isActive ? 'active' : ''
+  ].filter(Boolean).join(' ');
+
+  const handleClick = () => {
+    if (isClickable && onClick) {
+      onClick();
+    }
+  };
+
   return (
-    <div className="stat-donut-chart-container">
+    <div className={containerClasses} onClick={handleClick}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="stat-donut-chart">
         <circle
           className="stat-donut-chart-bg"

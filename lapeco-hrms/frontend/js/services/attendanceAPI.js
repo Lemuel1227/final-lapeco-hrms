@@ -54,6 +54,11 @@ const attendanceAPI = {
     // Get all attendance records for a specific employee (including scheduled/absent)
     getEmployeeAttendance: (employeeId, params = {}) => {
         return api.get(`/attendance/employee/${employeeId}`, { params });
+    },
+
+    // Import CSV attendance data
+    importCSVData: (data) => {
+        return api.post('/attendance/import-csv', { records: data });
     }
 };
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { startOfDay, endOfDay, isPast, isFuture, parseISO } from 'date-fns';
 import ActionsDropdown from '../../common/ActionsDropdown';
 
-const PeriodCard = ({ period, evaluationsCount, onEdit, onDelete, onViewResults }) => {
+const PeriodCard = ({ period, evaluationsCount, totalTargetEvaluations, onEdit, onDelete, onViewResults }) => {
 
   const getStatus = () => {
     const today = startOfDay(new Date());
@@ -15,6 +15,13 @@ const PeriodCard = ({ period, evaluationsCount, onEdit, onDelete, onViewResults 
   };
 
   const status = getStatus();
+  const completionPercentage = totalTargetEvaluations > 0 ? (evaluationsCount / totalTargetEvaluations) * 100 : 0;
+
+  const getProgressBarClass = (percentage) => {
+    if (percentage < 50) return 'bg-danger';
+    if (percentage < 90) return 'bg-warning';
+    return 'bg-success';
+  };
 
   return (
     <div className={`period-card status-${status.className}`}>
@@ -50,9 +57,21 @@ const PeriodCard = ({ period, evaluationsCount, onEdit, onDelete, onViewResults 
             <span>{period.activationStart} to {period.activationEnd}</span>
           </div>
         </div>
-        <div className="period-detail">
-          <i className="bi bi-journal-check"></i>
-          <span><strong>{evaluationsCount}</strong> evaluations completed</span>
+      </div>
+      <div className="period-progress-section">
+        <div className="progress-info">
+          <span className="progress-label">Completion Progress</span>
+          <span className="progress-value">{evaluationsCount} / {totalTargetEvaluations}</span>
+        </div>
+        <div className="progress" style={{height: '8px'}}>
+          <div 
+            className={`progress-bar ${getProgressBarClass(completionPercentage)}`} 
+            role="progressbar" 
+            style={{width: `${completionPercentage}%`}} 
+            aria-valuenow={completionPercentage} 
+            aria-valuemin="0" 
+            aria-valuemax="100"
+          ></div>
         </div>
       </div>
       <div className="period-card-footer">

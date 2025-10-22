@@ -31,8 +31,7 @@ import PerformanceManagementPage from './pages/Performance-Management/Performanc
 import TrainingPage from './pages/Training-And-Development/TrainingPage';
 import ProgramDetailPage from './pages/Training-And-Development/ProgramDetailPage';
 import ContributionsManagementPage from './pages/Contributions-Management/ContributionsManagementPage';
-import EvaluateTeamPage from './pages/Performance-Management/EvaluateTeamPage';
-import EvaluateLeaderPage from './pages/Performance-Management/EvaluateLeaderPage'; import CaseManagementPage from './pages/Case-Management/CaseManagementPage';
+import CaseManagementPage from './pages/Case-Management/CaseManagementPage';
 import MyLeavePage from './pages/My-Leave/MyLeavePage';
 import MyAttendancePage from './pages/My-Attendance/MyAttendancePage';
 import MyTeamPage from './pages/My-Team/MyTeamPage';
@@ -49,6 +48,11 @@ import MyCasesPage from './pages/My-Cases/MyCasesPage';
 import IncedentReport from './pages/Submit-Report/SubmitReportPage';
 import NotFoundPage from './pages/NotFound/NotFoundPage';
 import ThirteenthMonthPage from './pages/Payroll-Management/ThirteenthMonthPage';
+import MyPayrollProjectionPage from './pages/My-Payroll/MyPayrollProjectionPage';
+import MyPayrollHistoryPage from './pages/My-Payroll/MyPayrollHistoryPage';
+import MyPayrollLayout from './pages/My-Payroll/MyPayrollLayout';
+import EvaluateLeaderPage from './pages/Performance-Management/EvaluateLeaderPage';
+import EvaluateTeamPage from './pages/Performance-Management/EvaluateTeamPage';
 
 // Import layout, context, and components
 import Layout from './layout/Layout';
@@ -131,13 +135,17 @@ function App() {
 
             {/* Team Leader & Regular Employee Routes */}
             <Route path="dashboard/team-employees" element={<MyTeamPage />} />
-            <Route path="dashboard/evaluate-team" element={<div className="p-5 text-center"><h1>Evaluate Team</h1><p>This page is under construction.</p></div>} />
+            <Route path="dashboard/evaluate-team" element={<EvaluateTeamPage />} />
+            <Route path="dashboard/evaluate-leader" element={<EvaluateLeaderPage />} />
             <Route path="dashboard/my-leave" element={<MyLeavePage />} />
             <Route path="dashboard/my-attendance" element={<MyAttendancePage />} />
             <Route path="dashboard/my-cases" element={<MyCasesPage />} />
             <Route path="dashboard/submit-report" element={<IncedentReport />} />
-            <Route path="dashboard/my-payroll" element={<div className="p-5 text-center"><h1>My Payroll</h1><p>This page is under construction.</p></div>} />
-            <Route path="dashboard/evaluate-self" element={<div className="p-5 text-center"><h1>My Evaluations</h1><p>This page is under construction.</p></div>} />
+            <Route path="my-payroll/*" element={<MyPayrollLayout />}>
+              <Route index element={<Navigate to="projection" replace />} />
+              <Route path="projection" element={<MyPayrollProjectionPage/>} />
+              <Route path="history" element={<MyPayrollHistoryPage/>} />
+            </Route>            
             <Route path="dashboard/my-resignation" element={<MyResignationPage />} />
           </Route>
 

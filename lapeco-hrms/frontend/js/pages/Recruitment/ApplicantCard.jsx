@@ -17,7 +17,7 @@ const formatDate = (dateString, includeTime = false) => {
 };
 
 const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
-  const PIPELINE_STAGES = ['New Applicant', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
+  const PIPELINE_STAGES = ['New Applicant', 'Interview', 'Hired', 'Rejected' , 'Offer'];
 
   const {
     attributes,

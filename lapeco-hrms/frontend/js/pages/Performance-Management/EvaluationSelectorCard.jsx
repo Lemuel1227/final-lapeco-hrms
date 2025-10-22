@@ -40,13 +40,15 @@ const EvaluationSelectorCard = ({ employee, positionTitle, lastEvaluation, onAct
     };
   }, [lastEvaluation]);
 
+  const avatarSrc = employee.avatarUrl || employee.imageUrl || undefined;
+
   const renderActionButtons = () => {
     if (submissionForActivePeriod) {
       return (
         <>
           <button 
             className="btn btn-sm btn-outline-secondary"
-            onClick={() => onAction('review', submissionForActivePeriod)}
+            onClick={() => onAction('review', submissionForActivePeriod)} // Pass submission data
           >
             Review Evaluation
           </button>
@@ -79,8 +81,8 @@ const EvaluationSelectorCard = ({ employee, positionTitle, lastEvaluation, onAct
   return (
     <div className="evaluation-selector-card-revised">
       <div className="card-main-info">
-        <img
-          src={employee.imageUrl}
+        <Avatar
+          src={avatarSrc}
           alt={employee.name}
           size="lg"
           className="selector-avatar"

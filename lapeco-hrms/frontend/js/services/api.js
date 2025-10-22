@@ -91,6 +91,11 @@ export const dashboardAPI = {
   getEmployeeSummary: () => api.get('/dashboard/employee/summary'),
 };
 
+// Leaderboard API calls
+export const leaderboardAPI = {
+  getAll: (params = {}) => api.get('/leaderboards', { params }),
+};
+
 // Employee API calls
 export const employeeAPI = {
   getAll: () => api.get('/employees'),
@@ -193,10 +198,10 @@ export const recruitmentAPI = {
 
 // Performance API calls
 export const performanceAPI = {
-  getAll: () => api.get('/performance'),
-  createPeriod: (data) => api.post('/performance/periods', data),
-  updatePeriod: (id, data) => api.put(`/performance/periods/${id}`, data),
-  assignEmployees: (periodId, data) => api.post(`/performance/periods/${periodId}/assign`, data),
+  getOverview: () => api.get('/performance/overview'),
+  getEmployeeHistory: (employeeId) => api.get(`/performance/employees/${employeeId}/history`),
+  createPeriod: (data) => api.post('/performance', data),
+  updatePeriod: (id, data) => api.put(`/performance/${id}`, data),
   submitResponse: (evaluationId, data) => api.post(`/performance/evaluations/${evaluationId}/responses`, data),
   updateResponse: (responseId, data) => api.put(`/performance/evaluation-responses/${responseId}`, data),
 };

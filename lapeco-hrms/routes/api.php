@@ -27,6 +27,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TeamLeaderDashboardController;
 use App\Http\Controllers\EmployeeDashboardController;
+use App\Http\Controllers\LeaderboardController;
 use App\Models\User;
 use App\Models\Position;
 
@@ -124,6 +125,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // Dashboard summaries
     Route::middleware(['role.access:employee,index'])->get('/dashboard/team-leader/summary', [TeamLeaderDashboardController::class, 'summary']);
     Route::middleware(['role.access:employee,index'])->get('/dashboard/employee/summary', [EmployeeDashboardController::class, 'summary']);
+    Route::middleware(['role.access:employee,index'])->get('/leaderboards', [LeaderboardController::class, 'index']);
 
     // Schedule Management - with role-based access control
     Route::middleware(['role.access:schedule,index'])->get('/schedules', [ScheduleController::class, 'index']);
@@ -200,6 +202,10 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
 
     // Performance Management - with role-based access control
     Route::middleware(['role.access:employee,index'])->get('/performance', [PerformanceController::class, 'index']);
+    Route::middleware(['role.access:employee,index'])->get('/performance/overview', [PerformanceController::class, 'overview']);
+    Route::middleware(['role.access:employee,index'])->get('/performance/employees/{employee}/history', [PerformanceController::class, 'employeeHistory']);
+    Route::middleware(['role.access:employee,store'])->post('/performance/periods', [PerformanceController::class, 'storePeriod']);
+    Route::middleware(['role.access:employee,update'])->put('/performance/periods/{period}', [PerformanceController::class, 'updatePeriod']);
     Route::middleware(['role.access:employee,store'])->post('/performance/evaluations', [PerformanceController::class, 'storeEvaluation']);
     Route::middleware(['role.access:employee,update'])->put('/performance/evaluations/{evaluation}', [PerformanceController::class, 'updateEvaluation']);
 

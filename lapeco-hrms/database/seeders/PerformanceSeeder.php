@@ -102,7 +102,7 @@ class PerformanceSeeder extends Seeder
                     $scores = [];
 
                     foreach (PerformanceEvaluatorResponse::SCORE_FIELDS as $field) {
-                        $scores[$field] = rand(3, 5);
+                        $scores[$field] = rand(1, 5);
                     }
 
                     PerformanceEvaluatorResponse::updateOrCreate(

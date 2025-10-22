@@ -1,4 +1,5 @@
 import React from 'react';
+import StatDonutChart from '../../common/StatDonutChart';
 
 const DailyAttendanceView = ({
   currentDate,
@@ -34,17 +35,37 @@ const DailyAttendanceView = ({
             <span className="stat-value">{dailyAttendanceList.length}</span>
             <span className="stat-label">Scheduled</span>
           </div>
-          <div className={`stat-card present ${statusFilter === 'Present' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Present')}>
-            <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Present').length}</span>
-            <span className="stat-label">Present</span>
-          </div>
-          <div className={`stat-card late ${statusFilter === 'Late' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Late')}>
-            <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Late').length}</span>
-            <span className="stat-label">Late</span>
-          </div>
-          <div className={`stat-card absent ${statusFilter === 'Absent' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Absent')}>
-            <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Absent').length}</span>
-            <span className="stat-label">Absent</span>
+          <div className="history-card-charts">
+            <StatDonutChart 
+              size={80} 
+              strokeWidth={8} 
+              label={`Present (${dailyAttendanceList.filter(e => e.status === 'Present').length}/${dailyAttendanceList.length})`} 
+              percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Present').length / dailyAttendanceList.length) * 100) : 0} 
+              color="var(--app-success-color)" 
+              isClickable={true}
+              isActive={statusFilter === 'Present'}
+              onClick={() => handleStatusFilterClick('Present')}
+            />
+            <StatDonutChart 
+              size={80} 
+              strokeWidth={8} 
+              label={`Late (${dailyAttendanceList.filter(e => e.status === 'Late').length}/${dailyAttendanceList.length})`} 
+              percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Late').length / dailyAttendanceList.length) * 100) : 0} 
+              color="var(--warning-color)" 
+              isClickable={true}
+              isActive={statusFilter === 'Late'}
+              onClick={() => handleStatusFilterClick('Late')}
+            />
+            <StatDonutChart 
+              size={80} 
+              strokeWidth={8} 
+              label={`Absent (${dailyAttendanceList.filter(e => e.status === 'Absent').length}/${dailyAttendanceList.length})`} 
+              percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Absent').length / dailyAttendanceList.length) * 100) : 0} 
+              color="var(--danger-color)" 
+              isClickable={true}
+              isActive={statusFilter === 'Absent'}
+              onClick={() => handleStatusFilterClick('Absent')}
+            />
           </div>
         </div>
         <div className="filters-group">

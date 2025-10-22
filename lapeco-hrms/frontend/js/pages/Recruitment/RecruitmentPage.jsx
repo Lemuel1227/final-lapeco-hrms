@@ -16,7 +16,7 @@ import { reportsConfig } from '../../config/reports.config';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { positionAPI, applicantAPI } from '../../services/api';
 
-const PIPELINE_STAGES = ['New Applicant', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
+const PIPELINE_STAGES = ['New Applicant', 'Interview', 'Hired', 'Rejected', 'Offer'];
 
 const calculateAge = (birthdate) => {
     if (!birthdate) return 'N/A';

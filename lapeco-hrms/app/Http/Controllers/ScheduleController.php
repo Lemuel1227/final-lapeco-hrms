@@ -132,7 +132,7 @@ class ScheduleController extends Controller
             // Create the schedule
             $schedule = Schedule::create([
                 'name' => $data['name'],
-                'date' => $data['date'],
+                'date' => \Carbon\Carbon::parse($data['date'])->format('Y-m-d'),
                 'description' => $data['description'] ?? null,
             ]);
 

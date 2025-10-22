@@ -1,5 +1,4 @@
 import React from 'react';
-import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
 const LeaderboardCard = ({ title, icon, data, valueKey, valueFormatter, valueBar = true, isNegativeMetric = false, rankOneLabel = "Top Rank", actions = null }) => {
   const getProgressBarVariant = (value) => {
@@ -47,7 +46,11 @@ const LeaderboardCard = ({ title, icon, data, valueKey, valueFormatter, valueBar
                 <div className="leaderboard-rank">
                   <span className={`rank-badge ${getRankBadgeClass(index, rank)}`}>{rank}</span>
                 </div>
-                <img src={item.imageUrl || placeholderAvatar} alt={item.name} className="leaderboard-avatar" />
+                <img
+                  src={item.imageUrl}
+                  alt={`${item.name || 'Employee'} avatar`}
+                  className="leaderboard-avatar"
+                />
                 
                 <div className="leaderboard-info-main">
                   <div className="leaderboard-name-section">

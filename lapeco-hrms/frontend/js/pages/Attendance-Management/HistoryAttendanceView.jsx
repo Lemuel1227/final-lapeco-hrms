@@ -1,4 +1,5 @@
 import React from 'react';
+import StatDonutChart from '../../common/StatDonutChart';
 
 const HistoryAttendanceView = ({
   activeView,
@@ -53,17 +54,28 @@ const HistoryAttendanceView = ({
                       <span className="value">{day.total}</span>
                       <span className="label">Scheduled</span>
                     </div>
-                    <div className="info-item present">
-                      <span className="value">{day.present - day.late}</span>
-                      <span className="label">Present</span>
-                    </div>
-                    <div className="info-item late">
-                      <span className="value">{day.late}</span>
-                      <span className="label">Late</span>
-                    </div>
-                    <div className="info-item absent">
-                      <span className="value">{day.absent}</span>
-                      <span className="label">Absent</span>
+                    <div className="history-card-charts">
+                      <StatDonutChart 
+                        size={60} 
+                        strokeWidth={6} 
+                        label={`Present (${day.present - day.late}/${day.total})`} 
+                        percentage={day.total > 0 ? Math.round(((day.present - day.late) / day.total) * 100) : 0} 
+                        color="var(--app-success-color)" 
+                      />
+                      <StatDonutChart 
+                        size={60} 
+                        strokeWidth={6} 
+                        label={`Late (${day.late}/${day.total})`} 
+                        percentage={day.total > 0 ? Math.round((day.late / day.total) * 100) : 0} 
+                        color="var(--warning-color)" 
+                      />
+                      <StatDonutChart 
+                        size={60} 
+                        strokeWidth={6} 
+                        label={`Absent (${day.absent}/${day.total})`} 
+                        percentage={day.total > 0 ? Math.round((day.absent / day.total) * 100) : 0} 
+                        color="var(--danger-color)" 
+                      />
                     </div>
                   </div>
                 </div>
@@ -90,6 +102,28 @@ const HistoryAttendanceView = ({
             <div className={`stat-card scheduled ${!statusFilter ? 'active' : ''}`} onClick={() => handleStatusFilterClick('')}>
               <span className="stat-value">{dailyAttendanceList.length}</span>
               <span className="stat-label">Scheduled</span>
+            </div>
+            <div className="history-card-charts">
+              <StatDonutChart 
+                size={80} 
+                strokeWidth={8} 
+                label={`Present (${dailyAttendanceList.filter(e => e.status === 'Present').length}/${dailyAttendanceList.length})`} 
+                percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Present').length / dailyAttendanceList.length) * 100) : 0} 
+                color="var(--app-success-color)" 
+              />
+              <StatDonutChart 
+                size={80} 
+                strokeWidth={9} 
+                label={`Late (${dailyAttendanceList.filter(e => e.status === 'Late').length}/${dailyAttendanceList.length})`} 
+                percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Late').length / dailyAttendanceList.length) * 100) : 0} 
+                color="var(--warning-color)" 
+              />
+              <StatDonutChart 
+    
+                label={`Absent (${dailyAttendanceList.filter(e => e.status === 'Absent').length}/${dailyAttendanceList.length})`} 
+                percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Absent').length / dailyAttendanceList.length) * 100) : 0} 
+                color="var(--danger-color)" 
+              />
             </div>
             <div className={`stat-card present ${statusFilter === 'Present' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Present')}>
               <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Present').length}</span>

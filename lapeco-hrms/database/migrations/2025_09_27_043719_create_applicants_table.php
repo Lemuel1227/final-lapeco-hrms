@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('tin_no')->nullable();
             $table->string('pag_ibig_no')->nullable();
             $table->string('philhealth_no')->nullable();
-            $table->enum('status', ['New Applicant', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'])->default('New Applicant');
+            $table->enum('status', ['New Applicant', 'Interview', 'Offer', 'Hired', 'Rejected'])->default('New Applicant');
             $table->date('application_date')->default(now());
             $table->text('notes')->nullable();
             $table->json('interview_schedule')->nullable(); // Store interview details as JSON

@@ -24,6 +24,12 @@
   font-size: 0.9rem;
 }
 
+.view-evaluation-modal .evaluator-info {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
 .view-evaluation-modal .modal-body {
   background-color: var(--bg-tertiary);
   padding: 1.5rem;
@@ -44,54 +50,6 @@
 .score-donut-chart-text {
   font-size: 1.25rem;
   font-weight: 700;
-}
-
-.featured-summary-card {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-left: 4px solid var(--app-success-color);
-}
-.featured-summary-card .card-header {
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.evaluation-accordion .accordion-item {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius) !important; 
-  margin-bottom: 0.75rem; 
-  box-shadow: var(--card-shadow);
-  overflow: hidden; 
-}
-.evaluation-accordion .accordion-item:last-child {
-  margin-bottom: 0;
-}
-
-.evaluation-accordion .accordion-button {
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  justify-content: space-between;
-  align-items: center; 
-}
-.evaluation-accordion .accordion-button:not(.collapsed) {
-  background-color: var(--bg-secondary);
-  box-shadow: none;
-  color: var(--app-success-color);
-}
-.evaluation-accordion .accordion-button:focus {
-  box-shadow: none;
-}
-.evaluation-accordion .accordion-body {
-  padding: 0; 
-}
-.section-avg-score {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-secondary);
 }
 
 .evaluation-item {
@@ -131,12 +89,55 @@
   font-size: 1rem; 
 }
 
-.dark-theme .evaluation-accordion .accordion-button {
+/* --- NEW/UPDATED STYLES FOR LIST VIEW --- */
+.view-evaluation-modal .modal-body.evaluator-list-body {
+    background-color: var(--bg-primary);
+    padding: 1.5rem;
+}
+.evaluator-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.evaluator-card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.25rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
+    gap: 1.5rem;
+    align-items: center;
+}
+.evaluator-card.period-card {
+    cursor: pointer;
+    grid-template-columns: 1fr auto;
+    transition: all 0.2s ease-in-out;
+}
+.evaluator-card.period-card:hover {
+    border-color: var(--app-success-color);
     background-color: var(--bg-primary);
 }
-
-.dark-theme .evaluation-accordion .accordion-button:not(.collapsed) {
-    background-color: var(--bg-tertiary);
+.evaluator-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.evaluator-name {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+}
+.evaluator-position {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+.evaluation-summary {
+    min-width: 200px;
+}
+.back-to-list-btn {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.9rem;
 }
 
 .dark-theme .accordion-button::after {

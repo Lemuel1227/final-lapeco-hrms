@@ -11,7 +11,9 @@ const ByEmployeeAttendanceView = ({
   employeeSearchTerm,
   setEmployeeSearchTerm,
   filteredEmployeesForSelection,
-  onEmployeeSelect
+  onEmployeeSelect,
+  employeeStatusFilter,
+  handleEmployeeStatusFilterClick
 }) => {
   if (selectedEmployee) {
     return (
@@ -62,18 +64,27 @@ const ByEmployeeAttendanceView = ({
             label={`Present (${selectedEmployeeRecords.stats.totalPresent}/${selectedEmployeeRecords.stats.totalScheduled})`} 
             percentage={selectedEmployeeRecords.stats.presentPercentage} 
             color="var(--app-success-color)"
+            isClickable={true}
+            isActive={employeeStatusFilter === 'Present'}
+            onClick={() => handleEmployeeStatusFilterClick('Present')}
           />
           <StatDonutChart 
             label={`Late (${selectedEmployeeRecords.stats.totalLate}/${selectedEmployeeRecords.stats.totalScheduled})`} 
             percentage={selectedEmployeeRecords.stats.latePercentage}
             color="var(--warning-color)"
+            isClickable={true}
+            isActive={employeeStatusFilter === 'Late'}
+            onClick={() => handleEmployeeStatusFilterClick('Late')}
           />
           <StatDonutChart 
             label={`Absent (${selectedEmployeeRecords.stats.totalAbsent}/${selectedEmployeeRecords.stats.totalScheduled})`} 
             percentage={selectedEmployeeRecords.stats.absentPercentage}
             color="var(--danger-color)"
+            isClickable={true}
+            isActive={employeeStatusFilter === 'Absent'}
+            onClick={() => handleEmployeeStatusFilterClick('Absent')}
           />
-          <div className="stat-card scheduled"> 
+          <div className={`stat-card scheduled ${!employeeStatusFilter ? 'active' : ''}`} onClick={() => handleEmployeeStatusFilterClick('')}> 
             <span className="stat-value">{selectedEmployeeRecords.stats.totalScheduled}</span> 
             <span className="stat-label">Total Scheduled</span> 
           </div>

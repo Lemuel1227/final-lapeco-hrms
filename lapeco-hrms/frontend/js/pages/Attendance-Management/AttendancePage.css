@@ -117,7 +117,7 @@
 .attendance-history-card .delete-history-btn { opacity: 0.5; transition: opacity 0.2s ease; }
 .attendance-history-card:hover .delete-history-btn { opacity: 1; }
 .attendance-history-card .card-body { padding: 1rem; }
-.attendance-history-card .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+.attendance-history-card .info-grid { display: flex; flex-direction: row; align-items: center; gap: 1rem; }
 .attendance-history-card .info-item { text-align: center; }
 .attendance-history-card .info-item .value { font-size: 1.25rem; font-weight: 600; display: block; }
 .attendance-history-card .info-item .label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; }
@@ -125,6 +125,41 @@
 .attendance-history-card .info-item.late .value { color: var(--warning-color); }
 .attendance-history-card .info-item.absent .value { color: var(--danger-color); }
 .attendance-history-card .info-item.scheduled .value { color: var(--text-primary); }
+
+/* History card charts layout */
+.history-card-charts {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+/* Daily view header bar charts layout */
+.daily-view-header-bar .history-card-charts {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+/* Make scheduled card smaller to match donut chart proportions */
+.daily-view-header-bar .stat-card.scheduled {
+  flex: 1 0 auto;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.daily-view-header-bar .stat-card.scheduled .stat-value {
+  font-size: 1.5rem;
+}
+
+.daily-view-header-bar .stat-card.scheduled .stat-label {
+  font-size: 0.65rem;
+}
 
 .status-badge { color: #fff; padding: 0.3em 0.6em; font-size: 0.75rem; font-weight: 500; border-radius: var(--border-radius); text-transform: uppercase; letter-spacing: 0.05em; }
 .status-present { background-color: var(--app-success-color); }

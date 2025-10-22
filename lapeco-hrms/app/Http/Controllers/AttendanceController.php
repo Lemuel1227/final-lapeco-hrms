@@ -404,7 +404,7 @@ class AttendanceController extends Controller
             }
 
             $historyData[] = [
-                'date' => Carbon::parse($date)->toISOString(),
+                'date' => $date,
                 'total' => $stats['total'],
                 'present' => $stats['present'],
                 'late' => $stats['late'],

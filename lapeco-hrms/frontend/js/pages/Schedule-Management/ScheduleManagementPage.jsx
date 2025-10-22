@@ -484,7 +484,9 @@ const ScheduleManagementPage = (props) => {
       }
     }
 
+    // Always reset the deleting state and close the modal
     setIsDeleting(false);
+    setItemToDelete(null);
   };
   
   const handleCreateSchedule = async (scheduleData) => {
@@ -605,8 +607,6 @@ const ScheduleManagementPage = (props) => {
       setBasicSchedules(prev => prev.filter(schedule => schedule.id !== scheduleId));
       setSchedules(prev => prev.filter(assignment => assignment.id !== scheduleId));
 
-      setItemToDelete(null);
-
       try {
         const response = await scheduleAPI.getAll();
         const transformedSchedules = [];
@@ -646,7 +646,9 @@ const ScheduleManagementPage = (props) => {
       }
     }
 
+    // Always reset the deleting state and close the modal
     setIsDeleting(false);
+    setItemToDelete(null);
   };
 
   const handleOpenEditScheduleModal = (date) => { setEditingScheduleDate(date); setShowEditScheduleModal(true); };
@@ -801,8 +803,10 @@ const ScheduleManagementPage = (props) => {
       }
     } catch (error) {
       // Error handling is already done in individual delete functions
+      // Ensure state is reset even if there's an error
+      setIsDeleting(false);
+      setItemToDelete(null);
     }
-    setItemToDelete(null);
   };
 
   // --- RENDER FUNCTIONS ---

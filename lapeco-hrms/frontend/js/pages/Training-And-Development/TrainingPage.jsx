@@ -4,6 +4,7 @@ import './TrainingPage.css';
 import AddEditProgramModal from '../../modals/AddEditProgramModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 import { trainingAPI } from '../../services/api';
+import ToastNotification from '../../common/ToastNotification';
 
 const TrainingPage = () => {
   const [trainingPrograms, setTrainingPrograms] = useState([]);
@@ -18,6 +19,11 @@ const TrainingPage = () => {
   const [programToDelete, setProgramToDelete] = useState(null);
   const [warningData, setWarningData] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+
+  const showToast = (message, type = 'info') => {
+    setToast({ show: true, message, type });
+  };
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -34,6 +40,7 @@ const TrainingPage = () => {
       } catch (err) {
         console.error('Error fetching training data:', err);
         setError('Failed to load training data. Please try again.');
+        showToast('Failed to load training data. Please try again.', 'error');
       } finally {
         setLoading(false);
       }
@@ -75,9 +82,11 @@ const TrainingPage = () => {
       if (programId) {
         // Update existing program
         await trainingAPI.updateProgram(programId, formData);
+        showToast('Training program updated successfully.', 'success');
       } else {
         // Create new program
         await trainingAPI.createProgram(formData);
+        showToast('Training program created successfully.', 'success');
       }
       
       // Refresh data after save
@@ -92,6 +101,7 @@ const TrainingPage = () => {
     } catch (err) {
       console.error('Error saving program:', err);
       setError('Failed to save program. Please try again.');
+      showToast('Failed to save program. Please try again.', 'error');
     }
   };
 
@@ -122,10 +132,12 @@ const TrainingPage = () => {
           setEnrollments(enrollmentsResponse.data || []);
           setShowDeleteModal(false);
           setProgramToDelete(null);
+          showToast('Training program deleted successfully.', 'success');
         }
       } catch (err) {
         console.error('Error deleting program:', err);
         setError('Failed to delete program. Please try again.');
+        showToast('Failed to delete program. Please try again.', 'error');
         setShowDeleteModal(false);
         setProgramToDelete(null);
       } finally {
@@ -158,9 +170,11 @@ const TrainingPage = () => {
         setShowWarningModal(false);
         setWarningData(null);
         setProgramToDelete(null);
+        showToast('Training program deleted successfully.', 'success');
       } catch (err) {
         console.error('Error force deleting program:', err);
         setError('Failed to delete program. Please try again.');
+        showToast('Failed to delete program. Please try again.', 'error');
         setShowWarningModal(false);
         setWarningData(null);
         setProgramToDelete(null);
@@ -317,6 +331,14 @@ const TrainingPage = () => {
         </div>
       </ConfirmationModal>
         </>
+      )}
+
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        />
       )}
     </div>
   );

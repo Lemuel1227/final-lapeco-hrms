@@ -42,7 +42,7 @@ class ApplicantSeeder extends Seeder
                 'birthday' => '1988-08-22',
                 'gender' => 'Female',
                 'job_opening_id' => 2,
-                'status' => 'Screening',
+                'status' => 'Interview',
                 'application_date' => now()->subDays(3)->toDateString(),
                 'notes' => 'Excellent communication skills',
                 'sss_no' => '12-3456789-1',

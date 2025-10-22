@@ -6,8 +6,8 @@ const AddEditPeriodModal = ({ show, onClose, onSave, periodData }) => {
     name: '',
     evaluationStart: '',
     evaluationEnd: '',
-    activationStart: '',
-    activationEnd: '',
+    openDate: '',
+    closeDate: '',
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -26,8 +26,8 @@ const AddEditPeriodModal = ({ show, onClose, onSave, periodData }) => {
   };
 
   const handleSubmit = () => {
-    const { name, evaluationStart, evaluationEnd, activationStart, activationEnd } = formData;
-    if (!name || !evaluationStart || !evaluationEnd || !activationStart || !activationEnd) {
+    const { name, evaluationStart, evaluationEnd, openDate, closeDate } = formData;
+    if (!name || !evaluationStart || !evaluationEnd || !openDate || !closeDate) {
       setError('All fields are required.');
       return;
     }
@@ -35,13 +35,13 @@ const AddEditPeriodModal = ({ show, onClose, onSave, periodData }) => {
       setError('Evaluation end date cannot be before its start date.');
       return;
     }
-    if (new Date(activationEnd) < new Date(activationStart)) {
-      setError('Activation window end date cannot be before its start date.');
+    if (new Date(closeDate) < new Date(openDate)) {
+      setError('Close date cannot be before the open date.');
       return;
     }
-    if (new Date(activationStart) < new Date(evaluationEnd)) {
-        setError('The activation window must start on or after the evaluation period ends.');
-        return;
+    if (new Date(openDate) < new Date(evaluationStart)) {
+      setError('The open date must be on or after the evaluation start date.');
+      return;
     }
     onSave(formData, periodData?.id);
     onClose();
@@ -80,12 +80,12 @@ const AddEditPeriodModal = ({ show, onClose, onSave, periodData }) => {
             <p className="text-muted small">The date range when submissions will be open to employees and leaders.</p>
             <div className="row g-3">
               <div className="col-md-6">
-                <label htmlFor="activationStart" className="form-label">Open Date*</label>
-                <input type="date" id="activationStart" name="activationStart" className="form-control" value={formData.activationStart} onChange={handleChange} />
+                <label htmlFor="openDate" className="form-label">Open Date*</label>
+                <input type="date" id="openDate" name="openDate" className="form-control" value={formData.openDate} onChange={handleChange} />
               </div>
               <div className="col-md-6">
-                <label htmlFor="activationEnd" className="form-label">Close Date*</label>
-                <input type="date" id="activationEnd" name="activationEnd" className="form-control" value={formData.activationEnd} onChange={handleChange} />
+                <label htmlFor="closeDate" className="form-label">Close Date*</label>
+                <input type="date" id="closeDate" name="closeDate" className="form-control" value={formData.closeDate} onChange={handleChange} />
               </div>
             </div>
           </div>

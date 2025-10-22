@@ -1,0 +1,176 @@
+.eval-tracker-placeholder {
+    padding: 3rem;
+    text-align: center;
+    background-color: var(--bg-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--border-radius);
+}
+.eval-tracker-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+    color: var(--text-secondary);
+}
+.eval-tracker-placeholder h6 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.eval-tracker-placeholder p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* --- Active Period Header --- */
+.active-period-header {
+    background-color: rgba(var(--app-success-rgb), 0.1);
+    border: 1px solid rgba(var(--app-success-rgb), 0.2);
+    color: var(--app-success-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.active-period-header i {
+    font-size: 1.2rem;
+}
+
+/* --- KPI & Controls --- */
+.tracker-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.tracker-kpi-card {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-left-width: 4px;
+    border-radius: var(--border-radius);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.tracker-kpi-card .kpi-icon {
+    font-size: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 50%;
+    color: #fff;
+}
+.tracker-kpi-card.kpi-completion { border-left-color: var(--app-success-color); }
+.tracker-kpi-card.kpi-pending { border-left-color: var(--warning-color); }
+.tracker-kpi-card.kpi-complete { border-left-color: var(--info-color); }
+.tracker-kpi-card.kpi-incomplete { border-left-color: var(--danger-color); }
+
+.tracker-kpi-card.kpi-completion .kpi-icon { background-color: var(--app-success-color); }
+.tracker-kpi-card.kpi-pending .kpi-icon { background-color: var(--warning-color); color: var(--text-primary); }
+.tracker-kpi-card.kpi-complete .kpi-icon { background-color: var(--info-color); color: var(--text-primary); }
+.tracker-kpi-card.kpi-incomplete .kpi-icon { background-color: var(--danger-color); }
+
+.tracker-kpi-card .kpi-info { flex-grow: 1; }
+.tracker-kpi-card .kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+.tracker-kpi-card .kpi-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.tracker-controls-card {
+    margin-bottom: 1.5rem;
+}
+
+.tracker-controls-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+.tracker-controls-bar .input-group {
+    max-width: 400px;
+}
+.dark-theme .tracker-controls-bar .btn-outline-secondary {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+.dark-theme .tracker-controls-bar .btn-outline-secondary:hover {
+    background-color: var(--bg-tertiary);
+}
+.dark-theme .tracker-controls-bar .btn-success {
+    color: var(--text-on-success);
+    background-color: var(--app-success-color);
+    border-color: var(--app-success-color);
+}
+.dark-theme .tracker-controls-bar .btn-success:hover {
+    filter: var(--app-primary-hover-filter);
+}
+
+/* --- Accordion Styles --- */
+.team-evaluation-accordion-item {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius) !important;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    box-shadow: var(--card-shadow);
+}
+.dark-theme .team-evaluation-accordion-item {
+    border-color: var(--border-color);
+}
+.team-evaluation-accordion-item .accordion-header .accordion-button {
+    background-color: var(--bg-primary);
+    box-shadow: none !important;
+    padding: 0.75rem 1.25rem;
+    transition: background-color 0.2s ease;
+}
+.team-evaluation-accordion-item .accordion-button:not(.collapsed) {
+    background-color: var(--bg-secondary);
+}
+.dark-theme .accordion-button::after { filter: brightness(0) invert(1); }
+
+.accordion-header-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.header-team-info { display: flex; align-items: center; }
+.header-team-info .team-position-title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0; }
+.header-progress-info { min-width: 150px; text-align: right; margin-right: 1rem; }
+.header-progress-info .progress-text { font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.25rem; }
+
+/* --- Accordion Body --- */
+.team-evaluation-accordion-item .accordion-body {
+    background-color: var(--bg-primary);
+}
+
+.team-status-body-split { padding: 1.25rem; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; }
+.status-list-container h6 { font-size: 1.1rem; font-weight: 600; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+.status-list-container .sub-heading { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.75rem; }
+.status-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.status-list-container .text-muted.small { font-size: 0.9rem; }
+
+.leader-tasks-container { border-right: 1px solid var(--border-color); padding-right: 1.5rem; }
+.leader-info { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+.leader-name { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); }
+.leader-info .view-btn { margin-left: auto; font-size: 0.75rem; padding: 0.2rem 0.6rem; }
+
+.pending-evals-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;}
+.pending-evals-list li { display: flex; justify-content: flex-start; align-items: center; gap: 0.75rem; padding: 0.35rem 0.5rem; border-radius: var(--border-radius); transition: background-color 0.2s ease; }
+.pending-evals-list li:hover { background-color: var(--bg-tertiary); }
+.pending-evals-list li span { color: var(--text-primary); font-size: 1rem; }
+
+
+.status-list-item { display: flex; align-items: center; gap: 0.75rem; transition: background-color 0.2s ease; padding: 0.35rem 0.5rem; border-radius: var(--border-radius); }
+.status-list-item:hover { background-color: var(--bg-tertiary); }
+.status-list-item .status-indicator { font-size: 1rem; width: 20px; text-align: center; }
+.status-list-item .employee-name { font-size: 1rem; font-weight: 500; color: var(--text-primary); flex-grow: 1; }
+.status-list-item .completion-date { font-size: 0.8rem; color: var(--text-secondary); font-family: monospace; }
+.status-list-item .view-btn { font-size: 0.75rem; padding: 0.2rem 0.6rem; margin-left: auto; }
+
+@media (max-width: 1200px) { .evaluation-tracker-grid { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .team-status-body-split { grid-template-columns: 1fr; } .leader-tasks-container { border-right: none; padding-right: 0; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); } }

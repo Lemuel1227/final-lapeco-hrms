@@ -14,7 +14,9 @@ class PerformanceEvaluationPeriod extends Model
         'evaluation_start',
         'evaluation_end',
         'status',
-        'description',
+        'open_date',
+        'close_date',
+        'overall_score',
         'created_by',
         'updated_by',
     ];
@@ -22,6 +24,9 @@ class PerformanceEvaluationPeriod extends Model
     protected $casts = [
         'evaluation_start' => 'date',
         'evaluation_end' => 'date',
+        'open_date' => 'date',
+        'close_date' => 'date',
+        'overall_score' => 'decimal:2',
     ];
 
     public function evaluations()

@@ -19,6 +19,34 @@ class Schedule extends Model
         'date' => 'date',
     ];
 
+    /**
+     * Get the date attribute as a Carbon instance without timezone conversion
+     */
+    public function getDateAttribute($value)
+    {
+        if ($value instanceof \Carbon\Carbon) {
+            return $value;
+        }
+        if (is_string($value)) {
+            // Parse as date-only without timezone conversion
+            return \Carbon\Carbon::createFromFormat('Y-m-d', $value);
+        }
+        return $value;
+    }
+
+    /**
+     * Set the date attribute without timezone conversion
+     */
+    public function setDateAttribute($value)
+    {
+        if (is_string($value)) {
+            // Parse as date-only without timezone conversion
+            $this->attributes['date'] = \Carbon\Carbon::createFromFormat('Y-m-d', $value)->format('Y-m-d');
+        } else {
+            $this->attributes['date'] = $value;
+        }
+    }
+
     public function assignments()
     {
         return $this->hasMany(ScheduleAssignment::class);

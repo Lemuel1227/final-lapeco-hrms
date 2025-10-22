@@ -33,3 +33,29 @@
   text-transform: uppercase;
   text-align: center;
 }
+
+/* Clickable donut chart styles */
+.stat-donut-chart-container.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  border: 2px solid transparent;
+}
+
+.stat-donut-chart-container.clickable:hover {
+  transform: translateY(-2px);
+  background-color: var(--bg-secondary);
+  box-shadow: var(--card-shadow);
+}
+
+.stat-donut-chart-container.clickable.active {
+  background-color: var(--bg-primary);
+  border-color: var(--app-success-color);
+  box-shadow: var(--card-shadow);
+}
+
+.stat-donut-chart-container.clickable.active .stat-donut-chart-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}

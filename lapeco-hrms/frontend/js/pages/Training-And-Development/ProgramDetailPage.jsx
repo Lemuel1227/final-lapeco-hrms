@@ -8,7 +8,8 @@ import EnrollEmployeeModal from '../../modals/EnrollEmployeeModal';
 import UpdateEnrollmentStatusModal from '../../modals/UpdateEnrollmentStatusModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
-import { trainingAPI } from '../../services/api';
+import ToastNotification from '../../common/ToastNotification';
+import { trainingAPI, employeeAPI } from '../../services/api';
 import logo from '../../assets/logo.png';
 
 const ProgramDetailPage = () => {
@@ -19,7 +20,7 @@ const ProgramDetailPage = () => {
   const [enrollments, setEnrollments] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [pageError, setPageError] = useState(null);
   
   // Modal state
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -30,41 +31,36 @@ const ProgramDetailPage = () => {
   const [editingEnrollment, setEditingEnrollment] = useState(null);
   const [enrollmentToDelete, setEnrollmentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortConfig, setSortConfig] = useState({ key: 'employeeName', direction: 'ascending' });
 
+  const showToast = (message, type = 'info') => {
+    setToast({ show: true, message, type });
+  };
+
   // Fetch data on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [programsResponse, enrollmentsResponse] = await Promise.all([
+        setPageError(null);
+        const [programsResponse, enrollmentsResponse, employeesResponse] = await Promise.all([
           trainingAPI.getAll(),
-          trainingAPI.getEnrollments()
+          trainingAPI.getEnrollments(),
+          employeeAPI.getList()
         ]);
         
         setTrainingPrograms(programsResponse.data || []);
         setEnrollments(enrollmentsResponse.data || []);
-        
-        // For now, we'll create a mock employees array from enrollments
-        // In a real app, you'd fetch this from a users/employees API
-        const uniqueEmployees = enrollmentsResponse.data?.reduce((acc, enrollment) => {
-          if (!acc.find(emp => emp.id === enrollment.user_id)) {
-            acc.push({
-              id: enrollment.user_id,
-              name: enrollment.user?.name || `User ${enrollment.user_id}`
-            });
-          }
-          return acc;
-        }, []) || [];
-        
-        setEmployees(uniqueEmployees);
+        setEmployees(employeesResponse.data || []);
       } catch (err) {
         console.error('Error fetching training data:', err);
-        setError('Failed to load training data. Please try again.');
+        setPageError('Failed to load training data. Please try again.');
+        showToast('Failed to load training data. Please try again.', 'error');
       } finally {
         setLoading(false);
       }
@@ -86,7 +82,7 @@ const ProgramDetailPage = () => {
       .map(enr => ({ 
         ...enr, 
         employeeName: employeeMap.get(enr.user_id) || enr.user?.name || 'Unknown',
-        employeeId: enr.user_id,
+        employeeId: enr.user_id !== undefined && enr.user_id !== null ? String(enr.user_id) : '',
         enrollmentId: enr.id // Add enrollmentId for the modal
       }));
   }, [selectedProgram, enrollments, employees, programId]);
@@ -130,16 +126,46 @@ const ProgramDetailPage = () => {
   };
   
   // Handler functions
-  const handleEnrollEmployee = async (employeeId) => {
+  const handleEnrollEmployee = async (programId, employeeIds) => {
     try {
-      await trainingAPI.enrollEmployee(programId, { user_id: employeeId });
-      // Refresh enrollments after enrollment
-      const enrollmentsResponse = await trainingAPI.getEnrollments();
-      setEnrollments(enrollmentsResponse.data || []);
-      setShowEnrollModal(false);
+      // Enroll multiple employees
+      const enrollmentPromises = employeeIds.map(userId => 
+        trainingAPI.enroll({ 
+          program_id: programId, 
+          user_id: userId 
+        })
+      );
+      
+      const results = await Promise.allSettled(enrollmentPromises);
+
+      const successfulEnrollments = results.filter(result => result.status === 'fulfilled').length;
+      const conflictMessages = results
+        .filter(result => result.status === 'rejected' && result.reason?.response?.status === 422)
+        .map(result => result.reason.response?.data?.message)
+        .filter(Boolean);
+      const otherErrors = results.filter(result => result.status === 'rejected' && result.reason?.response?.status !== 422);
+
+      if (successfulEnrollments > 0) {
+        const successMessage = successfulEnrollments === 1
+          ? 'Employee enrolled successfully.'
+          : `${successfulEnrollments} employees enrolled successfully.`;
+        // Refresh enrollments after enrollment
+        const enrollmentsResponse = await trainingAPI.getEnrollments();
+        setEnrollments(enrollmentsResponse.data || []);
+        setShowEnrollModal(false);
+        showToast(successMessage, 'success');
+      }
+
+      if (conflictMessages.length > 0) {
+        showToast([...new Set(conflictMessages)].join('\n'), 'warning');
+      }
+
+      if (otherErrors.length > 0 && successfulEnrollments === 0) {
+        showToast('Failed to enroll employee. Please try again.', 'error');
+      }
     } catch (err) {
       console.error('Error enrolling employee:', err);
-      setError('Failed to enroll employee. Please try again.');
+      showToast('Failed to enroll employee. Please try again.', 'error');
     }
   };
 
@@ -158,7 +184,7 @@ const ProgramDetailPage = () => {
       // Ensure we have a valid enrollment ID
       if (!enrollmentId) {
         console.error('No enrollment ID provided');
-        setError('Invalid enrollment data. Please try again.');
+        showToast('Invalid enrollment data. Please try again.', 'error');
         return;
       }
       
@@ -167,9 +193,10 @@ const ProgramDetailPage = () => {
       const enrollmentsResponse = await trainingAPI.getEnrollments();
       setEnrollments(enrollmentsResponse.data || []);
       handleCloseStatusModal();
+      showToast('Enrollment status updated successfully.', 'success');
     } catch (err) {
       console.error('Error updating enrollment status:', err);
-      setError('Failed to update enrollment status. Please try again.');
+      showToast('Failed to update enrollment status. Please try again.', 'error');
     }
   };
 
@@ -196,7 +223,7 @@ const ProgramDetailPage = () => {
       }
     } catch (err) {
       console.error('Error deleting program:', err);
-      setError('Failed to delete program. Please try again.');
+      showToast('Failed to delete program. Please try again.', 'error');
     }
   };
 
@@ -215,9 +242,10 @@ const ProgramDetailPage = () => {
         setEnrollments(enrollmentsResponse.data || []);
         setShowDeleteModal(false);
         setEnrollmentToDelete(null);
+        showToast('Employee unenrolled successfully.', 'success');
       } catch (err) {
         console.error('Error deleting enrollment:', err);
-        setError('Failed to unenroll employee. Please try again.');
+        showToast('Failed to unenroll employee. Please try again.', 'error');
         setShowDeleteModal(false);
         setEnrollmentToDelete(null);
       } finally {
@@ -287,12 +315,12 @@ const ProgramDetailPage = () => {
   }
 
   // Error state
-  if (error) {
+  if (pageError) {
     return (
       <div className="container-fluid p-0 page-module-container">
         <div className="alert alert-danger" role="alert">
           <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          {error}
+          {pageError}
         </div>
         <Link to="/dashboard/training" className="btn btn-primary">
           <i className="bi bi-arrow-left me-2"></i>Back to Training Programs
@@ -322,7 +350,7 @@ const ProgramDetailPage = () => {
         program={selectedProgram}
         enrolledCount={enrolledInProgram.length}
         onGenerateReport={handleGenerateReport}
-        onEnrollEmployees={() => setShowEnrollModal(true)}
+        onEnrollClick={() => setShowEnrollModal(true)}
         onDeleteClick={handleDeleteProgram}
         isGenerateReportDisabled={displayedEnrollments.length === 0}
       />
@@ -400,6 +428,14 @@ const ProgramDetailPage = () => {
           </>
         )}
       </ConfirmationModal>
+
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        />
+      )}
     </div>
   );
 };

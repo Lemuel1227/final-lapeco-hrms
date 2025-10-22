@@ -15,10 +15,10 @@ const EvaluationFormPage = ({ currentUser, employees, positions, evaluations, ev
   
   const [factorScores, setFactorScores] = useState({});
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showIncompleteConfirm, setShowIncompleteConfirm] = useState(false); 
 
   useEffect(() => {
     if (isEditMode) {
-      // FIX: Add fallback to an empty array to prevent .find on undefined
       const existingEvaluation = (evaluations || []).find(e => e.id === evalId);
       if (existingEvaluation) {
         setFactorScores(existingEvaluation.factorScores || {});
@@ -66,14 +66,7 @@ const EvaluationFormPage = ({ currentUser, employees, positions, evaluations, ev
     setShowCancelConfirm(false);
   };
 
-  const handleSubmit = () => {
-    const ratedItemCount = allRateableItems.filter(item => factorScores[item.id]?.score > 0).length;
-    if (ratedItemCount < allRateableItems.length && !isEditMode) {
-      if (!window.confirm(`You have not rated all ${allRateableItems.length} criteria. Are you sure you want to submit?`)) {
-        return;
-      }
-    }
-    
+  const handleConfirmSubmit = () => {
     handlers.saveEvaluation({
       employeeId,
       evaluatorId: currentUser.id,
@@ -82,9 +75,20 @@ const EvaluationFormPage = ({ currentUser, employees, positions, evaluations, ev
       status: 'Completed',
       factorScores: factorScores,
       overallScore: parseFloat(finalScore),
-    }, evalId); // Pass the evalId if in edit mode
-    alert(`Evaluation for ${employee.name} ${isEditMode ? 'updated' : 'submitted'} successfully!`);
-    navigate(-1); // Go back to the previous page
+    }, evalId);
+    
+    handlers.showToast(`Evaluation for ${employee.name} ${isEditMode ? 'updated' : 'submitted'} successfully!`);
+    navigate(-1);
+  };
+
+  const handleSubmit = () => {
+    const ratedItemCount = allRateableItems.filter(item => factorScores[item.id]?.score > 0).length;
+    if (ratedItemCount < allRateableItems.length && !isEditMode) {
+      setShowIncompleteConfirm(true);
+      return;
+    }
+    
+    handleConfirmSubmit();
   };
 
   if (!employee || !position) {
@@ -158,6 +162,18 @@ const EvaluationFormPage = ({ currentUser, employees, positions, evaluations, ev
       >
         <p>Are you sure you want to cancel?</p>
         <p className="fw-bold">All unsaved changes will be lost.</p>
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        show={showIncompleteConfirm}
+        onClose={() => setShowIncompleteConfirm(false)}
+        onConfirm={handleConfirmSubmit}
+        title="Incomplete Evaluation"
+        confirmText="Submit Anyway"
+        confirmVariant="warning"
+      >
+        <p>You have not rated all {allRateableItems.length} criteria. Are you sure you want to submit the evaluation as is?</p>
+        <p className="text-muted small">It is recommended to complete all criteria for an accurate final score.</p>
       </ConfirmationModal>
     </>
   );
