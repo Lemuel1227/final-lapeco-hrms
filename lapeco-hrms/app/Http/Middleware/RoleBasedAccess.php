@@ -306,17 +306,13 @@ class RoleBasedAccess
         switch ($action) {
             case 'view':
             case 'index':
-                // HR can view all, Team Leaders can view team cases
                 return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER']);
-            
             case 'create':
             case 'store':
-                // Any authenticated user can submit a disciplinary case; non-HR submissions remain pending
                 return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             case 'update':
             case 'delete':
             case 'destroy':
-                // Only HR can manage existing disciplinary cases
                 return $role === 'HR_PERSONNEL';
             
             default:
