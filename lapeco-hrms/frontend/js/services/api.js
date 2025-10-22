@@ -10,12 +10,22 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and CSRF token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Add CSRF token from cookie if it exists
+    const csrfToken = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('XSRF-TOKEN='))
+      ?.split('=')[1];
+    
+    if (csrfToken) {
+      config.headers['X-XSRF-TOKEN'] = decodeURIComponent(csrfToken);
     }
     
     // If the data is FormData, remove the Content-Type header to let the browser set it
@@ -200,6 +210,7 @@ export const recruitmentAPI = {
 export const performanceAPI = {
   getOverview: () => api.get('/performance/overview'),
   getEmployeeHistory: (employeeId) => api.get(`/performance/employees/${employeeId}/history`),
+  getPeriodicEvaluations: (periodId) => api.get(`/performance/periods/${periodId}`),
   getEvaluationResponses: (evaluationId) => api.get(`/performance/evaluations/${evaluationId}/responses`),
   getEvaluationResponseDetail: (responseId) => api.get(`/performance/evaluation-responses/${responseId}`),
   getEvaluationPeriods: () => api.get('/performance'),
@@ -207,6 +218,8 @@ export const performanceAPI = {
   updatePeriod: (id, data) => api.put(`/performance/periods/${id}`, data),
   submitResponse: (evaluationId, data) => api.post(`/performance/evaluations/${evaluationId}/responses`, data),
   updateResponse: (responseId, data) => api.put(`/performance/evaluation-responses/${responseId}`, data),
+  getTeamMembersToEvaluate: () => api.get('/performance/team-members-to-evaluate'),
+  getLeaderToEvaluate: () => api.get('/performance/leader-to-evaluate'),
 };
 
 // Training API calls

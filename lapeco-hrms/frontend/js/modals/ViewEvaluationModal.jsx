@@ -6,26 +6,47 @@ import ScoreIndicator from '../pages/Performance-Management/ScoreIndicator';
 import './ViewEvaluationModal.css';
 import { evaluationFactorsConfig } from '../config/evaluation.config';
 import placeholderAvatar from '../assets/placeholder-profile.jpg';
+import { performanceAPI } from '../services/api';
+
+const SCORE_FIELD_TO_FACTOR_MAP = {
+  factor_attendance: 'attendance',
+  factor_dedication: 'dedication',
+  factor_job_knowledge: 'performance_job_knowledge',
+  factor_efficiency: 'performance_work_efficiency_professionalism',
+  factor_task_acceptance: 'cooperation_task_acceptance',
+  factor_adaptability: 'cooperation_adaptability',
+  factor_autonomy: 'initiative_autonomy',
+  factor_pressure: 'initiative_under_pressure',
+  factor_communication: 'communication',
+  factor_teamwork: 'teamwork',
+  factor_character: 'character',
+  factor_responsiveness: 'responsiveness',
+  factor_personality: 'personality',
+  factor_appearance: 'appearance',
+  factor_work_habits: 'work_habits',
+};
 
 const ViewEvaluationModal = ({
     show,
     onClose,
     evaluationContext,
-    employeeHistoryContext,
+    employeeId, 
     employees,
     positions,
     evaluations,
     evaluationFactors,
-    periodSummary,
-    periodResponses = [],
-    onSelectPeriod,
-    onLoadEvaluationDetail,
-    isLoadingPeriodResponses = false,
-    isLoadingResponseDetail = false,
+    onError, 
 }) => {
-    const [view, setView] = useState('history'); // 'history', 'list', or 'detail'
+    const [view, setView] = useState('history');
     const [selectedEvaluation, setSelectedEvaluation] = useState(null);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const [isLoadingPeriodResponses, setIsLoadingPeriodResponses] = useState(false);
+    
+    // State for fetched data
+    const [employeeHistoryData, setEmployeeHistoryData] = useState(null);
+    const [selectedPeriodResponses, setSelectedPeriodResponses] = useState([]);
+    const [responseDetailsMap, setResponseDetailsMap] = useState({});
 
     const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
     const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);
@@ -38,25 +59,110 @@ const ViewEvaluationModal = ({
     }, [evaluationFactors]);
     
     // Determine the primary context and subject employee
-    const primaryContext = useMemo(() => employeeHistoryContext || evaluationContext, [employeeHistoryContext, evaluationContext]);
+    const primaryContext = useMemo(() => employeeHistoryData || evaluationContext, [employeeHistoryData, evaluationContext]);
     const subjectEmployee = useMemo(() => {
         if (!primaryContext) return null;
         return employeeMap.get(primaryContext.employeeId) || primaryContext.employee || null;
     }, [primaryContext, employeeMap]);
 
+    // Fetch employee history when modal opens with employeeId
+    useEffect(() => {
+        if (!show) return;
+        
+        const targetEmployeeId = employeeId || evaluationContext?.employeeId;
+        if (!targetEmployeeId) return;
+
+        // If we already have history data for this employee, don't refetch
+        if (employeeHistoryData?.employeeId === targetEmployeeId) return;
+
+        const fetchEmployeeHistory = async () => {
+            setIsHistoryLoading(true);
+            try {
+                const response = await performanceAPI.getEmployeeHistory(targetEmployeeId);
+                const payload = response.data || {};
+                const apiHistory = payload.history || [];
+
+                if (!apiHistory.length) {
+                    onError?.({
+                        message: 'No evaluation history found for this employee.',
+                        type: 'warning',
+                    });
+                    setEmployeeHistoryData(null);
+                    return;
+                }
+
+                const normalizedHistory = apiHistory.map(evaluation => {
+                    const periodStart = evaluation.periodStart;
+                    const periodEnd = evaluation.periodEnd;
+                    const periodName = evaluation.periodName;
+                    const periodId = evaluation.periodId;
+                    const responsesCount = evaluation.responsesCount ?? 0;
+                    const averageScorePercentage = typeof evaluation.averageScore === 'number' ? evaluation.averageScore * 20 : null;
+
+                    return {
+                        id: `evaluation-${evaluation.evaluationId}`,
+                        evaluationId: evaluation.evaluationId,
+                        employeeId: payload.employee?.id || targetEmployeeId,
+                        evaluatorId: null,
+                        evaluator: null,
+                        overallScore: averageScorePercentage,
+                        evaluationDate: null,
+                        periodStart,
+                        periodEnd,
+                        periodName,
+                        periodId,
+                        responsesCount,
+                        evaluationAverage: averageScorePercentage,
+                        commentSummary: null,
+                        commentDevelopment: null,
+                        factorScores: {},
+                        isPlaceholder: responsesCount === 0,
+                    };
+                });
+
+                const periodSummaries = apiHistory.map(evaluation => ({
+                    periodId: evaluation.periodId,
+                    periodName: evaluation.periodName,
+                    periodStart: evaluation.periodStart,
+                    periodEnd: evaluation.periodEnd,
+                    responsesCount: evaluation.responsesCount ?? 0,
+                }));
+
+                const historyContext = {
+                    employeeId: payload.employee?.id || targetEmployeeId,
+                    employee: payload.employee || null,
+                    history: normalizedHistory,
+                    periodSummaries,
+                };
+
+                setEmployeeHistoryData(historyContext);
+            } catch (error) {
+                console.error('Failed to load employee evaluation history', error);
+                onError?.({
+                    message: 'Failed to load evaluation history.',
+                    type: 'error',
+                });
+            } finally {
+                setIsHistoryLoading(false);
+            }
+        };
+
+        fetchEmployeeHistory();
+    }, [show, employeeId, evaluationContext?.employeeId]);
+
     // Initialize modal state based on the context provided
     useEffect(() => {
         if (!show) return;
 
-        const historyEntries = employeeHistoryContext?.history || [];
+        const historyEntries = employeeHistoryData?.history || [];
 
-        if (periodResponses.length > 0) {
-            setSelectedEvaluation(periodResponses[0]);
+        if (selectedPeriodResponses.length > 0) {
+            setSelectedEvaluation(selectedPeriodResponses[0]);
             setView('list');
             return;
         }
 
-        if (evaluationContext && !employeeHistoryContext) {
+        if (evaluationContext && !employeeHistoryData) {
             setSelectedEvaluation(evaluationContext);
             setView('list');
             return;
@@ -66,21 +172,32 @@ const ViewEvaluationModal = ({
             setSelectedEvaluation(null);
             setView('history');
         }
-    }, [show, employeeHistoryContext, evaluationContext, periodResponses]);
+    }, [show, employeeHistoryData, evaluationContext, selectedPeriodResponses]);
 
     useEffect(() => {
         if (!show) return;
-        if (periodResponses.length > 0) {
-            setSelectedEvaluation(periodResponses[0]);
+        if (selectedPeriodResponses.length > 0) {
+            setSelectedEvaluation(selectedPeriodResponses[0]);
             setView('list');
         }
-    }, [periodResponses, show]);
+    }, [selectedPeriodResponses, show]);
+
+    // Reset state when modal closes
+    useEffect(() => {
+        if (!show) {
+            setView('history');
+            setSelectedEvaluation(null);
+            setEmployeeHistoryData(null);
+            setSelectedPeriodResponses([]);
+            setResponseDetailsMap({});
+        }
+    }, [show]);
 
     // Derived data for the 'history' view
     const employeeHistory = useMemo(() => {
-        if (!employeeHistoryContext) return [];
+        if (!employeeHistoryData) return [];
 
-        const historyEntries = employeeHistoryContext.history || [];
+        const historyEntries = employeeHistoryData.history || [];
         if (!historyEntries.length) return [];
 
         const groupedByPeriod = historyEntries.reduce((acc, ev) => {
@@ -93,13 +210,13 @@ const ViewEvaluationModal = ({
         }, {});
 
         return Object.values(groupedByPeriod).sort((a,b) => new Date(b.periodStart) - new Date(a.periodStart));
-    }, [employeeHistoryContext]);
+    }, [employeeHistoryData]);
 
     // Derived data for the 'list' view
     const { positionTitle, evaluatorList, currentPeriodContext } = useMemo(() => {
         const baseContext = selectedEvaluation
             || evaluationContext
-            || (employeeHistoryContext?.history?.[0] ?? null);
+            || (employeeHistoryData?.history?.[0] ?? null);
 
         if (!baseContext || !subjectEmployee) {
             return { positionTitle: '', evaluatorList: [], currentPeriodContext: null };
@@ -134,8 +251,8 @@ const ViewEvaluationModal = ({
             };
         };
 
-        const evaluatorEntries = periodResponses.length > 0
-            ? periodResponses.map(ev => ({
+        const evaluatorEntries = selectedPeriodResponses.length > 0
+            ? selectedPeriodResponses.map(ev => ({
                 evaluator: buildEvaluator(ev.evaluator, ev.evaluatorId),
                 evaluation: ev,
             }))
@@ -145,17 +262,106 @@ const ViewEvaluationModal = ({
             }];
 
         return { positionTitle: title, evaluatorList: evaluatorEntries, currentPeriodContext: baseContext };
-    }, [selectedEvaluation, evaluationContext, employeeHistoryContext, periodResponses, employeeMap, positionMap, subjectEmployee]);
+    }, [selectedEvaluation, evaluationContext, employeeHistoryData, selectedPeriodResponses, employeeMap, positionMap, subjectEmployee]);
 
-    if (!show || !subjectEmployee) return null;
-
-    const handleSelectPeriod = (period) => {
+    const handleSelectPeriod = async (period) => {
         if (!period) return;
         const firstEval = period.evals?.[0];
-        if (firstEval) {
-            setSelectedEvaluation(firstEval);
-            setView('list');
-            onSelectPeriod?.(firstEval);
+        if (!firstEval) return;
+
+        setSelectedEvaluation(firstEval);
+        setView('list');
+        setResponseDetailsMap({});
+        setIsLoadingPeriodResponses(true);
+
+        try {
+            const evaluationId = firstEval.evaluationId || firstEval.id || firstEval.periodId;
+            const response = await performanceAPI.getEvaluationResponses(evaluationId);
+            const payload = response.data || {};
+            const responses = (payload.responses || []).map(item => {
+                const normalizedEvaluator = item.evaluator
+                    ? {
+                        id: item.evaluator.id,
+                        name: item.evaluator.name,
+                        email: item.evaluator.email,
+                        role: item.evaluator.role,
+                        position: item.evaluator.position,
+                        positionId: item.evaluator.positionId ?? null,
+                        imageUrl: item.evaluator.profilePictureUrl,
+                    }
+                    : null;
+
+                return {
+                    id: item.id,
+                    evaluationId: item.evaluationId,
+                    employeeId: payload.employee?.id || firstEval.employeeId || period.employeeId,
+                    evaluatorId: item.evaluatorId,
+                    evaluator: normalizedEvaluator,
+                    overallScore: typeof item.overallScore === 'number' ? item.overallScore * 20 : null,
+                    evaluationDate: item.evaluatedOn ? item.evaluatedOn.split(' T')[0] : null,
+                    periodStart: payload.evaluation?.periodStart || firstEval.periodStart,
+                    periodEnd: payload.evaluation?.periodEnd || firstEval.periodEnd,
+                    periodName: payload.evaluation?.periodName || firstEval.periodName,
+                    periodId: payload.evaluation?.periodId || firstEval.periodId,
+                    responsesCount: payload.responses?.length || firstEval.responsesCount || 0,
+                    evaluationAverage: payload.evaluation?.averageScore
+                        ? payload.evaluation.averageScore * 20
+                        : typeof firstEval.evaluationAverage === 'number' ? firstEval.evaluationAverage : null,
+                    commentSummary: item.commentSummary,
+                    commentDevelopment: item.commentDevelopment,
+                    factorScores: {},
+                };
+            });
+
+            if (responses.length === 0) {
+                setSelectedPeriodResponses([{
+                    id: `evaluation-${payload.evaluation?.id || evaluationId}`,
+                    evaluationId: payload.evaluation?.id || evaluationId,
+                    employeeId: payload.employee?.id || firstEval.employeeId || period.employeeId,
+                    evaluatorId: null,
+                    evaluator: null,
+                    overallScore: payload.evaluation?.averageScore ? payload.evaluation.averageScore * 20 : null,
+                    evaluationDate: null,
+                    periodStart: payload.evaluation?.periodStart || firstEval.periodStart,
+                    periodEnd: payload.evaluation?.periodEnd || firstEval.periodEnd,
+                    periodName: payload.evaluation?.periodName || firstEval.periodName,
+                    periodId: payload.evaluation?.periodId || firstEval.periodId,
+                    responsesCount: payload.responses?.length || firstEval.responsesCount || 0,
+                    evaluationAverage: payload.evaluation?.averageScore
+                        ? payload.evaluation.averageScore * 20
+                        : typeof firstEval.evaluationAverage === 'number' ? firstEval.evaluationAverage : null,
+                    commentSummary: null,
+                    commentDevelopment: null,
+                    factorScores: {},
+                    isPlaceholder: true,
+                }]);
+            } else {
+                setSelectedPeriodResponses(responses);
+            }
+
+            if (responses.length > 0) {
+                setSelectedEvaluation(responses[0]);
+            } else {
+                setSelectedEvaluation({
+                    evaluationId: payload.evaluation?.id || evaluationId,
+                    employeeId: payload.employee?.id || firstEval.employeeId || period.employeeId,
+                    periodStart: payload.evaluation?.periodStart || firstEval.periodStart,
+                    periodEnd: payload.evaluation?.periodEnd || firstEval.periodEnd,
+                    periodName: payload.evaluation?.periodName || firstEval.periodName,
+                    overallScore: payload.evaluation?.averageScore ? payload.evaluation.averageScore * 20 : null,
+                    responsesCount: payload.responses?.length || firstEval.responsesCount || 0,
+                    factorScores: {},
+                    isPlaceholder: true,
+                });
+            }
+        } catch (err) {
+            console.error('Failed to load evaluation responses', err);
+            onError?.({
+                message: 'Unable to fetch evaluation details for this period. Please try again.',
+                type: 'error',
+            });
+        } finally {
+            setIsLoadingPeriodResponses(false);
         }
     };
 
@@ -164,39 +370,72 @@ const ViewEvaluationModal = ({
 
         setView('detail');
 
-        if (!onLoadEvaluationDetail) {
-            setSelectedEvaluation(evaluation);
+        if (responseDetailsMap[evaluation.id]) {
+            setSelectedEvaluation(prev => ({
+                ...evaluation,
+                ...responseDetailsMap[evaluation.id],
+            }));
             return;
         }
 
         setIsDetailLoading(true);
         try {
-            const detail = await onLoadEvaluationDetail(evaluation.id);
+            const response = await performanceAPI.getEvaluationResponseDetail(evaluation.id);
+            const payload = response.data || {};
+            const detail = payload.response || null;
 
-            if (detail) {
-                setSelectedEvaluation(prev => ({
-                    ...evaluation,
-                    ...detail,
-                    factorScores: detail.factorScores || evaluation.factorScores || {},
-                    commentSummary: detail.commentSummary ?? evaluation.commentSummary,
-                    commentDevelopment: detail.commentDevelopment ?? evaluation.commentDevelopment,
-                    evaluator: detail.evaluator || evaluation.evaluator || null,
-                    overallScore: typeof detail.overallScore === 'number' ? detail.overallScore : evaluation.overallScore,
-                    periodStart: detail.periodStart || evaluation.periodStart,
-                    periodEnd: detail.periodEnd || evaluation.periodEnd,
-                    periodName: detail.periodName || evaluation.periodName,
-                }));
-            } else {
+            if (!detail) {
                 setSelectedEvaluation(evaluation);
+                return;
             }
+
+            const { scores = {}, ...detailRest } = detail;
+
+            const factorScores = Object.entries(SCORE_FIELD_TO_FACTOR_MAP).reduce((acc, [factorId, scoreField]) => {
+                if (typeof scores[scoreField] === 'number') {
+                    acc[factorId] = { score: scores[scoreField] };
+                }
+                return acc;
+            }, {});
+
+            const normalized = {
+                ...detailRest,
+                factorScores,
+                overallScore: typeof detail.overallScore === 'number' ? detail.overallScore * 20 : null,
+                commentSummary: detail.commentSummary,
+                commentDevelopment: detail.commentDevelopment,
+                evaluator: payload.evaluator ? {
+                    id: payload.evaluator.id,
+                    name: payload.evaluator.name,
+                    position: payload.evaluator.position,
+                    positionId: payload.evaluator.positionId,
+                    imageUrl: payload.evaluator.profilePictureUrl,
+                } : null,
+                periodStart: payload.evaluation?.periodStart,
+                periodEnd: payload.evaluation?.periodEnd,
+                periodName: payload.evaluation?.periodName,
+            };
+
+            setResponseDetailsMap(prev => ({ ...prev, [evaluation.id]: normalized }));
+            setSelectedEvaluation({
+                ...evaluation,
+                ...normalized,
+            });
+        } catch (error) {
+            console.error('Failed to load evaluation response detail', error);
+            onError?.({
+                message: 'Unable to load evaluator response details.',
+                type: 'error',
+            });
+            setSelectedEvaluation(evaluation);
         } finally {
             setIsDetailLoading(false);
         }
     };
     
     const handleBackToList = () => {
-        setView(employeeHistoryContext ? 'history' : 'list');
-        setSelectedEvaluation(null); // Clear detailed selection
+        setView(employeeHistoryData ? 'history' : 'list');
+        setSelectedEvaluation(null);
     };
     
     const handleBackToHistory = () => {
@@ -204,31 +443,52 @@ const ViewEvaluationModal = ({
         setSelectedEvaluation(null);
     };
 
+    if (!show) return null;
+
     // --- RENDER FUNCTIONS ---
     const renderHistoryView = () => (
         <>
-            <div className="modal-header"><h5 className="modal-title">Evaluation History for {subjectEmployee.name}</h5></div>
+            <div className="modal-header">
+                <h5 className="modal-title">
+                    Evaluation History for {subjectEmployee?.name || 'Employee'}
+                </h5>
+            </div>
             <div className="modal-body evaluator-list-body">
-                <p className="text-muted">Showing all evaluation periods for this employee. Select a period to view the evaluators.</p>
-                <div className="evaluator-list">
-                    {employeeHistory.map(period => {
-                        const responseCount = period.evals[0]?.responsesCount ?? period.evals.filter(ev => !ev.isPlaceholder).length;
-                        return (
-                        <div key={`${period.periodStart}-${period.periodEnd}`} className="evaluator-card period-card" onClick={() => handleSelectPeriod(period)}>
-                            <div className="evaluator-info">
-                                <i className="bi bi-calendar-range fs-4 text-primary"></i>
-                                <div>
-                                    <div className="evaluator-name">{period.periodStart} to {period.periodEnd}</div>
-                                    <div className="evaluator-position">{responseCount} submission(s)</div>
-                                </div>
-                            </div>
-                            <div className="evaluation-actions">
-                                <button className="btn btn-sm btn-outline-primary">View</button>
-                            </div>
+                {isHistoryLoading ? (
+                    <div className="text-center p-4">
+                        <div className="spinner-border" role="status">
+                            <span className="visually-hidden">Loading...</span>
                         </div>
-                    );
-                    })}
-                </div>
+                        <p className="mt-2">Loading evaluation history...</p>
+                    </div>
+                ) : employeeHistory.length === 0 ? (
+                    <div className="text-center text-muted p-4">
+                        No evaluation history found for this employee.
+                    </div>
+                ) : (
+                    <>
+                        <p className="text-muted">Showing all evaluation periods for this employee. Select a period to view the evaluators.</p>
+                        <div className="evaluator-list">
+                            {employeeHistory.map(period => {
+                                const responseCount = period.evals[0]?.responsesCount ?? period.evals.filter(ev => !ev.isPlaceholder).length;
+                                return (
+                                <div key={`${period.periodStart}-${period.periodEnd}`} className="evaluator-card period-card" onClick={() => handleSelectPeriod(period)}>
+                                    <div className="evaluator-info">
+                                        <i className="bi bi-calendar-range fs-4 text-primary"></i>
+                                        <div>
+                                            <div className="evaluator-name">{period.periodStart} to {period.periodEnd}</div>
+                                            <div className="evaluator-position">{responseCount} submission(s)</div>
+                                        </div>
+                                    </div>
+                                    <div className="evaluation-actions">
+                                        <button className="btn btn-sm btn-outline-primary">View</button>
+                                    </div>
+                                </div>
+                            );
+                            })}
+                        </div>
+                    </>
+                )}
             </div>
         </>
     );
@@ -236,9 +496,9 @@ const ViewEvaluationModal = ({
     const renderListView = () => (
         <>
             <div className="modal-header">
-                {employeeHistoryContext && <button className="btn btn-sm btn-light me-2 back-to-list-btn" onClick={handleBackToHistory}><i className="bi bi-arrow-left"></i></button>}
+                {employeeHistoryData && <button className="btn btn-sm btn-light me-2 back-to-list-btn" onClick={handleBackToHistory}><i className="bi bi-arrow-left"></i></button>}
                 <div className="header-info">
-                    <h5 className="modal-title">Evaluations for {subjectEmployee.name}</h5>
+                    <h5 className="modal-title">Evaluations for {subjectEmployee?.name || 'Employee'}</h5>
                     {currentPeriodContext ? (
                         <p className="text-muted mb-0">Period: {currentPeriodContext.periodStart} to {currentPeriodContext.periodEnd}</p>
                     ) : (
@@ -247,7 +507,14 @@ const ViewEvaluationModal = ({
                 </div>
             </div>
             <div className="modal-body evaluator-list-body">
-                {!currentPeriodContext ? (
+                {isLoadingPeriodResponses ? (
+                    <div className="text-center p-4">
+                        <div className="spinner-border" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <p className="mt-2">Loading evaluations...</p>
+                    </div>
+                ) : !currentPeriodContext ? (
                     <div className="text-center text-muted">No evaluation period selected.</div>
                 ) : evaluatorList.length === 0 || evaluatorList.every(item => item.evaluation.isPlaceholder) ? (
                     <div className="text-center text-muted">No evaluations submitted for this period yet.</div>
@@ -316,7 +583,7 @@ const ViewEvaluationModal = ({
                     <button className="btn btn-sm btn-light me-2 back-to-list-btn" onClick={handleBackToList}><i className="bi bi-arrow-left"></i></button>
                     <ScoreDonutChart score={selectedEvaluation.overallScore} />
                     <div className="header-info">
-                        <h5 className="modal-title">{subjectEmployee.name}</h5>
+                        <h5 className="modal-title">{subjectEmployee?.name || 'Employee'}</h5>
                         <p className="text-muted mb-0">Period: {selectedEvaluation.periodStart} to {selectedEvaluation.periodEnd}</p>
                         {evaluator && (
                             <div className="evaluator-info d-flex align-items-center gap-2">
@@ -330,11 +597,16 @@ const ViewEvaluationModal = ({
                     </div>
                 </div>
                 <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
-                    {(isDetailLoading || isLoadingResponseDetail) && (
-                        <div className="text-center text-muted py-4">Loading evaluation details…</div>
+                    {isDetailLoading && (
+                        <div className="text-center text-muted py-4">
+                            <div className="spinner-border spinner-border-sm me-2" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                            Loading evaluation details…
+                        </div>
                     )}
 
-                    {!(isDetailLoading || isLoadingResponseDetail) && criteria.map(criterion => (
+                    {!isDetailLoading && criteria.map(criterion => (
                         <div className="card mb-3" key={criterion.id}><div className="card-header fw-bold">{criterion.title}</div>
                             <ul className="list-group list-group-flush">
                                 {criterion.items.map(item => {
@@ -352,7 +624,7 @@ const ViewEvaluationModal = ({
                         </div>
                     ))}
 
-                    {!(isDetailLoading || isLoadingResponseDetail) && textAreas.length > 0 && (
+                    {!isDetailLoading && textAreas.length > 0 && (
                         <div className="card">
                             <div className="card-body">
                                 {textAreas.map(area => {
@@ -375,6 +647,25 @@ const ViewEvaluationModal = ({
     };
 
     const renderContent = () => {
+        if (!subjectEmployee && isHistoryLoading) {
+            return (
+                <div className="text-center p-5">
+                    <div className="spinner-border" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2">Loading employee data...</p>
+                </div>
+            );
+        }
+
+        if (!subjectEmployee) {
+            return (
+                <div className="text-center p-5">
+                    <p className="text-muted">No employee data available.</p>
+                </div>
+            );
+        }
+
         switch (view) {
             case 'history': return renderHistoryView();
             case 'list': return renderListView();
