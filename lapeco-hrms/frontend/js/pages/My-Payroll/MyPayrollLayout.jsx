@@ -25,6 +25,7 @@ const MyPayrollLayout = () => {
       </ul>
       
       <div className="payroll-tab-content">
+        {/* Render Outlet to display child routes, passing down the context it received */}
         <Outlet context={context} /> 
       </div>
     </div>

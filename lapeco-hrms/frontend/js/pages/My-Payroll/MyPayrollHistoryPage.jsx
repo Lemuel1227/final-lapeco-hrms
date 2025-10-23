@@ -8,7 +8,10 @@ import './MyPayrollPage.css';
 const formatCurrency = (value) => Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const MyPayrollHistoryPage = ({ currentUser, payrolls = [] }) => {
-  const { employees, theme } = useOutletContext();
+  const context = useOutletContext();
+  const employees = context?.employees;
+  const positions = context?.positions;
+  const theme = context?.theme;
   
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator(theme);
@@ -31,10 +34,22 @@ const MyPayrollHistoryPage = ({ currentUser, payrolls = [] }) => {
   }, [payrolls, currentUser.id]);
 
   const employeeDetails = useMemo(() => {
-      return employees.find(emp => emp.id === currentUser.id);
-  }, [employees, currentUser.id]);
+      if (!employees || !positions) {
+          return null;
+      }
+      const emp = employees.find(e => e.id === currentUser.id);
+      if (!emp) return null;
+
+      const pos = positions.find(p => p.id === emp.positionId);
+      return { ...emp, positionTitle: pos ? pos.title : 'N/A' };
+  }, [employees, positions, currentUser.id]);
 
   const handleViewPayslip = async (record, run) => {
+    if (!employeeDetails) {
+        console.error("Employee details not available yet.");
+        return;
+    }
+
     const [start, end] = run.cutOff.split(' to ');
     const calculatedPaymentDate = addDays(new Date(end), 5).toISOString().split('T')[0];
     
@@ -58,7 +73,7 @@ const MyPayrollHistoryPage = ({ currentUser, payrolls = [] }) => {
   };
 
   return (
-    <div className="my-payroll-history-container">
+    <div className="my-payroll-history-container mt-4">
       <div className="accordion my-payroll-accordion" id="myPayrollHistoryAccordion">
         {myPayrolls.length > 0 ? myPayrolls.map((run) => (
           <div className="accordion-item" key={run.runId}>
@@ -77,7 +92,7 @@ const MyPayrollHistoryPage = ({ currentUser, payrolls = [] }) => {
             <div id={`collapse-history-${run.runId}`} className="accordion-collapse collapse" data-bs-parent="#myPayrollHistoryAccordion">
               <div className="accordion-body text-center p-4">
                   <p className="text-muted mb-3">This is an official record. View the full PDF payslip for a detailed breakdown of earnings and deductions.</p>
-                  <button className="btn btn-primary" onClick={() => handleViewPayslip(run.myRecord, run)} disabled={isLoading}>
+                  <button className="btn btn-primary" onClick={() => handleViewPayslip(run.myRecord, run)} disabled={isLoading || !employeeDetails}>
                       {isLoading ? 'Generating...' : <><i className="bi bi-file-earmark-pdf-fill me-2"></i>View Official Payslip PDF</>}
                   </button>
               </div>

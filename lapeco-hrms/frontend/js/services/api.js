@@ -18,16 +18,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Add CSRF token from cookie if it exists
-    const csrfToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('XSRF-TOKEN='))
-      ?.split('=')[1];
-    
-    if (csrfToken) {
-      config.headers['X-XSRF-TOKEN'] = decodeURIComponent(csrfToken);
-    }
-    
     // If the data is FormData, remove the Content-Type header to let the browser set it
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
@@ -214,6 +204,7 @@ export const performanceAPI = {
   getEvaluationResponses: (evaluationId) => api.get(`/performance/evaluations/${evaluationId}/responses`),
   getEvaluationResponseDetail: (responseId) => api.get(`/performance/evaluation-responses/${responseId}`),
   getEvaluationPeriods: () => api.get('/performance'),
+  getEvaluationTrackerData: () => api.get('/performance/tracker'),
   createPeriod: (data) => api.post('/performance/periods', data),
   updatePeriod: (id, data) => api.put(`/performance/periods/${id}`, data),
   submitResponse: (evaluationId, data) => api.post(`/performance/evaluations/${evaluationId}/responses`, data),

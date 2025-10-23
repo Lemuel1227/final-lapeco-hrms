@@ -3,6 +3,7 @@ import { startOfDay, endOfDay, isPast, isFuture, parseISO } from 'date-fns';
 import PeriodCard from './PeriodCard';
 import AddEditPeriodModal from '../../modals/AddEditPeriodModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
+import PeriodResultsModal from '../../modals/PeriodResultsModal';
 import { performanceAPI } from '../../services/api';
 
 const ManagePeriods = ({ 
@@ -10,7 +11,8 @@ const ManagePeriods = ({
   evaluations = [],
   handlers = {},
   onShowToast,
-  onViewResults
+  onViewResults,
+  onViewSubmission
 }) => {
   const [evaluationPeriods, setEvaluationPeriods] = useState([]);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
@@ -19,6 +21,8 @@ const ManagePeriods = ({
   const [periodSearchTerm, setPeriodSearchTerm] = useState('');
   const [periodStatusFilter, setPeriodStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [resultsPeriod, setResultsPeriod] = useState(null);
 
   const { saveEvaluationPeriod: savePeriodHandler, deleteEvaluationPeriod: deletePeriodHandler } = handlers;
 
@@ -189,9 +193,22 @@ const ManagePeriods = ({
     }
   };
 
-  const handleViewResults = (period) => {
+  const handleViewResults = async (period) => {
+    setShowResultsModal(true);
+    setResultsPeriod(period);
     if (onViewResults) {
       onViewResults(period);
+    }
+  };
+
+  const handleCloseResultsModal = () => {
+    setShowResultsModal(false);
+    setResultsPeriod(null);
+  };
+
+  const handleViewSubmissionFromResults = (payload) => {
+    if (onViewSubmission) {
+      onViewSubmission(payload);
     }
   };
 
@@ -290,6 +307,14 @@ const ManagePeriods = ({
         <p>Are you sure you want to delete the evaluation period "<strong>{periodToDelete?.name}</strong>"?</p>
         <p className="text-danger">This action cannot be undone and may disassociate historical evaluations from this period.</p>
       </ConfirmationModal>
+
+      <PeriodResultsModal
+        show={showResultsModal}
+        period={resultsPeriod}
+        onClose={handleCloseResultsModal}
+        onViewSubmission={handleViewSubmissionFromResults}
+        onError={onShowToast}
+      />
     </div>
   );
 };

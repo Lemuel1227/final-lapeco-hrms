@@ -1,4 +1,5 @@
 import React from 'react';
+import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
 const StatusListItem = ({ employee, status, onView }) => {
   const isPending = status === 'pending';
@@ -11,10 +12,10 @@ const StatusListItem = ({ employee, status, onView }) => {
         `${employee.firstName} ${employee.lastName}` : 
         'Unknown Employee'));
   
-  const profilePic = employee.imageUrl || 
-    (employee.employee?.profilePictureUrl || 
-    employee.profilePictureUrl || 
-    '/placeholder-profile.jpg');
+  const profilePic = employee.profilePictureUrl || 
+    employee.imageUrl || 
+    employee.employee?.profilePictureUrl || 
+    placeholderAvatar;
 
   return (
     <li className="status-list-item">
@@ -25,7 +26,12 @@ const StatusListItem = ({ employee, status, onView }) => {
           <i className="bi bi-check-circle-fill text-success" title="Completed"></i>
         )}
       </div>
-      <img src={profilePic} alt={employeeName} size="sm" />
+      <img 
+        src={profilePic} 
+        alt={employeeName} 
+        className="rounded-circle"
+        style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+      />
       <span className="employee-name">{employeeName}</span>
       {isPending ? null : (
         <button 

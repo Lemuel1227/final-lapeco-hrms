@@ -5,158 +5,67 @@ import ConfirmationModal from '../../modals/ConfirmationModal';
 import './EvaluationTracker.css';
 import { performanceAPI } from '../../services/api';
 
-const EvaluationTracker = ({ teams, activePeriod, onViewEvaluation, onLoadingChange }) => {
+const EvaluationTracker = ({ onViewEvaluation, onLoadingChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [completionFilter, setCompletionFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: 'completion', direction: 'ascending' });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [teamsOverride, setTeamsOverride] = useState(null);
+  const [teams, setTeams] = useState([]);
+  const [activePeriod, setActivePeriod] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchPeriodDetail = useCallback(async () => {
-    if (!activePeriod?.id) {
-      setTeamsOverride(null);
-      setIsLoading(false);
-      return;
-    }
-
+  const fetchTrackerData = async () => {
     try {
       setIsLoading(true);
       onLoadingChange?.(true);
-      console.log('Fetching period details for period ID:', activePeriod.id);
-      const response = await performanceAPI.getPeriodicEvaluations(activePeriod.id);
-      console.log('API response:', response);
-      const detail = response.data?.period || null;
-
-      if (!detail?.evaluations?.length) {
-        console.log('No evaluations found in period detail');
-        setTeamsOverride(null);
-        setIsLoading(false);
-        return;
-      }
-
-      const evaluationMap = new Map(detail.evaluations.map(ev => [ev.employeeId, ev]));
-
-      const responsesByEvaluator = detail.evaluations.reduce((acc, evaluation) => {
-        (evaluation.responses || []).forEach(response => {
-          if (!acc.has(response.evaluatorId)) {
-            acc.set(response.evaluatorId, new Set());
-          }
-          acc.get(response.evaluatorId).add(evaluation.employeeId);
-        });
-        return acc;
-      }, new Map());
-
-      const overrideTeams = teams.map(team => {
-        const memberMap = new Map();
-        team.completedMembers.forEach(member => memberMap.set(member.id, { ...member }));
-        team.pendingMembers.forEach(member => {
-          memberMap.set(member.id, { ...(memberMap.get(member.id) || {}), ...member });
-        });
-        const allMembers = Array.from(memberMap.values());
-        
-        // Track loading state for data fetching
-        setIsLoading(true);
-
-        const completedMembers = [];
-        const pendingMembers = [];
-
-        allMembers.forEach(member => {
-          const evaluation = evaluationMap.get(member.id) || member.evaluation;
-          const normalizedEvaluation = evaluation
-            ? {
-                ...evaluation,
-                periodStart: evaluation.periodStart || detail.evaluationStart,
-                periodEnd: evaluation.periodEnd || detail.evaluationEnd,
-              }
-            : evaluation;
-          const normalizedMember = { ...member, evaluation: normalizedEvaluation };
-          const isComplete = Boolean(
-            normalizedEvaluation?.completedAt ||
-            (normalizedEvaluation?.responsesCount ?? 0) > 0
-          );
-          if (isComplete) {
-            completedMembers.push(normalizedMember);
-          } else {
-            pendingMembers.push(normalizedMember);
-          }
-        });
-
-        let leaderStatus = team.leaderStatus;
-        if (team.teamLeader) {
-          const leaderEvaluation = evaluationMap.get(team.teamLeader.id) || leaderStatus?.evaluation || null;
-          const leaderCompleted = Boolean(
-            leaderEvaluation?.completedAt ||
-            (leaderEvaluation?.responsesCount ?? 0) > 0
-          );
-
-          const completedByLeader = responsesByEvaluator.get(team.teamLeader.id) || new Set();
-          const pendingMemberEvals = allMembers.filter(member => !completedByLeader.has(member.id));
-          const evalsOfLeaderByMembers = detail.evaluations
-            .filter(ev => ev.employeeId === team.teamLeader.id)
-            .reduce((sum, ev) => {
-              const memberResponses = (ev.responses || []).filter(response =>
-                allMembers.some(member => member.id === response.evaluatorId)
-              );
-              return sum + memberResponses.length;
-            }, 0);
-
-          leaderStatus = {
-            ...leaderStatus,
-            isEvaluated: leaderCompleted,
-            evaluation: leaderEvaluation,
-            pendingMemberEvals,
-            evalsOfLeaderByMembers,
-          };
-        }
-
-        return {
-          ...team,
-          completedMembers,
-          pendingMembers,
-          leaderStatus,
-        };
-      });
-
-      setTeamsOverride(overrideTeams);
-      console.log('Teams override set:', overrideTeams);
+      
+      console.log('Fetching evaluation tracker data...');
+      const response = await performanceAPI.getEvaluationTrackerData();
+      console.log('Tracker data response:', response);
+      const data = response.data || response;
+      
+      setActivePeriod(data.activePeriod);
+      setTeams(data.teams || []);
     } catch (error) {
-      console.error('Failed to load active period details', error);
-      setTeamsOverride(null);
+      console.error('Failed to load evaluation tracker data', error);
+      setActivePeriod(null);
+      setTeams([]);
     } finally {
       setIsLoading(false);
       onLoadingChange?.(false);
     }
-  }, [activePeriod, teams, onLoadingChange]);
+  };
   
-  // Add useEffect to trigger data fetching when activePeriod changes
   useEffect(() => {
-    console.log('Active period changed:', activePeriod);
-    fetchPeriodDetail();
-  }, [activePeriod, fetchPeriodDetail]);
+    console.log('EvaluationTracker mounted or refreshKey changed:', refreshKey);
+    fetchTrackerData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]); // Fetch on mount and when refreshKey changes
 
-  useEffect(() => {
-    fetchPeriodDetail();
-  }, [fetchPeriodDetail]);
-
-  useEffect(() => {
-    if (!activePeriod?.id) {
-      setTeamsOverride(null);
-    }
-  }, [activePeriod]);
-
-  const effectiveTeams = teamsOverride || teams;
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   const teamsWithCompletion = useMemo(() => {
-    return effectiveTeams.map(team => {
+    return teams.map(team => {
       const totalMembers = team.completedMembers.length + team.pendingMembers.length;
-      const totalTasks = (team.teamLeader ? 1 : 0) + totalMembers + (team.teamLeader ? totalMembers : 0);
-      const completedTasks = team.completedMembers.length + (team.leaderStatus?.isEvaluated ? 1 : 0) + (team.leaderStatus?.evalsOfLeaderByMembers || 0);
-      const completion = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      const leaderCompletedCount = team.leaderStatus?.completedMemberEvals?.length ?? team.leaderStatus?.evaluatedMembersCount ?? 0;
+      const membersEvaluatedLeaderCount = team.membersEvaluatedLeader?.length ?? team.leaderStatus?.evaluatedByMembersCount ?? 0;
+      const totalTasks = totalMembers * 2; // leader evaluates members + members evaluate leader
+      const completedTasks = leaderCompletedCount + membersEvaluatedLeaderCount;
       const pendingCount = totalTasks - completedTasks;
-      return { ...team, completion, pendingCount };
+      const completion = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      return {
+        ...team,
+        completion,
+        pendingCount,
+        leaderMemberEvalsPending: totalMembers - leaderCompletedCount,
+        leaderCompletedCount,
+        membersEvaluatedLeaderCount,
+      };
     });
-  }, [effectiveTeams]);
+  }, [teams]);
 
   const filteredAndSortedTeams = useMemo(() => {
     let results = [...teamsWithCompletion];
@@ -196,10 +105,14 @@ const EvaluationTracker = ({ teams, activePeriod, onViewEvaluation, onLoadingCha
   const overallStats = useMemo(() => {
       const totalTeams = teamsWithCompletion.length;
       const completeTeams = teamsWithCompletion.filter(t => t.pendingCount === 0).length;
-      const totalEvals = teamsWithCompletion.reduce((sum, t) => sum + (t.teamLeader ? 1 : 0) + (t.completedMembers.length + t.pendingMembers.length)*2, 0);
+      const totalEvals = teamsWithCompletion.reduce((sum, t) => {
+        const memberCount = t.completedMembers.length + t.pendingMembers.length;
+        return sum + memberCount * 2;
+      }, 0);
       const completedEvals = teamsWithCompletion.reduce((sum, t) => {
-        const leaderEvals = t.teamLeader ? t.completedMembers.length + t.pendingMembers.length - t.leaderStatus.pendingMemberEvals.length : 0;
-        return sum + t.completedMembers.length + (t.leaderStatus?.isEvaluated ? 1 : 0) + leaderEvals;
+        const leaderEvaluatedMembers = t.leaderCompletedCount || 0;
+        const membersEvaluatedLeader = t.membersEvaluatedLeaderCount || 0;
+        return sum + leaderEvaluatedMembers + membersEvaluatedLeader;
       }, 0);
       const overallCompletion = totalEvals > 0 ? (completedEvals / totalEvals) * 100 : 0;
       return {
@@ -277,6 +190,14 @@ const EvaluationTracker = ({ teams, activePeriod, onViewEvaluation, onLoadingCha
                   />
                   </div>
                   <div className="d-flex align-items-center gap-2">
+                      <button 
+                        className="btn btn-outline-primary" 
+                        onClick={handleRefresh}
+                        disabled={isLoading}
+                        title="Refresh data"
+                      >
+                        <i className={`bi bi-arrow-clockwise ${isLoading ? 'spin' : ''}`}></i>
+                      </button>
                       <div className="btn-group">
                           <button className={`btn ${completionFilter === 'all' ? 'btn-success' : 'btn-outline-secondary'}`} onClick={() => setCompletionFilter('all')}>All</button>
                           <button className={`btn ${completionFilter === 'incomplete' ? 'btn-success' : 'btn-outline-secondary'}`} onClick={() => setCompletionFilter('incomplete')}>Incomplete</button>

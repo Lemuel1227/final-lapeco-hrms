@@ -1,19 +1,27 @@
 import React from 'react';
 import { Accordion } from 'react-bootstrap';
 import StatusListItem from './StatusListItem';
+import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
-const TeamEvaluationCard = ({ team, eventKey, onViewEvaluation }) => {
-  const { positionTitle, teamLeader, leaderStatus, completedMembers, pendingMembers } = team;
+const TeamEvaluationCard = ({ team = {}, eventKey, onViewEvaluation }) => {
+  const positionTitle = team.positionTitle || 'Unnamed Team';
+  const teamLeader = team.teamLeader || null;
+  const leaderStatus = team.leaderStatus || {};
+  const completedMembers = Array.isArray(team.completedMembers) ? team.completedMembers : [];
+  const pendingMembers = Array.isArray(team.pendingMembers) ? team.pendingMembers : [];
+  const leaderCompletedMemberEvals = Array.isArray(leaderStatus.completedMemberEvals) ? leaderStatus.completedMemberEvals : [];
+  const leaderPendingMemberEvals = Array.isArray(leaderStatus.pendingMemberEvals) ? leaderStatus.pendingMemberEvals : [];
+  const membersEvaluatedLeader = Array.isArray(team.membersEvaluatedLeader) ? team.membersEvaluatedLeader : [];
+  const membersPendingLeaderEval = Array.isArray(team.membersPendingLeader) ? team.membersPendingLeader : [];
 
   const totalMembers = completedMembers.length + pendingMembers.length;
-  // Total tasks = leader's own eval (1) + leader evaluating each member (totalMembers) + each member evaluating leader (totalMembers)
-  const totalTasks = (teamLeader ? 1 : 0) + (teamLeader ? totalMembers : 0) + totalMembers;
+  // Total tasks = leader evaluating each member + each member evaluating leader
+  const totalTasks = totalMembers * 2;
   
-  // Completed tasks = leader's eval (1 if done) + evals done BY leader + evals of leader done BY members
+  // Completed tasks = evals done BY leader + evals of leader done BY members
   const completedTasks = 
-      (leaderStatus?.isEvaluated ? 1 : 0) + 
-      (teamLeader ? totalMembers - leaderStatus.pendingMemberEvals.length : 0) + 
-      (leaderStatus?.evalsOfLeaderByMembers || 0);
+      (leaderCompletedMemberEvals.length || leaderStatus.evaluatedMembersCount || 0) + 
+      (membersEvaluatedLeader.length || leaderStatus.evaluatedByMembersCount || 0);
 
   const completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
@@ -53,30 +61,81 @@ const TeamEvaluationCard = ({ team, eventKey, onViewEvaluation }) => {
                     title={leaderStatus.isEvaluated ? 'Evaluation Completed' : 'Evaluation Pending'}
                   ></i>
                 </div>
-                <Avatar src={teamLeader.imageUrl} alt={teamLeader.name} size="md" />
-                <div className="leader-name">{teamLeader.name}</div>
-                {leaderStatus.isEvaluated && (
+                <img 
+                  src={teamLeader.profilePictureUrl || placeholderAvatar} 
+                  alt={teamLeader.name || 'Team Leader'}
+                  className="rounded-circle"
+                  style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                />
+                <div className="leader-name">{teamLeader.name || 'Unnamed Leader'}</div>
+                {leaderStatus.isEvaluated && leaderStatus.evaluationId && (
                     <button 
                         className="btn btn-sm btn-outline-secondary view-btn"
-                        onClick={() => onViewEvaluation(leaderStatus.evaluation)}
+                        onClick={() => onViewEvaluation?.({ evaluationId: leaderStatus.evaluationId, employeeId: teamLeader.id })}
                     >
                         View
                     </button>
                 )}
               </div>
               <div className="pending-evals-for-leader">
-                <div className="sub-heading">Needs to Evaluate ({leaderStatus.pendingMemberEvals.length})</div>
-                {leaderStatus.pendingMemberEvals.length > 0 ? (
-                  <ul className="pending-evals-list">
-                    {leaderStatus.pendingMemberEvals.map(member => (
-                      <li key={member.id}>
-                        <img src={member.imageUrl} size="sm" alt={member.name} />
-                        <span>{member.name}</span>
-                      </li>
+                <div className="sub-heading">Evaluation Progress</div>
+                <p className="text-muted small mb-1">
+                  Evaluated {leaderStatus.evaluatedMembersCount || 0} of {leaderStatus.totalMembersToEvaluate || totalMembers} team members
+                </p>
+                {(leaderStatus.evaluatedMembersCount || 0) >= (leaderStatus.totalMembersToEvaluate || totalMembers) ? (
+                  <p className="text-success small mb-2">
+                    <i className="bi bi-check-circle-fill me-1"></i>
+                    All team members evaluated
+                  </p>
+                ) : (
+                  <p className="text-warning small mb-2">
+                    <i className="bi bi-exclamation-circle-fill me-1"></i>
+                    {(leaderStatus.totalMembersToEvaluate || totalMembers) - (leaderStatus.evaluatedMembersCount || 0)} pending
+                  </p>
+                )}
+
+                <div className="sub-heading mt-2">Pending ({leaderPendingMemberEvals.length})</div>
+                {leaderPendingMemberEvals.length > 0 ? (
+                  <ul className="status-list">
+                    {leaderPendingMemberEvals.map(member => (
+                      <StatusListItem
+                        key={member.id}
+                        employee={member}
+                        status="pending"
+                      />
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-muted small mb-0">All team members evaluated.</p>
+                  <p className="text-muted small mb-2">No pending member evaluations.</p>
+                )}
+
+                <div className="sub-heading mt-3">Completed ({leaderCompletedMemberEvals.length})</div>
+                {leaderCompletedMemberEvals.length > 0 ? (
+                  <ul className="status-list">
+                    {leaderCompletedMemberEvals.map(member => (
+                      <StatusListItem
+                        key={member.id ? member.id : member.employeeId}
+                        employee={member}
+                        status="completed"
+                        onView={() => onViewEvaluation?.({
+                          employeeId: member.id,
+                          employeeName: member.name,
+                          submissionId: member.responseId,
+                          evaluationId: member.evaluationId,
+                          source: 'tracker-leader',
+                          submission: {
+                            id: member.responseId,
+                            evaluationId: member.evaluationId,
+                            employeeId: member.id,
+                            employeeName: member.name,
+                            status: 'completed',
+                          }
+                        })}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted small mb-0">No member evaluations completed yet.</p>
                 )}
               </div>
             </div>
@@ -84,10 +143,10 @@ const TeamEvaluationCard = ({ team, eventKey, onViewEvaluation }) => {
           <div className="status-list-container">
             <h6>Team Members' Status</h6>
             
-            <div className="sub-heading">Pending ({pendingMembers.length})</div>
-            {pendingMembers.length > 0 ? (
+            <div className="sub-heading">Pending ({membersPendingLeaderEval.length})</div>
+            {membersPendingLeaderEval.length > 0 ? (
               <ul className="status-list">
-                {pendingMembers.map(emp => (
+                {membersPendingLeaderEval.map(emp => (
                   <StatusListItem 
                     key={emp.id} 
                     employee={emp} 
@@ -95,21 +154,27 @@ const TeamEvaluationCard = ({ team, eventKey, onViewEvaluation }) => {
                   />
                 ))}
               </ul>
-            ) : <p className="text-muted small mb-0">All members have been evaluated.</p>}
+            ) : <p className="text-muted small mb-0">All members have evaluated the leader.</p>}
 
-            <div className="sub-heading mt-3">Completed ({completedMembers.length})</div>
-            {completedMembers.length > 0 ? (
+            <div className="sub-heading mt-3">Completed ({membersEvaluatedLeader.length})</div>
+            {membersEvaluatedLeader.length > 0 ? (
               <ul className="status-list">
-                {completedMembers.map(emp => (
+                {membersEvaluatedLeader.map(emp => (
                   <StatusListItem 
                     key={emp.id} 
                     employee={emp} 
                     status="completed"
-                    onView={() => onViewEvaluation(emp.evaluation)}
+                    onView={() => onViewEvaluation?.({
+                      employeeId: emp.id,
+                      employeeName: emp.name,
+                      submissionId: emp.responseId,
+                      evaluationId: emp.evaluationId,
+                      source: 'tracker-member-on-leader'
+                    })}
                   />
                 ))}
               </ul>
-            ) : <p className="text-muted small mb-0">No evaluations completed yet.</p>}
+            ) : <p className="text-muted small mb-0">No member evaluations submitted yet.</p>}
           </div>
         </div>
       </Accordion.Body>

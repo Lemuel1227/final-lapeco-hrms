@@ -3,6 +3,7 @@ import { startOfDay, endOfDay, parseISO } from 'date-fns';
 import './PerformanceManagement.css';
 
 import ViewEvaluationModal from '../../modals/ViewEvaluationModal';
+import ReviewSubmissionModal from '../../modals/ReviewSubmissionModal';
 import PerformanceReportModal from '../../modals/PerformanceReportModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
@@ -28,6 +29,7 @@ const PerformanceManagementPage = ({
   const [loadingEmployeeId, setLoadingEmployeeId] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   const [viewingEmployeeId, setViewingEmployeeId] = useState(null);
+  const [trackerReviewData, setTrackerReviewData] = useState(null);
   
   const [showReportConfigModal, setShowReportConfigModal] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -207,10 +209,7 @@ const PerformanceManagementPage = ({
     setToast({ show: true, ...toastData });
   };
 
-  const handleViewResultsFromPeriod = (period) => {
-    // Switch to overview tab when viewing results from a period
-    setActiveTab('overview');
-  };
+  const handleViewResultsFromPeriod = () => {};
 
   return (
     <div className="container-fluid p-0 page-module-container">
@@ -265,9 +264,19 @@ const PerformanceManagementPage = ({
         
         {activeTab === 'tracker' && (
           <EvaluationTracker 
-            teams={evaluationTrackerData}
-            activePeriod={activeEvaluationPeriod}
-            onViewEvaluation={(evalData) => setViewingEmployeeId(evalData?.employeeId || evalData?.id)}
+            key={activeTab} 
+            onViewEvaluation={(evalData) => {
+              if (!evalData) return;
+              if (evalData.submissionId) {
+                setTrackerReviewData({
+                  employeeId: evalData.employeeId,
+                  employeeName: evalData.employeeName,
+                  submissionId: evalData.submissionId,
+                });
+              } else {
+                setViewingEmployeeId(evalData.employeeId || evalData.id || null);
+              }
+            }}
           />
         )}
         
@@ -278,6 +287,14 @@ const PerformanceManagementPage = ({
             handlers={handlers}
             onShowToast={showToast}
             onViewResults={handleViewResultsFromPeriod}
+            onViewSubmission={(payload) => {
+              if (!payload) return;
+              setTrackerReviewData({
+                employeeId: payload.employeeId,
+                employeeName: payload.employeeName,
+                submissionId: payload.submissionId,
+              });
+            }}
           />
         )}
       </div>
@@ -287,6 +304,16 @@ const PerformanceManagementPage = ({
           message={toast.message}
           type={toast.type}
           onClose={() => setToast({ show: false, message: '', type: 'info' })}
+        />
+      )}
+
+      {trackerReviewData && (
+        <ReviewSubmissionModal
+          show={Boolean(trackerReviewData)}
+          onClose={() => setTrackerReviewData(null)}
+          employeeId={trackerReviewData.employeeId}
+          employeeName={trackerReviewData.employeeName}
+          submissionId={trackerReviewData.submissionId}
         />
       )}
 
