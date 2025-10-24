@@ -102,9 +102,36 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
                 <span className="application-date">
                     Applied: {formatDate(applicant.application_date)}
                 </span>
-                <a href={applicant.resumeUrl || '#'} target="_blank" rel="noopener noreferrer" className="resume-link" onClick={(e) => e.stopPropagation()}>
-                    <i className="bi bi-file-earmark-text-fill"></i> Resume
-                </a>
+                {applicant.resume_file && (
+                    <a 
+                        href="#" 
+                        className="resume-link" 
+                        onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            try {
+                                const token = localStorage.getItem('auth_token');
+                                const response = await fetch(`/api/applicants/${applicant.id}/resume/view`, {
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                    },
+                                });
+                                if (response.ok) {
+                                    const blob = await response.blob();
+                                    const url = window.URL.createObjectURL(blob);
+                                    window.open(url, '_blank');
+                                } else {
+                                    alert('Failed to load resume');
+                                }
+                            } catch (error) {
+                                console.error('Error viewing resume:', error);
+                                alert('Failed to load resume');
+                            }
+                        }}
+                    >
+                        <i className="bi bi-file-earmark-text-fill"></i> Resume
+                    </a>
+                )}
             </div>
         </div>
     </div>

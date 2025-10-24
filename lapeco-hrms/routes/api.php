@@ -55,8 +55,10 @@ Route::get('/applicants', [ApplicantController::class, 'index']);
 Route::post('/applicants', [ApplicantController::class, 'store']); // Add public POST route for testing
 Route::get('/positions', [PositionController::class, 'publicIndex']);
 
-// Resume serving route (handles auth internally)
-Route::get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
+// Resume serving routes (requires authentication)
+Route::middleware('auth:sanctum')->get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
+Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/view', [ApplicantController::class, 'viewResume']);
+Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/download', [ApplicantController::class, 'downloadResume']);
 
 Route::get('/email/verify/{id}/{hash}', [ProfileController::class, 'verifyEmail'])
     ->middleware(['signed', 'throttle:1,1'])
@@ -209,6 +211,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:recruitment,update'])->put('/applicants/{applicant}/status', [ApplicantController::class, 'updateStatus']);
     Route::middleware(['role.access:recruitment,update'])->post('/applicants/{applicant}/interview', [ApplicantController::class, 'scheduleInterview']);
     Route::middleware(['role.access:recruitment,update'])->post('/applicants/{applicant}/hire', [ApplicantController::class, 'hire']);
+    // Resume routes moved to public section with auth:sanctum middleware
 
     // Performance Management - with role-based access control
     Route::middleware(['role.access:performance,index'])->get('/performance', [PerformanceController::class, 'index']);
@@ -230,6 +233,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:performance,update'])->put('/performance/periods/{period}', [PerformanceController::class, 'updatePeriod']);
     Route::middleware(['role.access:performance,store'])->post('/performance/evaluations', [PerformanceController::class, 'storeEvaluation']);
     Route::middleware(['role.access:performance,update'])->put('/performance/evaluations/{evaluation}', [PerformanceController::class, 'updateEvaluation']);
+    Route::middleware(['role.access:performance,store'])->post('/performance/reminders', [PerformanceController::class, 'sendReminders']);
 
     // Training and Development - with role-based access control
     Route::middleware(['role.access:training,index'])->get('/training', [TrainingController::class, 'index']);

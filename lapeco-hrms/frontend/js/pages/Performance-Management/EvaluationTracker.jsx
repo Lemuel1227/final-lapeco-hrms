@@ -123,9 +123,16 @@ const EvaluationTracker = ({ onViewEvaluation, onLoadingChange }) => {
       };
   }, [teamsWithCompletion]);
 
-  const handleRemindAllPending = () => {
-    alert(`Reminders sent to all ${overallStats.pendingEvals} pending individuals.`);
-    setShowConfirmModal(false);
+  const handleRemindAllPending = async () => {
+    try {
+      await performanceAPI.sendReminders();
+      alert('Reminders sent successfully.');
+    } catch (error) {
+      console.error('Failed to send reminders', error);
+      alert('Failed to send reminders. Please try again.');
+    } finally {
+      setShowConfirmModal(false);
+    }
   };
 
   if (!activePeriod) {

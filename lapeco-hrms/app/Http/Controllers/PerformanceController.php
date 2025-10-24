@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\PerformanceEvaluation;
 use App\Models\PerformanceEvaluationPeriod;
 use App\Models\PerformanceEvaluatorResponse;
@@ -1143,5 +1144,81 @@ class PerformanceController extends Controller
             ],
             'teams' => $teams,
         ]);
+    }
+
+    public function sendReminders(Request $request)
+    {
+        $now = now();
+        $activePeriod = PerformanceEvaluationPeriod::where(function ($query) use ($now) {
+            $query->whereRaw('DATE(COALESCE(open_date, evaluation_start)) <= ?', [$now->toDateString()])
+                ->whereRaw('DATE(COALESCE(close_date, evaluation_end)) >= ?', [$now->toDateString()]);
+        })
+            ->orderByDesc('evaluation_start')
+            ->first();
+
+        if (!$activePeriod) {
+            return response()->json(['message' => 'No active evaluation period found.'], 404);
+        }
+
+        $usersToNotify = [];
+
+        // Logic to find users with pending evaluations
+        $evaluations = PerformanceEvaluation::where('period_id', $activePeriod->id)->with('employee')->get();
+        $allResponses = PerformanceEvaluatorResponse::whereIn('evaluation_id', $evaluations->pluck('id'))->get();
+
+        foreach ($evaluations as $evaluation) {
+            $employee = $evaluation->employee;
+            if (!$employee) continue;
+
+            $expectedEvaluators = $this->getExpectedEvaluatorsFor($employee);
+
+            foreach ($expectedEvaluators as $evaluator) {
+                $hasResponded = $allResponses->contains(function ($response) use ($evaluation, $evaluator) {
+                    return $response->evaluation_id == $evaluation->id && $response->evaluator_id == $evaluator->id;
+                });
+
+                if (!$hasResponded) {
+                    $usersToNotify[$evaluator->id] = $evaluator;
+                }
+            }
+        }
+
+        foreach ($usersToNotify as $user) {
+            $actionUrl = '/dashboard/performance-management'; // Default URL
+            if ($user->role === 'REGULAR_EMPLOYEE') {
+                $actionUrl = '/dashboard/evaluate-leader';
+            } elseif ($user->role === 'TEAM_LEADER') {
+                $actionUrl = '/dashboard/evaluate-team';
+            }
+
+            Notification::createForUser(
+                $user->id,
+                'performance_review',
+                'Evaluation Reminder',
+                'Please complete your pending performance evaluations.',
+                ['action_url' => $actionUrl]
+            );
+        }
+
+        return response()->json(['message' => 'Reminders sent successfully to ' . count($usersToNotify) . ' users.']);
+    }
+
+    private function getExpectedEvaluatorsFor(User $employee)
+    {
+        $evaluators = [];
+        if ($employee->role === 'REGULAR_EMPLOYEE') {
+            // Team leader evaluates regular employee
+            $leader = User::where('position_id', $employee->position_id)->where('role', 'TEAM_LEADER')->first();
+            if ($leader) {
+                $evaluators[] = $leader;
+            }
+        } elseif ($employee->role === 'TEAM_LEADER') {
+            // Regular employees evaluate team leader
+            $members = User::where('position_id', $employee->position_id)->where('role', 'REGULAR_EMPLOYEE')->get();
+            foreach ($members as $member) {
+                $evaluators[] = $member;
+            }
+        }
+        return $evaluators;
     }
 }

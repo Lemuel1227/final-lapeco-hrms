@@ -197,6 +197,21 @@ export const applicantAPI = {
   },
   hire: (id, data) => api.post(`/applicants/${id}/hire`, data),
   getStats: () => api.get('/applicants/statistics'),
+  viewResume: async (id) => {
+    const response = await api.get(`/applicants/${id}/resume/view`, { responseType: 'blob' });
+    return response.data;
+  },
+  downloadResume: async (id, filename) => {
+    const response = await api.get(`/applicants/${id}/resume/download`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 // Recruitment API calls
@@ -222,6 +237,7 @@ export const performanceAPI = {
   updateResponse: (responseId, data) => api.put(`/performance/evaluation-responses/${responseId}`, data),
   getTeamMembersToEvaluate: () => api.get('/performance/team-members-to-evaluate'),
   getLeaderToEvaluate: () => api.get('/performance/leader-to-evaluate'),
+  sendReminders: () => api.post('/performance/reminders'),
 };
 
 // Training API calls

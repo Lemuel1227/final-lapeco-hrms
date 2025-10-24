@@ -17,6 +17,8 @@ const NotificationItem = ({ notification, onMarkAsRead, currentUser }) => {
         return { icon: 'bi-calendar-check-fill', color: 'text-success' };
       case 'holiday_reminder':
         return { icon: 'bi-flag-fill', color: 'text-warning' };
+      case 'payroll_generated':
+        return { icon: 'bi-cash-stack', color: 'text-success' };
       case 'performance_review':
         return { icon: 'bi-clipboard-check-fill', color: 'text-warning' };
       case 'recruitment':

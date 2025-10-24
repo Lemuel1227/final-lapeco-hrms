@@ -92,13 +92,49 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                     <div className="info-item"><i className="bi bi-calendar-plus-fill"></i><span>Applied: {formatDate(displayData.application_date)}</span></div>
                     <div className="info-item"><i className="bi bi-calendar-check-fill"></i><span>Interview: {displayData.interview_schedule ? `${formatDate(displayData.interview_schedule.date)} at ${displayData.interview_schedule.time}` : 'Not Scheduled'}</span></div>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-resume"
-                  onClick={() => onViewResume && onViewResume(displayData)}
-                >
-                  <i className="bi bi-file-earmark-text-fill me-2"></i>View Resume
-                </button>
+                {displayData.resume_file && (
+                  <div className="d-flex flex-column gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-resume"
+                      onClick={async () => {
+                        try {
+                          const blob = await applicantAPI.viewResume(displayData.id);
+                          const url = window.URL.createObjectURL(blob);
+                          window.open(url, '_blank');
+                        } catch (error) {
+                          console.error('Error viewing resume:', error);
+                          alert('Failed to load resume');
+                        }
+                      }}
+                    >
+                      <i className="bi bi-file-earmark-text-fill me-2"></i>View Resume
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary btn-resume"
+                      onClick={async () => {
+                        try {
+                          await applicantAPI.downloadResume(
+                            displayData.id, 
+                            `resume_${displayData.full_name || displayData.name}.pdf`
+                          );
+                        } catch (error) {
+                          console.error('Error downloading resume:', error);
+                          alert('Failed to download resume');
+                        }
+                      }}
+                    >
+                      <i className="bi bi-download me-2"></i>Download Resume
+                    </button>
+                  </div>
+                )}
+                {!displayData.resume_file && (
+                  <div className="alert alert-info mt-3" role="alert">
+                    <i className="bi bi-info-circle me-2"></i>
+                    No resume uploaded
+                  </div>
+                )}
               </div>
               <div className="profile-main">
                  <button type="button" className="btn-close float-end" onClick={onClose} aria-label="Close"></button>

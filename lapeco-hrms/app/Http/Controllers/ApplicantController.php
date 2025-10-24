@@ -414,10 +414,38 @@ class ApplicantController extends Controller
     }
 
     /**
+     * View an applicant's resume in the browser.
+     */
+    public function viewResume(Request $request, Applicant $applicant)
+    {
+        // Check if user is authenticated
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if (!$applicant->resume_file || !Storage::disk('local')->exists($applicant->resume_file)) {
+            return response()->json(['message' => 'Resume not found'], 404);
+        }
+
+        $path = Storage::disk('local')->path($applicant->resume_file);
+        $mimeType = Storage::disk('local')->mimeType($applicant->resume_file);
+        
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . basename($applicant->resume_file) . '"'
+        ]);
+    }
+
+    /**
      * Download an applicant's resume from private storage.
      */
     public function downloadResume(Request $request, Applicant $applicant)
     {
+        // Check if user is authenticated
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
         if (!$applicant->resume_file || !Storage::disk('local')->exists($applicant->resume_file)) {
             return response()->json(['message' => 'Resume not found'], 404);
         }

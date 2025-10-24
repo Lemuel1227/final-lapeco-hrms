@@ -6,6 +6,7 @@ use App\Models\EmployeePayroll;
 use App\Models\Holiday;
 use App\Models\Leave;
 use App\Models\LeaveCredit;
+use App\Models\Notification;
 use App\Models\PayrollDeduction;
 use App\Models\PayrollEarning;
 use App\Models\PayrollPeriod;
@@ -892,6 +893,30 @@ class PayrollController extends Controller
                 'deduction_pay' => $lateDeduction,
             ]);
         }
+
+        // Create notification for the employee
+        $netPay = round($gross - $totalDeductions, 2);
+        Notification::createForUser(
+            $user->id,
+            'payroll_generated',
+            'Payroll Generated',
+            sprintf(
+                'Your payroll for the period %s to %s has been generated. Net Pay: ₱%s',
+                $period->period_start->format('M d, Y'),
+                $period->period_end->format('M d, Y'),
+                number_format($netPay, 2)
+            ),
+            [
+                'period_id' => $period->id,
+                'payroll_id' => $employeePayroll->id,
+                'period_start' => $period->period_start->toDateString(),
+                'period_end' => $period->period_end->toDateString(),
+                'gross_earning' => round($gross, 2),
+                'total_deductions' => round($totalDeductions, 2),
+                'net_pay' => $netPay,
+                'action_url' => '/dashboard/my-payroll/history'
+            ]
+        );
 
         return [
             'employee_id' => $user->id,
