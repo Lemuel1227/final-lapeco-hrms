@@ -38,7 +38,7 @@ const ImportPreviewModal = ({
   const stats = useMemo(() => {
     const total = editedData.length;
     const matched = editedData.filter(row => row.matchStatus === 'matched').length;
-    const unmatched = editedData.filter(row => row.matchStatus === 'unmatched').length;
+    const unmatched = editedData.filter(row => row.matchStatus === 'unmatched' && !row.excluded).length;
     const excluded = editedData.filter(row => row.excluded).length;
     
     return { total, matched, unmatched, excluded, toImport: total - excluded };
@@ -71,6 +71,16 @@ const ImportPreviewModal = ({
     updated[rowIndex].excluded = true;
     setEditedData(updated);
     setSearchingEmployee(null);
+  };
+
+  const handleExcludeAllUnmatched = () => {
+    const updated = editedData.map(row => {
+      if (row.matchStatus === 'unmatched' && !row.excluded) {
+        return { ...row, excluded: true };
+      }
+      return row;
+    });
+    setEditedData(updated);
   };
 
   const handleConfirm = () => {
@@ -120,12 +130,25 @@ const ImportPreviewModal = ({
                   </div>
                 </div>
                 <div className="col-md-3">
-                  <div className="d-flex align-items-center">
-                    <i className="bi bi-exclamation-circle fs-4 text-warning me-2"></i>
-                    <div>
-                      <small className="text-muted d-block">Unmatched</small>
-                      <strong className="fs-5 text-warning">{stats.unmatched}</strong>
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="d-flex align-items-center">
+                      <i className="bi bi-exclamation-circle fs-4 text-warning me-2"></i>
+                      <div>
+                        <small className="text-muted d-block">Unmatched</small>
+                        <strong className="fs-5 text-warning">{stats.unmatched}</strong>
+                      </div>
                     </div>
+                    {stats.unmatched > 0 && (
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={handleExcludeAllUnmatched}
+                        disabled={isLoading}
+                        title="Exclude all unmatched records"
+                      >
+                        <i className="bi bi-x-circle me-1"></i>
+                        Exclude All
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="col-md-3">
@@ -353,6 +376,7 @@ const ImportPreviewModal = ({
               className="btn import-confirm-btn" 
               onClick={handleConfirm}
               disabled={isLoading || stats.toImport === 0 || stats.unmatched > 0}
+              title={stats.unmatched > 0 ? 'Please match or exclude all unmatched records' : ''}
             >
               {isLoading ? (
                 <>

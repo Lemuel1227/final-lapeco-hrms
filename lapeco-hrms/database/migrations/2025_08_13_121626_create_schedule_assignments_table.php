@@ -16,8 +16,8 @@ return new class extends Migration
             $table->unsignedBigInteger('schedule_id')->nullable()->onDelete('cascade');
             $table->unsignedBigInteger('schedule_template_id')->nullable()->onDelete('cascade');
             $table->unsignedBigInteger('user_id');
-            $table->time('start_time');
-            $table->time('end_time');
+            $table->time('start_time')->nullable();
+            $table->time('end_time')->nullable();
             $table->time('break_start')->nullable();
             $table->time('break_end')->nullable();
             $table->decimal('ot_hours', 4, 2)->default(0);

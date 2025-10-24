@@ -580,8 +580,8 @@ class AttendanceController extends Controller
                             $assignment = ScheduleAssignment::create([
                                 'schedule_id' => $schedule->id,
                                 'user_id' => $employeeId,
-                                'start_time' => '08:00', // Default shift times
-                                'end_time' => '17:00',
+                                'start_time' => null,
+                                'end_time' => null,
                                 'ot_hours' => 0
                             ]);
                         }

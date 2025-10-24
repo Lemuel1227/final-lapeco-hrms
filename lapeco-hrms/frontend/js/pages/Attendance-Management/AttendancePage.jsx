@@ -808,30 +808,13 @@ const AttendancePage = () => {
               accept=".xlsx, .xls" 
             />
             
-            <div className="btn-group">
-              <button 
-                className="btn btn-outline-secondary dropdown-toggle" 
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i className="bi bi-file-earmark-arrow-up me-2"></i>Import
-              </button>
-              <ul className="dropdown-menu">
-                <li>
-                  <button className="dropdown-item" onClick={handleExcelImportClick}>
-                    <i className="bi bi-file-earmark-spreadsheet me-2"></i>
-                    Excel Import (with validation)
-                  </button>
-                </li>
-                <li>
-                  <button className="dropdown-item" onClick={handleImportClick}>
-                    <i className="bi bi-file-earmark me-2"></i>
-                    Quick Import (current date)
-                  </button>
-                </li>
-              </ul>
-            </div>
-            
+            <button 
+              className="btn btn-outline-secondary"
+              onClick={handleExcelImportClick}
+            >
+              <i className="bi bi-file-earmark-arrow-up me-2"></i>Import
+            </button>
+
             <button className="btn btn-outline-secondary" onClick={handleExport} disabled={activeView !== 'daily' || !sortedAndFilteredList || sortedAndFilteredList.length === 0}>
               <i className="bi bi-download me-2"></i>Export
             </button>
