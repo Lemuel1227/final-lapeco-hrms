@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 const ImportPreviewModal = ({ 
   show, 
   onClose, 
-  importData, 
+  importData = [], // Default to empty array if undefined
   onConfirm, 
   isLoading,
   employeesList = [],
@@ -11,9 +11,14 @@ const ImportPreviewModal = ({
   onEmployeeAdd
 }) => {
   const [editedData, setEditedData] = useState(importData);
-  const [selectedRows, setSelectedRows] = useState(new Set());
   const [searchingEmployee, setSearchingEmployee] = useState(null);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+
+  useEffect(() => {
+    setEditedData(importData);
+    setSearchingEmployee(null);
+    setEmployeeSearchTerm('');
+  }, [importData]);
 
   // Filter employees based on search term
   const filteredEmployees = useMemo(() => {
@@ -29,10 +34,11 @@ const ImportPreviewModal = ({
   const stats = useMemo(() => {
     const total = editedData.length;
     const matched = editedData.filter(row => row.matchStatus === 'matched').length;
-    const unmatched = editedData.filter(row => row.matchStatus === 'unmatched').length;
+    const unmatched = editedData.filter(row => row.matchStatus === 'unmatched' && !row.excluded).length;
     const excluded = editedData.filter(row => row.excluded).length;
+    const toImport = editedData.filter(row => !row.excluded && row.matchStatus === 'matched').length;
     
-    return { total, matched, unmatched, excluded, toImport: total - excluded };
+    return { total, matched, unmatched, excluded, toImport };
   }, [editedData]);
 
   const handleRemoveRow = (index) => {
@@ -51,6 +57,7 @@ const ImportPreviewModal = ({
     const updated = [...editedData];
     updated[rowIndex].employeeId = employee.id;
     updated[rowIndex].employeeName = employee.name;
+    updated[rowIndex].matchedEmployee = employee;
     updated[rowIndex].matchStatus = 'matched';
     setEditedData(updated);
     setSearchingEmployee(null);
@@ -65,8 +72,60 @@ const ImportPreviewModal = ({
   };
 
   const handleConfirm = () => {
-    const dataToImport = editedData.filter(row => !row.excluded);
-    onConfirm(dataToImport);
+    const logTypeMap = {
+      'Sign In': 'sign_in',
+      'Sign Out': 'sign_out',
+      'Break In': 'break_in',
+      'Break Out': 'break_out'
+    };
+
+    const rowsToImport = editedData.filter(row => !row.excluded && row.matchStatus === 'matched');
+
+    // Group data by date as expected by backend
+    const groupedByDate = rowsToImport
+      .reduce((acc, row) => {
+        const dateObj = row.dateTime instanceof Date ? row.dateTime : new Date(row.dateTime);
+        if (Number.isNaN(dateObj.getTime())) {
+          return acc;
+        }
+
+        const logTypeKey = logTypeMap[row.logType];
+        const employeeId = row.matchedEmployee?.id ?? row.employeeId;
+
+        if (!logTypeKey || !employeeId) {
+          return acc;
+        }
+
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const hours = String(dateObj.getHours()).padStart(2, '0');
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+
+        const formattedDate = `${year}-${month}-${day}`;
+        const formattedTime = `${hours}:${minutes}`;
+
+        if (!acc[formattedDate]) {
+          acc[formattedDate] = [];
+        }
+
+        acc[formattedDate].push({
+          employee_id: parseInt(employeeId, 10), // Ensure it's an integer
+          date: formattedDate,
+          time: formattedTime,
+          log_type: logTypeKey,
+          source_name: row.name,
+          source_id_number: row.idNumber,
+          source_department: row.department,
+        });
+
+        return acc;
+      }, {});
+
+    // Debug logging
+    console.log('Sending groupedByDate:', groupedByDate);
+
+    onConfirm({ groupedByDate });
   };
 
   if (!show) return null;

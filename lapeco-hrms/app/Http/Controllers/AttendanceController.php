@@ -528,6 +528,206 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Import attendance records from Excel
+     * Creates schedules if they don't exist and assigns attendance to employees
+     */
+    public function importAttendance(Request $request): JsonResponse
+    {
+        // Debug: Log the incoming request data
+        \Log::info('Import Attendance Request Data:', [
+            'groupedByDate' => $request->groupedByDate,
+            'all_data' => $request->all()
+        ]);
+
+        // Basic validation
+        $request->validate([
+            'groupedByDate' => 'required|array',
+        ]);
+
+        // The data is already grouped by date from frontend
+        $groupedByDate = $request->groupedByDate;
+        $totalImported = 0;
+        $schedulesCreated = 0;
+        $validationErrors = [];
+
+        try {
+            // Debug: Log data structure
+            \Log::info('GroupedByDate structure:', [
+                'type' => gettype($groupedByDate),
+                'keys' => array_keys($groupedByDate),
+                'sample_date' => isset($groupedByDate[array_key_first($groupedByDate)])
+                    ? [
+                        'type' => gettype($groupedByDate[array_key_first($groupedByDate)]),
+                        'is_array' => is_array($groupedByDate[array_key_first($groupedByDate)]),
+                        'sample_value' => $groupedByDate[array_key_first($groupedByDate)]
+                    ]
+                    : 'empty'
+            ]);
+
+            // Validate data structure manually
+            foreach ($groupedByDate as $date => $records) {
+                if (!is_array($records)) {
+                    $validationErrors[] = "Date '{$date}' must contain an array of records, got " . gettype($records);
+                    continue;
+                }
+
+                foreach ($records as $index => $record) {
+                    if (!is_array($record) && !is_object($record)) {
+                        $validationErrors[] = "Record {$index} for date '{$date}' must be an array or object, got " . gettype($record);
+                        continue;
+                    }
+
+                    // Convert to array if it's an object
+                    if (is_object($record)) {
+                        $record = (array) $record;
+                    }
+
+                    // Validate required fields
+                    $requiredFields = ['employee_id', 'date', 'time', 'log_type'];
+                    foreach ($requiredFields as $field) {
+                        if (!isset($record[$field]) || empty($record[$field])) {
+                            $validationErrors[] = "Field '{$field}' is required for record {$index} on date '{$date}'";
+                        }
+                    }
+
+                    // Validate employee_id exists
+                    if (isset($record['employee_id'])) {
+                        // Convert to integer for database query
+                        $employeeId = (int) $record['employee_id'];
+                        $employeeExists = \App\Models\User::where('id', $employeeId)->exists();
+                        if (!$employeeExists) {
+                            $validationErrors[] = "Employee with ID {$record['employee_id']} does not exist";
+                        }
+                    }
+
+                    // Validate date format
+                    if (isset($record['date'])) {
+                        $dateObj = \DateTime::createFromFormat('Y-m-d', $record['date']);
+                        if (!$dateObj || $dateObj->format('Y-m-d') !== $record['date']) {
+                            $validationErrors[] = "Invalid date format for record {$index} on date '{$date}': {$record['date']}";
+                        }
+                    }
+
+                    // Validate time format
+                    if (isset($record['time'])) {
+                        $timeObj = \DateTime::createFromFormat('H:i', $record['time']);
+                        if (!$timeObj || $timeObj->format('H:i') !== $record['time']) {
+                            $validationErrors[] = "Invalid time format for record {$index} on date '{$date}': {$record['time']}";
+                        }
+                    }
+
+                    // Validate log_type
+                    if (isset($record['log_type'])) {
+                        $validLogTypes = ['sign_in', 'sign_out', 'break_in', 'break_out'];
+                        if (!in_array($record['log_type'], $validLogTypes)) {
+                            $validationErrors[] = "Invalid log_type '{$record['log_type']}' for record {$index} on date '{$date}'";
+                        }
+                    }
+                }
+            }
+
+            // If validation errors, return them
+            if (!empty($validationErrors)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validationErrors
+                ], 422);
+            }
+
+            // Process each date
+            foreach ($groupedByDate as $date => $records) {
+                // Check if schedule exists for this date
+                $schedule = Schedule::where('date', $date)->first();
+
+                if (!$schedule) {
+                    // Create new schedule
+                    $schedule = Schedule::create([
+                        'name' => 'Imported Schedule',
+                        'date' => $date,
+                        'description' => 'Schedule created from Excel import'
+                    ]);
+                    $schedulesCreated++;
+                }
+
+                // Group records by employee for this date
+                $recordsByEmployee = collect($records)->groupBy('employee_id');
+
+                // Process each employee's records
+                foreach ($recordsByEmployee as $employeeId => $employeeRecords) {
+                    // Check if employee is already assigned to this schedule
+                    $existingAssignment = ScheduleAssignment::where('schedule_id', $schedule->id)
+                        ->where('user_id', $employeeId)
+                        ->first();
+
+                    if (!$existingAssignment) {
+                        // Create schedule assignment for this employee
+                        $existingAssignment = ScheduleAssignment::create([
+                            'schedule_id' => $schedule->id,
+                            'user_id' => $employeeId,
+                            'start_time' => '08:00', // Default shift start
+                            'end_time' => '17:00',   // Default shift end
+                            'break_start' => '12:00',
+                            'break_end' => '13:00'
+                        ]);
+                    }
+
+                    // Get or create attendance record
+                    $attendance = Attendance::firstOrCreate(
+                        ['schedule_assignment_id' => $existingAssignment->id],
+                        ['status' => 'present']
+                    );
+
+                    // Extract time values based on log type
+                    foreach ($employeeRecords as $record) {
+                        $timeStr = $record['time'];
+
+                        switch ($record['log_type']) {
+                            case 'sign_in':
+                                $attendance->sign_in = $timeStr;
+                                break;
+                            case 'sign_out':
+                                $attendance->sign_out = $timeStr;
+                                break;
+                            case 'break_in':
+                                $attendance->break_in = $timeStr;
+                                break;
+                            case 'break_out':
+                                $attendance->break_out = $timeStr;
+                                break;
+                        }
+                    }
+
+                    // Save the attendance record
+                    $attendance->save();
+                    $totalImported++;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully imported {$totalImported} attendance records" .
+                           ($schedulesCreated > 0 ? " and created {$schedulesCreated} new schedule(s)" : ''),
+                'data' => [
+                    'records_imported' => $totalImported,
+                    'schedules_created' => $schedulesCreated
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Attendance import failed: ' . $e->getMessage(), [
+                'groupedByDate' => $groupedByDate,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to import attendance records: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get all attendance records for a specific employee
      * Includes scheduled records without actual attendance
      */
@@ -564,7 +764,7 @@ class AttendanceController extends Controller
                 // Determine status and attendance details
                 $currentDate = Carbon::now()->format('Y-m-d');
                 $scheduleDate = Carbon::parse($schedule->date)->format('Y-m-d');
-                
+
                 $status = 'Scheduled'; // Default status
                 $signIn = null;
                 $signOut = null;

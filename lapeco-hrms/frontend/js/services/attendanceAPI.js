@@ -56,7 +56,12 @@ const attendanceAPI = {
         return api.get(`/attendance/employee/${employeeId}`, { params });
     },
 
-    // Import CSV attendance data
+    // Import attendance data (Excel/CSV)
+    importAttendance: (data) => {
+        return api.post('/attendance/import', data);
+    },
+
+    // Import CSV attendance data (legacy)
     importCSVData: (data) => {
         return api.post('/attendance/import-csv', { records: data });
     }

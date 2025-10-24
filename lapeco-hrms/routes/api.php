@@ -115,6 +115,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // Attendance Management - with role-based access control
     Route::middleware(['role.access:attendance,index'])->get('/attendance', [AttendanceController::class, 'index']);
     Route::middleware(['role.access:attendance,store'])->post('/attendance', [AttendanceController::class, 'store']);
+    Route::middleware(['role.access:attendance,store'])->post('/attendance/import', [AttendanceController::class, 'importAttendance']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-logs', [AttendanceController::class, 'getLogs']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-history', [AttendanceController::class, 'getAttendanceHistory']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-daily', [AttendanceController::class, 'getDailyAttendance']);
