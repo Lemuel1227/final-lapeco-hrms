@@ -14,6 +14,7 @@ use App\Http\Controllers\PositionController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\ContributionController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ApplicantController;
 use App\Http\Controllers\PerformanceController;
@@ -174,9 +175,18 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
 
     // Payroll - with role-based access control
     Route::middleware(['role.access:payroll,index'])->get('/payroll', [PayrollController::class, 'index']);
+    Route::middleware(['role.access:payroll,index'])->get('/payroll/periods/{periodId}/details', [PayrollController::class, 'showRunDetails']);
+    Route::middleware(['role.access:payroll,index'])->get('/payroll/records/{payrollId}', [PayrollController::class, 'showPayrollRecord']);
     Route::middleware(['role.access:payroll,index'])->get('/payroll/compute', [PayrollController::class, 'compute']);
+    Route::middleware(['role.access:payroll,index'])->get('/payroll/my-projection', [PayrollController::class, 'myProjection']);
     Route::middleware(['role.access:payroll,store'])->post('/payroll/generate', [PayrollController::class, 'generate']);
     Route::middleware(['role.access:payroll,update'])->put('/payroll/{payroll}', [PayrollController::class, 'update']);
+    
+    // Contributions - with role-based access control
+    Route::middleware(['role.access:payroll,index'])->get('/contributions/monthly', [ContributionController::class, 'getMonthlyContributions']);
+    Route::middleware(['role.access:payroll,index'])->get('/contributions/finalized', [ContributionController::class, 'getFinalizedContributions']);
+    Route::middleware(['role.access:payroll,store'])->post('/contributions/finalize', [ContributionController::class, 'finalizeContribution']);
+    Route::middleware(['role.access:payroll,destroy'])->delete('/contributions/finalized/{id}', [ContributionController::class, 'deleteFinalizedContribution']);
 
     // Holiday Management - with role-based access control
     Route::middleware(['role.access:schedule,index'])->get('/holidays', [HolidayController::class, 'index']);
@@ -204,6 +214,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:performance,index'])->get('/performance', [PerformanceController::class, 'index']);
     Route::middleware(['role.access:performance,index'])->get('/performance/periods/{period}', [PerformanceController::class, 'showPeriod']);
     Route::middleware(['role.access:performance,index'])->get('/performance/overview', [PerformanceController::class, 'overview']);
+    Route::middleware(['role.access:performance,index'])->get('/performance/tracker', [PerformanceController::class, 'getEvaluationTrackerData']);
     Route::middleware(['role.access:performance,index'])->get('/performance/employees/{employee}/history', [PerformanceController::class, 'employeeHistory']);
     Route::middleware(['role.access:performance,index'])->get('/performance/evaluations/{evaluation}/responses', [PerformanceController::class, 'employeeEvaluationResponses']);
     Route::middleware(['role.access:performance,index'])->get('/performance/evaluation-responses/{response}', [PerformanceController::class, 'evaluationResponseDetail']);

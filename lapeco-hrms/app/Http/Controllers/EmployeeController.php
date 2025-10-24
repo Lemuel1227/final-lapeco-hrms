@@ -20,17 +20,21 @@ class EmployeeController extends Controller
         // Role-based filtering is now handled by middleware, but we still need to filter data based on role
         if ($role === 'HR_PERSONNEL') {
             // HR can see all employees except terminated/resigned ones
-            $employees = User::whereNotIn('employment_status', ['terminated', 'resigned'])->get();
+            $employees = User::with('leaveCredits')
+                ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                ->get();
         } elseif ($role === 'TEAM_LEADER') {
             // Team leaders can see employees with the same position_id, excluding terminated/resigned
-            $employees = User::where('position_id', $user->position_id)
-                           ->whereNotIn('employment_status', ['terminated', 'resigned'])
-                           ->get();
+            $employees = User::with('leaveCredits')
+                ->where('position_id', $user->position_id)
+                ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                ->get();
         } else {
             // Regular employees can see all employees in their position, excluding terminated/resigned
-            $employees = User::where('position_id', $user->position_id)
-                           ->whereNotIn('employment_status', ['terminated', 'resigned'])
-                           ->get();
+            $employees = User::with('leaveCredits')
+                ->where('position_id', $user->position_id)
+                ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                ->get();
         }
         
         return $this->formatEmployeeResponse($employees, $user, $role);
@@ -123,6 +127,23 @@ class EmployeeController extends Controller
         });
         
         $employees = $employees->map(function ($employee) use ($positions, $user, $role) {
+            // Format leave credits - map to frontend-friendly keys
+            $leaveCreditsRaw = [];
+            foreach ($employee->leaveCredits as $credit) {
+                $leaveCreditsRaw[$credit->leave_type] = [
+                    'total' => $credit->total_credits,
+                    'used' => $credit->used_credits,
+                    'remaining' => max(0, $credit->total_credits - $credit->used_credits),
+                ];
+            }
+            
+            // Ensure all leave types are present
+            $leaveCredits = [
+                'Vacation Leave' => $leaveCreditsRaw['Vacation Leave'] ?? ['total' => 0, 'used' => 0, 'remaining' => 0],
+                'Sick Leave' => $leaveCreditsRaw['Sick Leave'] ?? ['total' => 0, 'used' => 0, 'remaining' => 0],
+                'Emergency Leave' => $leaveCreditsRaw['Emergency Leave'] ?? ['total' => 0, 'used' => 0, 'remaining' => 0],
+            ];
+
             $data = [
                 'id' => $employee->id,
                 'name' => $employee->name,
@@ -140,6 +161,7 @@ class EmployeeController extends Controller
                 'attendance_status' => $employee->attendance_status ?? 'Pending',
                 'employment_status' => $employee->employment_status,
                 'password_changed' => $employee->password_changed,
+                'leaveCredits' => $leaveCredits,
             ];
             
             // Only include sensitive data for HR personnel or if it's the user's own data

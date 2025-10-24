@@ -7,7 +7,7 @@ import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig } from '../../config/reports.config';
-import { payrollAPI } from '../../services/api';
+import { payrollAPI, positionAPI } from '../../services/api';
 
 const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers, allLeaveRequests }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,27 +32,49 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
   const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
 
   const [fetchedPayrolls, setFetchedPayrolls] = useState([]);
+  const [fetchedPositions, setFetchedPositions] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState('');
 
   useEffect(() => {
-    if (payrolls.length > 0) {
-      return;
-    }
-
     let isMounted = true;
-    const loadPayrolls = async () => {
+
+    const loadData = async () => {
       setIsFetching(true);
       setFetchError('');
       try {
-        const { data } = await payrollAPI.getAll();
+        const promises = [];
+        
+        // Fetch payrolls if not provided
+        if (payrolls.length === 0) {
+          promises.push(payrollAPI.getAll());
+        }
+        
+        // Fetch positions if not provided
+        if (positions.length === 0) {
+          promises.push(positionAPI.getAll());
+        }
+
+        const results = await Promise.all(promises);
+        
         if (!isMounted) return;
-        setFetchedPayrolls(Array.isArray(data?.payroll_runs) ? data.payroll_runs : []);
+        
+        let resultIndex = 0;
+        if (payrolls.length === 0) {
+          const payrollData = results[resultIndex++];
+          setFetchedPayrolls(Array.isArray(payrollData?.data?.payroll_runs) ? payrollData.data.payroll_runs : []);
+        }
+        
+        if (positions.length === 0) {
+          const positionData = results[resultIndex++];
+          setFetchedPositions(Array.isArray(positionData?.data) ? positionData.data : []);
+        }
       } catch (error) {
         if (!isMounted) return;
-        const message = error.response?.data?.message || 'Failed to load payroll runs.';
+        const message = error.response?.data?.message || 'Failed to load data.';
         setFetchError(message);
         setFetchedPayrolls([]);
+        setFetchedPositions([]);
       } finally {
         if (isMounted) {
           setIsFetching(false);
@@ -60,14 +82,15 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
       }
     };
 
-    loadPayrolls();
+    loadData();
 
     return () => {
       isMounted = false;
     };
-  }, [payrolls.length]);
+  }, [payrolls.length, positions.length]);
 
   const resolvedPayrolls = payrolls.length > 0 ? payrolls : fetchedPayrolls;
+  const resolvedPositions = positions.length > 0 ? positions : fetchedPositions;
 
   const noopHandlers = useMemo(() => ({
     updatePayrollRecord: () => {},
@@ -80,16 +103,27 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
 
   const processedPayrolls = useMemo(() => {
     return resolvedPayrolls.map(run => {
-      const { totalNet } = run.records.reduce((acc, rec) => {
-          const totalEarnings = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-          const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + val, 0);
-          const totalOther = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-          acc.totalNet += totalEarnings - totalStatutory - totalOther;
-          return acc;
-      }, { totalNet: 0 });
+      // Use backend-provided totals if available (new API)
+      if (run.totalNet !== undefined && run.isPaid !== undefined) {
+        return run;
+      }
+      
+      // Fallback for old API format with records array
+      if (run.records && Array.isArray(run.records)) {
+        const { totalNet } = run.records.reduce((acc, rec) => {
+            const totalEarnings = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + val, 0);
+            const totalOther = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            acc.totalNet += totalEarnings - totalStatutory - totalOther;
+            return acc;
+        }, { totalNet: 0 });
 
-      const isPaid = run.records.every(r => r.status === 'Paid');
-      return { ...run, totalNet, isPaid };
+        const isPaid = run.records.every(r => r.status === 'Paid');
+        return { ...run, totalNet, isPaid };
+      }
+      
+      // Default fallback
+      return { ...run, totalNet: 0, isPaid: false };
     });
   }, [resolvedPayrolls]);
 
@@ -133,15 +167,24 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
     setShowDetailModal(true);
   };
   
-  const handleOpenAdjustmentModal = (record, run) => {
-    const fullRecord = run.records.find(r => r.payrollId === record.payrollId);
-    const employeeData = employeeMap.get(record.empId);
-    
-    // Close detail modal before opening adjustment modal
-    setShowDetailModal(false);
-    setSelectedRecord({ ...fullRecord, cutOff: run.cutOff });
-    setSelectedEmployee(employeeData);
-    setShowAdjustmentModal(true);
+  const handleOpenAdjustmentModal = async (record, run) => {
+    try {
+      // Close detail modal before opening adjustment modal
+      setShowDetailModal(false);
+      
+      // Fetch full payroll record details
+      const { data } = await payrollAPI.getPayrollRecord(record.payrollId);
+      
+      // Use backend-provided employee details or fallback to employeeMap
+      const employeeData = data.employeeDetails || employeeMap.get(record.empId);
+      
+      setSelectedRecord(data);
+      setSelectedEmployee(employeeData);
+      setShowAdjustmentModal(true);
+    } catch (error) {
+      console.error('Failed to load payroll record:', error);
+      alert('Failed to load payroll details. Please try again.');
+    }
   };
   
   const handleCloseAllModals = () => {
@@ -275,7 +318,7 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
           onSaveEmployeeInfo={handleSaveEmployeeInfo}
           payrollData={selectedRecord}
           employeeDetails={selectedEmployee}
-          positions={positions}
+          positions={resolvedPositions}
           allLeaveRequests={allLeaveRequests}
           employees={employees}
         />

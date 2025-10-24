@@ -16,12 +16,18 @@ class EmployeePayroll extends Model
         'pay_date',
         'gross_earning',
         'total_deductions',
+        'absences_summary',
+        'leave_balances_summary',
+        'leave_earnings_summary',
     ];
 
     protected $casts = [
         'pay_date' => 'date',
         'gross_earning' => 'decimal:2',
         'total_deductions' => 'decimal:2',
+        'absences_summary' => 'array',
+        'leave_balances_summary' => 'array',
+        'leave_earnings_summary' => 'array',
     ];
 
     public function period()

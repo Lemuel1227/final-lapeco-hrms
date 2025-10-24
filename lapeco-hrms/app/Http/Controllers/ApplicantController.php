@@ -8,6 +8,7 @@ use App\Models\Position;
 use App\Models\Notification;
 use App\Mail\ApplicantApplicationReceived;
 use App\Mail\ApplicantStatusUpdated;
+use App\Mail\ApplicantHired;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -343,19 +344,25 @@ class ApplicantController extends Controller
             ]);
             $applicant->update(['status' => 'Hired']);
 
+            // Prepare account details
+            $accountDetails = [
+                'employee_id' => $employee->id,
+                'username' => $employee->email,
+                'password' => 'lapeco' . $employee->id,
+                'email' => $employee->email,
+                'temporary_password' => 'lapeco' . $employee->id,
+            ];
+
+            // Send hired notification email to applicant
+            $this->sendApplicantHiredEmail($applicant, $accountDetails);
+
             DB::commit();
 
             return response()->json([
                 'message' => 'Applicant hired successfully',
                 'employee' => $employee,
                 'applicant' => $applicant,
-                'account_details' => [
-                    'employee_id' => $employee->id,
-                    'username' => $employee->email, // Modal expects 'username' field
-                    'password' => 'lapeco' . $employee->id, // Use the actual generated password
-                    'email' => $employee->email, // Keep for backward compatibility
-                    'temporary_password' => 'lapeco' . $employee->id, // Keep for backward compatibility
-                ]
+                'account_details' => $accountDetails
             ]);
 
         } catch (\Exception $e) {
@@ -482,8 +489,25 @@ class ApplicantController extends Controller
         try {
             Mail::to($applicant->email)->send(new ApplicantStatusUpdated($applicant));
         } catch (\Throwable $exception) {
-            Log::error('Failed to send applicant status update email', [
+            Log::error('Failed to send applicant status updated email', [
                 'applicant_id' => $applicant->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    protected function sendApplicantHiredEmail(Applicant $applicant, array $accountDetails): void
+    {
+        try {
+            Mail::to($applicant->email)->send(new ApplicantHired($applicant, $accountDetails));
+            Log::info('Hired notification email sent', [
+                'applicant_id' => $applicant->id,
+                'email' => $applicant->email,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error('Failed to send applicant hired email', [
+                'applicant_id' => $applicant->id,
+                'email' => $applicant->email,
                 'error' => $exception->getMessage(),
             ]);
         }

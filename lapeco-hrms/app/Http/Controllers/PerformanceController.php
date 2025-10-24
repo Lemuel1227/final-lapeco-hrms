@@ -92,6 +92,11 @@ class PerformanceController extends Controller
 
         $evaluations = $evaluationsCollection->map(function (PerformanceEvaluation $evaluation) {
             $employee = $evaluation->employee;
+            $employeeName = $employee ? trim(collect([
+                $employee->first_name,
+                $employee->middle_name,
+                $employee->last_name,
+            ])->filter()->implode(' ')) : null;
 
             return [
                 'id' => $evaluation->id,
@@ -107,11 +112,17 @@ class PerformanceController extends Controller
                     'positionId' => $employee->position_id,
                     'profilePictureUrl' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
                 ] : null,
+                'employeeName' => $employeeName,
                 'averageScore' => $evaluation->average_score ? (float) $evaluation->average_score : null,
-                'responsesCount' => $evaluation->responses_count,
+                'responsesCount' => $evaluation->responses_count ?? $evaluation->responses?->count() ?? 0,
                 'completedAt' => $evaluation->completed_at?->toIso8601String(),
                 'responses' => $evaluation->responses->map(function (PerformanceEvaluatorResponse $response) {
                     $evaluator = $response->evaluator;
+                    $evaluatorName = $evaluator ? trim(collect([
+                        $evaluator->first_name,
+                        $evaluator->middle_name,
+                        $evaluator->last_name,
+                    ])->filter()->implode(' ')) : null;
 
                     return [
                         'id' => $response->id,
@@ -127,6 +138,7 @@ class PerformanceController extends Controller
                             'positionId' => $evaluator->position_id,
                             'profilePictureUrl' => $evaluator->image_url ? asset('storage/' . $evaluator->image_url) : null,
                         ] : null,
+                        'evaluatorName' => $evaluatorName,
                         'evaluatedOn' => $response->evaluated_on?->toIso8601String(),
                         'overallScore' => $response->overall_score ? (float) $response->overall_score : null,
                         'scores' => collect(PerformanceEvaluatorResponse::SCORE_FIELDS)
@@ -939,5 +951,197 @@ class PerformanceController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Get evaluation tracker data for the active period
+     * Returns team-based completion status without individual responses
+     */
+    public function getEvaluationTrackerData(Request $request)
+    {
+        // Get the active period (match evaluation endpoints: within open/evaluation date range)
+        $now = now();
+
+        $activePeriod = PerformanceEvaluationPeriod::where(function ($query) use ($now) {
+                $query->whereRaw('DATE(COALESCE(open_date, evaluation_start)) <= ?', [$now->toDateString()])
+                      ->whereRaw('DATE(COALESCE(close_date, evaluation_end)) >= ?', [$now->toDateString()]);
+            })
+            ->orderByDesc('evaluation_start')
+            ->first();
+
+        if (!$activePeriod) {
+            return response()->json([
+                'activePeriod' => null,
+                'teams' => [],
+            ]);
+        }
+
+        // Get all team leaders with their positions, grouped by position_id to avoid duplicates
+        $teamLeaders = User::where('role', 'TEAM_LEADER')
+            ->whereNotIn('employment_status', ['terminated', 'resigned'])
+            ->with(['position:id,name'])
+            ->get()
+            ->groupBy('position_id');
+
+        $teams = [];
+
+        foreach ($teamLeaders as $positionId => $leadersInPosition) {
+            // Use the first leader for this position
+            $leader = $leadersInPosition->first();
+            // Get team members for this leader
+            $teamMembers = User::where('role', 'REGULAR_EMPLOYEE')
+                ->where('position_id', $leader->position_id)
+                ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                ->get();
+
+            // Get evaluations for this period for team members
+            $memberEvaluations = PerformanceEvaluation::where('period_id', $activePeriod->id)
+                ->whereIn('employee_id', $teamMembers->pluck('id'))
+                ->withCount('responses')
+                ->get()
+                ->keyBy('employee_id');
+
+            // Get all leader IDs in this position
+            $leaderIds = $leadersInPosition->pluck('id');
+
+            $memberEvaluationIds = $memberEvaluations->pluck('id')->filter();
+
+            $leaderResponsesByEvaluation = collect();
+            if ($memberEvaluationIds->isNotEmpty()) {
+                $leaderResponsesByEvaluation = PerformanceEvaluatorResponse::whereIn('evaluation_id', $memberEvaluationIds)
+                    ->whereIn('evaluator_id', $leaderIds)
+                    ->get(['id', 'evaluation_id', 'evaluator_id'])
+                    ->groupBy('evaluation_id');
+            }
+            
+            // Get evaluations for all leaders in this position
+            $leaderEvaluations = PerformanceEvaluation::where('period_id', $activePeriod->id)
+                ->whereIn('employee_id', $leaderIds)
+                ->withCount('responses')
+                ->get();
+            
+            $leaderEvaluation = $leaderEvaluations->first();
+
+            $leaderEvaluationIds = $leaderEvaluations->pluck('id');
+
+            $memberResponsesOnLeader = collect();
+            if ($leaderEvaluationIds->isNotEmpty()) {
+                $memberResponsesOnLeader = PerformanceEvaluatorResponse::whereIn('evaluation_id', $leaderEvaluationIds)
+                    ->whereIn('evaluator_id', $teamMembers->pluck('id'))
+                    ->get(['id', 'evaluation_id', 'evaluator_id'])
+                    ->groupBy('evaluator_id');
+            }
+
+            // Count how many members ANY leader in this position has evaluated
+            $leaderEvaluatedMemberDetails = [];
+            $leaderPendingMemberDetails = [];
+
+            $leaderEvaluatedCount = $leaderResponsesByEvaluation->count();
+
+            // Count how many members have evaluated ANY leader in this position
+            $membersEvaluatedLeaderCount = $memberResponsesOnLeader->count();
+
+            $completedMembers = [];
+            $pendingMembers = [];
+            $membersEvaluatedLeaderDetails = [];
+            $membersPendingLeaderEvalDetails = [];
+
+            foreach ($teamMembers as $member) {
+                $evaluation = $memberEvaluations->get($member->id);
+                $hasResponses = $evaluation && $evaluation->responses_count > 0;
+
+                $memberData = [
+                    'id' => $member->id,
+                    'name' => trim(collect([$member->first_name, $member->middle_name, $member->last_name])->filter()->implode(' ')),
+                    'email' => $member->email,
+                    'profilePictureUrl' => $member->image_url ? asset('storage/' . $member->image_url) : null,
+                    'hasEvaluation' => $hasResponses,
+                    'evaluationId' => $evaluation?->id,
+                ];
+
+                $leaderMemberData = [
+                    'id' => $member->id,
+                    'name' => $memberData['name'],
+                    'email' => $member->email,
+                    'profilePictureUrl' => $memberData['profilePictureUrl'],
+                    'evaluationId' => $evaluation?->id,
+                ];
+
+                $leaderHasEvaluated = $evaluation && $leaderResponsesByEvaluation->has($evaluation->id);
+                $leaderResponse = $leaderHasEvaluated ? optional($leaderResponsesByEvaluation->get($evaluation->id))->first() : null;
+                $leaderMemberData['responseId'] = $leaderResponse?->id;
+
+                if ($leaderHasEvaluated) {
+                    $leaderEvaluatedMemberDetails[] = $leaderMemberData;
+                } else {
+                    $leaderPendingMemberDetails[] = $leaderMemberData;
+                }
+
+                $memberHasEvaluatedLeader = $memberResponsesOnLeader->has($member->id);
+                $memberResponse = $memberHasEvaluatedLeader ? optional($memberResponsesOnLeader->get($member->id))->first() : null;
+
+                $memberLeaderEvalData = [
+                    'id' => $member->id,
+                    'name' => $memberData['name'],
+                    'email' => $member->email,
+                    'profilePictureUrl' => $memberData['profilePictureUrl'],
+                    'evaluationId' => $leaderEvaluation?->id,
+                    'responseId' => $memberResponse?->id,
+                ];
+
+                if ($memberHasEvaluatedLeader) {
+                    $membersEvaluatedLeaderDetails[] = $memberLeaderEvalData;
+                } else {
+                    $membersPendingLeaderEvalDetails[] = $memberLeaderEvalData;
+                }
+
+                if ($hasResponses) {
+                    $completedMembers[] = $memberData;
+                } else {
+                    $pendingMembers[] = $memberData;
+                }
+            }
+
+            $leaderEvaluatedCount = count($leaderEvaluatedMemberDetails);
+            $membersEvaluatedLeaderCount = count($membersEvaluatedLeaderDetails);
+            $leaderFullyEvaluated = $leaderEvaluations->isNotEmpty() && $membersEvaluatedLeaderCount >= $teamMembers->count();
+
+            $teams[] = [
+                'positionId' => $leader->position_id,
+                'positionTitle' => $leader->position?->name ?? 'Unassigned',
+                'teamLeader' => [
+                    'id' => $leader->id,
+                    'name' => trim(collect([$leader->first_name, $leader->middle_name, $leader->last_name])->filter()->implode(' ')),
+                    'email' => $leader->email,
+                    'profilePictureUrl' => $leader->image_url ? asset('storage/' . $leader->image_url) : null,
+                ],
+                'leaderStatus' => [
+                    'isEvaluated' => $leaderFullyEvaluated,
+                    'evaluationId' => $leaderEvaluation?->id,
+                    'evaluatedMembersCount' => $leaderEvaluatedCount,
+                    'totalMembersToEvaluate' => $teamMembers->count(),
+                    'evaluatedByMembersCount' => $membersEvaluatedLeaderCount,
+                    'completedMemberEvals' => $leaderEvaluatedMemberDetails,
+                    'pendingMemberEvals' => $leaderPendingMemberDetails,
+                ],
+                'completedMembers' => $completedMembers,
+                'pendingMembers' => $pendingMembers,
+                'membersEvaluatedLeader' => $membersEvaluatedLeaderDetails,
+                'membersPendingLeader' => $membersPendingLeaderEvalDetails,
+            ];
+        }
+
+        return response()->json([
+            'activePeriod' => [
+                'id' => $activePeriod->id,
+                'name' => $activePeriod->name,
+                'evaluationStart' => $activePeriod->evaluation_start?->toDateString(),
+                'evaluationEnd' => $activePeriod->evaluation_end?->toDateString(),
+                'openDate' => $activePeriod->open_date?->toDateString(),
+                'closeDate' => $activePeriod->close_date?->toDateString(),
+                'status' => $activePeriod->status,
+            ],
+            'teams' => $teams,
+        ]);
     }
 }

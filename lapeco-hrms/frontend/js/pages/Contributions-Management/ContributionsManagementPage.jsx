@@ -8,7 +8,7 @@ import FinalizedReportPlaceholder from './FinalizedReportPlaceholder';
 import ToastNotification from '../../common/ToastNotification';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
-import { generateSssData, generatePhilhealthData, generatePagibigData, generateTinData } from '../../hooks/contributionUtils';
+import { contributionAPI } from '../../services/api';
 import ContributionTypeToggle from './ContributionTypeToggle';
 import SssTab from './SssTab';
 import PhilhealthTab from './PhilhealthTab';
@@ -33,7 +33,12 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
   const [rows, setRows] = useState([]);
   const [reportTitle, setReportTitle] = useState('');
   const [headerData, setHeaderData] = useState({});
-  const [archivedReports, setArchivedReports] = useState(mockData.initialArchivedContributions);
+  const [archivedReports, setArchivedReports] = useState([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [dataError, setDataError] = useState('');
+  const [isProvisional, setIsProvisional] = useState(false);
+  const [missingPeriod, setMissingPeriod] = useState(null);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator(theme);
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -52,142 +57,185 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
     return Array.from(years).sort((a, b) => b - a);
   }, [payrolls]);
 
-  const { payroll1, payroll2, isProvisional, missingPeriodCutoff } = useMemo(() => {
-    const year = selectedYear;
-    const month = selectedMonth;
-
-    // Use UTC dates to build exact cutoff strings to avoid timezone shifts
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const prevMonthYear = month === 0 ? year - 1 : year;
-
-    const firstHalfStart = new Date(Date.UTC(prevMonthYear, prevMonth, 26)).toISOString().split('T')[0];
-    const firstHalfEnd = new Date(Date.UTC(year, month, 10)).toISOString().split('T')[0];
-    const firstHalfCutoff = `${firstHalfStart} to ${firstHalfEnd}`;
-
-    const secondHalfStart = new Date(Date.UTC(year, month, 11)).toISOString().split('T')[0];
-    const secondHalfEnd = new Date(Date.UTC(year, month, 25)).toISOString().split('T')[0];
-    const secondHalfCutoff = `${secondHalfStart} to ${secondHalfEnd}`;
-    
-    // Find payrolls that match these exact strings
-    const p1 = (payrolls || []).find(p => p.cutOff === firstHalfCutoff);
-    const p2 = (payrolls || []).find(p => p.cutOff === secondHalfCutoff);
-
-    const isProv = (p1 || p2) && !(p1 && p2);
-    
-    let missingCutoff = '';
-    if (isProv) {
-      missingCutoff = !p1 ? firstHalfCutoff : secondHalfCutoff;
-    }
-
-    return { payroll1: p1, payroll2: p2, isProvisional: isProv, missingPeriodCutoff: missingCutoff };
-  }, [selectedYear, selectedMonth, payrolls]);
-
-  const aggregatedMonthlyRecords = useMemo(() => {
-    if (!payroll1 && !payroll2) return [];
-
-    const employeeRecords = new Map();
-    const payrollsToProcess = [payroll1, payroll2].filter(Boolean);
-
-    payrollsToProcess.forEach(run => {
-      (run.records || []).forEach(record => {
-        if (!employeeRecords.has(record.empId)) {
-          employeeRecords.set(record.empId, {
-            empId: record.empId,
-            totalGross: 0,
-            totalTaxable: 0,
-            totalTaxWithheld: 0,
-          });
-        }
-        const empRecord = employeeRecords.get(record.empId);
-        const gross = (record.earnings || []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-        const contributions = (record.deductions?.sss || 0) + (record.deductions?.philhealth || 0) + (record.deductions?.hdmf || 0);
-        
-        empRecord.totalGross += gross;
-        empRecord.totalTaxable += (gross - contributions);
-        empRecord.totalTaxWithheld += (record.deductions?.tax || 0);
-      });
-    });
-
-    return Array.from(employeeRecords.values());
-  }, [payroll1, payroll2]);
-
-  const isCurrentMonthArchived = useMemo(() => {
-    const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label;
-    if (!monthLabel) return false;
-    const monthStr = `${monthLabel} ${selectedYear}`;
-    
-    const finalizedForMonth = archivedReports.filter(r => r.payPeriod === monthStr);
-    const requiredTypes = new Set(['SSS', 'PhilHealth', 'Pag-IBIG', 'TIN']);
-    finalizedForMonth.forEach(r => requiredTypes.delete(r.type));
-    
-    return requiredTypes.size === 0;
-
-  }, [selectedMonth, selectedYear, archivedReports]);
-
-
+  // Fetch contribution data from backend
   useEffect(() => {
-    if (aggregatedMonthlyRecords.length === 0) {
-      setColumns([]); setRows([]); setReportTitle('No Data'); setHeaderData({});
-      return;
+    const fetchContributionData = async () => {
+      setIsLoadingData(true);
+      setDataError('');
+      
+      try {
+        const { data } = await contributionAPI.getMonthlyContributions({
+          year: selectedYear,
+          month: selectedMonth,
+          type: activeReport,
+        });
+        
+        // Set provisional status from backend
+        setIsProvisional(data.isProvisional || false);
+        setMissingPeriod(data.missingPeriod || null);
+        
+        if (data.data && data.data.length > 0) {
+          setRows(data.data);
+          
+          // Set columns and header based on report type
+          const monthName = MONTHS[selectedMonth].label;
+          if (activeReport === 'sss') {
+            setReportTitle('SSS Contribution Report');
+            setHeaderData({
+              'Employer ID Number': '03-9-1234567-8',
+              'Employer Name': 'Lapeco Group of Companies',
+              'Contribution Month': `${monthName} ${selectedYear}`,
+            });
+            setColumns([
+              { key: 'no', label: 'No.', editable: false, isPermanent: true },
+              { key: 'govtId', label: 'SSS Number', editable: false, isPermanent: true },
+              { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
+              { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
+              { key: 'middleName', label: 'Middle Name', editable: false, isPermanent: true },
+              { key: 'employeeContribution', label: 'EE Share', editable: false, isPermanent: true },
+              { key: 'employerContribution', label: 'ER Share', editable: false, isPermanent: true },
+              { key: 'totalContribution', label: 'Total', editable: false, isPermanent: true },
+            ]);
+          } else if (activeReport === 'philhealth') {
+            setReportTitle('PhilHealth Contribution Report');
+            setHeaderData({
+              'Employer Name': 'Lapeco Group of Companies',
+              'Contribution Month': `${monthName} ${selectedYear}`,
+            });
+            setColumns([
+              { key: 'no', label: 'No.', editable: false, isPermanent: true },
+              { key: 'govtId', label: 'PhilHealth Number', editable: false, isPermanent: true },
+              { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
+              { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
+              { key: 'middleName', label: 'Middle Name', editable: false, isPermanent: true },
+              { key: 'employeeContribution', label: 'EE Share', editable: false, isPermanent: true },
+              { key: 'employerContribution', label: 'ER Share', editable: false, isPermanent: true },
+              { key: 'totalContribution', label: 'Total', editable: false, isPermanent: true },
+            ]);
+          } else if (activeReport === 'pagibig') {
+            setReportTitle('Pag-IBIG Contribution Report');
+            setHeaderData({
+              'Employer Name': 'Lapeco Group of Companies',
+              'Contribution Month': `${monthName} ${selectedYear}`,
+            });
+            setColumns([
+              { key: 'no', label: 'No.', editable: false, isPermanent: true },
+              { key: 'govtId', label: 'Pag-IBIG MID No.', editable: false, isPermanent: true },
+              { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
+              { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
+              { key: 'middleName', label: 'Middle Name', editable: false, isPermanent: true },
+              { key: 'employeeContribution', label: 'EE Share', editable: false, isPermanent: true },
+              { key: 'employerContribution', label: 'ER Share', editable: false, isPermanent: true },
+              { key: 'totalContribution', label: 'Total', editable: false, isPermanent: true },
+            ]);
+          } else if (activeReport === 'tin') {
+            setReportTitle('Withholding Tax (TIN) Report');
+            setHeaderData({
+              'Employer Name': 'Lapeco Group of Companies',
+              'For the Month of': `${monthName} ${selectedYear}`,
+            });
+            setColumns([
+              { key: 'no', label: 'No.', editable: false, isPermanent: true },
+              { key: 'govtId', label: 'TIN', editable: false, isPermanent: true },
+              { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
+              { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
+              { key: 'middleName', label: 'MI', editable: false, isPermanent: true },
+              { key: 'grossCompensation', label: 'Gross Compensation', editable: false, isPermanent: true },
+              { key: 'taxWithheld', label: 'Tax Withheld', editable: false, isPermanent: true },
+            ]);
+          }
+        } else {
+          setRows([]);
+          setDataError('No payroll data found for this month');
+        }
+      } catch (error) {
+        console.error('Failed to fetch contribution data:', error);
+        setDataError(error.response?.data?.message || 'Failed to load contribution data');
+        setRows([]);
+      } finally {
+        setIsLoadingData(false);
+      }
     };
 
-    const monthDate = new Date(selectedYear, selectedMonth, 1);
-    let data;
-    if (activeReport === 'pagibig') data = generatePagibigData(employees, aggregatedMonthlyRecords, monthDate, isProvisional);
-    else if (activeReport === 'philhealth') data = generatePhilhealthData(employees, aggregatedMonthlyRecords, monthDate, isProvisional);
-    else if (activeReport === 'tin') data = generateTinData(employees, aggregatedMonthlyRecords, monthDate);
-    else data = generateSssData(employees, aggregatedMonthlyRecords, monthDate, isProvisional);
-    
-    setColumns(data.columns);
-    setRows(data.rows);
-    setReportTitle(data.title);
-    setHeaderData(data.headerData);
-  }, [activeReport, aggregatedMonthlyRecords, employees, selectedYear, selectedMonth, isProvisional]);
+    fetchContributionData();
+  }, [selectedYear, selectedMonth, activeReport]);
 
+  const isCurrentMonthArchived = useMemo(() => {
+    // Check if current report type is finalized for the selected month
+    const finalized = archivedReports.find(r => 
+      r.type === activeReport.toUpperCase() && 
+      r.year === selectedYear && 
+      r.month === (selectedMonth + 1)
+    );
+    
+    return !!finalized;
+  }, [selectedMonth, selectedYear, activeReport, archivedReports]);
+
+
+  // Calculate stats from current rows
   const stats = useMemo(() => {
-    if (aggregatedMonthlyRecords.length === 0 || isCurrentMonthArchived) {
+    if (!rows.length || isCurrentMonthArchived) {
       return { sss: 0, philhealth: 0, pagibig: 0, tin: 0 };
     }
     
-    const calculateTotal = (data, key = 'totalContribution') => data.rows.reduce((acc, row) => acc + (row[key] || 0), 0);
-    const monthDate = new Date(selectedYear, selectedMonth, 1);
+    const calculateTotal = (key = 'totalContribution') => rows.reduce((acc, row) => acc + (Number(row[key]) || 0), 0);
     
-    const sssTotal = calculateTotal(generateSssData(employees, aggregatedMonthlyRecords, monthDate, isProvisional));
-    const philhealthTotal = calculateTotal(generatePhilhealthData(employees, aggregatedMonthlyRecords, monthDate, isProvisional));
-    const pagibigTotal = calculateTotal(generatePagibigData(employees, aggregatedMonthlyRecords, monthDate, isProvisional));
-    const tinTotal = calculateTotal(generateTinData(employees, aggregatedMonthlyRecords, monthDate), 'taxWithheld');
-
-    return { sss: sssTotal, philhealth: philhealthTotal, pagibig: pagibigTotal, tin: tinTotal };
-  }, [aggregatedMonthlyRecords, employees, selectedYear, selectedMonth, isCurrentMonthArchived, isProvisional]);
+    return {
+      sss: activeReport === 'sss' ? calculateTotal() : 0,
+      philhealth: activeReport === 'philhealth' ? calculateTotal() : 0,
+      pagibig: activeReport === 'pagibig' ? calculateTotal() : 0,
+      tin: activeReport === 'tin' ? calculateTotal('taxWithheld') : 0,
+    };
+  }, [rows, activeReport, isCurrentMonthArchived]);
   
   const handleExportPdf = () => {
-    if (!payroll1 && !payroll2) return;
-    generateReport('contributions_summary', { runId: (payroll1 || payroll2).runId }, { employees, positions, payrolls: [payroll1, payroll2].filter(Boolean) });
-    setShowReportPreview(true);
+    // TODO: Implement PDF export
+    setToast({ show: true, message: 'PDF export coming soon!', type: 'info' });
   };
   
-  const handleArchivePeriod = () => {
-    if (!payroll1 || !payroll2) return;
-    const monthDate = new Date(selectedYear, selectedMonth, 1);
-    const sssData = generateSssData(employees, aggregatedMonthlyRecords, monthDate, false);
-    const philhealthData = generatePhilhealthData(employees, aggregatedMonthlyRecords, monthDate, false);
-    const pagibigData = generatePagibigData(employees, aggregatedMonthlyRecords, monthDate, false);
-    const tinData = generateTinData(employees, aggregatedMonthlyRecords, monthDate);
-    const reportsToArchive = [
-        { ...sssData, type: 'SSS' }, { ...philhealthData, type: 'PhilHealth' },
-        { ...pagibigData, type: 'Pag-IBIG' }, { ...tinData, type: 'TIN' }
-    ];
+  const handleArchivePeriod = async () => {
     const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label;
-
-    const newArchives = reportsToArchive.map(report => ({
-      id: `ARCHIVE-${report.type}-${Date.now()}`, type: report.type,
-      payPeriod: `${monthLabel} ${selectedYear}`, generationDate: new Date().toISOString(),
-      generatedBy: 'Grace Field', columns: report.columns, rows: report.rows, headerData: report.headerData,
-    }));
-    setArchivedReports(prev => [...prev.filter(r => r.payPeriod !== `${monthLabel} ${selectedYear}`), ...newArchives]);
-    setToast({ show: true, message: `Reports for ${monthLabel} ${selectedYear} have been finalized.`, type: 'success' });
-    setMainTab('history');
+    const payPeriod = `${monthLabel} ${selectedYear}`;
+    
+    setIsFinalizing(true);
+    try {
+      await contributionAPI.finalizeContribution({
+        type: activeReport,
+        year: selectedYear,
+        month: selectedMonth + 1, // Convert to 1-12
+        payPeriod,
+        headerData,
+        columns,
+        rows,
+      });
+      
+      // Reload finalized reports
+      await loadFinalizedReports();
+      
+      setToast({ show: true, message: `${reportTitle} for ${payPeriod} has been finalized.`, type: 'success' });
+      setMainTab('history');
+    } catch (error) {
+      console.error('Failed to finalize contribution:', error);
+      setToast({ show: true, message: error.response?.data?.message || 'Failed to finalize contribution', type: 'error' });
+    } finally {
+      setIsFinalizing(false);
+    }
   };
+
+  // Load finalized reports
+  const loadFinalizedReports = async () => {
+    try {
+      const { data } = await contributionAPI.getFinalizedContributions();
+      setArchivedReports(data.data || []);
+    } catch (error) {
+      console.error('Failed to load finalized reports:', error);
+    }
+  };
+
+  // Load finalized reports on mount
+  useEffect(() => {
+    loadFinalizedReports();
+  }, []);
 
   const handleCellChange = (rowIndex, columnKey, value) => setRows(prev => prev.map((row, i) => i === rowIndex ? { ...row, [columnKey]: value } : row));
   const handleAddColumn = (columnName) => {
@@ -218,8 +266,28 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
   const handleColumnHeaderChange = (columnKey, newLabel) => setColumns(prev => prev.map(col => col.key === columnKey ? { ...col, label: newLabel } : col));
   const formatCurrency = (value) => Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const handleClosePreview = () => { setShowReportPreview(false); if(pdfDataUri) { URL.revokeObjectURL(pdfDataUri); } setPdfDataUri(''); };
-  const handleDeleteFinalizedPeriod = () => {};
-  const handleViewHistoryPdf = () => {};
+  
+  const handleDeleteFinalizedPeriod = async (period) => {
+    try {
+      // Delete all reports in the period
+      for (const report of period.reports) {
+        await contributionAPI.deleteFinalizedContribution(report.id);
+      }
+      
+      // Reload finalized reports
+      await loadFinalizedReports();
+      
+      setToast({ show: true, message: `Finalized reports for ${period.payPeriod} have been deleted.`, type: 'success' });
+    } catch (error) {
+      console.error('Failed to delete finalized period:', error);
+      setToast({ show: true, message: error.response?.data?.message || 'Failed to delete finalized reports', type: 'error' });
+    }
+  };
+  
+  const handleViewHistoryPdf = () => {
+    // TODO: Implement PDF viewing
+    setToast({ show: true, message: 'PDF viewing coming soon!', type: 'info' });
+  };
 
   const commonTableProps = {
     columns, rows, reportTitle, onCellChange: handleCellChange,
@@ -240,10 +308,10 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
       {mainTab === 'current' ? (
         <div className="tab-pane-content">
           <div className="contribution-stats-grid">
-            <div className="stat-card-contribution sss-card"><div className="stat-icon"><i className="bi bi-building-fill-check"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.sss)}</div><div className="stat-label">Total SSS{isProvisional && ' (Provisional)'}</div></div></div>
-            <div className="stat-card-contribution philhealth-card"><div className="stat-icon"><i className="bi bi-heart-pulse-fill"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.philhealth)}</div><div className="stat-label">Total PhilHealth{isProvisional && ' (Provisional)'}</div></div></div>
-            <div className="stat-card-contribution pagibig-card"><div className="stat-icon"><i className="bi bi-house-heart-fill"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.pagibig)}</div><div className="stat-label">Total Pag-IBIG{isProvisional && ' (Provisional)'}</div></div></div>
-            <div className="stat-card-contribution"><div className="stat-icon" style={{backgroundColor: '#6f42c1'}}><i className="bi bi-file-earmark-person-fill"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.tin)}</div><div className="stat-label">Total Tax Withheld{isProvisional && ' (Provisional)'}</div></div></div>
+            <div className="stat-card-contribution sss-card"><div className="stat-icon"><i className="bi bi-building-fill-check"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.sss)}</div><div className="stat-label">Total SSS</div></div></div>
+            <div className="stat-card-contribution philhealth-card"><div className="stat-icon"><i className="bi bi-heart-pulse-fill"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.philhealth)}</div><div className="stat-label">Total PhilHealth</div></div></div>
+            <div className="stat-card-contribution pagibig-card"><div className="stat-icon"><i className="bi bi-house-heart-fill"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.pagibig)}</div><div className="stat-label">Total Pag-IBIG</div></div></div>
+            <div className="stat-card-contribution"><div className="stat-icon" style={{backgroundColor: '#6f42c1'}}><i className="bi bi-file-earmark-person-fill"></i></div><div className="stat-info"><div className="stat-value">₱{formatCurrency(stats.tin)}</div><div className="stat-label">Total Tax Withheld</div></div></div>
           </div>
           <div className="card shadow-sm">
             <ReportHeader
@@ -254,21 +322,46 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
               onExportPdf={handleExportPdf} columns={columns} rows={rows} headerData={headerData}
             />
             <div className="card-body">
-              {isProvisional && aggregatedMonthlyRecords.length > 0 && (
-                <div className="alert alert-warning">
-                  <strong>Provisional Data:</strong> The figures shown are based on an incomplete monthly payroll. Contributions will adjust once the <strong>{missingPeriodCutoff}</strong> pay period is generated.
+              {isLoadingData && (
+                <div className="text-center p-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-2 text-muted">Loading contribution data...</p>
                 </div>
               )}
-              <ContributionTypeToggle activeReport={activeReport} onSelectReport={setActiveReport} />
-              {isCurrentMonthArchived ? <FinalizedReportPlaceholder onNavigate={() => setMainTab('history')} reportInfo={{ payPeriod: `${MONTHS[selectedMonth].label} ${selectedYear}` }} />
-               : aggregatedMonthlyRecords.length === 0 ? <div className="text-center p-5 bg-light rounded mt-3"><i className="bi bi-exclamation-triangle-fill fs-1 text-warning mb-3 d-block"></i><h4 className="text-muted">Incomplete Payroll Data</h4><p className="text-muted">At least one semi-monthly payroll for the selected month must be generated before contributions can be calculated.</p></div>
-               : <>
-                  {activeReport === 'sss' && <SssTab {...commonTableProps} />}
-                  {activeReport === 'philhealth' && <PhilhealthTab {...commonTableProps} />}
-                  {activeReport === 'pagibig' && <PagibigTab {...commonTableProps} />}
-                  {activeReport === 'tin' && <TinTab {...commonTableProps} />}
-                 </>
-              }
+              {dataError && !isLoadingData && (
+                <div className="alert alert-warning">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                  {dataError}
+                </div>
+              )}
+              {!isLoadingData && !dataError && (
+                <>
+                  {isProvisional && rows.length > 0 && (
+                    <div className="alert alert-warning">
+                      <strong>Provisional Data:</strong> The figures shown are based on an incomplete monthly payroll. Contributions will adjust once the <strong>{missingPeriod}</strong> pay period is generated.
+                    </div>
+                  )}
+                  <ContributionTypeToggle activeReport={activeReport} onSelectReport={setActiveReport} />
+                  {isCurrentMonthArchived ? (
+                    <FinalizedReportPlaceholder onNavigate={() => setMainTab('history')} reportInfo={{ payPeriod: `${MONTHS[selectedMonth].label} ${selectedYear}` }} />
+                  ) : rows.length === 0 ? (
+                    <div className="text-center p-5 bg-light rounded mt-3">
+                      <i className="bi bi-exclamation-triangle-fill fs-1 text-warning mb-3 d-block"></i>
+                      <h4 className="text-muted">No Payroll Data</h4>
+                      <p className="text-muted">No payroll data found for the selected month.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {activeReport === 'sss' && <SssTab {...commonTableProps} />}
+                      {activeReport === 'philhealth' && <PhilhealthTab {...commonTableProps} />}
+                      {activeReport === 'pagibig' && <PagibigTab {...commonTableProps} />}
+                      {activeReport === 'tin' && <TinTab {...commonTableProps} />}
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

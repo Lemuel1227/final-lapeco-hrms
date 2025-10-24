@@ -14,23 +14,29 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, onView }) =>
 
   const finalizedPeriods = useMemo(() => {
     const groupedByPeriod = (archivedReports || []).reduce((acc, report) => {
-      if (!acc[report.payPeriod]) { acc[report.payPeriod] = []; }
-      acc[report.payPeriod].push(report);
+      const payPeriod = report.pay_period || report.payPeriod;
+      if (!acc[payPeriod]) { acc[payPeriod] = []; }
+      acc[payPeriod].push(report);
       return acc;
     }, {});
 
     return Object.entries(groupedByPeriod)
       .map(([payPeriod, reports]) => {
         const latestDate = reports.reduce((latest, report) => {
-          const currentDate = new Date(report.generationDate);
+          const currentDate = new Date(report.created_at || report.generationDate || report.updated_at);
           return currentDate > latest ? currentDate : latest;
         }, new Date(0));
         
-        return { payPeriod, reports, finalizationDate: latestDate.toISOString(), generatedBy: reports[0]?.generatedBy || 'N/A' };
+        return { 
+          payPeriod, 
+          reports, 
+          finalizationDate: latestDate.toISOString(), 
+          generatedBy: reports[0]?.generated_by || reports[0]?.generatedBy || 'N/A' 
+        };
       })
       .filter(period => {
-        const types = new Set(period.reports.map(r => r.type.toLowerCase().replace(/[-_]/g, '')));
-        return types.has('sss') && types.has('philhealth') && types.has('pagibig');
+        // Show period if it has at least one report (don't require all 3)
+        return period.reports.length > 0;
       });
   }, [archivedReports]);
 
@@ -46,8 +52,17 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, onView }) =>
     }
 
     return [...periods].sort((a, b) => {
-      const dateA = new Date(a.payPeriod.split(' to ')[0]);
-      const dateB = new Date(b.payPeriod.split(' to ')[0]);
+      // Parse date from "October 2025" or "2025-09-26 to 2025-10-10" format
+      const parsePayPeriod = (payPeriod) => {
+        if (payPeriod.includes(' to ')) {
+          return new Date(payPeriod.split(' to ')[0]);
+        }
+        // Parse "October 2025" format
+        return new Date(payPeriod);
+      };
+      
+      const dateA = parsePayPeriod(a.payPeriod);
+      const dateB = parsePayPeriod(b.payPeriod);
 
       if (sortOrder === 'period-desc') {
         return dateB - dateA;
@@ -60,6 +75,7 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, onView }) =>
   }, [finalizedPeriods, searchTerm, sortOrder]);
 
   const handleDownloadExcel = (report) => {
+    const headerData = report.header_data || report.headerData || {};
     const dataForExport = report.rows.map(row => {
       const newRow = {};
       report.columns.forEach(col => { newRow[col.label] = row[col.key]; });
@@ -67,7 +83,7 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, onView }) =>
     });
     
     const ws = XLSX.utils.json_to_sheet([]);
-    const headerRows = Object.entries(report.headerData).map(([key, value]) => [key, value]);
+    const headerRows = Object.entries(headerData).map(([key, value]) => [key, value]);
     if (headerRows.length > 0) XLSX.utils.sheet_add_aoa(ws, headerRows, { origin: 'A1' });
     
     const tableOrigin = headerRows.length > 0 ? headerRows.length + 2 : 0;
@@ -77,9 +93,10 @@ const ContributionsHistoryTab = ({ archivedReports, onDeletePeriod, onView }) =>
     XLSX.utils.book_append_sheet(wb, ws, report.type);
     
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const contributionMonth = format(new Date(report.payPeriod.split(' to ')[1]), 'yyyy-MM');
+    const payPeriod = report.pay_period || report.payPeriod;
+    const filename = `Finalized_${report.type}_${payPeriod.replace(/\s+/g, '_')}.xlsx`;
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-    saveAs(blob, `Archived_${report.type}_${contributionMonth}.xlsx`);
+    saveAs(blob, filename);
   };
 
   const handleDeletePeriod = () => {

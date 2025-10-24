@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\EmployeePayroll;
 use App\Models\Holiday;
+use App\Models\Leave;
+use App\Models\LeaveCredit;
 use App\Models\PayrollDeduction;
 use App\Models\PayrollEarning;
 use App\Models\PayrollPeriod;
@@ -17,6 +19,47 @@ use Illuminate\Support\Facades\DB;
 class PayrollController extends Controller
 {
     public function index()
+    {
+        // Lightweight summary endpoint - only basic period info
+        $periods = PayrollPeriod::withCount('employeePayrolls')
+            ->orderByDesc('period_start')
+            ->get();
+
+        $runs = $periods->map(function (PayrollPeriod $period) {
+            // Calculate totals without loading full records
+            $totals = EmployeePayroll::where('period_id', $period->id)
+                ->selectRaw('SUM(gross_earning) as total_gross, SUM(total_deductions) as total_deductions')
+                ->first();
+
+            $totalGross = (float) ($totals->total_gross ?? 0);
+            $totalDeductions = (float) ($totals->total_deductions ?? 0);
+            $totalNet = $totalGross - $totalDeductions;
+
+            // Check if all are paid
+            $isPaid = EmployeePayroll::where('period_id', $period->id)
+                ->where('paid_status', '!=', 'Paid')
+                ->count() === 0;
+
+            return [
+                'runId' => sprintf('PR-%05d', $period->id),
+                'periodId' => $period->id,
+                'cutOff' => $period->period_start->toDateString() . ' to ' . $period->period_end->toDateString(),
+                'periodStart' => $period->period_start->toDateString(),
+                'periodEnd' => $period->period_end->toDateString(),
+                'totalNet' => round($totalNet, 2),
+                'totalGross' => round($totalGross, 2),
+                'totalDeductions' => round($totalDeductions, 2),
+                'employeeCount' => $period->employee_payrolls_count,
+                'isPaid' => $isPaid,
+            ];
+        })->values();
+
+        return response()->json([
+            'payroll_runs' => $runs,
+        ]);
+    }
+
+    public function show($periodId)
     {
         $periods = PayrollPeriod::with([
             'employeePayrolls.employee.position',
@@ -65,6 +108,9 @@ class PayrollController extends Controller
                     'grossEarning' => (float) $payroll->gross_earning,
                     'totalDeductionsAmount' => (float) $payroll->total_deductions,
                     'netPay' => $netPay,
+                    'absences' => $payroll->absences_summary ?? [],
+                    'leaveBalances' => $payroll->leave_balances_summary ?? [],
+                    'leaveEarnings' => $payroll->leave_earnings_summary ?? [],
                 ];
             })->values();
 
@@ -85,6 +131,109 @@ class PayrollController extends Controller
 
         return response()->json([
             'payroll_runs' => $runs,
+        ]);
+    }
+
+    public function showRunDetails($periodId)
+    {
+        // Load only employee list for detail modal
+        $period = PayrollPeriod::with([
+            'employeePayrolls.employee:id,first_name,middle_name,last_name',
+        ])->findOrFail($periodId);
+
+        $records = $period->employeePayrolls->map(function (EmployeePayroll $payroll) {
+            $employee = $payroll->employee;
+            $employeeName = $employee?->name;
+            if (!$employeeName && $employee) {
+                $parts = array_filter([trim((string) $employee->first_name), trim((string) $employee->middle_name), trim((string) $employee->last_name)]);
+                $employeeName = trim(implode(' ', $parts)) ?: 'Unnamed Employee';
+            }
+
+            $netPay = (float) $payroll->gross_earning - (float) $payroll->total_deductions;
+
+            return [
+                'payrollId' => $payroll->id,
+                'empId' => (string) $employee?->id,
+                'employeeName' => $employeeName ?? 'Unknown Employee',
+                'netPay' => round($netPay, 2),
+                'status' => $payroll->paid_status,
+            ];
+        })->values();
+
+        return response()->json([
+            'periodId' => $period->id,
+            'cutOff' => $period->period_start->toDateString() . ' to ' . $period->period_end->toDateString(),
+            'records' => $records,
+        ]);
+    }
+
+    public function showPayrollRecord($payrollId)
+    {
+        // Load full payroll details for adjustment modal
+        $payroll = EmployeePayroll::with([
+            'employee.position',
+            'earnings',
+            'deductions',
+        ])->findOrFail($payrollId);
+
+        $employee = $payroll->employee;
+        $employeeName = $employee?->name;
+        if (!$employeeName && $employee) {
+            $parts = array_filter([trim((string) $employee->first_name), trim((string) $employee->middle_name), trim((string) $employee->last_name)]);
+            $employeeName = trim(implode(' ', $parts)) ?: 'Unnamed Employee';
+        }
+
+        $earnings = $payroll->earnings->map(function (PayrollEarning $earning) {
+            return [
+                'description' => $earning->earning_type,
+                'hours' => (int) floor((float) $earning->earning_hours),
+                'amount' => (float) $earning->earning_pay,
+            ];
+        })->values()->all();
+
+        $deductions = [];
+        foreach ($payroll->deductions as $deduction) {
+            $type = $deduction->deduction_type ?: 'Other';
+            $deductions[$type] = ($deductions[$type] ?? 0) + (float) $deduction->deduction_pay;
+        }
+
+        $grossFromEarnings = array_sum(array_column($earnings, 'amount'));
+        $totalDeductions = array_sum($deductions);
+        $netPay = round($grossFromEarnings - $totalDeductions, 2);
+
+        $period = $payroll->period;
+
+        return response()->json([
+            'payrollId' => $payroll->id,
+            'empId' => (string) $employee?->id,
+            'employeeName' => $employeeName ?? 'Unknown Employee',
+            'position' => $employee?->position?->name,
+            'positionId' => $employee?->position_id,
+            'earnings' => $earnings,
+            'deductions' => $deductions,
+            'otherDeductions' => [],
+            'status' => $payroll->paid_status,
+            'paymentDate' => $payroll->pay_date?->toDateString(),
+            'grossEarning' => (float) $payroll->gross_earning,
+            'totalDeductionsAmount' => (float) $payroll->total_deductions,
+            'netPay' => $netPay,
+            'absences' => $payroll->absences_summary ?? [],
+            'leaveBalances' => $payroll->leave_balances_summary ?? [],
+            'leaveEarnings' => $payroll->leave_earnings_summary ?? [],
+            'cutOff' => $period->period_start->toDateString() . ' to ' . $period->period_end->toDateString(),
+            // Employee details for Employee Info tab
+            'employeeDetails' => [
+                'id' => $employee?->id,
+                'name' => $employeeName ?? 'Unknown Employee',
+                'email' => $employee?->email,
+                'tinNo' => $employee?->tin_no,
+                'sssNo' => $employee?->sss_no,
+                'philhealthNo' => $employee?->philhealth_no,
+                'pagIbigNo' => $employee?->pag_ibig_no,
+                'positionId' => $employee?->position_id,
+                'position' => $employee?->position?->name,
+                'status' => $employee?->account_status,
+            ],
         ]);
     }
 
@@ -258,6 +407,148 @@ class PayrollController extends Controller
         ];
 
         return response()->json($payload);
+    }
+
+    public function myProjection(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        $year = (int) $request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month - 1);
+        $periodCode = (string) $request->input('period', '1');
+
+        [$start, $end, $label] = $this->resolveProjectionPeriod($year, $month, $periodCode);
+
+        $position = $user->position;
+
+        if (!$position) {
+            return response()->json([
+                'period' => [
+                    'year' => $year,
+                    'month' => $month,
+                    'period' => $periodCode,
+                    'start' => $start->toDateString(),
+                    'end' => $end->toDateString(),
+                    'label' => $label,
+                ],
+                'projection' => null,
+            ]);
+        }
+
+        $assignments = ScheduleAssignment::with(['schedule', 'attendance'])
+            ->where('user_id', $user->id)
+            ->whereNotNull('schedule_id')
+            ->whereHas('schedule', function ($query) use ($start, $end) {
+                $query->whereBetween('date', [$start->toDateString(), $end->toDateString()]);
+            })
+            ->get();
+
+        $holidayMap = Holiday::whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->keyBy(fn ($holiday) => Carbon::parse($holiday->date)->toDateString());
+
+        $baseRate = $this->resolveBaseHourlyRate($position);
+        $overtimeRate = $this->resolveOvertimeRate($position, $baseRate);
+        $today = now()->endOfDay();
+
+        $totalGross = 0.0;
+        $breakdown = [];
+
+        $sortedAssignments = $assignments->sortBy(function ($assignment) {
+            $date = $assignment->schedule?->date;
+
+            if ($date instanceof Carbon) {
+                return $date->timestamp;
+            }
+
+            return Carbon::parse($date)->timestamp;
+        })->values();
+
+        foreach ($sortedAssignments as $assignment) {
+            $schedule = $assignment->schedule;
+
+            if (!$schedule) {
+                continue;
+            }
+
+            $scheduleDate = $schedule->date instanceof Carbon ? $schedule->date->copy() : Carbon::parse($schedule->date);
+
+            if ($scheduleDate->greaterThan($today)) {
+                continue;
+            }
+
+            $attendance = $assignment->attendance;
+            $scheduledHours = $this->calculateScheduledHours($assignment->start_time, $assignment->end_time);
+            $attendedHours = $this->calculateAttendanceHours($attendance);
+            $overtimeHours = $this->calculateOvertimeHours($assignment->ot_hours, $attendedHours, $scheduledHours);
+            $regularHours = max(min($attendedHours, $scheduledHours), 0);
+
+            [$regularMultiplier, $overtimeMultiplier] = $this->resolveEarningConfiguration($scheduleDate, $holidayMap);
+
+            $regularPay = $regularHours > 0 ? round($regularHours * $baseRate * $regularMultiplier, 2) : 0.0;
+            $overtimePay = $overtimeHours > 0 ? round($overtimeHours * $overtimeRate * $overtimeMultiplier, 2) : 0.0;
+            $nightHours = $this->calculateNightDifferentialHours($scheduleDate, $attendance);
+            $nightPay = $nightHours > 0 ? round($nightHours * $baseRate * 0.10, 2) : 0.0;
+
+            $dailyPay = $regularPay + $overtimePay + $nightPay;
+            $totalGross += $dailyPay;
+
+            $holiday = $holidayMap->get($scheduleDate->toDateString());
+            $status = $this->determineAttendanceStatus($attendance, $scheduleDate);
+
+            $breakdown[] = [
+                'date' => $scheduleDate->toDateString(),
+                'status' => $status,
+                'pay' => round($dailyPay, 2),
+                'scheduledHours' => max((int) floor($scheduledHours), 0),
+                'attendedHours' => max((int) floor($attendedHours), 0),
+                'overtimeHours' => max((int) floor($overtimeHours), 0),
+                'holidayType' => $holiday?->type,
+            ];
+        }
+
+        $breakdown = collect($breakdown)->sortBy('date')->values()->all();
+
+        return response()->json([
+            'period' => [
+                'year' => $year,
+                'month' => $month,
+                'period' => $periodCode,
+                'start' => $start->toDateString(),
+                'end' => $end->toDateString(),
+                'label' => $label,
+            ],
+            'projection' => [
+                'totalGross' => round($totalGross, 2),
+                'breakdown' => $breakdown,
+                'cutOff' => $label,
+            ],
+        ]);
+    }
+
+    protected function resolveProjectionPeriod(int $year, int $zeroBasedMonth, string $periodCode): array
+    {
+        $normalizedMonth = max(0, min(11, $zeroBasedMonth));
+
+        $reference = Carbon::create($year, $normalizedMonth + 1, 1, 0, 0, 0)->startOfDay();
+
+        if ($periodCode === '1') {
+            $start = $reference->copy()->subMonthNoOverflow()->day(26)->startOfDay();
+            $end = $reference->copy()->day(10)->endOfDay();
+        } else {
+            $start = $reference->copy()->day(11)->startOfDay();
+            $end = $reference->copy()->day(25)->endOfDay();
+        }
+
+        if ($end->lessThan($start)) {
+            abort(422, 'Unable to resolve projection period.');
+        }
+
+        return [$start, $end, $start->toDateString() . ' to ' . $end->toDateString()];
     }
 
     protected function resolvePayrollPeriod(Request $request): array
@@ -451,6 +742,7 @@ class PayrollController extends Controller
         $earnings = [];
         $gross = 0.0;
         $totalLateMinutes = 0;
+        $absencesSummary = [];
 
         $sortedAssignments = $employeeAssignments->sortBy(function ($assignment) {
             $date = $assignment->schedule?->date;
@@ -475,11 +767,19 @@ class PayrollController extends Controller
             $overtimeHours = $this->calculateOvertimeHours($assignment->ot_hours, $attendedHours, $scheduledHours);
             $regularHours = max(min($attendedHours, $scheduledHours), 0);
 
+            $scheduleDate = $schedule->date instanceof Carbon ? $schedule->date->copy() : Carbon::parse($schedule->date);
+
+            // Track absences
             if ($regularHours <= 0 && $overtimeHours <= 0) {
+                $absencesSummary[] = [
+                    'description' => 'Unexcused',
+                    'startDate' => $scheduleDate->toDateString(),
+                    'endDate' => $scheduleDate->toDateString(),
+                    'totalDays' => 1,
+                ];
                 continue;
             }
 
-            $scheduleDate = $schedule->date instanceof Carbon ? $schedule->date->copy() : Carbon::parse($schedule->date);
             [$regularMultiplier, $overtimeMultiplier, $regularType, $overtimeType] = $this->resolveEarningConfiguration($scheduleDate, $holidayMap);
 
             if ($regularHours > 0) {
@@ -508,6 +808,58 @@ class PayrollController extends Controller
             return null;
         }
 
+        // Fetch approved paid leaves for this period
+        $approvedLeaves = Leave::where('user_id', $user->id)
+            ->where('status', 'Approved')
+            ->whereBetween('date_from', [$period->period_start, $period->period_end])
+            ->get();
+
+        // Fetch leave credits for the current year
+        $currentYear = $period->period_start->year;
+        $leaveCredits = LeaveCredit::where('user_id', $user->id)
+            ->where('year', $currentYear)
+            ->get()
+            ->keyBy('leave_type');
+
+        $leaveBalancesSummary = [];
+        foreach (['Vacation Leave', 'Sick Leave', 'Emergency Leave'] as $leaveType) {
+            $credit = $leaveCredits->get($leaveType);
+            $totalCredits = $credit ? $credit->total_credits : 0;
+            $usedCredits = $credit ? $credit->used_credits : 0;
+            $leaveBalancesSummary[$leaveType] = [
+                'total' => $totalCredits,
+                'used' => $usedCredits,
+                'remaining' => max(0, $totalCredits - $usedCredits),
+            ];
+        }
+
+        // Compute leave earnings from approved leaves
+        $leaveEarningsSummary = [];
+        $leavePay = 0.0;
+        $dailyRate = $baseRate * 8; // 8 hours per day
+
+        foreach ($approvedLeaves as $leave) {
+            if (in_array($leave->type, ['Unpaid Leave', 'Paternity Leave'])) {
+                continue;
+            }
+
+            $leaveDays = $leave->days ?? 1;
+            $leaveAmount = round($leaveDays * $dailyRate, 2);
+            $leavePay += $leaveAmount;
+
+            $leaveEarningsSummary[] = [
+                'type' => $leave->type,
+                'days' => $leaveDays,
+                'amount' => $leaveAmount,
+            ];
+        }
+
+        // Add leave pay to earnings if any
+        if ($leavePay > 0) {
+            $this->addEarning($earnings, 'Leave Pay', 0, $leavePay);
+            $gross += $leavePay;
+        }
+
         $lateRate = $position?->late_deduction_per_minute ?? 0;
         $lateDeduction = round($totalLateMinutes * (float) $lateRate, 2);
         $totalDeductions = $lateDeduction;
@@ -519,6 +871,9 @@ class PayrollController extends Controller
             'pay_date' => null,
             'gross_earning' => round($gross, 2),
             'total_deductions' => round($totalDeductions, 2),
+            'absences_summary' => $absencesSummary,
+            'leave_balances_summary' => $leaveBalancesSummary,
+            'leave_earnings_summary' => $leaveEarningsSummary,
         ]);
 
         foreach ($earnings as $type => $data) {

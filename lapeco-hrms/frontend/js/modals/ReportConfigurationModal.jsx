@@ -46,7 +46,7 @@ const ReportConfigurationModal = ({ show, onClose, onRunReport, reportConfig, tr
   const payrollRunOptions = useMemo(() => 
     (payrolls || []).map(run => ({
       value: run.runId,
-      label: `Pay Period: ${run.cutOff} (${run.records.length} employees)`
+      label: `Pay Period: ${run.cutOff} (${run.employeeCount ?? run.records?.length ?? 0} employees)`
     })).sort((a,b) => {
       const dateA = new Date(a.label.split(' to ')[1].split(' (')[0]);
       const dateB = new Date(b.label.split(' to ')[1].split(' (')[0]);

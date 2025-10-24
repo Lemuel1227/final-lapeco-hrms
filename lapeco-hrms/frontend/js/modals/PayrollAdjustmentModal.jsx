@@ -92,7 +92,12 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
     if (payrollData && show) {
         setStatus(payrollData.status || 'Pending');
         setActiveTab('summary');
-        setEditableEmployeeData({ ...employeeDetails });
+        // Ensure positionId is set from payrollData or employeeDetails
+        const positionId = payrollData?.positionId || employeeDetails?.positionId;
+        setEditableEmployeeData({ 
+          ...employeeDetails,
+          positionId: positionId
+        });
         setAbsences(payrollData.absences || []);
         setOtherDeductions(payrollData.otherDeductions || []);
 
@@ -152,9 +157,20 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
   }, [earnings, otherDeductions, statutoryDeductions]);
   
   const leaveBalances = useMemo(() => {
-    if (!employeeDetails) return { vacation: {}, sick: {}, personal: {} };
+    // Use backend-provided leave balances if available
+    if (payrollData?.leaveBalances) {
+      const backendBalances = payrollData.leaveBalances;
+      return {
+        vacation: backendBalances['Vacation Leave'] || { total: 0, used: 0, remaining: 0 },
+        sick: backendBalances['Sick Leave'] || { total: 0, used: 0, remaining: 0 },
+        emergency: backendBalances['Emergency Leave'] || { total: 0, used: 0, remaining: 0 },
+      };
+    }
+
+    // Fallback to client-side calculation if backend data not available
+    if (!employeeDetails) return { vacation: {}, sick: {}, emergency: {} };
     const currentYear = new Date().getFullYear();
-    const totalCredits = employeeDetails.leaveCredits || { vacation: 0, sick: 0, personal: 0 };
+    const totalCredits = employeeDetails.leaveCredits || { 'Vacation Leave': 0, 'Sick Leave': 0, 'Emergency Leave': 0 };
     const usedCredits = (allLeaveRequests || [])
       .filter(req => 
         req.empId === employeeDetails.id && 
@@ -162,16 +178,18 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
         new Date(req.dateFrom).getFullYear() === currentYear
       )
       .reduce((acc, req) => {
-        const type = req.leaveType.toLowerCase().replace(' leave', '');
-        if(acc.hasOwnProperty(type)){ acc[type] += req.days; }
+        const type = req.leaveType;
+        if (type === 'Vacation Leave') acc.vacation += req.days;
+        if (type === 'Sick Leave') acc.sick += req.days;
+        if (type === 'Emergency Leave') acc.emergency += req.days;
         return acc;
-      }, { vacation: 0, sick: 0, personal: 0 });
+      }, { vacation: 0, sick: 0, emergency: 0 });
     return {
-      vacation: { total: totalCredits.vacation, used: usedCredits.vacation, remaining: totalCredits.vacation - usedCredits.vacation },
-      sick: { total: totalCredits.sick, used: usedCredits.sick, remaining: totalCredits.sick - usedCredits.sick },
-      personal: { total: totalCredits.personal, used: usedCredits.personal, remaining: totalCredits.personal - usedCredits.personal },
+      vacation: { total: totalCredits['Vacation Leave'] || 0, used: usedCredits.vacation, remaining: (totalCredits['Vacation Leave'] || 0) - usedCredits.vacation },
+      sick: { total: totalCredits['Sick Leave'] || 0, used: usedCredits.sick, remaining: (totalCredits['Sick Leave'] || 0) - usedCredits.sick },
+      emergency: { total: totalCredits['Emergency Leave'] || 0, used: usedCredits.emergency, remaining: (totalCredits['Emergency Leave'] || 0) - usedCredits.emergency },
     };
-  }, [employeeDetails, allLeaveRequests]);
+  }, [payrollData, employeeDetails, allLeaveRequests]);
 
   const leaveEarningsBreakdown = useMemo(() => {
       if (!absences.length || !position) return { breakdown: [], total: 0 };
@@ -180,7 +198,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
       if (excusedAbsences === 0) return { breakdown: [], total: 0 };
       
       let tempVacation = leaveBalances.vacation.remaining;
-      let tempPersonal = leaveBalances.personal.remaining;
+      let tempEmergency = leaveBalances.emergency.remaining;
       let tempSick = leaveBalances.sick.remaining;
       
       let breakdown = [];
@@ -199,7 +217,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
       };
       
       consumeLeave('vacation', tempVacation);
-      consumeLeave('personal', tempPersonal);
+      consumeLeave('emergency', tempEmergency);
       consumeLeave('sick', tempSick);
 
       const total = breakdown.reduce((sum, item) => sum + item.amount, 0);
@@ -272,40 +290,55 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
   };
   
   const handleGeneratePayslip = async () => {
-    const fullEmployeeDetails = {
-      ...(employees.find(e => e.id === payrollData.empId) || {}),
-      ...employeeDetails,
-      positionTitle: position ? position.title : 'Unassigned'
-    };
-    
-    const [start, end] = payrollData.cutOff.split(' to ');
-    const calculatedPaymentDate = addDays(new Date(end), 5).toISOString().split('T')[0];
+    try {
+      const fullEmployeeDetails = {
+        ...(employees.find(e => e.id === payrollData.empId) || {}),
+        ...employeeDetails,
+        id: String(employeeDetails?.id || payrollData?.empId || ''),
+        name: String(employeeDetails?.name || ''),
+        email: String(employeeDetails?.email || ''),
+        tinNo: String(employeeDetails?.tinNo || ''),
+        sssNo: String(employeeDetails?.sssNo || ''),
+        philhealthNo: String(employeeDetails?.philhealthNo || ''),
+        pagIbigNo: String(employeeDetails?.pagIbigNo || ''),
+        positionTitle: position ? (position.title || position.name) : 'Unassigned'
+      };
+      
+      const [start, end] = payrollData.cutOff.split(' to ');
+      const calculatedPaymentDate = addDays(new Date(end), 5).toISOString().split('T')[0];
 
-    const currentPayslipData = { 
-      ...payrollData,
-      earnings: earnings,
-      otherDeductions: otherDeductions,
-      absences: absences,
-      deductions: statutoryDeductions,
-      payStartDate: payrollData.payStartDate ?? start,
-      payEndDate: payrollData.payEndDate ?? end,
-      paymentDate: payrollData.paymentDate ?? calculatedPaymentDate,
-      period: payrollData.period ?? payrollData.cutOff,
-      leaveBalances: {
-          vacation: leaveBalances.vacation.total,
-          sick: leaveBalances.sick.total,
-          personal: leaveBalances.personal.total
-      },
-    };
-    
-    await generateReport('payslip', {}, { payslipData: currentPayslipData, employeeDetails: fullEmployeeDetails });
-    setShowPayslipPreview(true);
+      const currentPayslipData = { 
+        ...payrollData,
+        payrollId: String(payrollData.payrollId || ''),
+        empId: String(payrollData.empId || ''),
+        earnings: earnings,
+        otherDeductions: otherDeductions,
+        absences: absences,
+        deductions: statutoryDeductions,
+        payStartDate: payrollData.payStartDate ?? start,
+        payEndDate: payrollData.payEndDate ?? end,
+        paymentDate: payrollData.paymentDate ?? calculatedPaymentDate,
+        period: payrollData.period ?? payrollData.cutOff,
+        leaveBalances: {
+            vacation: leaveBalances.vacation?.total || 0,
+            sick: leaveBalances.sick?.total || 0,
+            emergency: leaveBalances.emergency?.total || 0
+        },
+      };
+      
+      await generateReport('payslip', {}, { payslipData: currentPayslipData, employeeDetails: fullEmployeeDetails });
+      setShowPayslipPreview(true);
+    } catch (error) {
+      console.error('Error generating payslip:', error);
+      alert('Failed to generate payslip. Please check the console for details.');
+    }
   };
 
   const handleClosePreview = () => {
     setShowPayslipPreview(false);
     if (pdfDataUri) URL.revokeObjectURL(pdfDataUri);
     setPdfDataUri('');
+    onClose();
   };
 
   if (!show || !editableEmployeeData) return null;
@@ -506,7 +539,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
               <p className="text-muted small">This is the employee's total remaining leave for the year.</p>
               <LeaveBalanceDisplay label="Vacation Leave" balanceData={leaveBalances.vacation} />
               <LeaveBalanceDisplay label="Sick Leave" balanceData={leaveBalances.sick} />
-              <LeaveBalanceDisplay label="Personal Leave" balanceData={leaveBalances.personal} />
+              <LeaveBalanceDisplay label="Emergency Leave" balanceData={leaveBalances.emergency} />
           </div>
           <div className="leave-earnings-breakdown">
               <h6 className="form-grid-title">Leave Earnings Breakdown (This Pay Period)</h6>
@@ -548,7 +581,12 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
           <InfoField label="SSS Number"><input type="text" name="sssNo" className="form-control" value={editableEmployeeData.sssNo} onChange={handleEmployeeInfoChange} /></InfoField>
           <InfoField label="PhilHealth Number"><input type="text" name="philhealthNo" className="form-control" value={editableEmployeeData.philhealthNo} onChange={handleEmployeeInfoChange} /></InfoField>
           <InfoField label="HDMF (Pag-IBIG) Number"><input type="text" name="pagIbigNo" className="form-control" value={editableEmployeeData.pagIbigNo} onChange={handleEmployeeInfoChange} /></InfoField>
-          <InfoField label="Position"><select name="positionId" className="form-select" value={editableEmployeeData.positionId} onChange={handleEmployeeInfoChange}>{positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></InfoField>
+          <InfoField label="Position">
+            <select name="positionId" className="form-control" value={editableEmployeeData?.positionId || ''} onChange={handleEmployeeInfoChange}>
+              <option value="">Select Position</option>
+              {(positions || []).map(p => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
+            </select>
+          </InfoField>
           <InfoField label="Status"><select name="status" className="form-select" value={editableEmployeeData.status} onChange={handleEmployeeInfoChange}><option value="Active">Active</option><option value="Inactive">Inactive</option></select></InfoField>
       </div>
     </div>

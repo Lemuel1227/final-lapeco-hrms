@@ -6,11 +6,24 @@ const MOCK_COMPANY_INFO = {
     address: '123 Innovation Drive, Tech City',
 };
 
+/**
+ * SSS (Social Security System) Contribution Calculator
+ * Rate: 14% of Monthly Salary Credit (MSC)
+ * Split: Employer 9.5% | Employee 4.5%
+ * MSC Range: ₱3,000 to ₱30,000
+ * Maximum Employee Share: ₱1,350/month (4.5% of ₱30,000)
+ */
 export const calculateSssContribution = (salary, isProvisional = false) => {
+    // Convert semi-monthly to monthly if provisional
     const monthlyEquivalent = isProvisional ? salary * 2 : salary;
+    
+    // Cap at maximum MSC of ₱30,000
     let msc = Math.min(monthlyEquivalent, 30000);
+    
+    // Minimum MSC is ₱4,000 (updated from ₱3,000)
     if (msc < 4000) msc = 4000;
 
+    // Round MSC to nearest ₱500 bracket
     if (msc < 30000) {
         const remainder = msc % 500;
         if (remainder < 250) {
@@ -20,9 +33,11 @@ export const calculateSssContribution = (salary, isProvisional = false) => {
         }
     }
     
-    const monthlyEmployeeShare = msc * 0.045;
+    // Calculate shares: Employee 4.5%, Employer 9.5%
+    const monthlyEmployeeShare = msc * 0.045; // Max: ₱1,350
     const monthlyEmployerShare = msc * 0.095;
 
+    // Divide by 2 if semi-monthly payroll
     const divisor = isProvisional ? 2 : 1;
 
     return {
@@ -32,36 +47,66 @@ export const calculateSssContribution = (salary, isProvisional = false) => {
     };
 };
 
+/**
+ * PhilHealth Contribution Calculator (2024)
+ * Rate: 5.0% of monthly salary
+ * Split: 50% employer, 50% employee (2.5% each)
+ * Income Floor: ₱10,000 (Minimum salary considered)
+ * Income Ceiling: ₱100,000 (Maximum salary considered)
+ * Employee Share Range: ₱250/month (min) to ₱2,500/month (max)
+ */
 export const calculatePhilhealthContribution = (salary, isProvisional = false) => {
+    // Convert semi-monthly to monthly if provisional
     const monthlyEquivalent = isProvisional ? salary * 2 : salary;
-    const rate = 0.05;
-    const incomeFloor = 10000;
-    const incomeCeiling = 100000;
+    
+    const rate = 0.05; // 5% total premium
+    const incomeFloor = 10000; // Minimum ₱10,000
+    const incomeCeiling = 100000; // Maximum ₱100,000
 
+    // Apply floor and ceiling
     let baseSalary = Math.max(monthlyEquivalent, incomeFloor);
     baseSalary = Math.min(baseSalary, incomeCeiling);
 
+    // Total premium is 5% of base salary
     const totalPremium = baseSalary * rate;
+    
+    // Divide by 2 if semi-monthly payroll
     const divisor = isProvisional ? 2 : 1;
 
     return {
-        employeeShare: (totalPremium / 2) / divisor,
-        employerShare: (totalPremium / 2) / divisor,
+        employeeShare: (totalPremium / 2) / divisor, // 2.5% (₱250 to ₱2,500)
+        employerShare: (totalPremium / 2) / divisor, // 2.5%
         total: totalPremium / divisor,
     };
 };
 
+/**
+ * Pag-IBIG Fund Contribution Calculator
+ * Employee Contribution: 1% (if earning ≤₱1,500) or 2% (if earning >₱1,500)
+ * Employer Contribution: 2%
+ * Maximum monthly compensation considered: ₱5,000
+ * Max Employee Share: ₱100/month
+ * Max Employer Share: ₱100/month
+ */
 export const calculatePagibigContribution = (salary, isProvisional = false) => {
+    // Convert semi-monthly to monthly if provisional
     const monthlyEquivalent = isProvisional ? salary * 2 : salary;
+    
+    // Employee rate: 1% if ≤₱1,500, otherwise 2%
     let employeeShare;
     if (monthlyEquivalent <= 1500) {
-        employeeShare = monthlyEquivalent * 0.01;
+        employeeShare = monthlyEquivalent * 0.01; // 1%
     } else {
-        employeeShare = monthlyEquivalent * 0.02;
+        employeeShare = monthlyEquivalent * 0.02; // 2%
     }
     
+    // Cap employee share at ₱100/month
     employeeShare = Math.min(employeeShare, 100);
+    
+    // Employer always contributes 2%, capped at ₱100/month
     const employerShare = Math.min(monthlyEquivalent * 0.02, 100);
+    
+    // Divide by 2 if semi-monthly payroll
     const divisor = isProvisional ? 2 : 1;
 
     return {
@@ -71,19 +116,48 @@ export const calculatePagibigContribution = (salary, isProvisional = false) => {
     };
 };
 
+/**
+ * Withholding Tax Calculator (TRAIN Law)
+ * 
+ * Annual Tax Brackets:
+ * ₱250,000 and below: 0%
+ * Over ₱250,000 up to ₱400,000: 15% of excess over ₱250,000
+ * Over ₱400,000 up to ₱800,000: ₱22,500 + 20% of excess over ₱400,000
+ * Over ₱800,000 up to ₱2,000,000: ₱102,500 + 25% of excess over ₱800,000
+ * Over ₱2,000,000 up to ₱8,000,000: ₱402,500 + 30% of excess over ₱2,000,000
+ * Over ₱8,000,000: ₱2,202,500 + 35% of excess over ₱8,000,000
+ * 
+ * Note: Taxable income = Gross - SSS - PhilHealth - Pag-IBIG - Other non-taxable benefits
+ * Semi-monthly brackets (Annual ÷ 24):
+ */
 export const calculateTin = (taxableSemiMonthlySalary) => {
     let tax = 0;
-    if (taxableSemiMonthlySalary > 10417 && taxableSemiMonthlySalary <= 16666) {
+    
+    // ₱250,000/year ÷ 24 = ₱10,417 (0% tax)
+    if (taxableSemiMonthlySalary <= 10417) {
+        tax = 0;
+    }
+    // Over ₱10,417 up to ₱16,666 (15%)
+    else if (taxableSemiMonthlySalary <= 16666) {
         tax = (taxableSemiMonthlySalary - 10417) * 0.15;
-    } else if (taxableSemiMonthlySalary > 16667 && taxableSemiMonthlySalary <= 33332) {
+    }
+    // Over ₱16,667 up to ₱33,332 (20%)
+    else if (taxableSemiMonthlySalary <= 33332) {
         tax = 937.50 + (taxableSemiMonthlySalary - 16667) * 0.20;
-    } else if (taxableSemiMonthlySalary > 33333 && taxableSemiMonthlySalary <= 83332) {
+    }
+    // Over ₱33,333 up to ₱83,332 (25%)
+    else if (taxableSemiMonthlySalary <= 83332) {
         tax = 4270.70 + (taxableSemiMonthlySalary - 33333) * 0.25;
-    } else if (taxableSemiMonthlySalary > 83333 && taxableSemiMonthlySalary <= 333332) {
+    }
+    // Over ₱83,333 up to ₱333,332 (30%)
+    else if (taxableSemiMonthlySalary <= 333332) {
         tax = 16770.70 + (taxableSemiMonthlySalary - 83333) * 0.30;
-    } else if (taxableSemiMonthlySalary > 333333) {
+    }
+    // Over ₱333,333 (35%)
+    else {
         tax = 91770.70 + (taxableSemiMonthlySalary - 333333) * 0.35;
     }
+    
     return { taxWithheld: tax > 0 ? tax : 0 };
 };
 

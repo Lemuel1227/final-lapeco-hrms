@@ -9,16 +9,8 @@ const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
 
   const handleExportRun = (e) => {
     e.stopPropagation();
-    const headers = ["Employee ID", "Employee Name", "Gross Pay", "Total Deductions", "Net Pay", "Status"];
-    const csvData = run.records.map(rec => {
-        const totalEarnings = (rec.earnings || []).reduce((s, i) => s + Number(i.amount), 0);
-        const totalDeductions = Object.values(rec.deductions).reduce((s, v) => s + v, 0) + (rec.otherDeductions || []).reduce((s, i) => s + Number(i.amount), 0);
-        const netPay = totalEarnings - totalDeductions;
-        return [ rec.empId, rec.employeeName, totalEarnings.toFixed(2), totalDeductions.toFixed(2), netPay.toFixed(2), rec.status ].join(',');
-    });
-    const csvContent = [headers.join(','), ...csvData].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `Payroll_${run.cutOff}.csv`);
+    // Export functionality will need to fetch full data first
+    alert('Export functionality requires loading full payroll data. This feature will be implemented in the detail view.');
   };
 
   const handleActionClick = (e, action) => {
@@ -26,15 +18,12 @@ const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
     action();
   };
 
-  const payDate = run.records[0]?.paymentDate || format(addDays(new Date(run.cutOff.split(' to ')[1]), 5), 'yyyy-MM-dd');
+  const payDate = format(addDays(new Date(run.cutOff.split(' to ')[1]), 5), 'yyyy-MM-dd');
 
-  const { grossPay, totalDeductions } = run.records.reduce((acc, rec) => {
-    acc.grossPay += (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const statutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + val, 0);
-    const other = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    acc.totalDeductions += statutory + other;
-    return acc;
-  }, { grossPay: 0, totalDeductions: 0 });
+  // Use backend-provided totals (new API) or calculate from records (old API)
+  const grossPay = run.totalGross ?? 0;
+  const totalDeductions = run.totalDeductions ?? 0;
+  const employeeCount = run.employeeCount ?? (run.records?.length || 0);
 
   return (
     <div className="payroll-run-card" onClick={onViewDetails}>
@@ -69,7 +58,7 @@ const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
             </div>
             <div className="detail-item">
                 <span className="detail-label">Employees</span>
-                <span className="detail-value">{run.records.length}</span>
+                <span className="detail-value">{employeeCount}</span>
             </div>
         </div>
       </div>

@@ -151,10 +151,20 @@ export const leaveAPI = {
 // Payroll API calls
 export const payrollAPI = {
   getAll: () => api.get('/payroll'),
+  getPeriodDetails: (periodId) => api.get(`/payroll/periods/${periodId}/details`),
+  getPayrollRecord: (payrollId) => api.get(`/payroll/records/${payrollId}`),
   compute: (params) => api.get('/payroll/compute', { params }),
   myProjection: (params) => api.get('/payroll/my-projection', { params }),
   generate: (data) => api.post('/payroll/generate', data),
   update: (id, data) => api.put(`/payroll/${id}`, data),
+};
+
+// Contributions API calls
+export const contributionAPI = {
+  getMonthlyContributions: (params) => api.get('/contributions/monthly', { params }),
+  getFinalizedContributions: (params) => api.get('/contributions/finalized', { params }),
+  finalizeContribution: (data) => api.post('/contributions/finalize', data),
+  deleteFinalizedContribution: (id) => api.delete(`/contributions/finalized/${id}`),
 };
 
 // Holiday API calls
