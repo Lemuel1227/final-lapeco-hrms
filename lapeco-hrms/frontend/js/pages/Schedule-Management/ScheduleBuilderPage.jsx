@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import './ScheduleManagementPage.css';
-import AddColumnModal from '../../../../../../LAPECO-HRMS/src/components/modals/AddColumnModal';
+import AddColumnModal from '../../modals/AddColumnModal';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import Layout from '@/layout/Layout';
 import { scheduleAPI, employeeAPI, positionAPI } from '../../services/api';

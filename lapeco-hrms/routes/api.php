@@ -121,6 +121,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:attendance,index'])->get('/attendance/employees', [AttendanceController::class, 'getEmployees']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance/employee/{employeeId}', [AttendanceController::class, 'getEmployeeAttendance']);
     Route::middleware(['role.access:attendance,store'])->post('/attendance/clock', [AttendanceController::class, 'clockAction']);
+    Route::middleware(['role.access:attendance,store'])->post('/attendance/import', [AttendanceController::class, 'import']);
     Route::middleware(['role.access:attendance,view'])->get('/attendance/{attendance}', [AttendanceController::class, 'show']);
     Route::middleware(['role.access:attendance,update'])->put('/attendance/{attendance}', [AttendanceController::class, 'update']);
     Route::middleware(['role.access:attendance,destroy'])->delete('/attendance/{attendance}', [AttendanceController::class, 'destroy']);

@@ -528,6 +528,133 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Import attendance records from Excel/CSV
+     * Creates schedules if they don't exist, then creates/updates attendance records
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate([
+            'records' => 'required|array',
+            'records.*.employeeId' => 'required|exists:users,id',
+            'records.*.dateTime' => 'required|date',
+            'records.*.logType' => 'required|in:Sign In,Sign Out,Break In,Break Out',
+        ]);
+
+        try {
+            $records = $request->input('records');
+            $imported = 0;
+            $schedulesCreated = 0;
+            $errors = [];
+
+            // Group records by date
+            $recordsByDate = collect($records)->groupBy(function ($record) {
+                return Carbon::parse($record['dateTime'])->toDateString();
+            });
+
+            foreach ($recordsByDate as $date => $dateRecords) {
+                // Check if schedule exists for this date
+                $schedule = Schedule::whereDate('date', $date)->first();
+                
+                // If no schedule exists, create one
+                if (!$schedule) {
+                    $schedule = Schedule::create([
+                        'name' => "Imported Schedule - $date",
+                        'date' => $date,
+                        'description' => "Auto-created from import on " . now()->format('Y-m-d H:i:s')
+                    ]);
+                    $schedulesCreated++;
+                }
+
+                // Group records by employee for this date
+                $recordsByEmployee = collect($dateRecords)->groupBy('employeeId');
+
+                foreach ($recordsByEmployee as $employeeId => $employeeRecords) {
+                    try {
+                        // Check if schedule assignment exists
+                        $assignment = ScheduleAssignment::where('schedule_id', $schedule->id)
+                            ->where('user_id', $employeeId)
+                            ->first();
+
+                        // If no assignment exists, create one
+                        if (!$assignment) {
+                            $assignment = ScheduleAssignment::create([
+                                'schedule_id' => $schedule->id,
+                                'user_id' => $employeeId,
+                                'start_time' => '08:00', // Default shift times
+                                'end_time' => '17:00',
+                                'ot_hours' => 0
+                            ]);
+                        }
+
+                        // Sort records by time
+                        $sortedRecords = collect($employeeRecords)->sortBy(function ($record) {
+                            return Carbon::parse($record['dateTime'])->timestamp;
+                        });
+
+                        // Extract time values based on log type
+                        $timeData = [
+                            'sign_in' => null,
+                            'sign_out' => null,
+                            'break_in' => null,
+                            'break_out' => null
+                        ];
+
+                        foreach ($sortedRecords as $record) {
+                            $time = Carbon::parse($record['dateTime'])->format('H:i');
+                            
+                            switch ($record['logType']) {
+                                case 'Sign In':
+                                    $timeData['sign_in'] = $time;
+                                    break;
+                                case 'Sign Out':
+                                    $timeData['sign_out'] = $time;
+                                    break;
+                                case 'Break In':
+                                    $timeData['break_in'] = $time;
+                                    break;
+                                case 'Break Out':
+                                    $timeData['break_out'] = $time;
+                                    break;
+                            }
+                        }
+
+                        // Check if attendance record already exists
+                        $attendance = Attendance::where('schedule_assignment_id', $assignment->id)->first();
+
+                        if ($attendance) {
+                            // Update existing attendance
+                            $attendance->update($timeData);
+                        } else {
+                            // Create new attendance record
+                            Attendance::create(array_merge($timeData, [
+                                'schedule_assignment_id' => $assignment->id,
+                                'status' => 'present' // Will be auto-calculated by model
+                            ]));
+                        }
+
+                        $imported++;
+                    } catch (\Exception $e) {
+                        $errors[] = "Employee ID $employeeId on $date: " . $e->getMessage();
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully imported $imported attendance record(s)",
+                'schedulesCreated' => $schedulesCreated,
+                'imported' => $imported,
+                'errors' => $errors
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Import failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get all attendance records for a specific employee
      * Includes scheduled records without actual attendance
      */

@@ -39,6 +39,7 @@ const AttendancePage = () => {
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [allEmployees, setAllEmployees] = useState([]);
+  const [parsedImportData, setParsedImportData] = useState([]);
 
   // Toast notification state
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -656,132 +657,131 @@ const AttendancePage = () => {
   const handleExcelImportFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      setShowImportPreview(true);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const importedData = XLSX.utils.sheet_to_json(worksheet);
+          
+          // Transform the imported data to match the expected format
+          const transformedData = importedData.map((row, index) => {
+            const name = row['Name'] || '';
+            const idNumber = row['No.'] || row['ID'] || row['No'] || '';
+            const dateTimeStr = row['Date/Time'] || row['DateTime'] || '';
+            const status = row['Status'] || '';
+            
+            // Parse date/time
+            let dateTime = null;
+            if (dateTimeStr) {
+              dateTime = new Date(dateTimeStr);
+              if (isNaN(dateTime.getTime())) {
+                dateTime = null;
+              }
+            }
+            
+            // Determine log type from Status
+            let logType = 'Unknown';
+            if (status) {
+              const statusLower = status.toLowerCase();
+              if (statusLower.includes('c/in') || statusLower.includes('sign in')) {
+                logType = 'Sign In';
+              } else if (statusLower.includes('c/out') || statusLower.includes('sign out')) {
+                logType = 'Sign Out';
+              } else if (statusLower.includes('break in')) {
+                logType = 'Break In';
+              } else if (statusLower.includes('break out')) {
+                logType = 'Break Out';
+              }
+            }
+            
+            // Try to match employee by ID (ID is more reliable than name)
+            const matchedEmployee = allEmployees.find(emp => 
+              emp.id.toString() === idNumber.toString()
+            );
+            
+            return {
+              name,
+              idNumber: idNumber.toString(),
+              dateTime,
+              logType,
+              matchStatus: matchedEmployee ? 'matched' : 'unmatched',
+              employeeId: matchedEmployee?.id || null,
+              employeeName: matchedEmployee?.name || null,
+              excluded: false
+            };
+          });
+          
+          setParsedImportData(transformedData);
+          setShowImportPreview(true);
+        } catch (error) {
+          console.error('Import error:', error);
+          setToast({ 
+            show: true, 
+            message: 'Failed to process the file. Please ensure it is a valid Excel/CSV format.', 
+            type: 'error' 
+          });
+        }
+      };
+      reader.readAsArrayBuffer(file);
     }
     event.target.value = null;
   };
 
-  // CONFIRM IMPORT WITH SCHEDULE CREATION
-  const handleConfirmImport = async (groupedByDate) => {
+  // CONFIRM IMPORT - Use backend API
+  const handleConfirmImport = async (importedRecords) => {
     setIsImporting(true);
     
     try {
-      let totalImported = 0;
-      let schedulesCreated = 0;
+      // Transform data to match backend API expectations
+      const records = importedRecords.map(record => ({
+        employeeId: record.employeeId,
+        dateTime: record.dateTime.toISOString(),
+        logType: record.logType
+      }));
       
-      // Process each date
-      for (const [date, records] of Object.entries(groupedByDate)) {
-        try {
-          // Check if schedule exists for this date
-          let scheduleId = null;
-          const dailyResponse = await attendanceAPI.getDaily({ date });
-          const existingRecords = dailyResponse.data || [];
-          
-          if (existingRecords.length > 0) {
-            scheduleId = existingRecords[0]?.scheduleId;
-          }
-          
-          // If no schedule exists, create one
-          if (!scheduleId) {
-            const scheduleResponse = await scheduleAPI.create({
-              date: date,
-              description: `Imported schedule for ${date}`
-            });
-            scheduleId = scheduleResponse.data.id;
-            schedulesCreated++;
-          }
-          
-          // Group records by employee for this date
-          const recordsByEmployee = records.reduce((acc, record) => {
-            const empId = record.matchedEmployee.id;
-            if (!acc[empId]) {
-              acc[empId] = [];
-            }
-            acc[empId].push(record);
-            return acc;
-          }, {});
-          
-          // Process each employee's records
-          for (const [empId, empRecords] of Object.entries(recordsByEmployee)) {
-            // Sort records by time
-            const sortedRecords = empRecords.sort((a, b) => 
-              a.dateTime.getTime() - b.dateTime.getTime()
-            );
-            
-            // Extract time values based on log type
-            const timeData = {
-              sign_in: null,
-              sign_out: null,
-              break_in: null,
-              break_out: null
-            };
-            
-            sortedRecords.forEach(record => {
-              const timeStr = record.dateTime.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
-              
-              if (record.logType === 'Sign In') {
-                timeData.sign_in = timeStr;
-              } else if (record.logType === 'Sign Out') {
-                timeData.sign_out = timeStr;
-              } else if (record.logType === 'Break In') {
-                timeData.break_in = timeStr;
-              } else if (record.logType === 'Break Out') {
-                timeData.break_out = timeStr;
-              }
-            });
-            
-            // Create or update attendance record
-            try {
-              // Check if attendance record already exists
-              const existingAttendance = existingRecords.find(r => 
-                r.empId.toString() === empId.toString()
-              );
-              
-              if (existingAttendance && existingAttendance.id) {
-                // Update existing record
-                await attendanceAPI.update(existingAttendance.id, {
-                  ...timeData,
-                  schedule_assignment_id: existingAttendance.schedule_assignment_id
-                });
-              } else {
-                // Create new attendance record
-                // First, need to create schedule assignment
-                const assignmentResponse = await scheduleAPI.assignEmployee({
-                  schedule_id: scheduleId,
-                  employee_id: empId
-                });
-                
-                await attendanceAPI.create({
-                  ...timeData,
-                  schedule_assignment_id: assignmentResponse.data.id
-                });
-              }
-              
-              totalImported++;
-            } catch (error) {
-              console.error(`Error creating/updating attendance for employee ${empId}:`, error);
-            }
-          }
-        } catch (error) {
-          console.error(`Error processing date ${date}:`, error);
+      // Call backend import API
+      const response = await attendanceAPI.import({ records });
+      
+      if (response.data.success) {
+        const { imported, schedulesCreated, errors } = response.data;
+        
+        let message = `Successfully imported ${imported} attendance record(s).`;
+        if (schedulesCreated > 0) {
+          message += ` ${schedulesCreated} schedule(s) created.`;
         }
+        if (errors && errors.length > 0) {
+          message += ` ${errors.length} error(s) occurred.`;
+          console.error('Import errors:', errors);
+        }
+        
+        setToast({
+          show: true,
+          message,
+          type: errors && errors.length > 0 ? 'warning' : 'success'
+        });
+        
+        setShowImportPreview(false);
+        setParsedImportData([]);
+        
+        // Refresh data
+        if (activeView === 'daily') {
+          const response = await attendanceAPI.getDaily({ date: currentDate });
+          setDailyAttendanceData(response.data || []);
+        } else if (activeView === 'historyList') {
+          const response = await attendanceAPI.getHistory();
+          setAttendanceHistory(response.data || []);
+        }
+      } else {
+        throw new Error(response.data.message || 'Import failed');
       }
-      
-      // Refresh data
-      const response = await attendanceAPI.getDaily({ date: currentDate });
-      setDailyAttendanceData(response.data || []);
-      
-      setToast({
-        show: true,
-        message: `Successfully imported ${totalImported} attendance records${schedulesCreated > 0 ? ` and created ${schedulesCreated} new schedule(s)` : ''}`,
-        type: 'success'
-      });
-      
     } catch (error) {
-      console.error('Error confirming import:', error);
+      console.error('Import error:', error);
       setToast({
         show: true,
-        message: 'Failed to import some or all records. Please check the console for details.',
+        message: error.response?.data?.message || 'Failed to import attendance records. Please try again.',
         type: 'error'
       });
     } finally {
@@ -946,6 +946,7 @@ const AttendancePage = () => {
         <ImportPreviewModal
           show={showImportPreview}
           onClose={() => setShowImportPreview(false)}
+          importData={parsedImportData}
           onConfirm={handleConfirmImport}
           employeesList={allEmployees}
           isLoading={isImporting}

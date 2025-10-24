@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import './ImportPreviewModal.css';
 
 const ImportPreviewModal = ({ 
   show, 
@@ -157,12 +156,7 @@ const ImportPreviewModal = ({
                   </div>
                   
                   <div className="alert alert-info small mb-3">
-                    <strong>Record:</strong> {editedData[searchingEmployee]?.name} (Original ID: {editedData[searchingEmployee]?.idNumber})
-                    {editedData[searchingEmployee]?.matchStatus === 'matched' && (
-                      <span className="d-block mt-1">
-                        <strong className="text-success">Currently matched to:</strong> {editedData[searchingEmployee]?.employeeName} (ID: {editedData[searchingEmployee]?.employeeId})
-                      </span>
-                    )}
+                    <strong>Unmatched Employee:</strong> {editedData[searchingEmployee]?.name} (ID: {editedData[searchingEmployee]?.idNumber})
                   </div>
 
                   <input
@@ -269,11 +263,11 @@ const ImportPreviewModal = ({
                           ) : (
                             <span className="text-muted">-</span>
                           )}
-                          {!row.excluded && (
+                          {row.matchStatus === 'unmatched' && !row.excluded && (
                             <button
                               className="btn btn-sm btn-outline-primary py-0 px-1"
                               onClick={() => setSearchingEmployee(index)}
-                              title="Search or change employee"
+                              title="Search for employee"
                             >
                               <i className="bi bi-search"></i>
                             </button>
