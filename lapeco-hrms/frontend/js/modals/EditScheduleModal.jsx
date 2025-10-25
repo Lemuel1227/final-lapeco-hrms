@@ -26,34 +26,17 @@ const EditScheduleModal = ({ show, onClose, onSave, scheduleId, scheduleDate, in
           const response = await scheduleAPI.getById(scheduleId);
           const scheduleData = response.data;
 
-          // Debug: Log the raw data to see what we're receiving
-          console.log('Raw schedule data:', scheduleData);
-          if (scheduleData.assignments && scheduleData.assignments.length > 0) {
-            console.log('First assignment times:', {
-              start_time: scheduleData.assignments[0].start_time,
-              end_time: scheduleData.assignments[0].end_time,
-              start_time_type: typeof scheduleData.assignments[0].start_time,
-              end_time_type: typeof scheduleData.assignments[0].end_time
-            });
-          }
-
-          // Helper function to format time values from database
           const formatTime = (timeValue) => {
             if (!timeValue) return '';
 
-            // If it's already in HH:MM format, return as is
             if (typeof timeValue === 'string' && timeValue.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
-              return timeValue.substring(0, 5); // Return only HH:MM part
+              return timeValue.substring(0, 5);
             }
 
-            // If it's a UTC datetime string (ISO format), extract time part without timezone conversion
             if (typeof timeValue === 'string' && timeValue.includes('T') && timeValue.includes('Z')) {
-              // Extract time part from ISO datetime string (e.g., "2025-09-30T10:07:00.000000Z" -> "10:07")
-              const timePart = timeValue.split('T')[1].split('.')[0]; // Get "10:07:00"
-              return timePart.substring(0, 5); // Return only "10:07"
+              const timePart = timeValue.split('T')[1].split('.')[0];
+              return timePart.substring(0, 5);
             }
-
-            // If it's a datetime string, extract time part
             if (typeof timeValue === 'string') {
               const date = new Date(timeValue);
               if (!isNaN(date.getTime())) {

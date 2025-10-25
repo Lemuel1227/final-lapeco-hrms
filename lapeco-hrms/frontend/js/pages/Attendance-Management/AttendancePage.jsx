@@ -812,7 +812,7 @@ const AttendancePage = () => {
               className="btn btn-outline-secondary"
               onClick={handleExcelImportClick}
             >
-              <i className="bi bi-file-earmark-arrow-up me-2"></i>Import
+              <i className="bi bi-file-earmark-arrow-up me-2"></i>Import Excel
             </button>
 
             <button className="btn btn-outline-secondary" onClick={handleExport} disabled={activeView !== 'daily' || !sortedAndFilteredList || sortedAndFilteredList.length === 0}>
