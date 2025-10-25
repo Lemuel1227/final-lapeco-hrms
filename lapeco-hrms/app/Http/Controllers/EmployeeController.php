@@ -427,6 +427,7 @@ class EmployeeController extends Controller
             }
             
             // Handle profile picture upload - store in public storage (storage/app/public/profile_pictures)
+            $profilePicturePath = null;
             if ($request->hasFile('imageUrl') && $request->file('imageUrl')->isValid()) {
                 $file = $request->file('imageUrl');
                 $filename = time() . '_profile_' . Str::uuid() . '.' . $file->getClientOriginalExtension();

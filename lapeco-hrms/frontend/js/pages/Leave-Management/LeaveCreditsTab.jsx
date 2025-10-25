@@ -139,14 +139,10 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
 
   const handleBulkAdd = async (creditsToAdd) => {
     try {
-      console.log('Starting bulk add with credits:', creditsToAdd);
       
       // Use the new bulk API endpoint - much faster!
       const response = await leaveAPI.bulkAddCredits(creditsToAdd);
-      console.log('Bulk add response:', response.data);
       
-      // Refresh all leave credits data
-      console.log('Refreshing leave credits data...');
       const creditsResponse = await leaveAPI.getAllLeaveCredits();
       const creditsMap = {};
       creditsResponse.data.forEach(({ user, leave_credits }) => {
@@ -155,7 +151,6 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
       setLeaveCreditsData(creditsMap);
       
       setShowBulkAddModal(false);
-      console.log(`Bulk add completed successfully! Updated ${response.data.users_updated} users with ${response.data.records_updated} credit records.`);
       
       // Show success message
       alert(`Successfully added credits to ${response.data.users_updated} employees!`);

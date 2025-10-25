@@ -20,9 +20,7 @@ const EvaluationTracker = ({ onViewEvaluation, onLoadingChange }) => {
       setIsLoading(true);
       onLoadingChange?.(true);
       
-      console.log('Fetching evaluation tracker data...');
       const response = await performanceAPI.getEvaluationTrackerData();
-      console.log('Tracker data response:', response);
       const data = response.data || response;
       
       setActivePeriod(data.activePeriod);
@@ -38,7 +36,6 @@ const EvaluationTracker = ({ onViewEvaluation, onLoadingChange }) => {
   };
   
   useEffect(() => {
-    console.log('EvaluationTracker mounted or refreshKey changed:', refreshKey);
     fetchTrackerData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]); // Fetch on mount and when refreshKey changes

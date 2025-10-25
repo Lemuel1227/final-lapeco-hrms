@@ -102,9 +102,6 @@ const Login = ({ onLoginSuccess, onSendCode, onVerifyCode, onResetPassword }) =>
       localStorage.setItem('user', JSON.stringify(response.data.user));
       localStorage.setItem('currentUserId', response.data.user.id);
       
-      console.log('Login successful for user:', response.data.user.name);
-      
-      // Call onLoginSuccess if provided (for backward compatibility)
       if (onLoginSuccess) {
         onLoginSuccess(response.data.user.id);
       } else {

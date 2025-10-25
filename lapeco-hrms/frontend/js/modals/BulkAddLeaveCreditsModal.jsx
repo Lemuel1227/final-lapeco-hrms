@@ -18,7 +18,6 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('BulkAddLeaveCreditsModal: Submitting credits:', creditsToAdd);
     onConfirm(creditsToAdd);
   };
 
