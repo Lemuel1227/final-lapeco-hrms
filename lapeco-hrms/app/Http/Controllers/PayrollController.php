@@ -27,13 +27,21 @@ class PayrollController extends Controller
             ->get();
 
         $runs = $periods->map(function (PayrollPeriod $period) {
-            // Calculate totals without loading full records
-            $totals = EmployeePayroll::where('period_id', $period->id)
-                ->selectRaw('SUM(gross_earning) as total_gross, SUM(total_deductions) as total_deductions')
-                ->first();
+            // Load payroll records to decrypt and calculate totals
+            // Note: Can't use SQL SUM() on encrypted fields
+            $payrolls = EmployeePayroll::where('period_id', $period->id)
+                ->select('gross_earning', 'total_deductions')
+                ->get();
 
-            $totalGross = (float) ($totals->total_gross ?? 0);
-            $totalDeductions = (float) ($totals->total_deductions ?? 0);
+            // Calculate totals after decryption
+            $totalGross = $payrolls->sum(function ($payroll) {
+                return (float) ($payroll->gross_earning ?? 0);
+            });
+            
+            $totalDeductions = $payrolls->sum(function ($payroll) {
+                return (float) ($payroll->total_deductions ?? 0);
+            });
+            
             $totalNet = $totalGross - $totalDeductions;
 
             // Check if all are paid

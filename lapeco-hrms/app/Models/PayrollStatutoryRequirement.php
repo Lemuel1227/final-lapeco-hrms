@@ -4,10 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasEncryptedAttributes;
 
 class PayrollStatutoryRequirement extends Model
 {
-    use HasFactory;
+    use HasFactory, HasEncryptedAttributes;
+
+    /**
+     * The attributes that should be encrypted using AES-256
+     *
+     * @var array
+     */
+    protected $encrypted = [
+        'requirement_amount',
+    ];
 
     protected $fillable = [
         'employees_payroll_id',
@@ -16,7 +26,7 @@ class PayrollStatutoryRequirement extends Model
     ];
 
     protected $casts = [
-        'requirement_amount' => 'decimal:2',
+        // Note: requirement_amount is encrypted, so no decimal cast
     ];
 
     public function employeePayroll()

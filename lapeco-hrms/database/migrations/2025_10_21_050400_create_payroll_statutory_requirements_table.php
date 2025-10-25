@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('employees_payroll_id')->constrained('employee_payrolls')->cascadeOnDelete();
             $table->string('requirement_type');
-            $table->decimal('requirement_amount', 12, 2)->default(0);
+            // TEXT type for encrypted data storage
+            $table->text('requirement_amount')->nullable();
             $table->timestamps();
         });
     }

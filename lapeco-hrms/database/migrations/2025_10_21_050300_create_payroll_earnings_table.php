@@ -16,7 +16,8 @@ return new class extends Migration
             $table->foreignId('employees_payroll_id')->constrained('employee_payrolls')->cascadeOnDelete();
             $table->string('earning_type');
             $table->decimal('earning_hours', 8, 2)->default(0);
-            $table->decimal('earning_pay', 12, 2)->default(0);
+            // TEXT type for encrypted data storage
+            $table->text('earning_pay')->nullable();
             $table->timestamps();
         });
     }

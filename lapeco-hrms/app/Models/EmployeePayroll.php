@@ -4,10 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasEncryptedAttributes;
 
 class EmployeePayroll extends Model
 {
-    use HasFactory;
+    use HasFactory, HasEncryptedAttributes;
+
+    /**
+     * The attributes that should be encrypted using AES-256
+     *
+     * @var array
+     */
+    protected $encrypted = [
+        'gross_earning',
+        'total_deductions',
+    ];
 
     protected $fillable = [
         'period_id',
@@ -23,8 +34,7 @@ class EmployeePayroll extends Model
 
     protected $casts = [
         'pay_date' => 'date',
-        'gross_earning' => 'decimal:2',
-        'total_deductions' => 'decimal:2',
+        // Note: gross_earning and total_deductions are encrypted, so no decimal cast
         'absences_summary' => 'array',
         'leave_balances_summary' => 'array',
         'leave_earnings_summary' => 'array',

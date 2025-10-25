@@ -17,8 +17,13 @@ return new class extends Migration
             $table->foreignId('employee_id')->constrained('users')->cascadeOnDelete();
             $table->enum('paid_status', ['Pending', 'Paid', 'Failed'])->default('Pending');
             $table->date('pay_date')->nullable();
-            $table->decimal('gross_earning', 12, 2)->default(0);
-            $table->decimal('total_deductions', 12, 2)->default(0);
+            // TEXT type for encrypted data storage
+            $table->text('gross_earning')->nullable();
+            $table->text('total_deductions')->nullable();
+            // JSON columns for leave summaries
+            $table->json('absences_summary')->nullable();
+            $table->json('leave_balances_summary')->nullable();
+            $table->json('leave_earnings_summary')->nullable();
             $table->timestamps();
         });
     }

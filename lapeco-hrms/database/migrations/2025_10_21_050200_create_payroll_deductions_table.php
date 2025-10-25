@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('employees_payroll_id')->constrained('employee_payrolls')->cascadeOnDelete();
             $table->string('deduction_type');
-            $table->decimal('deduction_pay', 12, 2)->default(0);
+            // TEXT type for encrypted data storage
+            $table->text('deduction_pay')->nullable();
             $table->timestamps();
         });
     }

@@ -4,10 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasEncryptedAttributes;
 
 class PayrollEarning extends Model
 {
-    use HasFactory;
+    use HasFactory, HasEncryptedAttributes;
+
+    /**
+     * The attributes that should be encrypted using AES-256
+     *
+     * @var array
+     */
+    protected $encrypted = [
+        'earning_pay',
+    ];
 
     protected $fillable = [
         'employees_payroll_id',
@@ -18,7 +28,7 @@ class PayrollEarning extends Model
 
     protected $casts = [
         'earning_hours' => 'decimal:2',
-        'earning_pay' => 'decimal:2',
+        // Note: earning_pay is encrypted, so no decimal cast
     ];
 
     public function employeePayroll()
