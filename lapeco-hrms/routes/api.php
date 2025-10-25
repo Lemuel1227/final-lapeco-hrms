@@ -183,6 +183,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:payroll,index'])->get('/payroll/my-projection', [PayrollController::class, 'myProjection']);
     Route::middleware(['role.access:payroll,store'])->post('/payroll/generate', [PayrollController::class, 'generate']);
     Route::middleware(['role.access:payroll,update'])->put('/payroll/{payroll}', [PayrollController::class, 'update']);
+    Route::middleware(['role.access:payroll,update'])->post('/payroll/periods/{periodId}/mark-as-paid', [PayrollController::class, 'markPeriodAsPaid']);
     
     // Contributions - with role-based access control
     Route::middleware(['role.access:payroll,index'])->get('/contributions/monthly', [ContributionController::class, 'getMonthlyContributions']);

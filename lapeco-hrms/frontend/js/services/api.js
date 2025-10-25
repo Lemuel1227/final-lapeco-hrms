@@ -157,6 +157,7 @@ export const payrollAPI = {
   myProjection: (params) => api.get('/payroll/my-projection', { params }),
   generate: (data) => api.post('/payroll/generate', data),
   update: (id, data) => api.put(`/payroll/${id}`, data),
+  markPeriodAsPaid: (periodId) => api.post(`/payroll/periods/${periodId}/mark-as-paid`),
 };
 
 // Contributions API calls

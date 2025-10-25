@@ -5,6 +5,7 @@ import PayrollAdjustmentModal from '../../modals/PayrollAdjustmentModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
+import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig } from '../../config/reports.config';
 import { payrollAPI, positionAPI } from '../../services/api';
@@ -28,6 +29,9 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
   const [reportToGenerate, setReportToGenerate] = useState(null);
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [showReportPreview, setShowReportPreview] = useState(false);
+  
+  // Toast notification state
+  const [toast, setToast] = useState(null);
 
   const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
 
@@ -196,9 +200,32 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
       setShowReportConfigModal(false);
   };
 
-  const handleSaveAdjustments = (payrollId, updatedData) => {
-    resolvedHandlers.updatePayrollRecord(payrollId, updatedData);
-    handleCloseAllModals();
+  const handleSaveAdjustments = async (payrollId, updatedData) => {
+    try {
+      // If handlers provided, use them (for parent component integration)
+      if (handlers?.updatePayrollRecord) {
+        await resolvedHandlers.updatePayrollRecord(payrollId, updatedData);
+      } else {
+        // Otherwise, call API directly
+        await payrollAPI.update(payrollId, updatedData);
+        
+        // Refresh the payroll data
+        if (selectedRun) {
+          const response = await payrollAPI.getPeriodDetails(selectedRun.periodId);
+          setSelectedRun(response.data);
+        }
+        
+        // Refresh the payroll list
+        const payrollsResponse = await payrollAPI.getAll();
+        setFetchedPayrolls(payrollsResponse.data.payroll_runs || []);
+        
+        setToast({ message: 'Payroll updated successfully', type: 'success' });
+      }
+      handleCloseAllModals();
+    } catch (error) {
+      console.error('Error updating payroll:', error);
+      setToast({ message: error.response?.data?.message || 'Failed to update payroll', type: 'error' });
+    }
   };
   
   const handleSaveEmployeeInfo = (employeeId, updatedData) => {
@@ -211,10 +238,28 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
   };
   
   // --- NEW: Handler for modal confirmation ---
-  const confirmMarkAsPaid = () => {
+  const confirmMarkAsPaid = async () => {
     if (!runToMarkAsPaid) return;
-    resolvedHandlers.markRunAsPaid(runToMarkAsPaid.runId);
-    setRunToMarkAsPaid(null);
+    
+    try {
+      // If handlers provided, use them (for parent component integration)
+      if (handlers?.markRunAsPaid) {
+        await resolvedHandlers.markRunAsPaid(runToMarkAsPaid.runId);
+      } else {
+        // Otherwise, call API directly
+        await payrollAPI.markPeriodAsPaid(runToMarkAsPaid.periodId);
+        
+        // Refresh the payroll list
+        const payrollsResponse = await payrollAPI.getAll();
+        setFetchedPayrolls(payrollsResponse.data.payroll_runs || []);
+        
+        setToast({ message: 'Payroll run marked as paid successfully', type: 'success' });
+      }
+      setRunToMarkAsPaid(null);
+    } catch (error) {
+      console.error('Error marking as paid:', error);
+      setToast({ message: error.response?.data?.message || 'Failed to mark as paid', type: 'error' });
+    }
   };
 
   const handleConfirmDelete = () => {
@@ -335,7 +380,7 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
       >
         {runToMarkAsPaid && (
           <>
-            <p>Are you sure you want to mark all {runToMarkAsPaid.records.length} pending records in this payroll run as 'Paid'?</p>
+            <p>Are you sure you want to mark all {runToMarkAsPaid.employeeCount} employee records in this payroll run as 'Paid'?</p>
             <p className="text-muted small"><strong>Pay Period:</strong> {runToMarkAsPaid.cutOff}</p>
           </>
         )}
@@ -369,6 +414,14 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
             onClose={handleCloseReportPreview}
             pdfDataUri={pdfDataUri}
             reportTitle="Payroll Run Summary"
+        />
+      )}
+
+      {toast && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
     </div>
