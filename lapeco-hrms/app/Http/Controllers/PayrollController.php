@@ -183,6 +183,7 @@ class PayrollController extends Controller
             'employee.position',
             'earnings',
             'deductions',
+            'statutoryRequirements',
         ])->findOrFail($payrollId);
 
         $employee = $payroll->employee;
@@ -200,14 +201,40 @@ class PayrollController extends Controller
             ];
         })->values()->all();
 
-        $deductions = [];
+        // Separate statutory deductions from other deductions
+        $statutoryDeductions = [
+            'sss' => 0,
+            'philhealth' => 0,
+            'pagibig' => 0,
+            'tax' => 0,
+        ];
+        
+        $otherDeductions = [];
+        
+        // Get statutory requirements
+        foreach ($payroll->statutoryRequirements as $requirement) {
+            $type = strtolower($requirement->requirement_type);
+            if ($type === 'sss') {
+                $statutoryDeductions['sss'] = (float) $requirement->requirement_amount;
+            } elseif ($type === 'philhealth') {
+                $statutoryDeductions['philhealth'] = (float) $requirement->requirement_amount;
+            } elseif ($type === 'pag-ibig') {
+                $statutoryDeductions['pagibig'] = (float) $requirement->requirement_amount;
+            } elseif ($type === 'tax') {
+                $statutoryDeductions['tax'] = (float) $requirement->requirement_amount;
+            }
+        }
+        
+        // Get other deductions (non-statutory)
         foreach ($payroll->deductions as $deduction) {
-            $type = $deduction->deduction_type ?: 'Other';
-            $deductions[$type] = ($deductions[$type] ?? 0) + (float) $deduction->deduction_pay;
+            $otherDeductions[] = [
+                'description' => $deduction->deduction_type,
+                'amount' => (float) $deduction->deduction_pay,
+            ];
         }
 
         $grossFromEarnings = array_sum(array_column($earnings, 'amount'));
-        $totalDeductions = array_sum($deductions);
+        $totalDeductions = array_sum($statutoryDeductions) + array_sum(array_column($otherDeductions, 'amount'));
         $netPay = round($grossFromEarnings - $totalDeductions, 2);
 
         $period = $payroll->period;
@@ -219,8 +246,8 @@ class PayrollController extends Controller
             'position' => $employee?->position?->name,
             'positionId' => $employee?->position_id,
             'earnings' => $earnings,
-            'deductions' => $deductions,
-            'otherDeductions' => [],
+            'deductions' => $statutoryDeductions,
+            'otherDeductions' => $otherDeductions,
             'status' => $payroll->paid_status,
             'paymentDate' => $payroll->pay_date?->toDateString(),
             'grossEarning' => (float) $payroll->gross_earning,
@@ -328,8 +355,152 @@ class PayrollController extends Controller
 
     public function update(Request $request, $id)
     {
-        // TODO: Implement payroll update
-        return response()->json(['message' => 'Payroll updated']);
+        $payroll = EmployeePayroll::findOrFail($id);
+        
+        $validated = $request->validate([
+            'status' => 'sometimes|string|in:Pending,Paid,Failed',
+            'earnings' => 'sometimes|array',
+            'earnings.*.description' => 'required|string',
+            'earnings.*.hours' => 'nullable',
+            'earnings.*.amount' => 'required|numeric',
+            'otherDeductions' => 'sometimes|array',
+            'otherDeductions.*.description' => 'required|string',
+            'otherDeductions.*.amount' => 'required|numeric',
+            'deductions' => 'sometimes|array',
+            'deductions.sss' => 'nullable|numeric',
+            'deductions.philhealth' => 'nullable|numeric',
+            'deductions.pagibig' => 'nullable|numeric',
+            'deductions.tax' => 'nullable|numeric',
+            'absences' => 'sometimes|array',
+            'netPay' => 'sometimes|numeric',
+        ]);
+
+        // Update status if provided
+        if (isset($validated['status'])) {
+            $payroll->paid_status = $validated['status'];
+            if ($validated['status'] === 'Paid' && !$payroll->pay_date) {
+                $payroll->pay_date = now();
+            }
+        }
+
+        // Calculate totals
+        $grossEarning = 0;
+        $totalDeductions = 0;
+
+        // Update earnings
+        if (isset($validated['earnings'])) {
+            // Delete existing earnings
+            $payroll->earnings()->delete();
+            
+            // Create new earnings
+            foreach ($validated['earnings'] as $earning) {
+                $payroll->earnings()->create([
+                    'earning_type' => $earning['description'],
+                    'earning_hours' => is_numeric($earning['hours']) ? $earning['hours'] : 0,
+                    'earning_pay' => $earning['amount'],
+                ]);
+                $grossEarning += $earning['amount'];
+            }
+        }
+
+        // Update other deductions
+        if (isset($validated['otherDeductions'])) {
+            // Delete existing non-statutory deductions
+            $payroll->deductions()
+                ->whereNotIn('deduction_type', ['SSS', 'PhilHealth', 'Pag-IBIG', 'Tax'])
+                ->delete();
+            
+            // Create new other deductions
+            foreach ($validated['otherDeductions'] as $deduction) {
+                $payroll->deductions()->create([
+                    'deduction_type' => $deduction['description'],
+                    'deduction_pay' => $deduction['amount'],
+                ]);
+                $totalDeductions += $deduction['amount'];
+            }
+        }
+
+        // Update statutory deductions
+        if (isset($validated['deductions'])) {
+            $statutoryTypes = [
+                'sss' => 'SSS',
+                'philhealth' => 'PhilHealth',
+                'pagibig' => 'Pag-IBIG',
+                'tax' => 'Tax',
+            ];
+
+            foreach ($statutoryTypes as $key => $type) {
+                if (isset($validated['deductions'][$key])) {
+                    $amount = $validated['deductions'][$key];
+                    
+                    // Update or create statutory requirement
+                    $payroll->statutoryRequirements()->updateOrCreate(
+                        ['requirement_type' => $type],
+                        ['requirement_amount' => $amount]
+                    );
+                    
+                    $totalDeductions += $amount;
+                }
+            }
+        }
+
+        // Update gross earning and total deductions
+        if (isset($validated['earnings']) || isset($validated['otherDeductions']) || isset($validated['deductions'])) {
+            // Recalculate from database if not all provided
+            if (!isset($validated['earnings'])) {
+                $grossEarning = $payroll->earnings()->get()->sum(function($e) {
+                    return (float) $e->earning_pay;
+                });
+            }
+            
+            if (!isset($validated['otherDeductions']) || !isset($validated['deductions'])) {
+                $totalDeductions = 0;
+                $totalDeductions += $payroll->deductions()->get()->sum(function($d) {
+                    return (float) $d->deduction_pay;
+                });
+                $totalDeductions += $payroll->statutoryRequirements()->get()->sum(function($s) {
+                    return (float) $s->requirement_amount;
+                });
+            }
+
+            $payroll->gross_earning = $grossEarning;
+            $payroll->total_deductions = $totalDeductions;
+        }
+
+        // Update absences summary if provided
+        if (isset($validated['absences'])) {
+            $payroll->absences_summary = $validated['absences'];
+        }
+
+        $payroll->save();
+
+        return response()->json([
+            'message' => 'Payroll updated successfully',
+            'payroll' => $payroll->load(['earnings', 'deductions', 'statutoryRequirements'])
+        ]);
+    }
+
+    public function markPeriodAsPaid($periodId)
+    {
+        $period = PayrollPeriod::findOrFail($periodId);
+        
+        // Update all pending payroll records in this period to Paid
+        $updated = EmployeePayroll::where('period_id', $periodId)
+            ->where('paid_status', '!=', 'Paid')
+            ->update([
+                'paid_status' => 'Paid',
+                'pay_date' => now(),
+            ]);
+
+        return response()->json([
+            'message' => "Successfully marked {$updated} payroll records as paid",
+            'updated_count' => $updated,
+            'period' => [
+                'id' => $period->id,
+                'period_start' => $period->period_start->toDateString(),
+                'period_end' => $period->period_end->toDateString(),
+            ]
+        ]);
     }
 
     public function compute(Request $request): JsonResponse
