@@ -223,7 +223,6 @@ const ScheduleBuilderPage = (props) => {
     ];
 
     if (method === 'copy' && sourceData && Array.isArray(sourceData)) {
-      console.log('Copy method - sourceData:', sourceData);
       initialName = `Copy of ${sourceData[0]?.name || `Schedule for ${sourceData[0]?.date}`}`;
       const sourceColumns = new Set(['start_time', 'end_time', 'break_start', 'break_end', 'ot_hours']);
       sourceData.forEach(entry => {
@@ -238,7 +237,6 @@ const ScheduleBuilderPage = (props) => {
       
       // Helper function to format time for input fields
       const formatTimeForInput = (timeStr) => {
-        console.log('Formatting time:', timeStr);
         if (!timeStr) return '';
         
         // Handle ISO datetime strings (e.g., "2025-09-30T07:00:00.000000Z")
@@ -258,26 +256,19 @@ const ScheduleBuilderPage = (props) => {
       };
       
       initialGrid = sourceData.map(sch => {
-        console.log('Processing schedule item:', sch);
         const row = { empId: sch.employee_id || sch.empId || sch.user_id };
         
-        // Handle time fields directly like in template method
         row.start_time = formatTimeForInput(sch.start_time);
         row.end_time = formatTimeForInput(sch.end_time);
         row.break_start = formatTimeForInput(sch.break_start);
         row.break_end = formatTimeForInput(sch.break_end);
         row.ot_hours = sch.ot_hours || '0';
-        console.log(`start_time: ${sch.start_time} -> ${row.start_time}`);
-        console.log(`end_time: ${sch.end_time} -> ${row.end_time}`);
-        console.log(`ot_hours: ${sch.ot_hours} -> ${row.ot_hours}`);
-        
-        // Handle other columns
+       
         initialColumns.forEach(col => {
           if (col.key !== 'start_time' && col.key !== 'end_time' && col.key !== 'ot_hours') {
             row[col.key] = sch[col.key] || '';
           }
         });
-        console.log('Final row:', row);
         return row;
       });
     } else if (method === 'template' && sourceData) {

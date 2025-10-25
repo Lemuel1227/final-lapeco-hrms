@@ -148,17 +148,6 @@ const EmployeeDataPage = () => {
         const hasNewResumeFile = employeeData.resumeFile && employeeData.resumeFile instanceof File;
         const hasNewImageFile = employeeData.imageUrl && employeeData.imageUrl instanceof File;
         
-        console.log('File upload check:', {
-          hasResumeFile: !!employeeData.resumeFile,
-          isResumeFileInstance: employeeData.resumeFile instanceof File,
-          hasNewResumeFile: hasNewResumeFile,
-          hasImageFile: !!employeeData.imageUrl,
-          isImageFileInstance: employeeData.imageUrl instanceof File,
-          hasNewImageFile: hasNewImageFile,
-          resumeFileType: typeof employeeData.resumeFile,
-          imageFileType: typeof employeeData.imageUrl
-        });
-        
         // Always use FormData to support file uploads (even if no file is selected)
         let payload = new FormData();
         
@@ -186,49 +175,25 @@ const EmployeeDataPage = () => {
         // Only append files if new files were selected
         if (hasNewResumeFile) {
           payload.append('resume_file', employeeData.resumeFile);
-          console.log('Appending resume file to FormData:', employeeData.resumeFile.name);
         } else {
-          console.log('No new resume file to append');
         }
         
         if (hasNewImageFile) {
           payload.append('imageUrl', employeeData.imageUrl);
-          console.log('Appending profile picture to FormData:', employeeData.imageUrl.name);
         } else {
-          console.log('No new profile picture to append');
         }
 
         if (isEdit) {
-          console.log('Updating employee with payload:', payload);
-          console.log('Has new resume file:', hasNewResumeFile);
-          console.log('Has new image file:', hasNewImageFile);
-          if (hasNewResumeFile && employeeData.resumeFile) {
-            console.log('Resume file details:', {
-              name: employeeData.resumeFile.name,
-              size: employeeData.resumeFile.size,
-              type: employeeData.resumeFile.type
-            });
-          }
-          if (hasNewImageFile && employeeData.imageUrl) {
-            console.log('Image file details:', {
-              name: employeeData.imageUrl.name,
-              size: employeeData.imageUrl.size,
-              type: employeeData.imageUrl.type
-            });
-          }
-          // Use POST with _method=PUT for FormData file uploads
           await api.post(`/employees/${id}`, payload);
           setToast({ show: true, message: 'Employee updated successfully!', type: 'success' });
         } else {
           const response = await employeeAPI.create(payload);
           setToast({ show: true, message: 'Employee created successfully!', type: 'success' });
           
-          // Show account details modal if account_details are returned
           if (response.data.account_details) {
             setNewlyGeneratedAccount(response.data.account_details);
           }
         }
-        // Refresh
         const response = await employeeAPI.getList();
         const empData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
         

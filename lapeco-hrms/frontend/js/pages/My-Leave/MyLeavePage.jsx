@@ -31,22 +31,17 @@ const MyLeavePage = () => {
           getUserProfile()
         ]);
         
-        console.log('Leave requests loaded:', leaveRes.data);
-        console.log('User profile loaded:', userRes);
         
         // Try to fetch leave credits (make it optional to not break the whole page)
         let creditsRes = null;
         // getUserProfile returns direct JSON, leaveAPI returns { data: ... }
         const userId = userRes.id || userRes.data?.id;
-        console.log('User ID for credits:', userId);
         
         if (userId) {
           try {
             creditsRes = await leaveAPI.getLeaveCredits(userId);
-            console.log('Leave credits loaded:', creditsRes.data);
           } catch (creditsError) {
             console.warn('Failed to load leave credits:', creditsError);
-            // Continue without credits - will show 0 balances
           }
         } else {
           console.warn('No user ID found, skipping leave credits');
@@ -74,7 +69,6 @@ const MyLeavePage = () => {
         setLeaveRequests(mapped);
         // getUserProfile returns direct JSON, not wrapped in data
         setCurrentUser(userRes);
-        console.log('Current user set:', userRes);
         
         // Calculate leave balances from credits (if available)
         if (creditsRes && creditsRes.data) {

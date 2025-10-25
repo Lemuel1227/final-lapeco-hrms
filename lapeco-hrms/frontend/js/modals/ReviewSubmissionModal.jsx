@@ -18,7 +18,6 @@ const ReviewSubmissionModal = ({ show, onClose, employeeId, employeeName, submis
         setError(null);
         const response = await performanceAPI.getEvaluationResponseDetail(submissionId);
         const data = response.data || response;
-        console.log('Response data:', data); // Debug log
         setResponseData(data);
       } catch (err) {
         console.error('Error fetching response:', err);

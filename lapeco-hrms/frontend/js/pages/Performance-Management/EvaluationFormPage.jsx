@@ -74,7 +74,6 @@ const EvaluationFormPage = () => {
           const responseData = data.response || data;
           const scoresData = responseData.scores || data;
           
-          console.log('Loading edit data:', { data, responseData, scoresData }); // Debug
           
           Object.entries(backendToFactorMap).forEach(([backendField, factorId]) => {
             const scoreValue = scoresData[backendField] || data[backendField];
@@ -100,7 +99,6 @@ const EvaluationFormPage = () => {
             };
           }
           
-          console.log('Loaded scores:', scores); // Debug
           setFactorScores(scores);
         }
         

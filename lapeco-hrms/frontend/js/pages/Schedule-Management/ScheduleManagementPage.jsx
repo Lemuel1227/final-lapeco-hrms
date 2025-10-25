@@ -249,7 +249,6 @@ const ScheduleManagementPage = (props) => {
   }, [currentDate, loadScheduleForDate, activeView]);
   
   const formatTimeToAMPM = (timeString) => {
-    console.log('formatTimeToAMPM called with:', timeString, 'type:', typeof timeString);
     if (!timeString) return '---';
     try {
       // Handle ISO datetime strings by extracting time portion
@@ -269,10 +268,8 @@ const ScheduleManagementPage = (props) => {
         displayHour = hour - 12; // 13:xx becomes 1:xx PM, 14:xx becomes 2:xx PM, etc.
       }
       const result = `${displayHour}:${minutes} ${ampm}`;
-      console.log('formatTimeToAMPM result:', result);
       return result;
     } catch (error) {
-      console.log('formatTimeToAMPM error:', error);
       return timeString; // Return original if parsing fails
     }
   };
@@ -677,12 +674,6 @@ const ScheduleManagementPage = (props) => {
           notes: entry.notes || null
         }))
       };
-
-      // Log the data being sent for debugging
-      console.log('Sending schedule update data:', {
-        scheduleId: scheduleInfo.id,
-        scheduleData: scheduleData
-      });
 
       // Call the update API
       await scheduleAPI.update(scheduleInfo.id, scheduleData);

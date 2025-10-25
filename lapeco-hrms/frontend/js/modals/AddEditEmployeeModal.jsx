@@ -6,12 +6,6 @@ import ResumeIframe from '../common/ResumeIframe';
 import { employeeAPI } from '../services/api';
 
 const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData, positions, viewOnly, onSwitchToEdit }) => {
-  console.log('=== MODAL PROPS ===');
-  console.log('show:', show);
-  console.log('employeeId:', employeeId);
-  console.log('employeeData:', employeeData);
-  console.log('viewOnly:', viewOnly);
-  console.log('===================');
   
   const initialFormState = {
     firstName: '', middleName: '', lastName: '',
@@ -37,22 +31,17 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
   // Fetch employee data when modal opens with employeeId
   useEffect(() => {
     const fetchEmployeeData = async () => {
-      console.log('Fetch check - show:', show, 'employeeId:', employeeId, 'employeeData:', employeeData);
       if (show && employeeId && !employeeData) {
-        console.log('✅ Fetching employee data for ID:', employeeId);
         setLoading(true);
         try {
           const response = await employeeAPI.getById(employeeId);
-          console.log('✅ Fetched employee data:', response.data);
           setFetchedEmployeeData(response.data);
         } catch (error) {
-          console.error('❌ Error fetching employee data:', error);
           setFetchedEmployeeData(null);
         } finally {
           setLoading(false);
         }
       } else {
-        console.log('❌ Not fetching. Conditions:', { show, hasEmployeeId: !!employeeId, hasEmployeeData: !!employeeData });
       }
     };
     fetchEmployeeData();
@@ -64,22 +53,6 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
       setIsViewMode(viewOnly);
       const dataToUse = employeeData || fetchedEmployeeData;
       if (isEditMode && dataToUse) {
-        console.log('=== MODAL DATA DEBUG ===');
-        console.log('Raw dataToUse:', dataToUse);
-        console.log('Contact Number - camelCase:', dataToUse.contactNumber);
-        console.log('Contact Number - snake_case:', dataToUse.contact_number);
-        console.log('Position ID - camelCase:', dataToUse.positionId);
-        console.log('Position ID - snake_case:', dataToUse.position_id);
-        console.log('Position Name:', dataToUse.position);
-        console.log('SSS No - camelCase:', dataToUse.sssNo);
-        console.log('SSS No - snake_case:', dataToUse.sss_no);
-        console.log('TIN No - camelCase:', dataToUse.tinNo);
-        console.log('TIN No - snake_case:', dataToUse.tin_no);
-        console.log('Pag-IBIG No - camelCase:', dataToUse.pagIbigNo);
-        console.log('Pag-IBIG No - snake_case:', dataToUse.pag_ibig_no);
-        console.log('PhilHealth No - camelCase:', dataToUse.philhealthNo);
-        console.log('PhilHealth No - snake_case:', dataToUse.philhealth_no);
-        
         const mappedFormData = {
           firstName: dataToUse.first_name || '',
           middleName: dataToUse.middle_name || '',
@@ -101,9 +74,6 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
           resumeFile: null,
           resumeUrl: dataToUse.resumeUrl || null,
         };
-        
-        console.log('Mapped formData:', mappedFormData);
-        console.log('=== END DEBUG ===');
         setFormData(mappedFormData);
       } else {
         setFormData(initialFormState);
@@ -124,13 +94,6 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
         }
       } else if (name === 'resumeFile') {
         if (file) {
-          console.log('Resume file selected:', {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            lastModified: file.lastModified
-          });
-          // For new file uploads, create a temporary URL for preview
           setFormData({ ...formData, resumeFile: file, resumeUrl: URL.createObjectURL(file) });
         } else {
           // If no file selected, revert to original resume URL if editing
@@ -173,7 +136,9 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
     }
 
     try {
-      await onSave(dataToSave, employeeData?.id);
+      // Use employeeId prop, or get ID from employeeData/fetchedEmployeeData
+      const id = employeeId || employeeData?.id || fetchedEmployeeData?.id;
+      await onSave(dataToSave, id);
       onClose();
     } catch (err) {
       // Parent handler shows alerts; keep modal open for corrections

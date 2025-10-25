@@ -10,11 +10,26 @@ use Laravel\Sanctum\HasApiTokens;
 use App\Notifications\CustomVerifyEmail;
 use App\Notifications\CustomResetPassword;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Traits\HasEncryptedAttributes;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasEncryptedAttributes;
+
+    /**
+     * The attributes that should be encrypted using AES-256
+     *
+     * @var array
+     */
+    protected $encrypted = [
+        'contact_number',
+        'sss_no',
+        'tin_no',
+        'pag_ibig_no',
+        'philhealth_no',
+        'address',
+    ];
 
     /**
      * The attributes that are mass assignable.

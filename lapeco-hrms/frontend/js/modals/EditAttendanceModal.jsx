@@ -40,7 +40,6 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('EditAttendanceModal submitting formData:', formData);
     onSave(attendanceRecord.id, attendanceRecord.date, formData);
   };
 

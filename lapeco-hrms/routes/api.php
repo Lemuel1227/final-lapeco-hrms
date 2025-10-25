@@ -52,10 +52,9 @@ Route::post('/reset-password', [PasswordResetController::class, 'reset']);
 // Public recruitment routes for testing
 Route::get('/applicants/statistics', [ApplicantController::class, 'getStats']);
 Route::get('/applicants', [ApplicantController::class, 'index']);
-Route::post('/applicants', [ApplicantController::class, 'store']); // Add public POST route for testing
+Route::post('/applicants', [ApplicantController::class, 'store']); 
 Route::get('/positions', [PositionController::class, 'publicIndex']);
 
-// Resume serving routes (authentication handled in controller via token query param)
 Route::get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
 Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/view', [ApplicantController::class, 'viewResume']);
 Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/download', [ApplicantController::class, 'downloadResume']);
@@ -115,7 +114,6 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // Attendance Management - with role-based access control
     Route::middleware(['role.access:attendance,index'])->get('/attendance', [AttendanceController::class, 'index']);
     Route::middleware(['role.access:attendance,store'])->post('/attendance', [AttendanceController::class, 'store']);
-    Route::middleware(['role.access:attendance,store'])->post('/attendance/import', [AttendanceController::class, 'importAttendance']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-logs', [AttendanceController::class, 'getLogs']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-history', [AttendanceController::class, 'getAttendanceHistory']);
     Route::middleware(['role.access:attendance,index'])->get('/attendance-daily', [AttendanceController::class, 'getDailyAttendance']);
