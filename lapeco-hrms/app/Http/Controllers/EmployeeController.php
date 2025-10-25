@@ -195,6 +195,9 @@ class EmployeeController extends Controller
         
         // Authorization is now handled by middleware
         
+        // Load position relationship
+        $employee->load('position');
+        
         $data = [
             'id' => $employee->id,
             'first_name' => $employee->first_name,
@@ -209,6 +212,7 @@ class EmployeeController extends Controller
             'role' => $employee->role,
             'employee_id' => $employee->employee_id,
             'position_id' => $employee->position_id,
+            'position' => $employee->position ? $employee->position->name : null,
             'joining_date' => $employee->joining_date,
             'birthday' => $employee->birthday,
             'gender' => $employee->gender,
@@ -217,25 +221,13 @@ class EmployeeController extends Controller
             'profile_picture_url' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
             'account_status' => $employee->account_status,
             'attendance_status' => $employee->attendance_status ?? 'Pending',
+            'sss_no' => $employee->sss_no,
+            'tin_no' => $employee->tin_no,
+            'pag_ibig_no' => $employee->pag_ibig_no,
+            'philhealth_no' => $employee->philhealth_no,
+            'resume_file' => $employee->resume_file,
+            'resumeUrl' => $employee->resume_file ? route('employee.resume', $employee->id) : null,
         ];
-        
-        // Only include sensitive data for HR personnel or if it's the user's own data
-        if ($role === 'HR_PERSONNEL' || $employee->id === $user->id) {
-            $data['sss_no'] = $employee->sss_no;
-            $data['tin_no'] = $employee->tin_no;
-            $data['pag_ibig_no'] = $employee->pag_ibig_no;
-            $data['philhealth_no'] = $employee->philhealth_no;
-            $data['resume_file'] = $employee->resume_file;
-            // Provide secure URL for private resume files
-            $data['resumeUrl'] = $employee->resume_file ? route('employee.resume', $employee->id) : null;
-        } else {
-            $data['sss_no'] = null;
-            $data['tin_no'] = null;
-            $data['pag_ibig_no'] = null;
-            $data['philhealth_no'] = null;
-            $data['resume_file'] = null;
-            $data['resumeUrl'] = null;
-        }
         
         return response()->json($data);
     }

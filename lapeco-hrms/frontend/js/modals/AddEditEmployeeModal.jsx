@@ -3,8 +3,16 @@ import './AddEditEmployeeModal.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import placeholderImage from '../assets/placeholder-profile.jpg';
 import ResumeIframe from '../common/ResumeIframe';
+import { employeeAPI } from '../services/api';
 
-const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, viewOnly, onSwitchToEdit }) => {
+const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData, positions, viewOnly, onSwitchToEdit }) => {
+  console.log('=== MODAL PROPS ===');
+  console.log('show:', show);
+  console.log('employeeId:', employeeId);
+  console.log('employeeData:', employeeData);
+  console.log('viewOnly:', viewOnly);
+  console.log('===================');
+  
   const initialFormState = {
     firstName: '', middleName: '', lastName: '',
     email: '', positionId: '',
@@ -20,35 +28,83 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, 
   const [activeTab, setActiveTab] = useState('personal');
   const [isViewMode, setIsViewMode] = useState(viewOnly);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [fetchedEmployeeData, setFetchedEmployeeData] = useState(null);
   const fileInputRef = useRef(null);
 
-  const isEditMode = Boolean(employeeData && employeeData.id);
+  const isEditMode = Boolean(employeeId || (employeeData && employeeData.id));
 
+  // Fetch employee data when modal opens with employeeId
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      console.log('Fetch check - show:', show, 'employeeId:', employeeId, 'employeeData:', employeeData);
+      if (show && employeeId && !employeeData) {
+        console.log('✅ Fetching employee data for ID:', employeeId);
+        setLoading(true);
+        try {
+          const response = await employeeAPI.getById(employeeId);
+          console.log('✅ Fetched employee data:', response.data);
+          setFetchedEmployeeData(response.data);
+        } catch (error) {
+          console.error('❌ Error fetching employee data:', error);
+          setFetchedEmployeeData(null);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        console.log('❌ Not fetching. Conditions:', { show, hasEmployeeId: !!employeeId, hasEmployeeData: !!employeeData });
+      }
+    };
+    fetchEmployeeData();
+  }, [show, employeeId, employeeData]);
+
+  // Populate form data when employee data is available
   useEffect(() => {
     if (show) {
       setIsViewMode(viewOnly);
-      if (isEditMode && employeeData) {
-        setFormData({
-          firstName: employeeData.first_name || '',
-          middleName: employeeData.middle_name || '',
-          lastName: employeeData.last_name || '',
-          email: employeeData.email || '',
-          positionId: employeeData.position_id || '',
-          joiningDate: employeeData.joining_date || new Date().toISOString().split('T')[0],
-          birthday: employeeData.birthday || '',
-          gender: employeeData.gender || '',
-          address: employeeData.address || '',
-          contactNumber: employeeData.contact_number || '',
-          imageUrl: employeeData.profile_picture_url || null,
-          imagePreviewUrl: employeeData.profile_picture_url || placeholderImage,
-          sssNo: employeeData.sss_no || '',
-          tinNo: employeeData.tin_no || '',
-          pagIbigNo: employeeData.pag_ibig_no || '',
-          philhealthNo: employeeData.philhealth_no || '',
-          status: employeeData.account_status || 'Active',
+      const dataToUse = employeeData || fetchedEmployeeData;
+      if (isEditMode && dataToUse) {
+        console.log('=== MODAL DATA DEBUG ===');
+        console.log('Raw dataToUse:', dataToUse);
+        console.log('Contact Number - camelCase:', dataToUse.contactNumber);
+        console.log('Contact Number - snake_case:', dataToUse.contact_number);
+        console.log('Position ID - camelCase:', dataToUse.positionId);
+        console.log('Position ID - snake_case:', dataToUse.position_id);
+        console.log('Position Name:', dataToUse.position);
+        console.log('SSS No - camelCase:', dataToUse.sssNo);
+        console.log('SSS No - snake_case:', dataToUse.sss_no);
+        console.log('TIN No - camelCase:', dataToUse.tinNo);
+        console.log('TIN No - snake_case:', dataToUse.tin_no);
+        console.log('Pag-IBIG No - camelCase:', dataToUse.pagIbigNo);
+        console.log('Pag-IBIG No - snake_case:', dataToUse.pag_ibig_no);
+        console.log('PhilHealth No - camelCase:', dataToUse.philhealthNo);
+        console.log('PhilHealth No - snake_case:', dataToUse.philhealth_no);
+        
+        const mappedFormData = {
+          firstName: dataToUse.first_name || '',
+          middleName: dataToUse.middle_name || '',
+          lastName: dataToUse.last_name || '',
+          email: dataToUse.email || '',
+          positionId: dataToUse.positionId || dataToUse.position_id || '',
+          joiningDate: dataToUse.joiningDate || dataToUse.joining_date || new Date().toISOString().split('T')[0],
+          birthday: dataToUse.birthday || '',
+          gender: dataToUse.gender || '',
+          address: dataToUse.address || '',
+          contactNumber: dataToUse.contactNumber || dataToUse.contact_number || '',
+          imageUrl: dataToUse.imageUrl || dataToUse.profile_picture_url || null,
+          imagePreviewUrl: dataToUse.imageUrl || dataToUse.profile_picture_url || placeholderImage,
+          sssNo: dataToUse.sssNo || dataToUse.sss_no || '',
+          tinNo: dataToUse.tinNo || dataToUse.tin_no || '',
+          pagIbigNo: dataToUse.pagIbigNo || dataToUse.pag_ibig_no || '',
+          philhealthNo: dataToUse.philhealthNo || dataToUse.philhealth_no || '',
+          status: dataToUse.account_status || 'Active',
           resumeFile: null,
-          resumeUrl: employeeData.resumeUrl || null,
-        });
+          resumeUrl: dataToUse.resumeUrl || null,
+        };
+        
+        console.log('Mapped formData:', mappedFormData);
+        console.log('=== END DEBUG ===');
+        setFormData(mappedFormData);
       } else {
         setFormData(initialFormState);
       }
@@ -56,7 +112,7 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, 
       setFormErrors({});
       setIsSubmitting(false);
     }
-  }, [employeeData, show, isEditMode, viewOnly]);
+  }, [fetchedEmployeeData, employeeData, show, isEditMode, viewOnly]);
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
@@ -142,6 +198,16 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, 
               <button type="button" className="btn-close" onClick={onClose} aria-label="Close"></button>
             </div>
             <div className="modal-body employee-form-modal-body">
+              {loading ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+                  <div className="text-center">
+                    <div className="spinner-border text-success mb-3" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="text-muted">Loading employee data...</p>
+                  </div>
+                </div>
+              ) : (
               <div className="employee-form-container">
                 <div className="employee-form-left-column">
                   <div className={`employee-profile-img-container ${isViewMode ? '' : 'editable'}`} onClick={() => !isViewMode && fileInputRef.current.click()}>
@@ -151,9 +217,6 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, 
                   <input type="file" ref={fileInputRef} name="imageUrl" accept="image/*" onChange={handleChange} className="d-none" disabled={isViewMode} />
 
                   <div className="row g-2">
-                    <div className="col-12">
-                      <label className="form-label">Name*</label>
-                    </div>
                     <div className="col-md-5">
                       <input
                         type="text"
@@ -305,6 +368,7 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeData, positions, 
                   </div>
                 </div>
               </div>
+              )}
             </div>
             <div className="modal-footer">
                {isViewMode ? (

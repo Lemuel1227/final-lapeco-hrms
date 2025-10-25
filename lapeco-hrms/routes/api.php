@@ -55,8 +55,8 @@ Route::get('/applicants', [ApplicantController::class, 'index']);
 Route::post('/applicants', [ApplicantController::class, 'store']); // Add public POST route for testing
 Route::get('/positions', [PositionController::class, 'publicIndex']);
 
-// Resume serving routes (requires authentication)
-Route::middleware('auth:sanctum')->get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
+// Resume serving routes (authentication handled in controller via token query param)
+Route::get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
 Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/view', [ApplicantController::class, 'viewResume']);
 Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/download', [ApplicantController::class, 'downloadResume']);
 

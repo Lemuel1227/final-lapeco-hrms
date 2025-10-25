@@ -475,19 +475,11 @@ const EmployeeDataPage = () => {
     setSelectedEmployee(null);
   };
 
-  const handleOpenViewModal = async (employee) => {
-    try {
-      // Fetch full employee data for view modal
-      const response = await employeeAPI.getById(employee.id);
-      const fullEmployeeData = normalizeEmployee(response.data);
-      fullEmployeeData.positionTitle = employee.positionTitle; // Keep the position title from list
-      
-      setSelectedEmployee(fullEmployeeData);
-      setIsViewOnlyMode(true);
-      setShowModal(true);
-    } catch (err) {
-      setToast({ show: true, message: 'Failed to load employee details. Please try again.', type: 'error' });
-    }
+  const handleOpenViewModal = (employee) => {
+    // Just pass the employee ID, modal will fetch the data
+    setSelectedEmployee({ id: employee.id });
+    setIsViewOnlyMode(true);
+    setShowModal(true);
   };
   
   const handleOpenAddModal = () => {
@@ -496,20 +488,12 @@ const EmployeeDataPage = () => {
     setShowModal(true);
   };
 
-  const handleOpenEditModal = async (e, employee) => {
+  const handleOpenEditModal = (e, employee) => {
     e.stopPropagation();
-    try {
-      // Fetch full employee data for edit modal
-      const response = await employeeAPI.getById(employee.id);
-      const fullEmployeeData = normalizeEmployee(response.data);
-      fullEmployeeData.positionTitle = employee.positionTitle; // Keep the position title from list
-      
-      setSelectedEmployee(fullEmployeeData);
-      setIsViewOnlyMode(false);
-      setShowModal(true);
-    } catch (err) {
-      setToast({ show: true, message: 'Failed to load employee details. Please try again.', type: 'error' });
-    }
+    // Just pass the employee ID, modal will fetch the data
+    setSelectedEmployee({ id: employee.id });
+    setIsViewOnlyMode(false);
+    setShowModal(true);
   };
 
  const handleDeleteEmployee = (e, employeeId) => { 
@@ -753,7 +737,8 @@ const EmployeeDataPage = () => {
               show={showModal} 
               onClose={handleCloseModal} 
               onSave={handlers.saveEmployee} 
-              employeeData={selectedEmployee} 
+              employeeId={selectedEmployee?.id || null}
+              employeeData={selectedEmployee?.id ? null : selectedEmployee}
               positions={positions}
               viewOnly={isViewOnlyMode}
               onSwitchToEdit={handleSwitchToEditMode}

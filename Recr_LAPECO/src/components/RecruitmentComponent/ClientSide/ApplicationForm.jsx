@@ -57,18 +57,11 @@ const ApplicationForm = ({ onClose }) => {
     try {
       const formDataToSend = new FormData();
       
-      // Add all form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== null && value !== '') {
           formDataToSend.append(key, value);
         }
       });
-      
-      // Debug: Log what we're sending
-      console.log('Form data being sent:');
-      for (let [key, value] of formDataToSend.entries()) {
-        console.log(key, value);
-      }
       
       await applicantApi.submitApplication(formDataToSend);
       setSubmitStatus({ 
@@ -83,18 +76,15 @@ const ApplicationForm = ({ onClose }) => {
       if (error.code === 'ERR_NETWORK') {
         errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
       } else if (error.response) {
-        // Handle validation errors
         if (error.response.status === 422 && error.response.data?.errors) {
           const validationErrors = Object.values(error.response.data.errors).flat();
           errorMessage = validationErrors.length === 1 
             ? validationErrors[0] 
             : `Please fix the following issues: ${validationErrors.join(', ')}`;
         } else {
-          // Other server errors
           errorMessage = error.response.data?.message || `Server error (${error.response.status}). Please try again later.`;
         }
       } else if (error.request) {
-        // Request was made but no response received
         errorMessage = 'No response from server. Please check your connection and try again.';
       }
       
