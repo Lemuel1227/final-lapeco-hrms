@@ -100,10 +100,24 @@ const AttendancePage = () => {
   }, [currentDate, activeView]);
 
   // Fetch specific employee attendance records
+  const normalizeAttendanceRecord = (record = {}) => {
+    const normalized = { ...record };
+
+    const resolveValue = (...keys) => keys.find(value => value !== undefined && value !== null && value !== '') ?? null;
+
+    normalized.signIn = normalized.signIn ?? resolveValue(normalized.timeIn, normalized.time_in, normalized.clockIn, normalized.clock_in);
+    normalized.signOut = normalized.signOut ?? resolveValue(normalized.timeOut, normalized.time_out, normalized.clockOut, normalized.clock_out);
+    normalized.breakIn = normalized.breakIn ?? resolveValue(normalized.breakInTime, normalized.break_in_time, normalized.break_in);
+    normalized.breakOut = normalized.breakOut ?? resolveValue(normalized.breakOutTime, normalized.break_out_time, normalized.break_out);
+
+    return normalized;
+  };
+
   const fetchEmployeeAttendanceLogs = async (employeeId) => {
     try {
       const employeeAttendanceResponse = await attendanceAPI.getEmployeeAttendance(employeeId);
-      setAttendanceLogs(employeeAttendanceResponse.data?.data || []);
+      const logs = employeeAttendanceResponse.data?.data || [];
+      setAttendanceLogs(logs.map(normalizeAttendanceRecord));
     } catch (error) {
       console.error('Error fetching employee attendance logs:', error);
       setAttendanceLogs([]);

@@ -99,7 +99,7 @@ class ApplicantController extends Controller
                 'job_opening_id' => 'required|integer|exists:positions,id',
                 'middle_name' => 'nullable|string|max:255',
                 'phone' => 'nullable|string|max:20',
-                'birthday' => 'nullable|date',
+                'birthday' => 'nullable|date|before_or_equal:' . now()->subYears(18)->toDateString(),
                 'gender' => 'nullable|in:Male,Female,Other',
                 'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB max
                 'profile_picture' => 'nullable|file|mimes:jpeg,jpg,png,gif|max:2048', // 2MB max

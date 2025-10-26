@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('name');
             $table->date('evaluation_start');
             $table->date('evaluation_end');
-            $table->string('status')->default('scheduled');
             $table->date('open_date')->nullable();
             $table->date('close_date')->nullable();
             $table->decimal('overall_score', 5, 2)->nullable();

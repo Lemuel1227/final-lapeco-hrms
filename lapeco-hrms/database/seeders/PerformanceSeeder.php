@@ -32,22 +32,22 @@ class PerformanceSeeder extends Seeder
                 'name' => 'H1 2025 Performance Review',
                 'start' => Carbon::create(2025, 1, 1),
                 'end' => Carbon::create(2025, 6, 30),
-                'status' => 'closed',
-                'description' => 'Comprehensive mid-year review for all warehouse teams.',
+                'open' => Carbon::create(2025, 7, 1),
+                'close' => Carbon::create(2025, 7, 20),
             ],
             [
                 'name' => 'Q3 2025 Performance Review',
                 'start' => Carbon::create(2025, 7, 1),
                 'end' => Carbon::create(2025, 9, 30),
-                'status' => 'active',
-                'description' => 'Ongoing quarterly review focused on productivity and teamwork.',
+                'open' => Carbon::create(2025, 10, 1),
+                'close' => Carbon::create(2025, 10, 31),
             ],
             [
                 'name' => 'Q4 2025 Performance Review',
                 'start' => Carbon::create(2025, 10, 1),
                 'end' => Carbon::create(2025, 12, 31),
-                'status' => 'scheduled',
-                'description' => 'Scheduled year-end review for planning 2026 goals.',
+                'open' => Carbon::create(2026, 1, 5),
+                'close' => Carbon::create(2026, 1, 25),
             ],
         ];
 
@@ -65,8 +65,8 @@ class PerformanceSeeder extends Seeder
                 [
                     'evaluation_start' => $definition['start']->toDateString(),
                     'evaluation_end' => $definition['end']->toDateString(),
-                    'status' => $definition['status'],
-                    'description' => $definition['description'],
+                    'open_date' => $definition['open']->toDateString(),
+                    'close_date' => $definition['close']->toDateString(),
                     'created_by' => $defaultUserId,
                     'updated_by' => $defaultUserId,
                 ]
@@ -83,7 +83,8 @@ class PerformanceSeeder extends Seeder
                     []
                 );
 
-                $shouldSeedResponses = in_array($definition['status'], ['closed', 'active'], true);
+                $periodStatus = $period->status;
+                $shouldSeedResponses = in_array($periodStatus, ['closed', 'active'], true);
 
                 if (!$shouldSeedResponses || $evaluators->isEmpty()) {
                     $evaluation->update([

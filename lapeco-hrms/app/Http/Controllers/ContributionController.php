@@ -101,53 +101,54 @@ class ContributionController extends Controller
     {
         $validated = $request->validate([
             'year' => 'required|integer',
-            'month' => 'required|integer|min:0|max:11', // 0-11 (JavaScript month format)
+            'month' => 'required|integer|min:0|max:11', 
             'type' => 'required|in:sss,philhealth,pagibig,tin',
         ]);
 
         $year = $validated['year'];
-        $month = $validated['month'] + 1; // Convert to 1-12
+        $month = $validated['month'] + 1;
 
         // Get both payroll periods for this month
         $startOfMonth = Carbon::create($year, $month, 1)->startOfDay();
         $endOfMonth = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
 
-        $periods = PayrollPeriod::whereBetween('period_start', [$startOfMonth, $endOfMonth])
-            ->orWhereBetween('period_end', [$startOfMonth, $endOfMonth])
-            ->get();
+        $periods = PayrollPeriod::whereBetween('period_end', [$startOfMonth, $endOfMonth])->get();
 
         if ($periods->isEmpty()) {
             return response()->json([
-                'message' => 'No payroll data found for this month',
+                'message' => 'No payroll data found for this month. Generate the payroll first to view contributions.',
                 'data' => [],
                 'isProvisional' => false,
                 'missingPeriod' => null,
-            ]);
+            ], 404);
         }
 
         // Check if we have both payroll periods (should be 2 for a complete month)
         $isProvisional = $periods->count() < 2;
         $missingPeriod = null;
-        
+
         if ($isProvisional) {
-            // Determine which period is missing
             $prevMonth = $month === 1 ? 12 : $month - 1;
             $prevMonthYear = $month === 1 ? $year - 1 : $year;
-            
-            $firstHalfStart = Carbon::create($prevMonthYear, $prevMonth, 26)->format('Y-m-d');
-            $firstHalfEnd = Carbon::create($year, $month, 10)->format('Y-m-d');
-            $firstHalfCutoff = "$firstHalfStart to $firstHalfEnd";
-            
-            $secondHalfStart = Carbon::create($year, $month, 11)->format('Y-m-d');
-            $secondHalfEnd = Carbon::create($year, $month, 25)->format('Y-m-d');
-            $secondHalfCutoff = "$secondHalfStart to $secondHalfEnd";
-            
-            $hasFirstHalf = $periods->contains(function ($period) use ($firstHalfStart, $firstHalfEnd) {
-                return $period->period_start->format('Y-m-d') === $firstHalfStart 
-                    && $period->period_end->format('Y-m-d') === $firstHalfEnd;
+
+            $firstHalfStart = Carbon::create($prevMonthYear, $prevMonth, 26);
+            $firstHalfEnd = Carbon::create($year, $month, 10);
+            $secondHalfStart = Carbon::create($year, $month, 11);
+            $secondHalfEnd = Carbon::create($year, $month, 25);
+
+            $hasFirstHalf = $periods->contains(function ($period) use ($firstHalfEnd) {
+                return Carbon::parse($period->period_end)->isSameDay($firstHalfEnd);
             });
-            
-            $missingPeriod = $hasFirstHalf ? $secondHalfCutoff : $firstHalfCutoff;
+
+            $hasSecondHalf = $periods->contains(function ($period) use ($secondHalfEnd) {
+                return Carbon::parse($period->period_end)->isSameDay($secondHalfEnd);
+            });
+
+            if (!$hasFirstHalf) {
+                $missingPeriod = $firstHalfStart->format('Y-m-d') . ' to ' . $firstHalfEnd->format('Y-m-d');
+            } elseif (!$hasSecondHalf) {
+                $missingPeriod = $secondHalfStart->format('Y-m-d') . ' to ' . $secondHalfEnd->format('Y-m-d');
+            }
         }
 
         // Aggregate payroll data for the month
@@ -189,7 +190,13 @@ class ContributionController extends Controller
 
         foreach ($employeeData as $empId => $data) {
             $employee = $data['employee'];
-            $monthlyGross = $data['totalGross']; // Already aggregated from both periods
+            $monthlyGross = $data['totalGross'];
+            $monthlyTax = $data['totalTax'];
+
+            if ($isProvisional) {
+                $monthlyGross *= 2;
+                $monthlyTax *= 2;
+            }
 
             $contribution = null;
             $govtId = '';
@@ -230,7 +237,7 @@ class ContributionController extends Controller
                 'employerContribution' => $contribution['employerShare'] ?? 0,
                 'totalContribution' => $contribution['total'] ?? 0,
                 'grossCompensation' => $validated['type'] === 'tin' ? round($monthlyGross, 2) : null,
-                'taxWithheld' => $validated['type'] === 'tin' ? round($data['totalTax'], 2) : null,
+                'taxWithheld' => $validated['type'] === 'tin' ? round($monthlyTax, 2) : null,
             ];
         }
 

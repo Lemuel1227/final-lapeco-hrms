@@ -5,7 +5,7 @@ import BulkAddLeaveCreditsModal from '../../modals/BulkAddLeaveCreditsModal';
 import ResetCreditsModal from '../../modals/ResetCreditsModal';
 import { leaveAPI } from '../../services/api';
 
-const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
+const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -132,8 +132,14 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
         [employeeId]: response.data
       }));
       setShowEditModal(false);
+      if (onShowToast) {
+        onShowToast({ message: 'Leave credits updated successfully.', type: 'success' });
+      }
     } catch (error) {
       console.error('Failed to update leave credits:', error);
+      if (onShowToast) {
+        onShowToast({ message: 'Failed to update leave credits.', type: 'error' });
+      }
     }
   };
 
@@ -152,11 +158,17 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
       
       setShowBulkAddModal(false);
       
-      // Show success message
-      alert(`Successfully added credits to ${response.data.users_updated} employees!`);
+      if (onShowToast) {
+        onShowToast({
+          message: `Successfully added credits to ${response.data.users_updated} employees!`,
+          type: 'success',
+        });
+      }
     } catch (error) {
       console.error('Failed to bulk add leave credits:', error);
-      alert('Failed to add leave credits. Please try again.');
+      if (onShowToast) {
+        onShowToast({ message: 'Failed to add leave credits. Please try again.', type: 'error' });
+      }
     }
   };
 
@@ -174,8 +186,14 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers }) => {
       
       setLeaveCreditsData(creditsMap);
       setShowResetModal(false);
+      if (onShowToast) {
+        onShowToast({ message: 'Leave credits reset successfully.', type: 'success' });
+      }
     } catch (error) {
       console.error('Failed to reset leave credits:', error);
+      if (onShowToast) {
+        onShowToast({ message: 'Failed to reset leave credits.', type: 'error' });
+      }
     }
   };
   
