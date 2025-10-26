@@ -84,8 +84,148 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
     }
   }, [fetchedEmployeeData, employeeData, show, isEditMode, viewOnly]);
 
+  const validateField = (name, value, currentFormData = formData) => {
+    let error = null;
+    
+    switch (name) {
+      case 'firstName':
+        if (!value.trim()) {
+          error = 'First name is required.';
+        } else if (value.trim().length < 2) {
+          error = 'First name must be at least 2 characters.';
+        } else if (value.trim().length > 50) {
+          error = 'First name must not exceed 50 characters.';
+        } else if (!/^[a-zA-Z\s.-]+$/.test(value.trim())) {
+          error = 'First name can only contain letters, spaces, dots and hyphens.';
+        }
+        break;
+        
+      case 'middleName':
+        if (value && value.trim().length > 50) {
+          error = 'Middle name must not exceed 50 characters.';
+        } else if (value && !/^[a-zA-Z\s.-]+$/.test(value.trim())) {
+          error = 'Middle name can only contain letters, spaces, dots and hyphens.';
+        }
+        break;
+        
+      case 'lastName':
+        if (!value.trim()) {
+          error = 'Last name is required.';
+        } else if (value.trim().length < 2) {
+          error = 'Last name must be at least 2 characters.';
+        } else if (value.trim().length > 50) {
+          error = 'Last name must not exceed 50 characters.';
+        } else if (!/^[a-zA-Z\s.-]+$/.test(value.trim())) {
+          error = 'Last name can only contain letters, spaces, dots and hyphens.';
+        }
+        break;
+        
+      case 'email':
+        if (!value.trim()) {
+          error = 'Email is required.';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+          error = 'Please enter a valid email address.';
+        } else if (value.trim().length > 255) {
+          error = 'Email must not exceed 255 characters.';
+        }
+        break;
+        
+      case 'positionId':
+        if (!isEditMode && !value) {
+          error = 'Position is required.';
+        }
+        break;
+        
+      case 'joiningDate':
+        if (!isEditMode && !value) {
+          error = 'Joining date is required.';
+        }
+        break;
+        
+      case 'birthday':
+        if (!value) {
+          error = 'Birthday is required.';
+        } else {
+          const age = calculateAge(value);
+          if (age < 18) {
+            error = 'Employee must be at least 18 years old.';
+          } else if (age > 100) {
+            error = 'Please enter a valid birthday.';
+          }
+        }
+        break;
+        
+      case 'gender':
+        if (!value) {
+          error = 'Gender is required.';
+        }
+        break;
+        
+      case 'address':
+        if (!value.trim()) {
+          error = 'Address is required.';
+        } else if (value.trim().length < 10) {
+          error = 'Address must be at least 10 characters.';
+        } else if (value.trim().length > 500) {
+          error = 'Address must not exceed 500 characters.';
+        }
+        break;
+        
+      case 'contactNumber':
+        if (!value.trim()) {
+          error = 'Contact number is required.';
+        } else if (!/^[0-9+\-()\s]+$/.test(value.trim())) {
+          error = 'Contact number can only contain digits, +, -, (), and spaces.';
+        } else if (value.replace(/[^0-9]/g, '').length < 7) {
+          error = 'Contact number must contain at least 7 digits.';
+        } else if (value.replace(/[^0-9]/g, '').length > 15) {
+          error = 'Contact number must not exceed 15 digits.';
+        }
+        break;
+        
+      case 'sssNo':
+        if (value && value.trim()) {
+          const sssDigits = value.replace(/[^0-9]/g, '');
+          if (sssDigits.length !== 10) {
+            error = 'SSS number must be 10 digits (e.g., 12-3456789-0).';
+          }
+        }
+        break;
+        
+      case 'tinNo':
+        if (value && value.trim()) {
+          const tinDigits = value.replace(/[^0-9]/g, '');
+          if (tinDigits.length !== 9 && tinDigits.length !== 12) {
+            error = 'TIN must be 9 or 12 digits (e.g., 123-456-789 or 123-456-789-000).';
+          }
+        }
+        break;
+        
+      case 'pagIbigNo':
+        if (value && value.trim()) {
+          const pagibigDigits = value.replace(/[^0-9]/g, '');
+          if (pagibigDigits.length !== 12) {
+            error = 'Pag-IBIG number must be 12 digits (e.g., 1234-5678-9012).';
+          }
+        }
+        break;
+        
+      case 'philhealthNo':
+        if (value && value.trim()) {
+          const philhealthDigits = value.replace(/[^0-9]/g, '');
+          if (philhealthDigits.length !== 12) {
+            error = 'PhilHealth number must be 12 digits (e.g., 12-345678901-2).';
+          }
+        }
+        break;
+    }
+    
+    return error;
+  };
+
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
+    
     if (type === 'file') {
       const file = files[0];
       if (name === 'imageUrl') {
@@ -101,21 +241,56 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
         }
       }
     } else {
-      setFormData({ ...formData, [name]: value });
+      // Update form data
+      const updatedFormData = { ...formData, [name]: value };
+      setFormData(updatedFormData);
+      
+      // Validate the field in real-time if there's already an error or if the field has content
+      if (formErrors[name] || value) {
+        const error = validateField(name, value, updatedFormData);
+        setFormErrors({ ...formErrors, [name]: error });
+      }
     }
-    if (formErrors[name]) {
-      setFormErrors({ ...formErrors, [name]: null });
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    
+    // Validate on blur to show errors when user leaves the field
+    const error = validateField(name, value, formData);
+    setFormErrors({ ...formErrors, [name]: error });
+  };
+
+  const calculateAge = (birthday) => {
+    if (!birthday) return null;
+    const today = new Date();
+    const birthDate = new Date(birthday);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
     }
+    return age;
   };
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.firstName.trim()) errors.firstName = 'First name is required.';
-    if (!formData.lastName.trim()) errors.lastName = 'Last name is required.';
-    if (!formData.email.trim()) { errors.email = 'Email is required.'; } 
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) { errors.email = 'Email address is invalid.';}
-    if (!isEditMode && !formData.positionId) errors.positionId = 'Position is required.';
-    if (!isEditMode && !formData.joiningDate) errors.joiningDate = 'Joining date is required.';
+    
+    // Validate all required fields
+    const fieldsToValidate = [
+      'firstName', 'middleName', 'lastName', 'email', 
+      'positionId', 'joiningDate', 'birthday', 'gender',
+      'address', 'contactNumber', 'sssNo', 'tinNo', 
+      'pagIbigNo', 'philhealthNo'
+    ];
+    
+    fieldsToValidate.forEach(fieldName => {
+      const error = validateField(fieldName, formData[fieldName], formData);
+      if (error) {
+        errors[fieldName] = error;
+      }
+    });
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -191,6 +366,8 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         placeholder="First Name"
                         value={formData.firstName}
                         onChange={handleChange}
+                        onBlur={handleBlur}
+                        maxLength="50"
                         required
                         disabled={isViewMode}
                       />
@@ -199,14 +376,17 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                     <div className="col-md-3">
                       <input
                         type="text"
-                        className="form-control"
+                        className={`form-control ${formErrors.middleName ? 'is-invalid' : ''}`}
                         id="middleName"
                         name="middleName"
                         placeholder="Middle Name"
                         value={formData.middleName}
                         onChange={handleChange}
+                        onBlur={handleBlur}
+                        maxLength="50"
                         disabled={isViewMode}
                       />
+                      {formErrors.middleName && <div className="invalid-feedback">{formErrors.middleName}</div>}
                     </div>
                     <div className="col-md-4">
                       <input
@@ -217,6 +397,8 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         placeholder="Last Name"
                         value={formData.lastName}
                         onChange={handleChange}
+                        onBlur={handleBlur}
+                        maxLength="50"
                         required
                         disabled={isViewMode}
                       />
@@ -225,7 +407,7 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                   </div>
                   <div className="form-group">
                     <label htmlFor="positionId" className="form-label">Position*</label>
-                    <select className={`form-select ${formErrors.positionId ? 'is-invalid' : ''}`} id="positionId" name="positionId" value={formData.positionId} onChange={handleChange} required disabled={isViewMode}>
+                    <select className={`form-select ${formErrors.positionId ? 'is-invalid' : ''}`} id="positionId" name="positionId" value={formData.positionId} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode}>
                         <option value="">Select a position...</option>
                         {(positions || []).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                     </select>
@@ -233,7 +415,7 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                   </div>
                   <div className="form-group">
                     <label htmlFor="joiningDate" className="form-label">Joining Date*</label>
-                    <input type="date" className={`form-control ${formErrors.joiningDate ? 'is-invalid' : ''}`} id="joiningDate" name="joiningDate" value={formData.joiningDate} onChange={handleChange} required disabled={isViewMode} />
+                    <input type="date" className={`form-control ${formErrors.joiningDate ? 'is-invalid' : ''}`} id="joiningDate" name="joiningDate" value={formData.joiningDate} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode || isEditMode} />
                     {formErrors.joiningDate && <div className="invalid-feedback">{formErrors.joiningDate}</div>}
                   </div>
                   <div className="form-group">
@@ -263,26 +445,34 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label htmlFor="email" className="form-label">Email Address*</label>
-                            <input type="email" className={`form-control ${formErrors.email ? 'is-invalid' : ''}`} id="email" name="email" value={formData.email} onChange={handleChange} required disabled={isViewMode} />
+                            <input type="email" className={`form-control ${formErrors.email ? 'is-invalid' : ''}`} id="email" name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode} />
                             {formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
                           </div>
                           <div className="col-md-6">
-                            <label htmlFor="contactNumber" className="form-label">Contact Number</label>
-                            <input type="tel" className="form-control" id="contactNumber" name="contactNumber" value={formData.contactNumber} onChange={handleChange} disabled={isViewMode} />
+                            <label htmlFor="contactNumber" className="form-label">Contact Number*</label>
+                            <input type="tel" className={`form-control ${formErrors.contactNumber ? 'is-invalid' : ''}`} id="contactNumber" name="contactNumber" value={formData.contactNumber} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode} />
+                            {formErrors.contactNumber && <div className="invalid-feedback">{formErrors.contactNumber}</div>}
                           </div>
                           <div className="col-md-6">
-                            <label htmlFor="birthday" className="form-label">Birthday</label>
-                            <input type="date" className="form-control" id="birthday" name="birthday" value={formData.birthday} onChange={handleChange} disabled={isViewMode} />
+                            <label htmlFor="birthday" className="form-label">Birthday*</label>
+                            <input type="date" className={`form-control ${formErrors.birthday ? 'is-invalid' : ''}`} id="birthday" name="birthday" value={formData.birthday} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode} />
+                            {formErrors.birthday && <div className="invalid-feedback">{formErrors.birthday}</div>}
                           </div>
                           <div className="col-md-6">
-                            <label htmlFor="gender" className="form-label">Gender</label>
-                            <select className="form-select" id="gender" name="gender" value={formData.gender} onChange={handleChange} disabled={isViewMode}>
-                              <option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
+                            <label htmlFor="gender" className="form-label">Gender*</label>
+                            <select className={`form-select ${formErrors.gender ? 'is-invalid' : ''}`} id="gender" name="gender" value={formData.gender} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode}>
+                              <option value="">Select...</option><option value="Male">Male</option><option value="Female">Female</option>
                             </select>
+                            {formErrors.gender && <div className="invalid-feedback">{formErrors.gender}</div>}
+                          </div>
+                          <div className="col-md-6">
+                            <label htmlFor="age" className="form-label">Age</label>
+                            <input type="text" className="form-control" id="age" value={formData.birthday ? `${calculateAge(formData.birthday)} years old` : ''} readOnly disabled />
                           </div>
                           <div className="col-12">
-                            <label htmlFor="address" className="form-label">Address</label>
-                            <textarea className="form-control" id="address" name="address" rows="3" value={formData.address} onChange={handleChange} disabled={isViewMode}></textarea>
+                            <label htmlFor="address" className="form-label">Address*</label>
+                            <textarea className={`form-control ${formErrors.address ? 'is-invalid' : ''}`} id="address" name="address" rows="3" value={formData.address} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode}></textarea>
+                            {formErrors.address && <div className="invalid-feedback">{formErrors.address}</div>}
                           </div>
                         </div>
                       </div>
@@ -290,10 +480,26 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                     {activeTab === 'statutory' && (
                       <div>
                         <div className="row g-3">
-                          <div className="col-md-6"><label htmlFor="sssNo" className="form-label">SSS No.</label><input type="text" className="form-control" id="sssNo" name="sssNo" value={formData.sssNo} onChange={handleChange} disabled={isViewMode} /></div>
-                          <div className="col-md-6"><label htmlFor="tinNo" className="form-label">TIN No.</label><input type="text" className="form-control" id="tinNo" name="tinNo" value={formData.tinNo} onChange={handleChange} disabled={isViewMode} /></div>
-                          <div className="col-md-6"><label htmlFor="pagIbigNo" className="form-label">Pag-IBIG No.</label><input type="text" className="form-control" id="pagIbigNo" name="pagIbigNo" value={formData.pagIbigNo} onChange={handleChange} disabled={isViewMode} /></div>
-                          <div className="col-md-6"><label htmlFor="philhealthNo" className="form-label">PhilHealth No.</label><input type="text" className="form-control" id="philhealthNo" name="philhealthNo" value={formData.philhealthNo} onChange={handleChange} disabled={isViewMode} /></div>
+                          <div className="col-md-6">
+                            <label htmlFor="sssNo" className="form-label">SSS No.</label>
+                            <input type="text" className={`form-control ${formErrors.sssNo ? 'is-invalid' : ''}`} id="sssNo" name="sssNo" value={formData.sssNo} onChange={handleChange} onBlur={handleBlur} placeholder="12-3456789-0" disabled={isViewMode} />
+                            {formErrors.sssNo && <div className="invalid-feedback">{formErrors.sssNo}</div>}
+                          </div>
+                          <div className="col-md-6">
+                            <label htmlFor="tinNo" className="form-label">TIN No.</label>
+                            <input type="text" className={`form-control ${formErrors.tinNo ? 'is-invalid' : ''}`} id="tinNo" name="tinNo" value={formData.tinNo} onChange={handleChange} onBlur={handleBlur} placeholder="123-456-789-000" disabled={isViewMode} />
+                            {formErrors.tinNo && <div className="invalid-feedback">{formErrors.tinNo}</div>}
+                          </div>
+                          <div className="col-md-6">
+                            <label htmlFor="pagIbigNo" className="form-label">Pag-IBIG No.</label>
+                            <input type="text" className={`form-control ${formErrors.pagIbigNo ? 'is-invalid' : ''}`} id="pagIbigNo" name="pagIbigNo" value={formData.pagIbigNo} onChange={handleChange} onBlur={handleBlur} placeholder="1234-5678-9012" disabled={isViewMode} />
+                            {formErrors.pagIbigNo && <div className="invalid-feedback">{formErrors.pagIbigNo}</div>}
+                          </div>
+                          <div className="col-md-6">
+                            <label htmlFor="philhealthNo" className="form-label">PhilHealth No.</label>
+                            <input type="text" className={`form-control ${formErrors.philhealthNo ? 'is-invalid' : ''}`} id="philhealthNo" name="philhealthNo" value={formData.philhealthNo} onChange={handleChange} onBlur={handleBlur} placeholder="12-345678901-2" disabled={isViewMode} />
+                            {formErrors.philhealthNo && <div className="invalid-feedback">{formErrors.philhealthNo}</div>}
+                          </div>
                         </div>
                       </div>
                     )}

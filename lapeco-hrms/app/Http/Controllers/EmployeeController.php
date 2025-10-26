@@ -7,11 +7,14 @@ use Illuminate\Http\Request;
 use App\Models\Position;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Traits\LogsActivity;
 
 class EmployeeController extends Controller
 {
+    use LogsActivity;
     public function index(Request $request)
     {
         $user = $request->user();
@@ -237,7 +240,7 @@ class EmployeeController extends Controller
         // Authorization is now handled by middleware
         
         // Debug logging for file upload BEFORE validation
-        \Log::info('Request debug info:', [
+        Log::info('Request debug info:', [
             'has_file' => $request->hasFile('resume_file'),
             'all_files' => $request->allFiles(),
             'content_type' => $request->header('Content-Type'),
@@ -246,7 +249,7 @@ class EmployeeController extends Controller
         
         if ($request->hasFile('resume_file')) {
             $file = $request->file('resume_file');
-            \Log::info('File upload debug BEFORE validation:', [
+            Log::info('File upload debug BEFORE validation:', [
                 'original_name' => $file->getClientOriginalName(),
                 'mime_type' => $file->getMimeType(),
                 'size' => $file->getSize(),
@@ -255,7 +258,7 @@ class EmployeeController extends Controller
                 'temp_path' => $file->getPathname()
             ]);
         } else {
-            \Log::info('No file uploaded in request BEFORE validation');
+            Log::info('No file uploaded in request BEFORE validation');
         }
         
         if ($request->filled('name')) {
@@ -279,31 +282,54 @@ class EmployeeController extends Controller
 
         try {
             $validated = $request->validate([
-                'first_name' => 'required|string|max:255',
-                'middle_name' => 'nullable|string|max:255',
-                'last_name' => 'required|string|max:255',
+                'first_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
+                'middle_name' => 'nullable|string|max:50|regex:/^[a-zA-Z\s.\-]+$/',
+                'last_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
                 'name' => 'sometimes|string|max:255',
-                'email' => 'required|email|unique:users,email',
+                'email' => 'required|email|max:255|unique:users,email',
                 'role' => 'required|string|in:HR_PERSONNEL,TEAM_LEADER,REGULAR_EMPLOYEE',
                 'position_id' => 'nullable|exists:positions,id',
-                'joining_date' => 'nullable|date',
-                'birthday' => 'nullable|date',
-                'gender' => 'nullable|string|in:Male,Female,Other',
-                'address' => 'nullable|string',
-                'contact_number' => 'nullable|string|max:20',
+                'joining_date' => 'required|date',
+                'birthday' => 'required|date|before:today|after:' . now()->subYears(100)->format('Y-m-d'),
+                'gender' => 'required|string|in:Male,Female',
+                'address' => 'required|string|min:10|max:500',
+                'contact_number' => 'required|string|regex:/^[0-9+\-()\s]+$/|min:7|max:20',
                 'imageUrl' => 'nullable|file|mimes:jpeg,jpg,png,gif|max:2048', // 2MB max for profile pictures
-                'sss_no' => 'nullable|string|max:20',
-                'tin_no' => 'nullable|string|max:20',
-                'pag_ibig_no' => 'nullable|string|max:20',
-                'philhealth_no' => 'nullable|string|max:20',
+                'sss_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:12',
+                'tin_no' => 'nullable|string|regex:/^[0-9\-]+$/|min:11|max:15',
+                'pag_ibig_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:14',
+                'philhealth_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:14',
                 'resume_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB max
                 'account_status' => 'nullable|string|in:Active,Deactivated',
+            ], [
+                'first_name.min' => 'First name must be at least 2 characters.',
+                'first_name.max' => 'First name must not exceed 50 characters.',
+                'first_name.regex' => 'First name can only contain letters, spaces, dots and hyphens.',
+                'middle_name.regex' => 'Middle name can only contain letters, spaces, dots and hyphens.',
+                'last_name.min' => 'Last name must be at least 2 characters.',
+                'last_name.max' => 'Last name must not exceed 50 characters.',
+                'last_name.regex' => 'Last name can only contain letters, spaces, dots and hyphens.',
+                'email.max' => 'Email must not exceed 255 characters.',
+                'birthday.before' => 'Birthday must be in the past.',
+                'birthday.after' => 'Employee must be at least 18 years old.',
+                'gender.in' => 'Gender must be either Male or Female.',
+                'address.min' => 'Address must be at least 10 characters.',
+                'address.max' => 'Address must not exceed 500 characters.',
+                'contact_number.regex' => 'Contact number can only contain digits, +, -, (), and spaces.',
+                'contact_number.min' => 'Contact number must be at least 7 characters.',
+                'sss_no.regex' => 'SSS number must contain only digits and hyphens.',
+                'sss_no.size' => 'SSS number must be in format 12-3456789-0.',
+                'tin_no.regex' => 'TIN must contain only digits and hyphens.',
+                'pag_ibig_no.regex' => 'Pag-IBIG number must contain only digits and hyphens.',
+                'pag_ibig_no.size' => 'Pag-IBIG number must be in format 1234-5678-9012.',
+                'philhealth_no.regex' => 'PhilHealth number must contain only digits and hyphens.',
+                'philhealth_no.size' => 'PhilHealth number must be in format 12-345678901-2.',
             ]);
 
             // Debug logging for file upload AFTER validation
             if ($request->hasFile('resume_file')) {
                 $file = $request->file('resume_file');
-                \Log::info('File upload debug AFTER validation:', [
+                Log::info('File upload debug AFTER validation:', [
                     'original_name' => $file->getClientOriginalName(),
                     'mime_type' => $file->getMimeType(),
                     'size' => $file->getSize(),
@@ -312,7 +338,7 @@ class EmployeeController extends Controller
                     'temp_path' => $file->getPathname()
                 ]);
             } else {
-                \Log::info('No file uploaded in request AFTER validation');
+                Log::info('No file uploaded in request AFTER validation');
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
             $errors = $e->errors();
@@ -342,16 +368,19 @@ class EmployeeController extends Controller
                         $specificMessages[] = 'Please select a valid position';
                         break;
                     case 'joining_date':
-                        $specificMessages[] = 'Please enter a valid joining date';
+                        $specificMessages[] = 'Joining date is required';
                         break;
                     case 'birthday':
-                        $specificMessages[] = 'Please enter a valid birth date';
+                        $specificMessages[] = 'Birth date is required';
                         break;
                     case 'gender':
-                        $specificMessages[] = 'Please select a valid gender option';
+                        $specificMessages[] = 'Gender is required';
+                        break;
+                    case 'address':
+                        $specificMessages[] = 'Address is required';
                         break;
                     case 'contact_number':
-                        $specificMessages[] = 'Contact number must be 20 characters or less';
+                        $specificMessages[] = 'Contact number is required and must be 20 characters or less';
                         break;
                     case 'resume_file':
                         $specificMessages[] = 'Resume file must be a PDF, DOC, or DOCX file and less than 5MB';
@@ -390,7 +419,7 @@ class EmployeeController extends Controller
                     $resumesPath = Storage::disk('local')->path('resumes');
                     if (!file_exists($resumesPath)) {
                         mkdir($resumesPath, 0755, true);
-                        \Log::info('Created resumes directory:', ['path' => $resumesPath]);
+                        Log::info('Created resumes directory:', ['path' => $resumesPath]);
                     }
                     
                     // Use the Laravel 12 recommended approach: storeAs method on uploaded file
@@ -400,7 +429,7 @@ class EmployeeController extends Controller
                         $resumeFile = $storedPath; // e.g., 'resumes/123_name.pdf'
                         $fullPath = Storage::disk('local')->path($storedPath);
                         
-                        \Log::info('File stored successfully using storeAs():', [
+                        Log::info('File stored successfully using storeAs():', [
                             'original_name' => $file->getClientOriginalName(),
                             'stored_path' => $storedPath,
                             'full_path' => $fullPath,
@@ -409,10 +438,10 @@ class EmployeeController extends Controller
                             'mime_type' => $file->getMimeType()
                         ]);
                     } else {
-                        \Log::error('Failed to store file using storeAs() - returned false');
+                        Log::error('Failed to store file using storeAs() - returned false');
                     }
                 } catch (\Exception $e) {
-                    \Log::error('Exception during file storage:', [
+                    Log::error('Exception during file storage:', [
                         'error' => $e->getMessage(),
                         'file_name' => $file->getClientOriginalName(),
                         'trace' => $e->getTraceAsString()
@@ -420,9 +449,9 @@ class EmployeeController extends Controller
                 }
             } else {
                 if ($request->hasFile('resume_file')) {
-                    \Log::error('Resume file is invalid');
+                    Log::error('Resume file is invalid');
                 } else {
-                    \Log::info('No resume file in request');
+                    Log::info('No resume file in request');
                 }
             }
             
@@ -438,17 +467,17 @@ class EmployeeController extends Controller
                     
                     if ($storedPath) {
                         $profilePicturePath = $storedPath; // e.g., 'profile_pictures/123_profile_uuid.jpg'
-                        \Log::info('Profile picture stored successfully:', [
+                        Log::info('Profile picture stored successfully:', [
                             'original_name' => $file->getClientOriginalName(),
                             'stored_path' => $storedPath,
                             'file_size' => $file->getSize(),
                             'mime_type' => $file->getMimeType()
                         ]);
                     } else {
-                        \Log::error('Failed to store profile picture - returned false');
+                        Log::error('Failed to store profile picture - returned false');
                     }
                 } catch (\Exception $e) {
-                    \Log::error('Exception during profile picture storage:', [
+                    Log::error('Exception during profile picture storage:', [
                         'error' => $e->getMessage(),
                         'file_name' => $file->getClientOriginalName(),
                         'trace' => $e->getTraceAsString()
@@ -456,9 +485,9 @@ class EmployeeController extends Controller
                 }
             } else {
                 if ($request->hasFile('imageUrl')) {
-                    \Log::error('Profile picture file is invalid');
+                    Log::error('Profile picture file is invalid');
                 } else {
-                    \Log::info('No profile picture in request');
+                    Log::info('No profile picture in request');
                 }
             }
             
@@ -512,6 +541,9 @@ class EmployeeController extends Controller
             $user = $request->user();
             $formattedEmployee = $this->formatEmployeeResponse(collect([$employee->fresh()]), $user, $user->role, false)->first();
 
+            // Log activity
+            $this->logCreate('employee', $employee->id, $employee->name);
+            
             // Return employee with account details for the modal
             return response()->json([
                 'message' => 'Employee created successfully! Login credentials have been generated.',
@@ -559,25 +591,47 @@ class EmployeeController extends Controller
             }
 
             $validated = $request->validate([
-                'first_name' => 'sometimes|string|max:255',
-                'middle_name' => 'sometimes|nullable|string|max:255',
-                'last_name' => 'sometimes|string|max:255',
+                'first_name' => 'sometimes|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
+                'middle_name' => 'sometimes|nullable|string|max:50|regex:/^[a-zA-Z\s.\-]+$/',
+                'last_name' => 'sometimes|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
                 'name' => 'sometimes|string|max:255',
-                'email' => 'sometimes|email|unique:users,email,' . $employee->id,
+                'email' => 'sometimes|email|max:255|unique:users,email,' . $employee->id,
                 'role' => 'sometimes|string|in:HR_PERSONNEL,TEAM_LEADER,REGULAR_EMPLOYEE',
                 'position_id' => 'sometimes|nullable|exists:positions,id',
-                'joining_date' => 'sometimes|nullable|date',
-                'birthday' => 'sometimes|nullable|date',
-                'gender' => 'sometimes|nullable|string|in:Male,Female,Other',
-                'address' => 'sometimes|nullable|string',
-                'contact_number' => 'sometimes|nullable|string|max:20',
+                'birthday' => 'sometimes|required|date|before:today|after:' . now()->subYears(100)->format('Y-m-d'),
+                'gender' => 'sometimes|required|string|in:Male,Female',
+                'address' => 'sometimes|required|string|min:10|max:500',
+                'contact_number' => 'sometimes|required|string|regex:/^[0-9+\-()\s]+$/|min:7|max:20',
                 'imageUrl' => 'sometimes|nullable|file|mimes:jpeg,jpg,png,gif|max:2048', 
-                'sss_no' => 'sometimes|nullable|string|max:20',
-                'tin_no' => 'sometimes|nullable|string|max:20',
-                'pag_ibig_no' => 'sometimes|nullable|string|max:20',
-                'philhealth_no' => 'sometimes|nullable|string|max:20',
+                'sss_no' => 'sometimes|nullable|string|regex:/^[0-9\-]+$/|size:12',
+                'tin_no' => 'sometimes|nullable|string|regex:/^[0-9\-]+$/|min:11|max:15',
+                'pag_ibig_no' => 'sometimes|nullable|string|regex:/^[0-9\-]+$/|size:14',
+                'philhealth_no' => 'sometimes|nullable|string|regex:/^[0-9\-]+$/|size:14',
                 'resume_file' => 'sometimes|nullable|file|mimes:pdf,doc,docx|max:5120', 
                 'account_status' => 'sometimes|nullable|string|in:Active,Deactivated',
+            ], [
+                'first_name.min' => 'First name must be at least 2 characters.',
+                'first_name.max' => 'First name must not exceed 50 characters.',
+                'first_name.regex' => 'First name can only contain letters, spaces, dots and hyphens.',
+                'middle_name.regex' => 'Middle name can only contain letters, spaces, dots and hyphens.',
+                'last_name.min' => 'Last name must be at least 2 characters.',
+                'last_name.max' => 'Last name must not exceed 50 characters.',
+                'last_name.regex' => 'Last name can only contain letters, spaces, dots and hyphens.',
+                'email.max' => 'Email must not exceed 255 characters.',
+                'birthday.before' => 'Birthday must be in the past.',
+                'birthday.after' => 'Employee must be at least 18 years old.',
+                'gender.in' => 'Gender must be either Male or Female.',
+                'address.min' => 'Address must be at least 10 characters.',
+                'address.max' => 'Address must not exceed 500 characters.',
+                'contact_number.regex' => 'Contact number can only contain digits, +, -, (), and spaces.',
+                'contact_number.min' => 'Contact number must be at least 7 characters.',
+                'sss_no.regex' => 'SSS number must contain only digits and hyphens.',
+                'sss_no.size' => 'SSS number must be in format 12-3456789-0.',
+                'tin_no.regex' => 'TIN must contain only digits and hyphens.',
+                'pag_ibig_no.regex' => 'Pag-IBIG number must contain only digits and hyphens.',
+                'pag_ibig_no.size' => 'Pag-IBIG number must be in format 1234-5678-9012.',
+                'philhealth_no.regex' => 'PhilHealth number must contain only digits and hyphens.',
+                'philhealth_no.size' => 'PhilHealth number must be in format 12-345678901-2.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $errors = $e->errors();
@@ -607,17 +661,17 @@ class EmployeeController extends Controller
                     case 'position_id':
                         $specificMessages[] = 'Please select a valid position';
                         break;
-                    case 'joining_date':
-                        $specificMessages[] = 'Please enter a valid joining date';
-                        break;
                     case 'birthday':
-                        $specificMessages[] = 'Please enter a valid birth date';
+                        $specificMessages[] = 'Birth date is required';
                         break;
                     case 'gender':
-                        $specificMessages[] = 'Please select a valid gender option';
+                        $specificMessages[] = 'Gender is required';
+                        break;
+                    case 'address':
+                        $specificMessages[] = 'Address is required';
                         break;
                     case 'contact_number':
-                        $specificMessages[] = 'Contact number must be 20 characters or less';
+                        $specificMessages[] = 'Contact number is required and must be 20 characters or less';
                         break;
                     case 'resume_file':
                         $specificMessages[] = 'Resume file must be a PDF, DOC, or DOCX file and less than 5MB';
@@ -656,7 +710,7 @@ class EmployeeController extends Controller
                     $resumesPath = Storage::disk('local')->path('resumes');
                     if (!file_exists($resumesPath)) {
                         mkdir($resumesPath, 0755, true);
-                        \Log::info('Created resumes directory in update:', ['path' => $resumesPath]);
+                        Log::info('Created resumes directory in update:', ['path' => $resumesPath]);
                     }
                     
                     // Use the Laravel 12 recommended approach: storeAs method on uploaded file
@@ -666,7 +720,7 @@ class EmployeeController extends Controller
                         $resumeFile = $storedPath;
                         $fullPath = Storage::disk('local')->path($storedPath);
                         
-                        \Log::info('File stored successfully in update using storeAs():', [
+                        Log::info('File stored successfully in update using storeAs():', [
                             'original_name' => $file->getClientOriginalName(),
                             'stored_path' => $storedPath,
                             'full_path' => $fullPath,
@@ -675,10 +729,10 @@ class EmployeeController extends Controller
                             'mime_type' => $file->getMimeType()
                         ]);
                     } else {
-                        \Log::error('Failed to store file in update using storeAs() - returned false');
+                        Log::error('Failed to store file in update using storeAs() - returned false');
                     }
                 } catch (\Exception $e) {
-                    \Log::error('Exception during file storage in update:', [
+                    Log::error('Exception during file storage in update:', [
                         'error' => $e->getMessage(),
                         'file_name' => $file->getClientOriginalName(),
                         'trace' => $e->getTraceAsString()
@@ -686,9 +740,9 @@ class EmployeeController extends Controller
                 }
             } else {
                 if ($request->hasFile('resume_file')) {
-                    \Log::error('Resume file is invalid in update');
+                    Log::error('Resume file is invalid in update');
                 } else {
-                    \Log::info('No resume file in update request');
+                    Log::info('No resume file in update request');
                 }
             }
             
@@ -704,17 +758,17 @@ class EmployeeController extends Controller
                     
                     if ($storedPath) {
                         $profilePicturePath = $storedPath; // e.g., 'profile_pictures/123_profile_uuid.jpg'
-                        \Log::info('Profile picture updated successfully:', [
+                        Log::info('Profile picture updated successfully:', [
                             'original_name' => $file->getClientOriginalName(),
                             'stored_path' => $storedPath,
                             'file_size' => $file->getSize(),
                             'mime_type' => $file->getMimeType()
                         ]);
                     } else {
-                        \Log::error('Failed to update profile picture - returned false');
+                        Log::error('Failed to update profile picture - returned false');
                     }
                 } catch (\Exception $e) {
-                    \Log::error('Exception during profile picture update:', [
+                    Log::error('Exception during profile picture update:', [
                         'error' => $e->getMessage(),
                         'file_name' => $file->getClientOriginalName(),
                         'trace' => $e->getTraceAsString()
@@ -722,9 +776,9 @@ class EmployeeController extends Controller
                 }
             } else {
                 if ($request->hasFile('imageUrl')) {
-                    \Log::error('Profile picture file is invalid in update');
+                    Log::error('Profile picture file is invalid in update');
                 } else {
-                    \Log::info('No profile picture in update request');
+                    Log::info('No profile picture in update request');
                 }
             }
             
@@ -816,6 +870,9 @@ class EmployeeController extends Controller
             $user = $request->user();
             $formattedEmployee = $this->formatEmployeeResponse(collect([$updatedEmployee]), $user, $user->role, false)->first();
             
+            // Log activity
+            $this->logUpdate('employee', $employee->id, $employee->name);
+            
             return response()->json([
                 'message' => 'Employee information updated successfully.',
                 'employee' => $formattedEmployee
@@ -891,7 +948,7 @@ class EmployeeController extends Controller
      */
     public function serveResume(Request $request, User $employee)
     {
-        \Log::info('Resume access attempt:', [
+        Log::info('Resume access attempt:', [
             'employee_id' => $employee->id,
             'has_token_param' => $request->has('token'),
             'token_param' => $request->get('token') ? substr($request->get('token'), 0, 10) . '...' : null,
@@ -906,14 +963,14 @@ class EmployeeController extends Controller
         if (!$user && $request->has('token')) {
             try {
                 $token = $request->get('token');
-                \Log::info('Attempting token authentication:', [
+                Log::info('Attempting token authentication:', [
                     'token_length' => strlen($token),
                     'token_start' => substr($token, 0, 10)
                 ]);
                 
                 $personalAccessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
                 if ($personalAccessToken) {
-                    \Log::info('Token found:', [
+                    Log::info('Token found:', [
                         'token_id' => $personalAccessToken->id,
                         'tokenable_type' => $personalAccessToken->tokenable_type,
                         'tokenable_id' => $personalAccessToken->tokenable_id
@@ -921,21 +978,21 @@ class EmployeeController extends Controller
                     
                     if ($personalAccessToken->tokenable) {
                         $user = $personalAccessToken->tokenable;
-                        \Log::info('User authenticated via token for resume access:', [
+                        Log::info('User authenticated via token for resume access:', [
                             'user_id' => $user->id,
                             'employee_id' => $employee->id
                         ]);
                     } else {
-                        \Log::error('Token found but no tokenable user');
+                        Log::error('Token found but no tokenable user');
                     }
                 } else {
-                    \Log::error('Token not found in database');
+                    Log::error('Token not found in database');
                 }
             } catch (\Exception $e) {
-                \Log::error('Error authenticating via token:', ['error' => $e->getMessage()]);
+                Log::error('Error authenticating via token:', ['error' => $e->getMessage()]);
             }
         } else {
-            \Log::info('Auth status:', [
+            Log::info('Auth status:', [
                 'has_user_from_auth' => !!$user,
                 'has_token_param' => $request->has('token')
             ]);
@@ -943,7 +1000,7 @@ class EmployeeController extends Controller
         
         // If still no user, unauthorized
         if (!$user) {
-            \Log::error('No user found after all auth attempts');
+            Log::error('No user found after all auth attempts');
             return response()->json(['error' => 'Unauthorized - No valid authentication'], 401);
         }
         
@@ -953,7 +1010,7 @@ class EmployeeController extends Controller
         }
         
         // Check if employee has a resume file
-        \Log::info('Resume file check:', [
+        Log::info('Resume file check:', [
             'employee_id' => $employee->id,
             'resume_file_field' => $employee->resume_file,
             'resume_file_exists_in_db' => !empty($employee->resume_file)
@@ -967,7 +1024,7 @@ class EmployeeController extends Controller
         $fileExists = Storage::disk('local')->exists($employee->resume_file);
         $fullPath = Storage::disk('local')->path($employee->resume_file);
         
-        \Log::info('File system check:', [
+        Log::info('File system check:', [
             'resume_file_path' => $employee->resume_file,
             'full_path' => $fullPath,
             'file_exists_in_storage' => $fileExists,
@@ -982,7 +1039,7 @@ class EmployeeController extends Controller
         // Use Storage::get() to retrieve file content
         $fileContent = Storage::disk('local')->get($employee->resume_file);
         $fileName = basename($employee->resume_file);
-        $mimeType = Storage::disk('local')->mimeType($employee->resume_file);
+        $mimeType = mime_content_type($fullPath);
         
         // Return file response with proper headers
         return response($fileContent, 200, [
@@ -1089,7 +1146,11 @@ class EmployeeController extends Controller
 
         try {
             $employeeName = $employee->name;
+            $employeeId = $employee->id;
             $employee->delete();
+            
+            // Log activity
+            $this->logDelete('employee', $employeeId, $employeeName);
             
             return response()->json([
                 'message' => "Employee '{$employeeName}' has been successfully deleted from the system."

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Models\UserActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -93,6 +94,13 @@ class AuthenticatedSessionController extends Controller
             $user->save();
             
             $token = $user->createToken('auth-token', ['*'], now()->addDays(7))->plainTextToken;
+            
+            // Log successful login
+            UserActivityLog::log(
+                userId: $user->id,
+                actionType: 'login',
+                description: 'User logged in successfully'
+            );
 
             return response()->json([
                 'user' => $user,
@@ -112,7 +120,16 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        
+        // Log logout activity
+        UserActivityLog::log(
+            userId: $user->id,
+            actionType: 'logout',
+            description: 'User logged out'
+        );
+        
+        $user->currentAccessToken()->delete();
 
         return response()->json([
             'message' => 'Logged out successfully'

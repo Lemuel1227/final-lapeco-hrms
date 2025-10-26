@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Models\UserActivityLog;
 
 class SessionController extends Controller
 {
@@ -116,5 +117,103 @@ class SessionController extends Controller
         }
         
         return 'Unknown Browser';
+    }
+    
+    /**
+     * Get activity logs for the authenticated user
+     */
+    public function getActivityLogs(Request $request)
+    {
+        $user = Auth::user();
+        
+        $query = UserActivityLog::where('user_id', $user->id)
+            ->with('user:id,first_name,last_name')
+            ->orderBy('created_at', 'desc');
+        
+        // Apply filters if provided
+        if ($request->has('action_type') && $request->action_type !== '') {
+            $query->where('action_type', $request->action_type);
+        }
+        
+        if ($request->has('entity_type') && $request->entity_type !== '') {
+            $query->where('entity_type', $request->entity_type);
+        }
+        
+        if ($request->has('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        
+        if ($request->has('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+        
+        // Pagination
+        $perPage = $request->input('per_page', 20);
+        $logs = $query->paginate($perPage);
+        
+        return response()->json($logs);
+    }
+    
+    /**
+     * Get all activity logs (HR/Admin only)
+     */
+    public function getAllActivityLogs(Request $request)
+    {
+        $query = UserActivityLog::with('user:id,first_name,last_name,email')
+            ->orderBy('created_at', 'desc');
+        
+        // Apply filters if provided
+        if ($request->has('user_id') && $request->user_id !== '') {
+            $query->where('user_id', $request->user_id);
+        }
+        
+        if ($request->has('action_type') && $request->action_type !== '') {
+            $query->where('action_type', $request->action_type);
+        }
+        
+        if ($request->has('entity_type') && $request->entity_type !== '') {
+            $query->where('entity_type', $request->entity_type);
+        }
+        
+        if ($request->has('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        
+        if ($request->has('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+        
+        // Pagination
+        $perPage = $request->input('per_page', 20);
+        $logs = $query->paginate($perPage);
+        
+        return response()->json($logs);
+    }
+    
+    /**
+     * Get available action types for filtering
+     */
+    public function getActionTypes()
+    {
+        $actionTypes = UserActivityLog::select('action_type')
+            ->distinct()
+            ->orderBy('action_type')
+            ->pluck('action_type');
+            
+        return response()->json($actionTypes);
+    }
+    
+    /**
+     * Get available entity types for filtering
+     */
+    public function getEntityTypes()
+    {
+        $entityTypes = UserActivityLog::select('entity_type')
+            ->distinct()
+            ->whereNotNull('entity_type')
+            ->orderBy('entity_type')
+            ->pluck('entity_type');
+            
+        return response()->json($entityTypes);
     }
 }

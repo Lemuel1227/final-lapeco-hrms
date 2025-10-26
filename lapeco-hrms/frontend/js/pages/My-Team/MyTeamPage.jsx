@@ -103,7 +103,7 @@ const MyTeamPage = () => {
     // Filter based on search term
     const filteredMembers = allMembers.filter(member => 
       member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.id.toLowerCase().includes(searchTerm.toLowerCase())
+      String(member.id).toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Sort members while keeping leaders at the top

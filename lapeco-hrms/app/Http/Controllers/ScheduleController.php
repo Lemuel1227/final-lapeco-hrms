@@ -8,9 +8,12 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Position;
 use App\Models\ScheduleTemplate;
+use App\Traits\LogsActivity;
+use Illuminate\Support\Facades\Log;
 
 class ScheduleController extends Controller
 {
+    use LogsActivity;
     public function store(Request $request)
     {
         try {
@@ -154,6 +157,9 @@ class ScheduleController extends Controller
                 );
             }
 
+            // Log activity
+            $this->logCreate('schedule', $schedule->id, "{$schedule->name} for {$schedule->date}");
+            
             return response()->json([
                 'message' => 'Schedule saved successfully!', 
                 'success' => true,
@@ -166,7 +172,7 @@ class ScheduleController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            \Log::error('Schedule creation failed: ' . $e->getMessage(), [
+            Log::error('Schedule creation failed: ' . $e->getMessage(), [
                 'request_data' => $data ?? null,
                 'trace' => $e->getTraceAsString()
             ]);
@@ -181,7 +187,7 @@ class ScheduleController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            \Log::info('Schedule update request received', [
+            Log::info('Schedule update request received', [
                 'schedule_id' => $id,
                 'request_data' => $request->all()
             ]);
@@ -200,7 +206,7 @@ class ScheduleController extends Controller
                 'assignments.*.notes' => 'nullable|string',
             ]);
             
-            \Log::info('Validation passed for schedule update', ['validated_data' => $data]);
+            Log::info('Validation passed for schedule update', ['validated_data' => $data]);
             
             // Find the schedule to update
             $schedule = Schedule::findOrFail($id);
@@ -211,7 +217,7 @@ class ScheduleController extends Controller
                                           ->where('id', '!=', $id)
                                           ->first();
                 if ($existingSchedule) {
-                    \Log::warning('Schedule update failed: date conflict', [
+                    Log::warning('Schedule update failed: date conflict', [
                         'schedule_id' => $id,
                         'new_date' => $data['date'],
                         'existing_schedule_id' => $existingSchedule->id
@@ -230,12 +236,12 @@ class ScheduleController extends Controller
                 'description' => $data['description'] ?? null,
             ]);
             
-            \Log::info('Schedule basic info updated', ['schedule_id' => $schedule->id]);
+            Log::info('Schedule basic info updated', ['schedule_id' => $schedule->id]);
             
             // Delete existing assignments for this schedule
             ScheduleAssignment::where('schedule_id', $schedule->id)->delete();
             
-            \Log::info('Existing assignments deleted', ['schedule_id' => $schedule->id]);
+            Log::info('Existing assignments deleted', ['schedule_id' => $schedule->id]);
             
             // Create new assignments
             foreach ($data['assignments'] as $index => $assignment) {
@@ -250,13 +256,13 @@ class ScheduleController extends Controller
                         'ot_hours' => $assignment['ot_hours'] ?? 0,
                         'notes' => $assignment['notes'] ?? null,
                     ]);
-                    \Log::info('Assignment created', [
+                    Log::info('Assignment created', [
                         'schedule_id' => $schedule->id,
                         'assignment_index' => $index,
                         'user_id' => $assignment['empId']
                     ]);
                 } catch (\Exception $e) {
-                    \Log::error('Failed to create assignment', [
+                    Log::error('Failed to create assignment', [
                         'schedule_id' => $schedule->id,
                         'assignment_index' => $index,
                         'assignment_data' => $assignment,
@@ -266,12 +272,12 @@ class ScheduleController extends Controller
                 }
             }
             
-            \Log::info('Schedule update completed successfully', ['schedule_id' => $schedule->id]);
+            Log::info('Schedule update completed successfully', ['schedule_id' => $schedule->id]);
             
             return response()->json(['message' => 'Schedule updated successfully!', 'schedule' => $schedule]);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Schedule update validation failed', [
+            Log::error('Schedule update validation failed', [
                 'schedule_id' => $id,
                 'errors' => $e->errors(),
                 'request_data' => $request->all()
@@ -282,7 +288,7 @@ class ScheduleController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Schedule not found for update', [
+            Log::error('Schedule not found for update', [
                 'schedule_id' => $id,
                 'error' => $e->getMessage()
             ]);
@@ -291,7 +297,7 @@ class ScheduleController extends Controller
                 'error' => 'SCHEDULE_NOT_FOUND'
             ], 404);
         } catch (\Exception $e) {
-            \Log::error('Schedule update failed with unexpected error', [
+            Log::error('Schedule update failed with unexpected error', [
                 'schedule_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -526,7 +532,12 @@ class ScheduleController extends Controller
         $schedule = Schedule::findOrFail($id);       
 
         $date = $schedule->date;
+        $scheduleName = $schedule->name;
+        $scheduleId = $schedule->id;
         $schedule->delete();
+        
+        // Log activity
+        $this->logDelete('schedule', $scheduleId, "{$scheduleName} for {$date}");
         
         return response()->json(['message' => 'Schedule ' . $date . ' deleted successfully!']);
     }

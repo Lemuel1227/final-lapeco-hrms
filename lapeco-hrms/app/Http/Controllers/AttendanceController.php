@@ -7,10 +7,13 @@ use App\Models\Schedule;
 use App\Models\ScheduleAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Traits\LogsActivity;
 
 class AttendanceController extends Controller
 {
+    use LogsActivity;
     /**
      * Display a listing of attendance records.
      * New logic: Schedule -> Schedule Assignment -> Attendance
@@ -141,6 +144,12 @@ class AttendanceController extends Controller
             'scheduleAssignment.schedule',
             'scheduleAssignment.user.position'
         ]);
+        
+        // Log activity
+        $userName = $attendance->scheduleAssignment->user ? 
+            $attendance->scheduleAssignment->user->first_name . ' ' . $attendance->scheduleAssignment->user->last_name : 
+            'Employee';
+        $this->logCreate('attendance', $attendance->id, "Attendance for {$userName}");
 
         return response()->json($attendance, 201);
     }
@@ -188,11 +197,11 @@ class AttendanceController extends Controller
                         'ot_hours' => $otHours
                     ]);
                 } else {
-                    \Log::error('No schedule assignment found for attendance ID: ' . $attendance->id);
+                    Log::error('No schedule assignment found for attendance ID: ' . $attendance->id);
                     return response()->json(['message' => 'No schedule assignment found for this attendance record'], 422);
                 }
             } catch (\Exception $e) {
-                \Log::error('Failed to update OT hours: ' . $e->getMessage(), [
+                Log::error('Failed to update OT hours: ' . $e->getMessage(), [
                     'attendance_id' => $attendance->id,
                     'ot_hours' => $request->ot_hours,
                     'trace' => $e->getTraceAsString()
@@ -206,6 +215,9 @@ class AttendanceController extends Controller
             'scheduleAssignment.schedule',
             'scheduleAssignment.user.position'
         ]);
+        
+        // Log activity
+        $this->logUpdate('attendance', $attendance->id, 'Attendance record');
 
         return response()->json($attendance);
     }
@@ -215,7 +227,12 @@ class AttendanceController extends Controller
      */
     public function destroy(Attendance $attendance): JsonResponse
     {
+        $attendanceId = $attendance->id;
         $attendance->delete();
+        
+        // Log activity
+        $this->logDelete('attendance', $attendanceId, 'Attendance record');
+        
         return response()->json(['message' => 'Attendance record deleted successfully']);
     }
 
@@ -334,6 +351,20 @@ class AttendanceController extends Controller
         // The status will be automatically calculated by the model's boot method
         // based on the 15-minute late threshold
         $attendance->save();
+        
+        // Log activity
+        $actionLabels = [
+            'sign_in' => 'Clocked in',
+            'break_out' => 'Started break',
+            'break_in' => 'Ended break',
+            'sign_out' => 'Clocked out'
+        ];
+        $this->logCustomActivity(
+            'clock_action',
+            $actionLabels[$request->action] ?? 'Clock action recorded',
+            'attendance',
+            $attendance->id
+        );
         
         return response()->json([
             'message' => 'Clock action recorded successfully',

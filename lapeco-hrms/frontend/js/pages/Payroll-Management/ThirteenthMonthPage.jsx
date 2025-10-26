@@ -105,7 +105,7 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
     const filteredAndSortedDetails = useMemo(() => {
         let filtered = calculationResults.details.filter(d => 
             d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            d.id.toLowerCase().includes(searchTerm.toLowerCase())
+            String(d.id).toLowerCase().includes(searchTerm.toLowerCase())
         );
 
         return [...filtered].sort((a, b) => {

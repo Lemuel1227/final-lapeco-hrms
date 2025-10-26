@@ -160,9 +160,9 @@ const EmployeeDataPage = () => {
         payload.append('email', employeeData.email);
         if (!isEdit) {
           payload.append('role', employeeData.role || 'REGULAR_EMPLOYEE');
+          if (employeeData.joiningDate) payload.append('joining_date', employeeData.joiningDate);
         }
         if (employeeData.positionId) payload.append('position_id', Number(employeeData.positionId));
-        if (employeeData.joiningDate) payload.append('joining_date', employeeData.joiningDate);
         if (employeeData.birthday) payload.append('birthday', employeeData.birthday);
         if (employeeData.gender) payload.append('gender', employeeData.gender);
         if (employeeData.address) payload.append('address', employeeData.address);
@@ -396,7 +396,7 @@ const EmployeeDataPage = () => {
     }
     if (positionFilter) { records = records.filter(emp => emp.position === positionFilter); }
     if (joiningDateFilter) { records = records.filter(emp => emp.joiningDate === joiningDateFilter); }
-    if (statusFilter) { records = records.filter(emp => (emp.status || 'Pending') === statusFilter); }
+    if (statusFilter) { records = records.filter(emp => (emp.attendance_status || 'Pending') === statusFilter); }
     if (sortConfig.key) {
       records = [...records].sort((a, b) => { // Create new array only when sorting
         // Handle numeric fields (like employee ID) as numbers
@@ -644,7 +644,8 @@ const EmployeeDataPage = () => {
                 <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                     <option value="">All Statuses</option>
                     <option value="Active">Active</option>                   
-                    <option value="Inactive">Inactive</option>                    
+                    <option value="Inactive">Inactive</option>
+                    <option value="Pending">Pending</option>                    
                 </select>
             </div>
             <div className="actions-group">

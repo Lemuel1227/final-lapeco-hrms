@@ -7,6 +7,7 @@ import EmailVerification from './EmailVerification';
 import ThemeSettings from './ThemeSettings';
 import NotificationSettings from './NotificationSettings';
 import LoginActivity from './LoginActivity';
+import ActivityLogs from './ActivityLogs';
 import DataManagementSettings from './DataManagementSettings';
 
 const AccountSettingsPage = () => {
@@ -46,6 +47,7 @@ const AccountSettingsPage = () => {
       { key: 'theme', label: 'Theme & Appearance', icon: 'bi-palette-fill' },
       { key: 'notifications', label: 'Notifications', icon: 'bi-bell-fill' },
       { key: 'loginActivity', label: 'Login Activity', icon: 'bi-shield-check' },
+      { key: 'activityLogs', label: 'Activity Logs', icon: 'bi-activity' },
     ],
     admin: [
       { key: 'dataManagement', label: 'Data Management', icon: 'bi-database-fill-x' },
@@ -83,6 +85,7 @@ const AccountSettingsPage = () => {
               {activeSection === 'theme' && <ThemeSettings theme={theme} onToggleTheme={safeHandlers.toggleTheme} />}
               {activeSection === 'notifications' && <NotificationSettings />}
               {activeSection === 'loginActivity' && <LoginActivity />}
+              {activeSection === 'activityLogs' && <ActivityLogs />}
 
               {isHrUser && activeSection === 'dataManagement' && <DataManagementSettings onReset={safeHandlers.resetSelectedData} />}
           </div>

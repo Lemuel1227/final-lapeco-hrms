@@ -8,9 +8,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivity;
 
 class TerminationController extends Controller
 {
+    use LogsActivity;
     /**
      * Display a listing of the resource.
      */
@@ -51,6 +53,10 @@ class TerminationController extends Controller
         }
 
         $termination->load(['employee', 'terminatedBy']);
+        
+        // Log activity
+        $employeeName = $employee ? trim($employee->first_name . ' ' . $employee->last_name) : 'Employee';
+        $this->logCreate('termination', $termination->id, "Terminated {$employeeName}");
 
         return response()->json([
             'message' => 'Employee terminated successfully',
@@ -82,6 +88,9 @@ class TerminationController extends Controller
 
         $termination->update($validated);
         $termination->load(['employee', 'terminatedBy']);
+        
+        // Log activity
+        $this->logUpdate('termination', $termination->id, "Termination #{$termination->id}");
 
         return response()->json([
             'message' => 'Termination updated successfully',
@@ -101,7 +110,11 @@ class TerminationController extends Controller
             $employee->save();
         }
 
+        $terminationId = $termination->id;
         $termination->delete();
+        
+        // Log activity
+        $this->logDelete('termination', $terminationId, "Termination #{$terminationId}");
 
         return response()->json([
             'message' => 'Termination record deleted successfully'

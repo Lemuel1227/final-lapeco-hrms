@@ -44,7 +44,7 @@ const OffboardedEmployeesTab = ({ employees, resignations, positions, payrolls, 
             const resignationRecord = resignations.find(r => r.employeeId === emp.id);
             const lastPositionTitle = resignationRecord?.position || 'Unassigned';
 
-            const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || emp.id.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || String(emp.id).toLowerCase().includes(searchTerm.toLowerCase());
             const matchesPosition = positionFilter === 'All' || lastPositionTitle === positionFilter;
             return matchesSearch && matchesPosition;
         });

@@ -189,7 +189,16 @@ export const templateAPI = {
 export const applicantAPI = {
   getAll: (summary = false) => api.get('/applicants', { params: { summary: summary ? 'true' : 'false' } }),
   getById: (id) => api.get(`/applicants/${id}`),
-  create: (data) => api.post('/applicants', data),
+  create: (data) => {
+    // Convert to FormData if files are present
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== null && data[key] !== undefined && data[key] !== '') {
+        formData.append(key, data[key]);
+      }
+    });
+    return api.post('/applicants', formData);
+  },
   update: (id, data) => api.put(`/applicants/${id}`, data),
   delete: (id) => api.delete(`/applicants/${id}`),
   updateStatus: (id, data) => api.put(`/applicants/${id}/status`, data),

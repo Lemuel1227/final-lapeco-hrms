@@ -17,9 +17,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Traits\LogsActivity;
 
 class ApplicantController extends Controller
 {
+    use LogsActivity;
 
 
     /**
@@ -100,7 +102,11 @@ class ApplicantController extends Controller
                 'middle_name' => 'nullable|string|max:255',
                 'phone' => 'nullable|string|max:20',
                 'birthday' => 'nullable|date|before_or_equal:' . now()->subYears(18)->toDateString(),
-                'gender' => 'nullable|in:Male,Female,Other',
+                'gender' => 'nullable|in:Male,Female',
+                'sss_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:12',
+                'tin_no' => 'nullable|string|regex:/^[0-9\-]+$/|min:11|max:15',
+                'pag_ibig_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:14',
+                'philhealth_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:14',
                 'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB max
                 'profile_picture' => 'nullable|file|mimes:jpeg,jpg,png,gif|max:2048', // 2MB max
             ]);
@@ -135,6 +141,9 @@ class ApplicantController extends Controller
 
             $this->sendApplicationReceivedEmail($applicant);
             $this->notifyHrOfNewApplicant($applicant);
+            
+            // Log activity
+            $this->logCreate('applicant', $applicant->id, $applicant->full_name);
 
             return response()->json([
                 'message' => 'Applicant created successfully',
@@ -173,7 +182,11 @@ class ApplicantController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
             'birthday' => 'nullable|date',
-            'gender' => 'nullable|in:Male,Female,Other',
+            'gender' => 'nullable|in:Male,Female',
+            'sss_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:12',
+            'tin_no' => 'nullable|string|regex:/^[0-9\-]+$/|min:11|max:15',
+            'pag_ibig_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:14',
+            'philhealth_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:14',
             'status' => 'nullable|in:New Applicant,Interview,Offer,Hired,Rejected',
             'notes' => 'nullable|string',
             'resume_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
@@ -237,6 +250,9 @@ class ApplicantController extends Controller
 
         $applicant->refresh();
         $this->sendApplicantStatusUpdatedEmail($applicant);
+        
+        // Log activity
+        $this->logCustomActivity('update_status', "Updated applicant status to {$request->status}", 'applicant', $applicant->id);
 
         return response()->json([
             'message' => 'Applicant status updated successfully',
@@ -311,19 +327,28 @@ class ApplicantController extends Controller
             DB::beginTransaction();
 
             // Convert applicant to employee using User model method
-            \Log::info('Hiring applicant: starting conversion', [
+            Log::info('Hiring applicant: starting conversion', [
                 'applicant_id' => $applicant->id,
                 'position_id' => $request->position_id,
                 'applicant_has_resume' => !empty($applicant->resume_file),
                 'resume_exists' => $applicant->resume_file ? Storage::disk('local')->exists($applicant->resume_file) : null,
             ]);
 
+            // Sanitize applicant data: convert empty strings to null for cleaner data
+            $applicantData = $applicant->toArray();
+            $fieldsToSanitize = ['gender', 'phone', 'address', 'sss_no', 'tin_no', 'pag_ibig_no', 'philhealth_no', 'middle_name'];
+            foreach ($fieldsToSanitize as $field) {
+                if (isset($applicantData[$field]) && $applicantData[$field] === '') {
+                    $applicantData[$field] = null;
+                }
+            }
+
             $employee = User::createFromApplicant(
-                $applicant->toArray(),
+                $applicantData,
                 $request->position_id
             );
 
-            \Log::info('Hiring applicant: employee created', [
+            Log::info('Hiring applicant: employee created', [
                 'employee_id' => $employee->id,
                 'employee_resume_file' => $employee->resume_file,
                 'employee_resume_exists' => $employee->resume_file ? Storage::disk('local')->exists($employee->resume_file) : null,
@@ -331,7 +356,7 @@ class ApplicantController extends Controller
 
             // Override joining date if provided
             if ($request->start_date) {
-                \Log::info('Hiring applicant: overriding joining date', [
+                Log::info('Hiring applicant: overriding joining date', [
                     'employee_id' => $employee->id,
                     'new_joining_date' => $request->start_date,
                 ]);
@@ -339,7 +364,7 @@ class ApplicantController extends Controller
             }
 
             // Update applicant status to hired
-            \Log::info('Hiring applicant: updating applicant status to Hired', [
+            Log::info('Hiring applicant: updating applicant status to Hired', [
                 'applicant_id' => $applicant->id,
             ]);
             $applicant->update(['status' => 'Hired']);
@@ -357,6 +382,12 @@ class ApplicantController extends Controller
             $this->sendApplicantHiredEmail($applicant, $accountDetails);
 
             DB::commit();
+            
+            // Log activity
+            $this->logCustomActivity('hire', "Hired applicant {$applicant->full_name} as employee", 'applicant', $applicant->id, [
+                'employee_id' => $employee->id,
+                'position_id' => $request->position_id
+            ]);
 
             return response()->json([
                 'message' => 'Applicant hired successfully',
@@ -368,7 +399,7 @@ class ApplicantController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            \Log::error('Hiring applicant failed', [
+            Log::error('Hiring applicant failed', [
                 'applicant_id' => $applicant->id,
                 'position_id' => $request->position_id,
                 'exception' => $e->getMessage(),
@@ -406,7 +437,12 @@ class ApplicantController extends Controller
             Storage::disk('local')->delete($applicant->resume_file);
         }
 
+        $applicantName = $applicant->full_name;
+        $applicantId = $applicant->id;
         $applicant->delete();
+        
+        // Log activity
+        $this->logDelete('applicant', $applicantId, $applicantName);
 
         return response()->json([
             'message' => 'Applicant deleted successfully'
@@ -428,7 +464,7 @@ class ApplicantController extends Controller
         }
 
         $path = Storage::disk('local')->path($applicant->resume_file);
-        $mimeType = Storage::disk('local')->mimeType($applicant->resume_file);
+        $mimeType = mime_content_type($path);
         
         return response()->file($path, [
             'Content-Type' => $mimeType,
@@ -451,7 +487,7 @@ class ApplicantController extends Controller
         }
 
         $filename = basename($applicant->resume_file);
-        return Storage::disk('local')->download($applicant->resume_file, $filename);
+        return response()->download(Storage::disk('local')->path($applicant->resume_file), $filename);
     }
 
     /**

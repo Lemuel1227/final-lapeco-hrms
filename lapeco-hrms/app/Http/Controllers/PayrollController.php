@@ -16,9 +16,11 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Traits\LogsActivity;
 
 class PayrollController extends Controller
 {
+    use LogsActivity;
     public function index()
     {
         // Lightweight summary endpoint - only basic period info
@@ -337,6 +339,13 @@ class PayrollController extends Controller
             ];
         });
 
+        // Log activity
+        $this->logCustomActivity('generate', "Generated payroll for {$label}", 'payroll', $result['period']->id, [
+            'employees_processed' => $result['employees_processed'],
+            'period_start' => $startDate,
+            'period_end' => $endDate
+        ]);
+        
         return response()->json([
             'message' => 'Payroll generated successfully.',
             'period' => [

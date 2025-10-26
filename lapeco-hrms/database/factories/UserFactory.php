@@ -23,7 +23,7 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
-        $genders = ['Male', 'Female', 'Other'];
+        $genders = ['Male', 'Female'];
         $roleOptions = ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'];
 
         $firstName = $this->faker->firstName();

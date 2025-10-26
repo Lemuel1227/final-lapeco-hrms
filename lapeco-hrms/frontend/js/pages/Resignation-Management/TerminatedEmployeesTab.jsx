@@ -28,7 +28,7 @@ const TerminatedEmployeesTab = ({ employees, terminations, positions, positionMa
     const filteredAndSorted = useMemo(() => {
         let filtered = terminatedEmployeesWithData.filter(emp => 
             emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            emp.id.toLowerCase().includes(searchTerm.toLowerCase())
+            String(emp.id).toLowerCase().includes(searchTerm.toLowerCase())
         );
 
         return [...filtered].sort((a, b) => {

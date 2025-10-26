@@ -8,9 +8,11 @@
  use Illuminate\Http\JsonResponse;
  use Illuminate\Validation\Rule;
  use Illuminate\Support\Facades\Storage;
+ use App\Traits\LogsActivity;
  
  class DisciplinaryCaseController extends Controller
  {
+     use LogsActivity;
      private const ALLOWED_REASONS = [
          'Tardiness / Punctuality',
          'Safety Violation',
@@ -93,6 +95,12 @@
  
          // Load the employee relationship
          $case->load('employee:id,first_name,middle_name,last_name');
+         
+         // Log activity
+         $employeeName = $case->employee ? 
+             trim($case->employee->first_name . ' ' . $case->employee->last_name) : 
+             'Employee';
+         $this->logCreate('disciplinary_case', $case->id, "Case for {$employeeName} - {$case->action_type}");
  
          return response()->json(array_merge($case->toArray(), [
              'attachments' => $attachments,
@@ -162,6 +170,9 @@
              : [];
  
          $disciplinaryCase->load('employee:id,first_name,middle_name,last_name');
+         
+         // Log activity
+         $this->logUpdate('disciplinary_case', $disciplinaryCase->id, "Disciplinary case #{$disciplinaryCase->id}");
  
          return response()->json(array_merge($disciplinaryCase->toArray(), [
              'attachments' => $attachments,
@@ -173,7 +184,12 @@
       */
      public function destroy(DisciplinaryCase $disciplinaryCase): JsonResponse
      {
+         $caseId = $disciplinaryCase->id;
          $disciplinaryCase->delete();
+         
+         // Log activity
+         $this->logDelete('disciplinary_case', $caseId, "Disciplinary case #{$caseId}");
+         
          return response()->json(['message' => 'Disciplinary case deleted successfully']);
      }
  
@@ -291,7 +307,8 @@
          if (!Storage::disk('local')->exists($path)) {
              return response()->json(['message' => 'File not found'], 404);
          }
-         return Storage::disk('local')->download($path, $filename);
+         $fullPath = Storage::disk('local')->path($path);
+         return response()->download($fullPath, $filename);
      }
  
      /**

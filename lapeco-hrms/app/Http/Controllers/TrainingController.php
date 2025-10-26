@@ -8,9 +8,11 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivity;
 
 class TrainingController extends Controller
 {
+    use LogsActivity;
     /**
      * Display a listing of training programs with enrollment statistics.
      */
@@ -74,6 +76,9 @@ class TrainingController extends Controller
         ]);
 
         $program = TrainingProgram::create($validated);
+        
+        // Log activity
+        $this->logCreate('training_program', $program->id, $program->title);
 
         return response()->json([
             'message' => 'Training program created successfully',
@@ -126,6 +131,9 @@ class TrainingController extends Controller
         ]);
 
         $program->update($validated);
+        
+        // Log activity
+        $this->logUpdate('training_program', $program->id, $program->title);
 
         return response()->json([
             'message' => 'Training program updated successfully',
@@ -151,7 +159,12 @@ class TrainingController extends Controller
             ], 200); // Changed from 422 to 200 to indicate it's a warning, not an error
         }
 
+        $programTitle = $program->title;
+        $programId = $program->id;
         $program->delete();
+        
+        // Log activity
+        $this->logDelete('training_program', $programId, $programTitle);
 
         return response()->json([
             'message' => 'Training program deleted successfully'
@@ -254,6 +267,10 @@ class TrainingController extends Controller
                 $enrollment->user->last_name,
             ])));
         }
+        
+        // Log activity
+        $userName = $enrollment->user->name ?? 'User';
+        $this->logCustomActivity('enroll', "Enrolled {$userName} in {$program->title}", 'training_enrollment', $enrollment->id);
 
         return response()->json([
             'message' => 'User enrolled successfully',

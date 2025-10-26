@@ -7,9 +7,11 @@ use App\Models\Holiday;
 use App\Models\User;
 use App\Models\Notification;
 use Carbon\Carbon;
+use App\Traits\LogsActivity;
 
 class HolidayController extends Controller
 {
+    use LogsActivity;
     public function index(Request $request)
     {
         $holidays = Holiday::orderBy('date')->get();
@@ -32,6 +34,10 @@ class HolidayController extends Controller
             'description' => 'nullable|string',
         ]);
         $holiday = Holiday::create($data);
+        
+        // Log activity
+        $this->logCreate('holiday', $holiday->id, $holiday->title);
+        
         return response()->json($holiday, 201);
     }
 
@@ -45,12 +51,22 @@ class HolidayController extends Controller
             'description' => 'sometimes|nullable|string',
         ]);
         $holiday->update($data);
+        
+        // Log activity
+        $this->logUpdate('holiday', $holiday->id, $holiday->title);
+        
         return response()->json($holiday);
     }
 
     public function destroy(Holiday $holiday)
     {
+        $holidayTitle = $holiday->title;
+        $holidayId = $holiday->id;
         $holiday->delete();
+        
+        // Log activity
+        $this->logDelete('holiday', $holidayId, $holidayTitle);
+        
         return response()->json(null, 204);
     }
     

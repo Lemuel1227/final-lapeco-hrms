@@ -8,9 +8,11 @@
     use App\Models\LeaveCredit;
     use App\Models\Notification;
     use Illuminate\Validation\ValidationException;
+    use App\Traits\LogsActivity;
 
     class LeaveController extends Controller
     {
+        use LogsActivity;
         /**
          * Helper method to compute full name from name components
          */
@@ -145,6 +147,9 @@
                     );
                 }
                 
+                // Log activity
+                $this->logCreate('leave', $leave->id, "{$data['type']} for {$data['days']} day(s)");
+                
                 return response()->json([
                     'success' => true,
                     'message' => 'Your leave request has been submitted successfully and is pending approval.',
@@ -228,6 +233,13 @@
                 $leave->user->name = $this->computeFullName($leave->user);
             }
             
+            // Log activity
+            if (isset($validated['status'])) {
+                $this->logCustomActivity('update_status', "Updated leave status to {$validated['status']}", 'leave', $leave->id);
+            } else {
+                $this->logUpdate('leave', $leave->id, $leave->type);
+            }
+            
             return response()->json($leave);
         }
 
@@ -237,7 +249,14 @@
             if ($user->role !== 'HR_PERSONNEL' && $leave->user_id !== $user->id) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
+            
+            $leaveType = $leave->type;
+            $leaveId = $leave->id;
             $leave->delete();
+            
+            // Log activity
+            $this->logDelete('leave', $leaveId, $leaveType);
+            
             return response()->json(null, 204);
         }
 

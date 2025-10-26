@@ -87,6 +87,14 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
         Route::get('/sessions', [SessionController::class, 'index']);
         Route::delete('/sessions/{sessionId}', [SessionController::class, 'destroy']);
     });
+    
+    // Activity logs - user's own logs
+    Route::get('/activity-logs', [SessionController::class, 'getActivityLogs']);
+    Route::get('/activity-logs/action-types', [SessionController::class, 'getActionTypes']);
+    Route::get('/activity-logs/entity-types', [SessionController::class, 'getEntityTypes']);
+    
+    // Activity logs - all users (HR/Admin only)
+    Route::middleware(['role.access:employee,index'])->get('/activity-logs/all', [SessionController::class, 'getAllActivityLogs']);
 
     
     // Employee Data - with role-based access control

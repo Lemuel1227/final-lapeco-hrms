@@ -158,13 +158,16 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public static function createFromApplicant($applicantData, $positionId, $employeeId = null)
     {
+        // Helper function to convert empty strings to null
+        $nullIfEmpty = fn($value) => (isset($value) && $value !== '') ? $value : null;
+        
         // Map applicant data to employee data
         $employeeData = [
             'name' => trim($applicantData['first_name'] . ' ' . 
                           ($applicantData['middle_name'] ? $applicantData['middle_name'] . ' ' : '') . 
                           $applicantData['last_name']),
             'first_name' => $applicantData['first_name'],
-            'middle_name' => $applicantData['middle_name'] ?? null,
+            'middle_name' => $nullIfEmpty($applicantData['middle_name'] ?? null),
             'last_name' => $applicantData['last_name'],
             'email' => $applicantData['email'],
             'password' => bcrypt('temporary'), // Temporary password, will be updated after creation
@@ -172,10 +175,15 @@ class User extends Authenticatable implements MustVerifyEmail
             'position_id' => $positionId,
             'joining_date' => now()->toDateString(),
             'birthday' => isset($applicantData['birthday']) ? date('Y-m-d', strtotime($applicantData['birthday'])) : null,
-            'gender' => $applicantData['gender'] ?? null,
-            'contact_number' => $applicantData['phone'] ?? null,
-            'resume_file' => $applicantData['resume_file'] ?? null,
-            'image_url' => $applicantData['profile_picture'] ?? null, // Transfer profile picture
+            'gender' => $nullIfEmpty($applicantData['gender'] ?? null),
+            'contact_number' => $nullIfEmpty($applicantData['phone'] ?? null),
+            'address' => $nullIfEmpty($applicantData['address'] ?? null),
+            'sss_no' => $nullIfEmpty($applicantData['sss_no'] ?? null),
+            'tin_no' => $nullIfEmpty($applicantData['tin_no'] ?? null),
+            'pag_ibig_no' => $nullIfEmpty($applicantData['pag_ibig_no'] ?? null),
+            'philhealth_no' => $nullIfEmpty($applicantData['philhealth_no'] ?? null),
+            'resume_file' => $nullIfEmpty($applicantData['resume_file'] ?? null),
+            'image_url' => $nullIfEmpty($applicantData['profile_picture'] ?? null), // Transfer profile picture
             'account_status' => 'Active',
             'login_attempts' => 0,
             'password_changed' => false, // New employees haven't changed their password yet

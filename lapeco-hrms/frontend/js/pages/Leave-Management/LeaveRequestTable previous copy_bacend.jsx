@@ -41,7 +41,7 @@ const LeaveRequestTable = ({ leaveRequests, handlers }) => {
       const lowerSearch = searchTerm.toLowerCase();
       results = results.filter(req => 
         req.name.toLowerCase().includes(lowerSearch) ||
-        (req.empId && req.empId.toLowerCase().includes(lowerSearch)) ||
+        (req.empId && String(req.empId).toLowerCase().includes(lowerSearch)) ||
         req.position.toLowerCase().includes(lowerSearch)
       );
     }

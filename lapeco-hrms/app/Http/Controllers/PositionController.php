@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Position;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Traits\LogsActivity;
 
 class PositionController extends Controller
 {
+    use LogsActivity;
     public function index(Request $request)
     {
         // Enhanced version for authenticated users (web interface)
@@ -54,6 +56,10 @@ class PositionController extends Controller
         ]);
 
         $position = Position::create($validated);
+        
+        // Log activity
+        $this->logCreate('position', $position->id, $position->name);
+        
         return response()->json($position, 201);
     }
 
@@ -70,12 +76,22 @@ class PositionController extends Controller
         ]);
 
         $position->update($validated);
+        
+        // Log activity
+        $this->logUpdate('position', $position->id, $position->name);
+        
         return response()->json($position);
     }
 
     public function destroy(Position $position)
     {
+        $positionName = $position->name;
+        $positionId = $position->id;
         $position->delete();
+        
+        // Log activity
+        $this->logDelete('position', $positionId, $positionName);
+        
         return response()->json(null, 204);
     }
 

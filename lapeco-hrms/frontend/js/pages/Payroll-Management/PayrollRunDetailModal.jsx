@@ -32,7 +32,7 @@ const PayrollRunDetailModal = ({ show, onClose, run, onAdjust }) => {
     const lowerSearch = searchTerm.toLowerCase();
     return records.filter(rec => 
         rec.employeeName.toLowerCase().includes(lowerSearch) ||
-        rec.empId.toLowerCase().includes(lowerSearch)
+        String(rec.empId).toLowerCase().includes(lowerSearch)
     );
   }, [records, searchTerm]);
   

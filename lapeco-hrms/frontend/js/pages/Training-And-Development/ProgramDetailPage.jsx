@@ -94,7 +94,7 @@ const ProgramDetailPage = () => {
       const lowerSearch = searchTerm.toLowerCase();
       filtered = filtered.filter(enr => 
         enr.employeeName.toLowerCase().includes(lowerSearch) ||
-        enr.employeeId.toLowerCase().includes(lowerSearch)
+        String(enr.employeeId).toLowerCase().includes(lowerSearch)
       );
     }
     if (sortConfig.key) {

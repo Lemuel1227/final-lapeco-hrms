@@ -8,9 +8,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Traits\LogsActivity;
 
 class ResignationController extends Controller
 {
+    use LogsActivity;
     /**
      * Display a listing of the resource.
      */
@@ -38,6 +40,12 @@ class ResignationController extends Controller
 
         $resignation = Resignation::create($validated);
         $resignation->load(['employee', 'approver']);
+        
+        // Log activity
+        $employeeName = $resignation->employee ? 
+            trim($resignation->employee->first_name . ' ' . $resignation->employee->last_name) : 
+            'Employee';
+        $this->logCreate('resignation', $resignation->id, "Resignation for {$employeeName}");
 
         return response()->json($resignation, 201);
     }
@@ -68,6 +76,9 @@ class ResignationController extends Controller
 
         $resignation->update($validated);
         $resignation->load(['employee', 'approver']);
+        
+        // Log activity
+        $this->logUpdate('resignation', $resignation->id, "Resignation #{$resignation->id}");
 
         // Update employee status if resignation is approved
         if (isset($validated['status']) && $validated['status'] === 'approved') {

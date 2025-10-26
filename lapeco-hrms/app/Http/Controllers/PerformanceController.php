@@ -10,9 +10,11 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Traits\LogsActivity;
 
 class PerformanceController extends Controller
 {
+    use LogsActivity;
     public function index(Request $request)
     {
         $periods = PerformanceEvaluationPeriod::with([
@@ -443,6 +445,9 @@ class PerformanceController extends Controller
             ]);
 
             $this->seedEvaluationsForPeriod($period);
+            
+            // Log activity
+            $this->logCreate('evaluation_period', $period->id, $period->name);
 
             return response()->json([
                 'message' => 'Evaluation period created successfully.',
@@ -483,6 +488,9 @@ class PerformanceController extends Controller
         $period->fill($validated);
         $period->updated_by = $user?->id;
         $period->save();
+        
+        // Log activity
+        $this->logUpdate('evaluation_period', $period->id, $period->name);
 
         return response()->json([
             'message' => 'Evaluation period updated successfully.',
@@ -560,6 +568,12 @@ class PerformanceController extends Controller
             );
 
             $this->refreshEvaluationAggregate($evaluation);
+            
+            // Log activity
+            $employeeName = $evaluation->employee ? 
+                trim($evaluation->employee->first_name . ' ' . $evaluation->employee->last_name) : 
+                'Employee';
+            $this->logCustomActivity('evaluate', "Submitted evaluation for {$employeeName}", 'performance_evaluation', $evaluation->id);
 
             return response()->json([
                 'message' => 'Evaluation response saved successfully.',
