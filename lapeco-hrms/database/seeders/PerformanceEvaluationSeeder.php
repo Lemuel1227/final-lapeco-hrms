@@ -24,7 +24,6 @@ class PerformanceEvaluationSeeder extends Seeder
                 'name' => 'Q1 2025 Performance Evaluation',
                 'evaluation_start' => '2025-01-01',
                 'evaluation_end' => '2025-03-31',
-                'status' => 'completed',
                 'open_date' => '2025-04-01',
                 'close_date' => '2025-04-15',
                 'overall_score' => 87.5,
@@ -37,7 +36,6 @@ class PerformanceEvaluationSeeder extends Seeder
                 'name' => 'Q2 2025 Performance Evaluation',
                 'evaluation_start' => '2025-04-01',
                 'evaluation_end' => '2025-06-30',
-                'status' => 'completed',
                 'open_date' => '2025-07-01',
                 'close_date' => '2025-07-15',
                 'overall_score' => 89.2,
@@ -50,7 +48,6 @@ class PerformanceEvaluationSeeder extends Seeder
                 'name' => 'Q3 2025 Performance Evaluation',
                 'evaluation_start' => '2025-07-01',
                 'evaluation_end' => '2025-09-30',
-                'status' => 'active',
                 'open_date' => '2025-09-01',
                 'close_date' => '2025-09-30',
                 'overall_score' => null,
@@ -63,7 +60,6 @@ class PerformanceEvaluationSeeder extends Seeder
                 'name' => 'Q4 2025 Performance Evaluation',
                 'evaluation_start' => '2025-10-01',
                 'evaluation_end' => '2025-12-31',
-                'status' => 'scheduled',
                 'open_date' => '2026-01-05',
                 'close_date' => '2026-01-20',
                 'overall_score' => null,
@@ -76,7 +72,6 @@ class PerformanceEvaluationSeeder extends Seeder
                 'name' => 'Annual 2025 Performance Review',
                 'evaluation_start' => '2025-01-01',
                 'evaluation_end' => '2025-12-31',
-                'status' => 'scheduled',
                 'open_date' => '2026-01-10',
                 'close_date' => '2026-02-10',
                 'overall_score' => null,
@@ -113,7 +108,7 @@ class PerformanceEvaluationSeeder extends Seeder
                         'employee_id' => $member->id,
                     ]);
 
-                    if ($period->status === 'completed') {
+                    if ($period->status === 'closed') {
                         $this->seedResponsesForEvaluation($evaluation, $positionLeaders, $positionMembers, $period);
                     }
                 }
@@ -132,7 +127,7 @@ class PerformanceEvaluationSeeder extends Seeder
                     'employee_id' => $leader->id,
                 ]);
 
-                if ($period->status === 'completed') {
+                if ($period->status === 'closed') {
                     $this->seedResponsesForEvaluation($evaluation, $positionMembers, collect([$leader]), $period, true);
                 }
             }

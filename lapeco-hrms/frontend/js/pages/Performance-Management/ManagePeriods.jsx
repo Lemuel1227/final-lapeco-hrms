@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { startOfDay, endOfDay, isPast, isFuture, parseISO } from 'date-fns';
+import { startOfDay, endOfDay, parseISO } from 'date-fns';
 import PeriodCard from './PeriodCard';
 import AddEditPeriodModal from '../../modals/AddEditPeriodModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
@@ -79,26 +79,10 @@ const ManagePeriods = ({
     [...evaluationPeriods].sort((a,b) => new Date(b.evaluationStart) - new Date(a.evaluationStart))
   , [evaluationPeriods]);
 
-  const getPeriodStatusValue = (period) => {
-    const today = startOfDay(new Date());
-    const openWindowStart = period.openDate ? startOfDay(parseISO(period.openDate)) : null;
-    const openWindowEnd = period.closeDate ? endOfDay(parseISO(period.closeDate)) : null;
-    const fallbackStart = period.evaluationStart ? startOfDay(parseISO(period.evaluationStart)) : null;
-    const fallbackEnd = period.evaluationEnd ? endOfDay(parseISO(period.evaluationEnd)) : null;
-
-    const windowStart = openWindowStart || fallbackStart;
-    const windowEnd = openWindowEnd || fallbackEnd;
-
-    if (windowStart && windowEnd && today >= windowStart && today <= windowEnd) return 'active';
-    if (windowStart && isFuture(windowStart)) return 'upcoming';
-    if (windowEnd && isPast(windowEnd)) return 'closed';
-    return 'closed';
-  };
-
   const filteredAndSortedPeriods = useMemo(() => {
     let periods = [...sortedEvaluationPeriods];
     if (periodStatusFilter !== 'all') {
-      periods = periods.filter(p => getPeriodStatusValue(p) === periodStatusFilter);
+      periods = periods.filter(p => (p.status || '').toLowerCase() === periodStatusFilter);
     }
     if (periodSearchTerm) {
       const lowerSearch = periodSearchTerm.toLowerCase();

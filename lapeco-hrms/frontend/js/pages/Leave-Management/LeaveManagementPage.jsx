@@ -6,6 +6,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { leaveAPI, employeeAPI } from '../../services/api';
 import './LeaveManagementPage.css';
+import NotificationToast from '../../common/ToastNotification';
 
 const LeaveManagementPage = () => {
   const [activeTab, setActiveTab] = useState('requests');
@@ -14,6 +15,7 @@ const LeaveManagementPage = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -118,7 +120,15 @@ const LeaveManagementPage = () => {
       // For now, just a placeholder
     }
   };
-  
+
+  const showToast = (toastData = {}) => {
+    setToast({
+      show: true,
+      message: toastData.message || 'Action completed successfully.',
+      type: toastData.type || 'success',
+    });
+  };
+
   const handleGenerateReport = (params) => {
     setShowReportModal(false);
     generateReport(
@@ -166,44 +176,45 @@ const LeaveManagementPage = () => {
         {!loading && !error && (
           <>
             <div className="d-flex justify-content-between align-items-center border-bottom">
-          <ul className="nav nav-tabs leave-management-tabs">
-            <li className="nav-item">
-              <button 
-                className={`nav-link ${activeTab === 'requests' ? 'active' : ''}`}
-                onClick={() => setActiveTab('requests')}
-              >
-                <i className="bi bi-card-list me-2"></i>Leave Requests
+              <ul className="nav nav-tabs leave-management-tabs">
+                <li className="nav-item">
+                  <button 
+                    className={`nav-link ${activeTab === 'requests' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('requests')}
+                  >
+                    <i className="bi bi-card-list me-2"></i>Leave Requests
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button 
+                    className={`nav-link ${activeTab === 'credits' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('credits')}
+                  >
+                    <i className="bi bi-coin me-2"></i>Leave Credits
+                  </button>
+                </li>
+              </ul>
+              <button className="btn btn-outline-secondary me-2" onClick={() => setShowReportModal(true)}>
+                <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
               </button>
-            </li>
-            <li className="nav-item">
-              <button 
-                className={`nav-link ${activeTab === 'credits' ? 'active' : ''}`}
-                onClick={() => setActiveTab('credits')}
-              >
-                <i className="bi bi-coin me-2"></i>Leave Credits
-              </button>
-            </li>
-          </ul>
-          <button className="btn btn-outline-secondary me-2" onClick={() => setShowReportModal(true)}>
-            <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
-          </button>
-        </div>
+            </div>
 
-        <div className="leave-tab-content">
-          {activeTab === 'requests' && (
-            <LeaveRequestTable 
-              leaveRequests={leaveRequests} 
-              handlers={handlers}
-            />
-          )}
-          {activeTab === 'credits' && (
-            <LeaveCreditsTab 
-              employees={employees}
-              leaveRequests={leaveRequests}
-              handlers={handlers}
-            />
-          )}
-        </div>
+            <div className="leave-tab-content">
+              {activeTab === 'requests' && (
+                <LeaveRequestTable 
+                  leaveRequests={leaveRequests} 
+                  handlers={handlers}
+                />
+              )}
+              {activeTab === 'credits' && (
+                <LeaveCreditsTab 
+                  employees={employees}
+                  leaveRequests={leaveRequests}
+                  handlers={handlers}
+                  onShowToast={showToast}
+                />
+              )}
+            </div>
           </>
         )}
       </div>
@@ -220,6 +231,14 @@ const LeaveManagementPage = () => {
           onClose={handleCloseReportPreview}
           pdfDataUri={pdfDataUri}
           reportTitle="Leave Requests Report"
+        />
+      )}
+
+      {toast.show && (
+        <NotificationToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(prev => ({ ...prev, show: false }))}
         />
       )}
     </>

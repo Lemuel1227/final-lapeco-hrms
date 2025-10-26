@@ -1,5 +1,4 @@
 import React from 'react';
-import { startOfDay, endOfDay, isPast, isFuture, parseISO } from 'date-fns';
 import ActionsDropdown from '../../common/ActionsDropdown';
 
 const PeriodCard = ({ period, evaluationsCount, totalTargetEvaluations, onEdit, onDelete, onViewResults }) => {
@@ -7,18 +6,15 @@ const PeriodCard = ({ period, evaluationsCount, totalTargetEvaluations, onEdit, 
   const activationStart = period.activationStart || period.openDate || null;
   const activationEnd = period.activationEnd || period.closeDate || null;
 
-  const getStatus = () => {
-    const today = startOfDay(new Date());
-    const start = activationStart ? startOfDay(parseISO(activationStart)) : null;
-    const end = activationEnd ? endOfDay(parseISO(activationEnd)) : null;
-
-    if (start && end && today >= start && today <= end) return { text: 'Active', className: 'active', icon: 'bi-broadcast-pin' };
-    if (start && isFuture(start)) return { text: 'Upcoming', className: 'upcoming', icon: 'bi-calendar-event' };
-    if (end && isPast(end)) return { text: 'Closed', className: 'closed', icon: 'bi-archive-fill' };
-    return { text: 'Unknown', className: 'closed', icon: 'bi-question-circle' };
+  const statusMap = {
+    active: { text: 'Active', className: 'active', icon: 'bi-broadcast-pin' },
+    upcoming: { text: 'Upcoming', className: 'upcoming', icon: 'bi-calendar-event' },
+    closed: { text: 'Closed', className: 'closed', icon: 'bi-archive-fill' },
   };
 
-  const status = getStatus();
+  const statusKey = (period.status || '').toLowerCase();
+  const status = statusMap[statusKey] ?? { text: 'Unknown', className: 'closed', icon: 'bi-question-circle' };
+
   const completionPercentage = totalTargetEvaluations > 0 ? (evaluationsCount / totalTargetEvaluations) * 100 : 0;
 
   const getProgressBarClass = (percentage) => {
