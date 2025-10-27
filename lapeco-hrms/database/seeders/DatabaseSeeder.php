@@ -283,61 +283,6 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        // Seed schedules and schedule assignments (one schedule per date)
-        $schedules = [
-            [
-                'name' => 'Schedule for ' . now()->format('Y-m-d'),
-                'date' => now()->format('Y-m-d'),
-                'description' => 'Daily operations schedule for warehouse',
-            ],
-            [
-                'name' => 'Schedule for ' . now()->addDay()->format('Y-m-d'),
-                'date' => now()->addDay()->format('Y-m-d'),
-                'description' => 'Daily operations schedule for warehouse',
-            ],
-            [
-                'name' => 'Schedule for ' . now()->addDays(2)->format('Y-m-d'),
-                'date' => now()->addDays(2)->format('Y-m-d'),
-                'description' => 'Daily operations schedule for warehouse',
-            ],
-        ];
-
-        $createdSchedules = [];
-        foreach ($schedules as $scheduleData) {
-            $schedule = Schedule::create($scheduleData);
-            $createdSchedules[] = $schedule;
-        }
-
-        // Assign users to schedules with different shifts
-        $activeUsers = User::where('account_status', 'Active')->get();
-        $shifts = [
-            ['start_time' => '08:00', 'end_time' => '17:00', 'type' => 'Morning Shift'],
-            ['start_time' => '14:00', 'end_time' => '23:00', 'type' => 'Afternoon Shift'],
-            ['start_time' => '22:00', 'end_time' => '07:00', 'type' => 'Night Shift'],
-        ];
-
-        foreach ($createdSchedules as $schedule) {
-            // For each schedule, assign users to different shifts
-            $availableUsers = $activeUsers->shuffle();
-            $usersPerShift = intval($availableUsers->count() / 3); // Distribute users across 3 shifts
-            
-            foreach ($shifts as $shiftIndex => $shift) {
-                $startIndex = $shiftIndex * $usersPerShift;
-                $endIndex = ($shiftIndex === 2) ? $availableUsers->count() : ($shiftIndex + 1) * $usersPerShift;
-                $usersForShift = $availableUsers->slice($startIndex, $endIndex - $startIndex);
-                
-                foreach ($usersForShift as $user) {
-                    ScheduleAssignment::create([
-                        'schedule_id' => $schedule->id,
-                        'user_id' => $user->id,
-                        'start_time' => $shift['start_time'],
-                        'end_time' => $shift['end_time'],
-                        'notes' => $shift['type'] . ' assignment for ' . $schedule->name,
-                    ]);
-                }
-            }
-        }
-
         $this->call(PerformanceEvaluationSeeder::class);
 
 
@@ -489,6 +434,13 @@ class DatabaseSeeder extends Seeder
         // Seed applicant data
         $this->call(ApplicantSeeder::class);
         
+        // Seed resignation data
+        $this->call(ResignationSeeder::class);
+        
+        // Seed termination data
+        $this->call(TerminationSeeder::class);
+        // Seed attendance data
+
         // Seed schedule template data
         $this->call(ScheduleTemplateSeeder::class);
         
@@ -498,14 +450,8 @@ class DatabaseSeeder extends Seeder
         // Seed schedule assignment data
         $this->call(ScheduleAssignmentSeeder::class);
         
-        // Seed attendance data
+        //Seed Attendance data
         $this->call(AttendanceSeeder::class);
-        
-        // Seed resignation data
-        $this->call(ResignationSeeder::class);
-        
-        // Seed termination data
-        $this->call(TerminationSeeder::class);
     }
     
     /**

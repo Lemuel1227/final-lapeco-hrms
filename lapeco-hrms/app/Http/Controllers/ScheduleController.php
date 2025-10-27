@@ -17,6 +17,7 @@ class ScheduleController extends Controller
     public function store(Request $request)
     {
         try {
+            $this->normalizeAssignments($request);
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'date' => 'required|date',
@@ -24,7 +25,7 @@ class ScheduleController extends Controller
                 'assignments' => 'required|array|min:1',
                 'assignments.*.empId' => 'required|exists:users,id',
                 'assignments.*.start_time' => 'required|date_format:H:i',
-                'assignments.*.end_time' => 'required|date_format:H:i|after:assignments.*.start_time',
+                'assignments.*.end_time' => 'required|date_format:H:i',
                 'assignments.*.break_start' => 'nullable|date_format:H:i',
                 'assignments.*.break_end' => 'nullable|date_format:H:i',
                 'assignments.*.ot_hours' => 'nullable|numeric',
@@ -192,14 +193,15 @@ class ScheduleController extends Controller
                 'request_data' => $request->all()
             ]);
 
+            $this->normalizeAssignments($request);
             $data = $request->validate([
                 'name' => 'required|string',
                 'date' => 'required|date',
                 'description' => 'nullable|string',
                 'assignments' => 'required|array',
                 'assignments.*.empId' => 'required|exists:users,id',
-                'assignments.*.start_time' => 'required',
-                'assignments.*.end_time' => 'required',
+                'assignments.*.start_time' => 'required|date_format:H:i',
+                'assignments.*.end_time' => 'required|date_format:H:i',
                 'assignments.*.break_start' => 'nullable|date_format:H:i',
                 'assignments.*.break_end' => 'nullable|date_format:H:i',
                 'assignments.*.ot_hours' => 'nullable|numeric|min:0',
@@ -307,6 +309,52 @@ class ScheduleController extends Controller
                 'message' => 'An unexpected error occurred while updating the schedule. Please try again.',
                 'error' => 'SERVER_ERROR'
             ], 500);
+        }
+    }
+
+    protected function normalizeAssignments(Request $request): void
+    {
+        $assignments = $request->input('assignments');
+
+        if (!is_array($assignments)) {
+            return;
+        }
+
+        foreach ($assignments as $index => $assignment) {
+            if (!is_array($assignment)) {
+                continue;
+            }
+
+            foreach (['start_time', 'end_time', 'break_start', 'break_end'] as $field) {
+                if (!array_key_exists($field, $assignment)) {
+                    continue;
+                }
+
+                $assignments[$index][$field] = $this->normalizeTimeValue($assignment[$field]);
+            }
+        }
+
+        $request->merge(['assignments' => $assignments]);
+    }
+
+    protected function normalizeTimeValue($value)
+    {
+        if ($value === null || $value === '' || (is_string($value) && strtolower($value) === 'null')) {
+            return null;
+        }
+
+        if (is_string($value) && preg_match('/^\d{2}:\d{2}$/', $value)) {
+            return $value;
+        }
+
+        try {
+            if (is_string($value) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $value)) {
+                return \Carbon\Carbon::createFromFormat('H:i:s', $value)->format('H:i');
+            }
+
+            return \Carbon\Carbon::parse($value)->format('H:i');
+        } catch (\Exception $e) {
+            return $value;
         }
     }
 

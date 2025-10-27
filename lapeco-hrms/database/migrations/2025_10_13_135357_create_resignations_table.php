@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('reason');
             $table->date('submission_date');
             $table->date('effective_date');
-            $table->enum('status', ['pending', 'approved', 'rejected', 'withdrawn'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'withdrawn'])->default('pending');
             $table->text('notes')->nullable();
             $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamp('approved_at')->nullable();

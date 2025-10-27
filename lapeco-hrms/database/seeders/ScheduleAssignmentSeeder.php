@@ -16,7 +16,7 @@ class ScheduleAssignmentSeeder extends Seeder
     public function run(): void
     {
         // Get all users and create schedules for the last 30 days
-        $users = User::whereNotIn('employment_status', ['Inactive', 'inactive', 'terminated', 'resigned'])
+        $users = User::whereNotIn('employment_status', ['terminated', 'resigned'])
             ->get();
         
         if ($users->isEmpty()) {
@@ -67,11 +67,11 @@ class ScheduleAssignmentSeeder extends Seeder
                 switch ($shiftType) {
                     case 1: // Morning shift
                         $startTime = '08:00';
-                        $endTime = '17:00';
+                        $endTime = '16:00';
                         break;
                     case 2: // Afternoon shift
                         $startTime = '13:00';
-                        $endTime = '22:00';
+                        $endTime = '20:00';
                         break;
                     case 3: // Night shift
                         $startTime = '22:00';

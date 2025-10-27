@@ -38,7 +38,7 @@ class ResignationSeeder extends Seeder
             'Health reasons'
         ];
 
-        $statuses = ['pending', 'approved', 'rejected'];
+        $statuses = ['pending', 'approved'];
 
         foreach ($employees as $index => $employee) {
             $submissionDate = Carbon::now()->subDays(rand(1, 60));
@@ -58,9 +58,6 @@ class ResignationSeeder extends Seeder
             if ($status === 'approved') {
                 $resignationData['approved_by'] = $hrUsers->random()->id;
                 $resignationData['approved_at'] = $submissionDate->copy()->addDays(rand(1, 7));
-                
-                // Update employee employment status
-                $employee->update(['employment_status' => 'resigned']);
             }
 
             Resignation::create($resignationData);
@@ -74,8 +71,6 @@ class ResignationSeeder extends Seeder
         switch ($status) {
             case 'approved':
                 return 'Resignation approved. Employee has completed all necessary handover procedures.';
-            case 'rejected':
-                return 'Resignation rejected due to critical project involvement. Please discuss alternative arrangements.';
             case 'pending':
                 return 'Under review by HR department.';
             default:

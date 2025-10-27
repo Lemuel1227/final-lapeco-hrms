@@ -289,7 +289,14 @@ const ScheduleBuilderPage = (props) => {
       // If template has assignments, use them to populate the grid
       if (sourceData.assignments && sourceData.assignments.length > 0) {
         initialGrid = sourceData.assignments.map(assignment => {
-          const row = { empId: assignment.user_id };
+          const employeeId = assignment.user_id
+            ?? assignment.empId
+            ?? assignment.employee_id
+            ?? assignment.user?.id
+            ?? assignment.user?.employee_id
+            ?? '';
+
+          const row = { empId: employeeId };
           
           // Convert time format from database (HH:MM or HH:MM:SS) to HTML time input format (HH:MM)
           const formatTimeForInput = (timeStr) => {
