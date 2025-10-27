@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import ReportCard from './ReportCard';
 import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
+import { employeeAPI, positionAPI } from '../../services/api';
 import './ReportsPage.css';
 
 const ReportsPage = (props) => {
@@ -11,8 +12,63 @@ const ReportsPage = (props) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [configModalState, setConfigModalState] = useState({ show: false, config: null });
   const [showPreview, setShowPreview] = useState(false);
+  const [employees, setEmployees] = useState([]);
+  const [positions, setPositions] = useState([]);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+
+  // Fetch employees and positions data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [employeesRes, positionsRes] = await Promise.all([
+          employeeAPI.getAll(),
+          positionAPI.getAll()
+        ]);
+        
+        // Normalize the data similar to EmployeeDataPage
+        const empData = Array.isArray(employeesRes.data) ? employeesRes.data : (employeesRes.data?.data || []);
+        const posData = Array.isArray(positionsRes.data) ? positionsRes.data : (positionsRes.data?.data || []);
+        
+        // Normalize positions to include all necessary fields
+        const normalizedPositions = posData.map(p => ({ 
+          id: p.id, 
+          title: p.title ?? p.name,
+          monthlySalary: p.monthly_salary ?? p.monthlySalary ?? 0,
+          description: p.description ?? ''
+        }));
+        
+        // Create position lookup map
+        const positionMap = {};
+        normalizedPositions.forEach(p => {
+          positionMap[p.id] = p.title;
+        });
+        
+        // Normalize employees with proper field mapping
+        const normalizedEmployees = empData.map(e => ({
+          id: e.id,
+          name: e.name || [e.first_name, e.middle_name, e.last_name].filter(Boolean).join(' '),
+          email: e.email,
+          positionId: e.position_id ?? e.positionId,
+          position: e.position ?? positionMap[e.position_id ?? e.positionId],
+          joiningDate: e.joining_date ?? e.joiningDate,
+          role: e.role,
+          status: e.account_status ?? e.status
+        }));
+        
+        // Filter only active employees for reports
+        const activeEmployees = normalizedEmployees.filter(emp => 
+          emp.status === 'Active' || emp.status === 'Inactive'
+        );
+        
+        setEmployees(activeEmployees);
+        setPositions(normalizedPositions);
+      } catch (error) {
+        console.error('Error fetching data for reports:', error);
+      }
+    };
+    fetchData();
+  }, []);
 
   const reportCounts = useMemo(() => {
     const counts = reportsConfig.reduce((acc, report) => {
@@ -46,13 +102,25 @@ const ReportsPage = (props) => {
   };
 
   const handleRunReport = (reportId, params) => {
-    let dataSources = { ...props };
+    // Ensure employees and positions are loaded before generating employee-related reports
+    if (reportId === 'employee_masterlist') {
+      if (employees.length === 0) {
+        alert('No employee data available to generate this report.');
+        return;
+      }
+      if (positions.length === 0) {
+        alert('No position data available to generate this report.');
+        return;
+      }
+    }
+
+    let dataSources = { ...props, employees, positions };
     let finalParams = { ...params };
     
     // ... existing logic for predictive_analytics_summary
     
     if (reportId === 'thirteenth_month_pay') {
-        const { employees = [], payrolls = [] } = props;
+        const { payrolls = [] } = props;
         const year = params.year;
 
         const eligibleEmployees = employees.filter(emp => new Date(emp.joiningDate).getFullYear() <= year);

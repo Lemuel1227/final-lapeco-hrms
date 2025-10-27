@@ -135,13 +135,6 @@ const TeamLeaderDashboard = () => {
               <span className="stat-label">On Leave Today</span>
             </div>
           </div>
-          <div className="dashboard-stat-card">
-            <div className="stat-icon icon-pending"><i className="bi bi-clipboard2-check-fill"></i></div>
-            <div className="stat-info">
-              <span className="stat-value">{summary.stats.pendingRequests}</span>
-              <span className="stat-label">Pending Leave Requests</span>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 export const generateEmployeeMasterlistReport = async (layoutManager, dataSources) => {
-  const { employees, positions } = dataSources;
+  const { employees = [], positions = [] } = dataSources;
   
   // --- 1. DATA PREPARATION ---
   const positionMap = new Map(positions.map(p => [p.id, p.title]));
