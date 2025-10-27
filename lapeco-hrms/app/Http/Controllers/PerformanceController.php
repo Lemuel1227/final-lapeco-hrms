@@ -197,7 +197,7 @@ class PerformanceController extends Controller
         $employee = $evaluation->employee()->firstOrFail();
 
         $evaluation->loadMissing([
-            'period:id,name,evaluation_start,evaluation_end,status,open_date,close_date',
+            'period:id,name,evaluation_start,evaluation_end,open_date,close_date',
             'responses' => function ($query) {
                 $query->with([
                     'evaluator:id,first_name,middle_name,last_name,email,role,position_id,image_url',
@@ -266,7 +266,7 @@ class PerformanceController extends Controller
     {
         $response->loadMissing([
             'evaluation:id,employee_id,period_id,average_score',
-            'evaluation.period:id,name,evaluation_start,evaluation_end,status,open_date,close_date',
+            'evaluation.period:id,name,evaluation_start,evaluation_end,open_date,close_date',
             'evaluation.employee:id,first_name,middle_name,last_name,email,position_id,image_url',
             'evaluator:id,first_name,middle_name,last_name,email,role,position_id,image_url',
             'evaluator.position:id,name',
@@ -378,7 +378,7 @@ class PerformanceController extends Controller
 
         $evaluations = PerformanceEvaluation::query()
             ->with([
-                'period:id,name,evaluation_start,evaluation_end,status,open_date,close_date',
+                'period:id,name,evaluation_start,evaluation_end,open_date,close_date',
             ])
             ->where('employee_id', $employee->id)
             ->orderByDesc('id')
