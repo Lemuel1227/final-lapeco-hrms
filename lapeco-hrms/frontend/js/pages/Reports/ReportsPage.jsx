@@ -5,6 +5,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
 import { employeeAPI, positionAPI } from '../../services/api';
+import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
 
 const ReportsPage = (props) => {
@@ -14,6 +15,7 @@ const ReportsPage = (props) => {
   const [showPreview, setShowPreview] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [positions, setPositions] = useState([]);
+  const [isFetchingData, setIsFetchingData] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
 
@@ -101,7 +103,7 @@ const ReportsPage = (props) => {
     }
   };
 
-  const handleRunReport = (reportId, params) => {
+  const handleRunReport = async (reportId, params) => {
     // Ensure employees and positions are loaded before generating employee-related reports
     if (reportId === 'employee_masterlist') {
       if (employees.length === 0) {
@@ -116,6 +118,73 @@ const ReportsPage = (props) => {
 
     let dataSources = { ...props, employees, positions };
     let finalParams = { ...params };
+    if (reportId === 'attendance_summary') {
+      const today = new Date().toISOString().split('T')[0];
+      const selectedDate = finalParams.startDate || today;
+
+      try {
+        setIsFetchingData(true);
+        const response = await attendanceAPI.getDaily({ date: selectedDate });
+        const rawDailyData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+
+        const schedules = rawDailyData.map(record => {
+          let startTime = null;
+          let endTime = null;
+          if (record.shift && record.shift.includes(' - ')) {
+            const [start, end] = record.shift.split(' - ');
+            startTime = start || null;
+            endTime = end || null;
+          }
+          return {
+            empId: record.empId,
+            date: record.date,
+            start_time: startTime,
+            end_time: endTime,
+          };
+        });
+
+        const attendanceLogs = rawDailyData.map(record => ({
+          empId: record.empId,
+          date: record.date,
+          signIn: record.signIn,
+          breakOut: record.breakOut,
+          breakIn: record.breakIn,
+          signOut: record.signOut,
+          overtime_hours: record.otHours,
+        }));
+
+        const employeeMap = new Map(employees.map(emp => [emp.id, emp]));
+        rawDailyData.forEach(record => {
+          if (!employeeMap.has(record.empId)) {
+            employeeMap.set(record.empId, {
+              id: record.empId,
+              name: record.employeeName,
+              email: null,
+              positionId: null,
+              position: record.position || 'Unassigned',
+              joiningDate: null,
+              role: null,
+              status: record.status || 'Active',
+            });
+          }
+        });
+
+        finalParams.startDate = selectedDate;
+        dataSources = {
+          ...dataSources,
+          schedules,
+          attendanceLogs,
+          employees: Array.from(employeeMap.values()),
+        };
+      } catch (error) {
+        console.error('Error fetching daily attendance data:', error);
+        alert('Unable to load daily attendance data for the selected date. Please try again.');
+        setIsFetchingData(false);
+        return;
+      } finally {
+        setIsFetchingData(false);
+      }
+    }
     
     // ... existing logic for predictive_analytics_summary
     
@@ -230,12 +299,12 @@ const ReportsPage = (props) => {
         payrolls={props.payrolls} 
       />
 
-      {isLoading && (
+      {(isLoading || isFetchingData) && (
          <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content"><div className="modal-body text-center p-4">
                     <div className="spinner-border text-success mb-3" role="status"><span className="visually-hidden">Loading...</span></div>
-                    <h4>Generating Report...</h4>
+                    <h4>{isFetchingData ? 'Preparing Attendance Data...' : 'Generating Report...'}</h4>
                 </div></div>
             </div>
         </div>

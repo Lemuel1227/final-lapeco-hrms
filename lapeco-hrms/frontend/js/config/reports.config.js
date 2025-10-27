@@ -64,7 +64,7 @@ export const reportsConfig = [
     icon: 'bi-graph-up-arrow',
     category: reportCategories.PERFORMANCE,
     parameters: [
-      { id: 'date_range_2', type: 'date-range', labels: { start: 'Start Date', end: 'End Date' } },
+      { id: 'performance_period_selector', type: 'performance-period-selector', label: 'Select Evaluation Period*' },
     ],
   },
 
