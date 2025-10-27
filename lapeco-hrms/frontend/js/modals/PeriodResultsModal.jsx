@@ -122,7 +122,7 @@ const PeriodResultsModal = ({ show, period, onClose, onViewSubmission, onError }
                           >
                             <div className="me-3">
                               <div className="fw-semibold">{getEmployeeName(ev.employee)}</div>
-                              <div className="small text-muted">Responses: {evResponsesCount}</div>
+                              <div className="small">Responses: {evResponsesCount}</div>
                               {ev.averageScore !== null && ev.averageScore !== undefined && (
                                 <div className="small text-muted">Average Score: {Number(ev.averageScore).toFixed(2)}</div>
                               )}

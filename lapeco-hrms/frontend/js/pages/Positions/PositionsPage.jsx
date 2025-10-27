@@ -146,7 +146,11 @@ const PositionsPage = (props) => {
       const payload = {
         name: formData.title,
         description: formData.description,
-        monthly_salary: Number(formData.monthlySalary),
+        base_rate_per_hour: Number(formData.base_rate_per_hour ?? 0),
+        overtime_rate_per_hour: Number(formData.overtime_rate_per_hour ?? 0),
+        night_diff_rate_per_hour: Number(formData.night_diff_rate_per_hour ?? 0),
+        late_deduction_per_minute: Number(formData.late_deduction_per_minute ?? 0),
+        monthly_salary: Number(formData.monthly_salary ?? 0),
       };
       if (positionId) {
         await positionAPI.update(positionId, payload);
@@ -235,17 +239,20 @@ const PositionsPage = (props) => {
   };
 
   const confirmRemoveEmployee = async () => {
-    if (employeeToRemove && !isRemovingEmployee) {
+    if (employeeToRemove && selectedPosition && !isRemovingEmployee) {
       try {
         setIsRemovingEmployee(true);
-        await employeeAPI.update(employeeToRemove.id, { position_id: null });
-        if (selectedPosition) {
-          await refreshPositionEmployees(selectedPosition.id);
-        }
+        const response = await positionAPI.removeEmployee(selectedPosition.id, employeeToRemove.id);
+        await refreshPositionEmployees(selectedPosition.id);
         await refreshPositions();
-        setToast({ show: true, message: 'Employee removed from position successfully!', type: 'success' });
+        setToast({
+          show: true,
+          message: response.data?.message || 'Employee removed from position successfully!',
+          type: 'success',
+        });
       } catch (e) {
-        setToast({ show: true, message: 'Failed to remove employee from position.', type: 'error' });
+        const errorMessage = e.response?.data?.message || 'Failed to remove employee from position.';
+        setToast({ show: true, message: errorMessage, type: 'error' });
       } finally {
         setIsRemovingEmployee(false);
         setShowRemoveEmployeeModal(false);
@@ -429,6 +436,19 @@ const PositionsPage = (props) => {
           confirmVariant="success"
         >
           Are you sure you want to add this employee to the selected position?
+        </ConfirmationModal>
+
+        {/* Remove Employee Confirmation Modal */}
+        <ConfirmationModal
+          show={showRemoveEmployeeModal}
+          title="Remove Employee from Position"
+          onClose={cancelRemoveEmployee}
+          onConfirm={confirmRemoveEmployee}
+          confirmText={isRemovingEmployee ? 'Removing...' : 'Remove'}
+          confirmVariant="danger"
+          disabled={isRemovingEmployee}
+        >
+          Are you sure you want to remove "{employeeToRemove?.name}" from their current position?
         </ConfirmationModal>
 
         {/* Toast Notification */}

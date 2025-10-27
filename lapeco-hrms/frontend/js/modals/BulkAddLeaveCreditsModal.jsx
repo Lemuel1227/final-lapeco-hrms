@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCount }) => {
+const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCount, isSubmitting }) => {
   const [creditsToAdd, setCreditsToAdd] = useState({
     vacation: 0,
     sick: 0,
@@ -18,7 +18,9 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onConfirm(creditsToAdd);
+    if (!isSubmitting) {
+      onConfirm(creditsToAdd);
+    }
   };
 
   if (!show) return null;
@@ -52,8 +54,10 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-success">Confirm & Add Credits</button>
+              <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+              <button type="submit" className="btn btn-success" disabled={isSubmitting}>
+                {isSubmitting ? 'Processing...' : 'Confirm & Add Credits'}
+              </button>
             </div>
           </form>
         </div>

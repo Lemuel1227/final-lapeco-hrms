@@ -521,7 +521,7 @@ const AttendancePage = () => {
         sign_out: updatedTimes.signOut || null,
         break_in: updatedTimes.breakIn || null,
         break_out: updatedTimes.breakOut || null,
-        ot_hours: updatedTimes.ot_hours || null,
+        ot_hours: Number(updatedTimes.ot_hours ?? 0),
       };
       
       if (existingRecord.id) {

@@ -13,6 +13,7 @@ import ActionCaseSubmissionModal from '../../modals/ActionCaseSubmissionModal';
 import ViewReasonModal from '../../modals/ViewReasonModal';
 import ActionsDropdown from '../../common/ActionsDropdown';
 import ConfirmationModal from '../../modals/ConfirmationModal';
+import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig } from '../../config/reports.config'; 
 import { disciplinaryCaseAPI, employeeAPI } from '../../services/api';
@@ -81,6 +82,7 @@ const CaseManagementPage = () => {
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [caseToDelete, setCaseToDelete] = useState(null);
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -538,6 +540,10 @@ const CaseManagementPage = () => {
         } : c));
       } catch (err) {
         console.error('Failed to upload attachment:', err);
+        const backendMessage = Array.isArray(err.response?.data?.errors?.attachment)
+          ? err.response.data.errors.attachment.join('\n')
+          : (err.response?.data?.message || 'Failed to upload attachment. Please try again.');
+        setToast({ show: true, message: backendMessage, type: 'error' });
         throw err;
       }
     },
@@ -778,6 +784,13 @@ const CaseManagementPage = () => {
             onDeleteAttachment={handlers.deleteAttachment}
             onDownloadAttachment={handlers.downloadAttachment}
         />
+        {toast.show && (
+          <ToastNotification
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast({ show: false, message: '', type: 'success' })}
+          />
+        )}
         <AddEditCaseModal 
           show={showModal}
           onClose={handleCloseModal}
@@ -912,6 +925,13 @@ const CaseManagementPage = () => {
         } : null}
         isProcessing={isProcessingSubmission}
       />
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+        />
+      )}
     </div>
   );
 };

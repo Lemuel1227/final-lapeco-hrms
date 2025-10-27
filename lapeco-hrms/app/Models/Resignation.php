@@ -33,4 +33,23 @@ class Resignation extends Model
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
+
+    protected $appends = [
+        'employee_full_name',
+    ];
+
+    public function getEmployeeFullNameAttribute(): string
+    {
+        $employee = $this->relationLoaded('employee') ? $this->employee : $this->employee()->select(['id', 'first_name', 'middle_name', 'last_name'])->first();
+
+        if (!$employee) {
+            return 'Unknown Employee';
+        }
+
+        return trim(collect([
+            $employee->first_name,
+            $employee->middle_name,
+            $employee->last_name,
+        ])->filter()->implode(' '));
+    }
 }

@@ -14,6 +14,8 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
   const [leaveCreditsData, setLeaveCreditsData] = useState({});
+  const [isSavingIndividual, setIsSavingIndividual] = useState(false);
+  const [isBulkAdding, setIsBulkAdding] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Show all employees regardless of status
@@ -82,6 +84,11 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
 
         return {
           ...emp,
+          leaveCredits: {
+            vacation: totalCredits.vacation || 0,
+            sick: totalCredits.sick || 0,
+            emergency: totalCredits.emergency || 0,
+          },
           totalCredits,
           usedCredits,
           leaveHistory: individualHistory,
@@ -123,8 +130,18 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
   };
   
   const handleSave = async (employeeId, newCredits) => {
+    if (isSavingIndividual) return;
+    setIsSavingIndividual(true);
     try {
-      await leaveAPI.updateLeaveCredits(employeeId, newCredits);
+      const creditPayloads = [
+        { leave_type: 'Vacation Leave', total_credits: Number(newCredits.vacation ?? 0) },
+        { leave_type: 'Sick Leave', total_credits: Number(newCredits.sick ?? 0) },
+        { leave_type: 'Emergency Leave', total_credits: Number(newCredits.emergency ?? 0) },
+      ];
+
+      for (const payload of creditPayloads) {
+        await leaveAPI.updateLeaveCredits(employeeId, payload);
+      }
       // Refresh leave credits data
       const response = await leaveAPI.getLeaveCredits(employeeId);
       setLeaveCreditsData(prev => ({
@@ -137,13 +154,18 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
       }
     } catch (error) {
       console.error('Failed to update leave credits:', error);
+      const errorMessage = error?.response?.data?.message || 'Failed to update leave credits.';
       if (onShowToast) {
-        onShowToast({ message: 'Failed to update leave credits.', type: 'error' });
+        onShowToast({ message: errorMessage, type: 'error' });
       }
+    } finally {
+      setIsSavingIndividual(false);
     }
   };
 
   const handleBulkAdd = async (creditsToAdd) => {
+    if (isBulkAdding) return;
+    setIsBulkAdding(true);
     try {
       
       // Use the new bulk API endpoint - much faster!
@@ -169,6 +191,8 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
       if (onShowToast) {
         onShowToast({ message: 'Failed to add leave credits. Please try again.', type: 'error' });
       }
+    } finally {
+      setIsBulkAdding(false);
     }
   };
 
