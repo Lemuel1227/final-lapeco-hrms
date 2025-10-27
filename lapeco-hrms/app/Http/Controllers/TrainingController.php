@@ -70,7 +70,7 @@ class TrainingController extends Controller
             'status' => ['required', Rule::in(['Draft', 'Active', 'Completed', 'Cancelled'])],
             'cost' => 'nullable|numeric|min:0',
             'location' => 'nullable|string|max:255',
-            'type' => 'nullable|string|max:100',
+            'type' => ['required', Rule::in(['Online', 'In-person', 'Hybrid'])],
             'max_participants' => 'nullable|integer|min:1',
             'requirements' => 'nullable|string'
         ]);
@@ -125,7 +125,7 @@ class TrainingController extends Controller
             'status' => ['required', Rule::in(['Draft', 'Active', 'Completed', 'Cancelled'])],
             'cost' => 'nullable|numeric|min:0',
             'location' => 'nullable|string|max:255',
-            'type' => 'nullable|string|max:100',
+            'type' => ['required', Rule::in(['Online', 'In-person', 'Hybrid'])],
             'max_participants' => 'nullable|integer|min:1',
             'requirements' => 'nullable|string'
         ]);

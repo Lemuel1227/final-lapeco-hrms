@@ -12,7 +12,7 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
     status: 'Draft',
     cost: '',
     location: '',
-    type: '',
+    type: 'Online',
     max_participants: '',
     requirements: ''
   };
@@ -105,7 +105,18 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
                 </div>
                 <div className="col-md-6 mb-3">
                   <label htmlFor="type" className="form-label">Training Type*</label>
-                  <input type="text" className={`form-control ${errors.type ? 'is-invalid' : ''}`} id="type" name="type" value={formData.type} onChange={handleChange} placeholder="e.g., Online, In-person, Hybrid" required />
+                  <select
+                    className={`form-select ${errors.type ? 'is-invalid' : ''}`}
+                    id="type"
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="Online">Online</option>
+                    <option value="In-person">In-person</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
                   {errors.type && <div className="invalid-feedback">{errors.type}</div>}
                 </div>
               </div>
