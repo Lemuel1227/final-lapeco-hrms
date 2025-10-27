@@ -512,6 +512,38 @@ class PayrollController extends Controller
         ]);
     }
 
+    public function deletePeriod($periodId)
+    {
+        $period = PayrollPeriod::findOrFail($periodId);
+        
+        // Delete all related payroll records first
+        $employeePayrolls = EmployeePayroll::where('period_id', $periodId)->get();
+        
+        foreach ($employeePayrolls as $payroll) {
+            // Delete related earnings
+            PayrollEarning::where('employees_payroll_id', $payroll->id)->delete();
+            
+            // Delete related deductions
+            PayrollDeduction::where('employees_payroll_id', $payroll->id)->delete();
+            
+            // Delete related statutory requirements
+            PayrollStatutoryRequirement::where('employees_payroll_id', $payroll->id)->delete();
+            
+            // Delete the employee payroll record
+            $payroll->delete();
+        }
+        
+        // Delete the period itself
+        $period->delete();
+        
+        // Log activity
+        $this->logDelete('payroll_period', $periodId, "Payroll period {$period->period_start->toDateString()} to {$period->period_end->toDateString()}");
+
+        return response()->json([
+            'message' => 'Payroll period deleted successfully',
+        ]);
+    }
+
     public function compute(Request $request): JsonResponse
     {
         [$periodStart, $periodEnd, $label] = $this->resolvePayrollPeriod($request);

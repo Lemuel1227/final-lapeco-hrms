@@ -2,15 +2,49 @@ import React from 'react';
 import { format, addDays } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import { payrollAPI } from '../../services/api';
 
 const formatCurrency = (value) => Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
 
-  const handleExportRun = (e) => {
+  const handleExportRun = async (e) => {
     e.stopPropagation();
-    // Export functionality will need to fetch full data first
-    alert('Export functionality requires loading full payroll data. This feature will be implemented in the detail view.');
+    
+    try {
+      // Fetch full payroll details
+      const response = await payrollAPI.getPeriodDetails(run.periodId);
+      const { records, cutOff } = response.data;
+      
+      if (!records || records.length === 0) {
+        alert('No payroll records found to export.');
+        return;
+      }
+      
+      // Prepare data for CSV export
+      const csvData = records.map(record => ({
+        'Employee ID': record.empId,
+        'Employee Name': record.employeeName,
+        'Net Pay': Number(record.netPay).toFixed(2),
+        'Status': record.status
+      }));
+      
+      // Create worksheet and workbook
+      const worksheet = XLSX.utils.json_to_sheet(csvData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Payroll');
+      
+      // Generate CSV file
+      const csvOutput = XLSX.write(workbook, { bookType: 'csv', type: 'string' });
+      const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+      
+      // Download file
+      const fileName = `Payroll_${run.runId}_${cutOff.replace(/ to /g, '_').replace(/\s/g, '')}.csv`;
+      saveAs(blob, fileName);
+    } catch (error) {
+      console.error('Error exporting payroll:', error);
+      alert('Failed to export payroll data. Please try again.');
+    }
   };
 
   const handleActionClick = (e, action) => {

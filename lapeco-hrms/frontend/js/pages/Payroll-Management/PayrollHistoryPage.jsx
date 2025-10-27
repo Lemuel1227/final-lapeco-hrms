@@ -262,11 +262,28 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
     }
   };
 
-  const handleConfirmDelete = () => {
-    if (runToDelete) {
-      resolvedHandlers.deletePayrollRun(runToDelete.runId);
+  const handleConfirmDelete = async () => {
+    if (!runToDelete) return;
+    
+    try {
+      // If handlers provided, use them (for parent component integration)
+      if (handlers?.deletePayrollRun) {
+        await resolvedHandlers.deletePayrollRun(runToDelete.runId);
+      } else {
+        // Otherwise, call API directly
+        await payrollAPI.deletePeriod(runToDelete.periodId);
+        
+        // Refresh the payroll list
+        const payrollsResponse = await payrollAPI.getAll();
+        setFetchedPayrolls(payrollsResponse.data.payroll_runs || []);
+        
+        setToast({ message: 'Payroll run deleted successfully', type: 'success' });
+      }
       setRunToDelete(null);
       handleCloseAllModals();
+    } catch (error) {
+      console.error('Error deleting payroll run:', error);
+      setToast({ message: error.response?.data?.message || 'Failed to delete payroll run', type: 'error' });
     }
   };
 

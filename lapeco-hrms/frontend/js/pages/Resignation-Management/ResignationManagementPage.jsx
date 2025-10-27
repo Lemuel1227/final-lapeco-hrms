@@ -16,7 +16,7 @@ import useReportGenerator from '../../hooks/useReportGenerator';
 import { resignationAPI, employeeAPI, positionAPI, terminationAPI } from '../../services/api';
 import './ResignationManagementPage.css';
 
-const STATUS_ORDER = { 'Pending': 1, 'Approved': 2, 'Declined': 3 };
+const STATUS_ORDER = { 'Pending': 1, 'Approved': 2 };
 
 const ResignationManagementPage = () => {
     // Data states
@@ -140,9 +140,8 @@ const ResignationManagementPage = () => {
             acc.All = (acc.All || 0) + 1;
             if (req.status === 'Pending') acc.Pending = (acc.Pending || 0) + 1;
             if (req.status === 'Approved') acc.Approved = (acc.Approved || 0) + 1;
-            if (req.status === 'Declined') acc.Declined = (acc.Declined || 0) + 1;
             return acc;
-        }, { All: 0, Pending: 0, Approved: 0, Declined: 0 });
+        }, { All: 0, Pending: 0, Approved: 0 });
     }, [activeResignations]);
 
     const filteredAndSortedResignations = useMemo(() => {
@@ -268,8 +267,7 @@ const ResignationManagementPage = () => {
                     id: resignation.id,
                     employeeId: resignation.employee_id,
                     employeeName: resignation.employee?.name || 'Unknown Employee',
-                    status: resignation.status === 'pending' ? 'Pending' : 
-                           resignation.status === 'approved' ? 'Approved' : 'Declined',
+                    status: resignation.status === 'pending' ? 'Pending' : 'Approved',
                     reason: resignation.reason,
                     submissionDate: resignation.submission_date,
                     effectiveDate: resignation.effective_date,
@@ -390,9 +388,6 @@ const ResignationManagementPage = () => {
                             <div className={`stat-card-resignation approved ${statusFilter === 'Approved' ? 'active' : ''}`} onClick={() => setStatusFilter('Approved')}>
                                 <span className="stat-value">{stats.Approved}</span><span className="stat-label">Approved</span>
                             </div>
-                            <div className={`stat-card-resignation declined ${statusFilter === 'Declined' ? 'active' : ''}`} onClick={() => setStatusFilter('Declined')}>
-                                <span className="stat-value">{stats.Declined}</span><span className="stat-label">Declined</span>
-                            </div>
                         </div>
                         <div className="card data-table-card shadow-sm">
                             <div className="resignation-controls">
@@ -425,10 +420,8 @@ const ResignationManagementPage = () => {
                                                     request={req}
                                                     employee={employee}
                                                     onApprove={() => handleOpenActionModal(req, 'Approved')}
-                                                    onDecline={() => handleOpenActionModal(req, 'Declined')}
                                                     onEditDate={() => setEditingRequest(req)}
                                                     onViewReason={() => setViewingRequest(req)}
-                                                    onDelete={() => setItemToDelete({ item: req, type: 'request' })}
                                                     onViewProfile={() => handleViewProfile(employee)}
                                                 />
                                             );

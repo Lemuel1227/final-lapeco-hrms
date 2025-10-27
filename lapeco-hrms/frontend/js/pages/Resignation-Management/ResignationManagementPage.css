@@ -83,15 +83,8 @@
 .stat-card-resignation.approved.active {
     background-color: rgba(var(--app-success-rgb), 0.1);
 }
-.stat-card-resignation.declined, .stat-card-resignation.declined.active { 
-    border-left-color: var(--danger-color); 
-}
-.stat-card-resignation.declined.active {
-    background-color: rgba(var(--danger-rgb), 0.05);
-}
 .stat-card-resignation.pending.active .stat-value { color: var(--warning-color); }
 .stat-card-resignation.approved.active .stat-value { color: var(--app-success-color); }
-.stat-card-resignation.declined.active .stat-value { color: var(--danger-color); }
 
 /* --- Table Styles --- */
 .data-table th.sortable {

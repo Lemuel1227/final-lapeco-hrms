@@ -157,6 +157,10 @@ const EmployeeDataPage = () => {
         }
         
         payload.append('name', employeeData.name);
+        // Send individual name components
+        if (employeeData.first_name) payload.append('first_name', employeeData.first_name);
+        if (employeeData.middle_name) payload.append('middle_name', employeeData.middle_name);
+        if (employeeData.last_name) payload.append('last_name', employeeData.last_name);
         payload.append('email', employeeData.email);
         if (!isEdit) {
           payload.append('role', employeeData.role || 'REGULAR_EMPLOYEE');
@@ -171,6 +175,7 @@ const EmployeeDataPage = () => {
         if (employeeData.tinNo) payload.append('tin_no', employeeData.tinNo);
         if (employeeData.pagIbigNo) payload.append('pag_ibig_no', employeeData.pagIbigNo);
         if (employeeData.philhealthNo) payload.append('philhealth_no', employeeData.philhealthNo);
+        if (employeeData.status) payload.append('account_status', employeeData.status);
         
         // Only append files if new files were selected
         if (hasNewResumeFile) {

@@ -2,7 +2,7 @@ import React from 'react';
 import { differenceInDays, parseISO, startOfToday, format } from 'date-fns';
 import ActionsDropdown from '../../common/ActionsDropdown';
 
-const ResignationRequestRow = ({ request, employee, onApprove, onDecline, onEditDate, onViewReason, onDelete, onViewProfile }) => {
+const ResignationRequestRow = ({ request, employee, onApprove, onEditDate, onViewReason, onViewProfile }) => {
     if (!request || !request.id) {
         return null;
     }
@@ -85,17 +85,11 @@ const ResignationRequestRow = ({ request, employee, onApprove, onDecline, onEdit
                             <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); onApprove(); }}>
                                 <i className="bi bi-check-circle-fill me-2"></i>Approve
                             </a>
-                            <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); onDecline(); }}>
-                                <i className="bi bi-x-circle-fill me-2"></i>Decline
-                            </a>
                         </>
                     )}
                     <div className="dropdown-divider"></div>
                     <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); onEditDate(); }}>
                         <i className="bi bi-calendar-event me-2"></i>Edit Effective Date
-                    </a>
-                    <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); onDelete(); }}>
-                        <i className="bi bi-trash-fill me-2"></i>Delete Request
                     </a>
                 </ActionsDropdown>
             </td>

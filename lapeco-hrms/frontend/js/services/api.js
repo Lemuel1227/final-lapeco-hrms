@@ -159,6 +159,7 @@ export const payrollAPI = {
   generate: (data) => api.post('/payroll/generate', data),
   update: (id, data) => api.put(`/payroll/${id}`, data),
   markPeriodAsPaid: (periodId) => api.post(`/payroll/periods/${periodId}/mark-as-paid`),
+  deletePeriod: (periodId) => api.delete(`/payroll/periods/${periodId}`),
 };
 
 // Contributions API calls
