@@ -4,7 +4,7 @@ import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI } from '../../services/api';
 import './ReportsPage.css';
 
 const ReportsPage = (props) => {
@@ -13,17 +13,22 @@ const ReportsPage = (props) => {
   const [configModalState, setConfigModalState] = useState({ show: false, config: null });
   const [showPreview, setShowPreview] = useState(false);
   const [employees, setEmployees] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]); // Include all employees for offboarding reports
   const [positions, setPositions] = useState([]);
+  const [resignations, setResignations] = useState([]);
+  const [terminations, setTerminations] = useState([]);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
 
-  // Fetch employees and positions data on mount
+  // Fetch all required data on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [employeesRes, positionsRes] = await Promise.all([
+        const [employeesRes, positionsRes, resignationsRes, terminationsRes] = await Promise.all([
           employeeAPI.getAll(),
-          positionAPI.getAll()
+          positionAPI.getAll(),
+          resignationAPI.getAll(),
+          terminationAPI.getAll()
         ]);
         
         // Normalize the data similar to EmployeeDataPage
@@ -56,13 +61,40 @@ const ReportsPage = (props) => {
           status: e.account_status ?? e.status
         }));
         
-        // Filter only active employees for reports
+        // Keep all employees for offboarding reports
+        setAllEmployees(normalizedEmployees);
+        
+        // Filter only active employees for most reports
         const activeEmployees = normalizedEmployees.filter(emp => 
           emp.status === 'Active' || emp.status === 'Inactive'
         );
         
+        // Normalize resignations data
+        const resData = Array.isArray(resignationsRes.data) ? resignationsRes.data : (resignationsRes.data?.data || []);
+        const normalizedResignations = resData.map(r => ({
+          id: r.id,
+          employeeId: r.employee_id ?? r.employeeId,
+          employeeName: r.employee_name ?? r.employeeName,
+          position: r.position,
+          effectiveDate: r.effective_date ?? r.effectiveDate,
+          reason: r.reason,
+          status: r.status
+        }));
+        
+        // Normalize terminations data
+        const termData = Array.isArray(terminationsRes.data) ? terminationsRes.data : (terminationsRes.data?.data || []);
+        const normalizedTerminations = termData.map(t => ({
+          id: t.id,
+          employeeId: t.employee_id ?? t.employeeId,
+          date: t.termination_date ?? t.date,
+          reason: t.reason,
+          comments: t.comments ?? t.notes ?? ''
+        }));
+        
         setEmployees(activeEmployees);
         setPositions(normalizedPositions);
+        setResignations(normalizedResignations);
+        setTerminations(normalizedTerminations);
       } catch (error) {
         console.error('Error fetching data for reports:', error);
       }
@@ -114,7 +146,18 @@ const ReportsPage = (props) => {
       }
     }
 
-    let dataSources = { ...props, employees, positions };
+    // Validation for offboarding report
+    if (reportId === 'offboarding_summary') {
+      if (resignations.length === 0 && terminations.length === 0) {
+        alert('No resignation or termination data available to generate this report.');
+        return;
+      }
+    }
+
+    // Use allEmployees for offboarding report, regular employees for others
+    const employeesForReport = reportId === 'offboarding_summary' ? allEmployees : employees;
+
+    let dataSources = { ...props, employees: employeesForReport, positions, resignations, terminations };
     let finalParams = { ...params };
     
     // ... existing logic for predictive_analytics_summary

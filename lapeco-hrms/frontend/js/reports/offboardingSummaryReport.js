@@ -1,5 +1,5 @@
 export const generateOffboardingSummaryReport = async (layoutManager, dataSources, params) => {
-  const { resignations, terminations, employees } = dataSources;
+  const { resignations = [], terminations = [], employees = [] } = dataSources;
   const { startDate, endDate } = params;
   const { doc, margin } = layoutManager;
 
