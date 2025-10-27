@@ -1,7 +1,33 @@
+  const toKey = (value) => {
+    if (value === undefined || value === null) return null;
+    return String(value);
+  };
+
+  const normalizeTrainingStatus = (status = '') => {
+    const cleaned = status.toString().trim().toLowerCase();
+    switch (cleaned) {
+      case 'completed':
+        return 'Completed';
+      case 'in progress':
+      case 'in_progress':
+        return 'In Progress';
+      case 'not started':
+      case 'not_started':
+        return 'Not Started';
+      case 'dropped':
+        return 'Dropped';
+      default:
+        return status || 'Not Started';
+    }
+  };
+
+  const buildEmployeeName = (user = {}) => {
+    if (user.name) return user.name;
+    const parts = [user.first_name, user.middle_name, user.last_name].filter(Boolean);
+    return parts.join(' ').trim() || null;
+  };
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import './ProgramDetailPage.css';
 import ProgramDetailHeader from './ProgramDetailHeader';
 import EnrollEmployeeModal from '../../modals/EnrollEmployeeModal';
@@ -10,7 +36,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 import ToastNotification from '../../common/ToastNotification';
 import { trainingAPI, employeeAPI } from '../../services/api';
-import logo from '../../assets/logo.png';
+import useReportGenerator from '../../hooks/useReportGenerator';
 
 const ProgramDetailPage = () => {
   const { programId } = useParams();
@@ -27,11 +53,11 @@ const ProgramDetailPage = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [pdfDataUri, setPdfDataUri] = useState('');
   const [editingEnrollment, setEditingEnrollment] = useState(null);
   const [enrollmentToDelete, setEnrollmentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
+  const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,15 +102,27 @@ const ProgramDetailPage = () => {
 
   const enrolledInProgram = useMemo(() => {
     if (!selectedProgram || !enrollments.length) return [];
-    const employeeMap = new Map(employees.map(e => [e.id, e.name]));
+    const employeeMap = new Map(
+      employees.map(e => [toKey(e.id), e.name || buildEmployeeName(e)])
+    );
     return enrollments
-      .filter(enr => enr && enr.program_id && enr.program_id.toString() === programId)
-      .map(enr => ({ 
-        ...enr, 
-        employeeName: employeeMap.get(enr.user_id) || enr.user?.name || 'Unknown',
-        employeeId: enr.user_id !== undefined && enr.user_id !== null ? String(enr.user_id) : '',
-        enrollmentId: enr.id // Add enrollmentId for the modal
-      }));
+      .filter(enr => {
+        const enrProgramId = toKey(enr.program_id ?? enr.programId ?? enr.program?.id);
+        return enr && enrProgramId && enrProgramId === toKey(programId);
+      })
+      .map(enr => {
+        const employeeId = toKey(enr.user_id ?? enr.employee_id ?? enr.employeeId ?? enr.user?.id);
+        const employeeName = employeeMap.get(employeeId) || enr.employee_name || enr.employeeName || buildEmployeeName(enr.user) || 'Unknown';
+        const progressValue = typeof enr.progress === 'number' ? enr.progress : Number(enr.progress ?? 0) || 0;
+        return {
+          ...enr,
+          employeeName,
+          employeeId: employeeId || '',
+          enrollmentId: enr.id,
+          status: normalizeTrainingStatus(enr.status),
+          progress: progressValue,
+        };
+      });
   }, [selectedProgram, enrollments, employees, programId]);
 
   const displayedEnrollments = useMemo(() => {
@@ -260,45 +298,95 @@ const ProgramDetailPage = () => {
       setEnrollmentToDelete(null);
     }
   };
-  const handleGenerateReport = () => {
-    const doc = new jsPDF();
+  const handleGenerateReport = async () => {
+    if (!selectedProgram) {
+      showToast('Training program not found.', 'error');
+      return;
+    }
 
-    // Header
-    doc.addImage(logo, 'PNG', 15, 12, 40, 13);
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    doc.text('Training Program Report', pageW - 15, 25, { align: 'right' });
-    doc.setLineWidth(0.5);
-    doc.line(15, 32, pageW - 15, 32);
+    if (!displayedEnrollments.length) {
+      showToast('No enrollments available to include in this report.', 'warning');
+      return;
+    }
 
-    // Program Details
-    doc.setFontSize(14);
-    doc.text(selectedProgram.title, 15, 45);
-    doc.setFontSize(10);
-    doc.setTextColor(108, 117, 125);
-    doc.text(`Provider: ${selectedProgram.provider}`, 15, 52);
-    doc.text(`Duration: ${selectedProgram.duration}`, 15, 58);
-    
-    // Participant Table
-    const tableBody = displayedEnrollments.map(enr => [
-        enr.employeeId,
-        enr.employeeName,
-        `${enr.progress || 0}%`,
-        enr.status,
-    ]);
+    const normalizedPrograms = trainingPrograms.map(program => ({
+      id: toKey(program.id),
+      title: program.title,
+      description: program.description ?? '',
+      provider: program.provider ?? '',
+      status: program.status ?? 'Draft',
+      startDate: program.start_date ?? program.startDate ?? null,
+      endDate: program.end_date ?? program.endDate ?? null,
+      duration: program.duration ?? '',
+      location: program.location ?? '',
+      type: program.type ?? '',
+      maxParticipants: program.max_participants ?? program.maxParticipants ?? null,
+    }));
 
-    autoTable(doc, {
-        head: [['Employee ID', 'Employee Name', 'Progress', 'Status']],
-        body: tableBody,
-        startY: 70,
-        theme: 'striped',
-        headStyles: { fillColor: '#343a40' },
+    const normalizedEnrollments = enrollments
+      .map(enrollment => {
+        const programKey = toKey(enrollment.program_id ?? enrollment.programId ?? enrollment.program?.id);
+        const employeeKey = toKey(enrollment.user_id ?? enrollment.employee_id ?? enrollment.employeeId ?? enrollment.user?.id);
+        if (!programKey || !employeeKey) {
+          return null;
+        }
+        return {
+          id: toKey(enrollment.id),
+          programId: programKey,
+          employeeId: employeeKey,
+          status: normalizeTrainingStatus(enrollment.status),
+          progress: typeof enrollment.progress === 'number' ? enrollment.progress : Number(enrollment.progress ?? 0) || 0,
+          employeeName: enrollment.employee_name ?? enrollment.employeeName ?? buildEmployeeName(enrollment.user) ?? null,
+        };
+      })
+      .filter(Boolean);
+
+    const employeesMap = new Map(
+      (employees || []).map(emp => {
+        const idKey = toKey(emp.id);
+        const name = emp.name || buildEmployeeName(emp) || 'Employee';
+        return [idKey, {
+          id: idKey,
+          name,
+          position: emp.position ?? emp.job_title ?? emp.designation ?? null,
+        }];
+      })
+    );
+
+    normalizedEnrollments.forEach(enrollment => {
+      if (!enrollment.employeeId) return;
+      if (!employeesMap.has(enrollment.employeeId)) {
+        employeesMap.set(enrollment.employeeId, {
+          id: enrollment.employeeId,
+          name: enrollment.employeeName || 'Employee',
+          position: null,
+        });
+      } else if (enrollment.employeeName && !employeesMap.get(enrollment.employeeId).name) {
+        const existing = employeesMap.get(enrollment.employeeId);
+        existing.name = enrollment.employeeName;
+      }
     });
 
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-    setPdfDataUri(url);
-    setShowReportModal(true);
+    try {
+      await generateReport(
+        'training_program_summary',
+        { programId: toKey(programId) },
+        {
+          trainingPrograms: normalizedPrograms,
+          enrollments: normalizedEnrollments,
+          employees: Array.from(employeesMap.values()),
+        }
+      );
+      setShowReportModal(true);
+    } catch (error) {
+      console.error('Error generating training program report:', error);
+      showToast('Failed to generate report. Please try again.', 'error');
+    }
+  };
+
+  const handleCloseReportModal = () => {
+    setShowReportModal(false);
+    setPdfDataUri('');
   };
 
   // Loading state
@@ -395,6 +483,21 @@ const ProgramDetailPage = () => {
         </div>
       </div>
 
+      {isLoading && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-body text-center p-4">
+                <div className="spinner-border text-success mb-3" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <h4>Generating Report...</h4>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <EnrollEmployeeModal 
         show={showEnrollModal} 
         onClose={() => setShowEnrollModal(false)} 
@@ -406,8 +509,8 @@ const ProgramDetailPage = () => {
       {editingEnrollment && <UpdateEnrollmentStatusModal show={showStatusModal} onClose={handleCloseStatusModal} onSave={handleUpdateStatus} enrollmentData={editingEnrollment} />}
       
       <ReportPreviewModal
-        show={showReportModal}
-        onClose={() => setShowReportModal(false)}
+        show={showReportModal && !!pdfDataUri}
+        onClose={handleCloseReportModal}
         pdfDataUri={pdfDataUri}
         reportTitle={`Training Report - ${selectedProgram.title}`}
       />

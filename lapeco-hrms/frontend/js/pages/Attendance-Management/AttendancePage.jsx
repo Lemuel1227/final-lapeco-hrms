@@ -458,25 +458,50 @@ const AttendancePage = () => {
     
     try {
       // Prepare data in the format expected by attendance summary report generator
-      const schedules = dailyAttendanceList.map(record => ({
-        date: currentDate,
+      const parseShiftTimes = (shiftString) => {
+        if (!shiftString || typeof shiftString !== 'string') {
+          return { startTime: null, endTime: null };
+        }
+        const parts = shiftString.split('-');
+        if (parts.length !== 2) {
+          return { startTime: null, endTime: null };
+        }
+        const [startRaw, endRaw] = parts;
+        const startTime = startRaw?.trim() || null;
+        const endTime = endRaw?.trim() || null;
+        return { startTime, endTime };
+      };
+
+      const schedules = (dailyAttendanceData || dailyAttendanceList).map(record => {
+        const { startTime, endTime } = parseShiftTimes(record.shift);
+        return {
+          date: record.date ?? currentDate,
+          empId: record.empId,
+          start_time: record.start_time ?? startTime ?? null,
+          end_time: record.end_time ?? endTime ?? null,
+        };
+      });
+
+      const attendanceLogs = (dailyAttendanceData || dailyAttendanceList).map(record => ({
+        date: record.date ?? currentDate,
         empId: record.empId,
-        start_time: record.shift ? record.shift.split('-')[0]?.trim() : null,
-        employeeName: record.name
+        signIn: record.signIn ?? null,
+        breakOut: record.breakOut ?? null,
+        breakIn: record.breakIn ?? null,
+        signOut: record.signOut ?? null,
+        overtime_hours: record.otHours ?? record.ot_hours ?? '0'
       }));
 
-      const attendanceLogs = dailyAttendanceList.map(record => ({
-        date: currentDate,
-        empId: record.empId,
-        signIn: record.signIn,
-        signOut: record.signOut
-      }));
-
-      const employees = dailyAttendanceList.map(record => ({
-        id: record.empId,
-        name: record.name,
-        position: record.position
-      }));
+      const employeeSource = dailyAttendanceList?.length ? dailyAttendanceList : dailyAttendanceData || [];
+      const employees = Array.from(
+        new Map(
+          employeeSource.map(record => [record.empId, {
+            id: record.empId,
+            name: record.name ?? record.employeeName,
+            position: record.position ?? null
+          }])
+        ).values()
+      );
 
       // Call generateReport with correct parameters: (reportId, params, dataSources)
       await generateReport(

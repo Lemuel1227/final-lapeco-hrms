@@ -4,7 +4,8 @@ import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, trainingAPI } from '../../services/api';
+import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
 
 const ReportsPage = (props) => {
@@ -17,18 +18,47 @@ const ReportsPage = (props) => {
   const [positions, setPositions] = useState([]);
   const [resignations, setResignations] = useState([]);
   const [terminations, setTerminations] = useState([]);
+  const [trainingPrograms, setTrainingPrograms] = useState([]);
+  const [trainingEnrollments, setTrainingEnrollments] = useState([]);
+  const [isFetchingData, setIsFetchingData] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
+
+  const normalizeTrainingStatus = (status = '') => {
+    const cleaned = status.toString().trim().toLowerCase();
+    switch (cleaned) {
+      case 'not started':
+      case 'not_started':
+        return 'Not Started';
+      case 'in progress':
+      case 'in_progress':
+        return 'In Progress';
+      case 'completed':
+        return 'Completed';
+      case 'dropped':
+        return 'Dropped';
+      default:
+        return status || 'Not Started';
+    }
+  };
+
+  const buildEmployeeName = (user = {}) => {
+    if (user.name) return user.name;
+    const parts = [user.first_name, user.middle_name, user.last_name].filter(Boolean);
+    return parts.join(' ') || null;
+  };
 
   // Fetch all required data on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [employeesRes, positionsRes, resignationsRes, terminationsRes] = await Promise.all([
+        const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes] = await Promise.all([
           employeeAPI.getAll(),
           positionAPI.getAll(),
           resignationAPI.getAll(),
-          terminationAPI.getAll()
+          terminationAPI.getAll(),
+          trainingAPI.getPrograms(),
+          trainingAPI.getEnrollments(),
         ]);
         
         // Normalize the data similar to EmployeeDataPage
@@ -90,11 +120,60 @@ const ReportsPage = (props) => {
           reason: t.reason,
           comments: t.comments ?? t.notes ?? ''
         }));
-        
-        setEmployees(activeEmployees);
+
+        // Normalize training programs data
+        const programData = Array.isArray(programsRes.data) ? programsRes.data : (programsRes.data?.data || []);
+        const normalizedPrograms = programData.map(program => ({
+          id: program.id,
+          title: program.title,
+          description: program.description ?? '',
+          provider: program.provider ?? '',
+          status: program.status ?? 'Draft',
+          startDate: program.start_date ?? program.startDate ?? null,
+          endDate: program.end_date ?? program.endDate ?? null,
+          duration: program.duration ?? '',
+          location: program.location ?? '',
+          type: program.type ?? '',
+          maxParticipants: program.max_participants ?? program.maxParticipants ?? null,
+        }));
+
+        // Normalize training enrollments data
+        const enrollmentData = Array.isArray(enrollmentsRes.data) ? enrollmentsRes.data : (enrollmentsRes.data?.data || []);
+        const normalizedEnrollments = enrollmentData.map(enrollment => {
+          const employeeId = enrollment.user_id ?? enrollment.employee_id ?? enrollment.employeeId ?? enrollment.user?.id ?? null;
+          return {
+            id: enrollment.id,
+            programId: enrollment.program_id ?? enrollment.programId ?? enrollment.program?.id ?? null,
+            employeeId,
+            status: normalizeTrainingStatus(enrollment.status),
+            progress: typeof enrollment.progress === 'number' ? enrollment.progress : Number(enrollment.progress ?? 0) || 0,
+            employeeName: enrollment.employee_name ?? enrollment.employeeName ?? buildEmployeeName(enrollment.user) ?? null,
+          };
+        }).filter(enrollment => enrollment.programId !== null && enrollment.employeeId !== null);
+
+        // Merge employees from training enrollments with active employees
+        const employeesMap = new Map(activeEmployees.map(emp => [emp.id, emp]));
+        normalizedEnrollments.forEach(enrollment => {
+          if (enrollment.employeeId && !employeesMap.has(enrollment.employeeId)) {
+            employeesMap.set(enrollment.employeeId, {
+              id: enrollment.employeeId,
+              name: enrollment.employeeName || 'Employee',
+              email: null,
+              positionId: null,
+              position: 'Unassigned',
+              joiningDate: null,
+              role: null,
+              status: 'Active'
+            });
+          }
+        });
+
+        setEmployees(Array.from(employeesMap.values()));
         setPositions(normalizedPositions);
         setResignations(normalizedResignations);
         setTerminations(normalizedTerminations);
+        setTrainingPrograms(normalizedPrograms);
+        setTrainingEnrollments(normalizedEnrollments);
       } catch (error) {
         console.error('Error fetching data for reports:', error);
       }
@@ -133,7 +212,7 @@ const ReportsPage = (props) => {
     }
   };
 
-  const handleRunReport = (reportId, params) => {
+  const handleRunReport = async (reportId, params) => {
     // Ensure employees and positions are loaded before generating employee-related reports
     if (reportId === 'employee_masterlist') {
       if (employees.length === 0) {
@@ -159,6 +238,111 @@ const ReportsPage = (props) => {
 
     let dataSources = { ...props, employees: employeesForReport, positions, resignations, terminations };
     let finalParams = { ...params };
+    if (reportId === 'attendance_summary') {
+      const today = new Date().toISOString().split('T')[0];
+      const selectedDate = finalParams.startDate || today;
+
+      try {
+        setIsFetchingData(true);
+        const response = await attendanceAPI.getDaily({ date: selectedDate });
+        const rawDailyData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+
+        const schedules = rawDailyData.map(record => {
+          let startTime = null;
+          let endTime = null;
+          if (record.shift && record.shift.includes(' - ')) {
+            const [start, end] = record.shift.split(' - ');
+            startTime = start || null;
+            endTime = end || null;
+          }
+          return {
+            empId: record.empId,
+            date: record.date,
+            start_time: startTime,
+            end_time: endTime,
+          };
+        });
+
+        const attendanceLogs = rawDailyData.map(record => ({
+          empId: record.empId,
+          date: record.date,
+          signIn: record.signIn,
+          breakOut: record.breakOut,
+          breakIn: record.breakIn,
+          signOut: record.signOut,
+          overtime_hours: record.otHours,
+        }));
+
+        const employeeMap = new Map(employees.map(emp => [emp.id, emp]));
+        rawDailyData.forEach(record => {
+          if (!employeeMap.has(record.empId)) {
+            employeeMap.set(record.empId, {
+              id: record.empId,
+              name: record.employeeName,
+              email: null,
+              positionId: null,
+              position: record.position || 'Unassigned',
+              joiningDate: null,
+              role: null,
+              status: record.status || 'Active',
+            });
+          }
+        });
+
+        finalParams.startDate = selectedDate;
+        dataSources = {
+          ...dataSources,
+          schedules,
+          attendanceLogs,
+          employees: Array.from(employeeMap.values()),
+        };
+      } catch (error) {
+        console.error('Error fetching daily attendance data:', error);
+        alert('Unable to load daily attendance data for the selected date. Please try again.');
+        setIsFetchingData(false);
+        return;
+      } finally {
+        setIsFetchingData(false);
+      }
+    }
+    
+    if (reportId === 'training_program_summary') {
+      if (!trainingPrograms.length) {
+        alert('No training programs found. Please add at least one program before generating this report.');
+        return;
+      }
+      if (!trainingEnrollments.length) {
+        alert('No enrollments found for any training program.');
+        return;
+      }
+      if (!finalParams.programId) {
+        alert('Please select a training program before generating the report.');
+        return;
+      }
+
+      const employeesForTrainingReport = new Map((employees || []).map(emp => [emp.id, emp]));
+      trainingEnrollments.forEach(enrollment => {
+        if (enrollment.employeeId && !employeesForTrainingReport.has(enrollment.employeeId)) {
+          employeesForTrainingReport.set(enrollment.employeeId, {
+            id: enrollment.employeeId,
+            name: enrollment.employeeName || 'Employee',
+            position: 'Unassigned',
+            email: null,
+            positionId: null,
+            joiningDate: null,
+            role: null,
+            status: 'Active'
+          });
+        }
+      });
+
+      dataSources = {
+        ...dataSources,
+        trainingPrograms,
+        enrollments: trainingEnrollments,
+        employees: Array.from(employeesForTrainingReport.values())
+      };
+    }
     
     // ... existing logic for predictive_analytics_summary
     
@@ -269,16 +453,16 @@ const ReportsPage = (props) => {
         onClose={() => setConfigModalState({ show: false, config: null })}
         reportConfig={configModalState.config}
         onRunReport={handleRunReport}
-        trainingPrograms={props.trainingPrograms}
+        trainingPrograms={trainingPrograms}
         payrolls={props.payrolls} 
       />
 
-      {isLoading && (
+      {(isLoading || isFetchingData) && (
          <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content"><div className="modal-body text-center p-4">
                     <div className="spinner-border text-success mb-3" role="status"><span className="visually-hidden">Loading...</span></div>
-                    <h4>Generating Report...</h4>
+                    <h4>{isFetchingData ? 'Preparing Attendance Data...' : 'Generating Report...'}</h4>
                 </div></div>
             </div>
         </div>
