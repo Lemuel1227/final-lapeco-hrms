@@ -276,6 +276,7 @@ export const disciplinaryCaseAPI = {
   create: (data) => api.post('/disciplinary-cases', data),
   update: (id, data) => api.put(`/disciplinary-cases/${id}`, data),
   delete: (id) => api.delete(`/disciplinary-cases/${id}`),
+  getMyCases: () => api.get('/disciplinary-cases/my-cases'),
   getByEmployee: (employeeId) => api.get(`/disciplinary-cases/employee/${employeeId}`),
   getByStatus: (status) => api.get(`/disciplinary-cases/status/${status}`),
   getStatistics: () => api.get('/disciplinary-cases-statistics'),

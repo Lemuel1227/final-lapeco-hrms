@@ -194,6 +194,26 @@
      }
  
      /**
+      * Get disciplinary cases for the currently authenticated employee.
+      * This allows employees to view their own cases without requiring special permissions.
+      */
+     public function getMyCases(Request $request): JsonResponse
+     {
+         $user = $request->user();
+        
+         if (!$user) {
+             return response()->json(['message' => 'Unauthorized'], 401);
+         }
+        
+         $cases = DisciplinaryCase::where('employee_id', $user->id)
+             ->with(['employee:id,first_name,middle_name,last_name', 'actionLogs'])
+             ->orderBy('created_at', 'desc')
+             ->get();
+
+         return response()->json($cases);
+     }
+ 
+     /**
       * Get disciplinary cases by employee.
       */
      public function getByEmployee(User $employee): JsonResponse
@@ -202,7 +222,7 @@
              ->with('employee:id,first_name,middle_name,last_name')
              ->orderBy('created_at', 'desc')
              ->get();
- 
+
          return response()->json($cases);
      }
  

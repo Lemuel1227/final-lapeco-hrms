@@ -264,13 +264,18 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // Disciplinary Cases - with role-based access control
     Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases', [DisciplinaryCaseController::class, 'index']);
     Route::middleware(['role.access:disciplinary,store'])->post('/disciplinary-cases', [DisciplinaryCaseController::class, 'store']);
+    
+    // Employee self-access route - MUST come before {disciplinaryCase} route
+    Route::get('/disciplinary-cases/my-cases', [DisciplinaryCaseController::class, 'getMyCases']);
+    Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-grouped-by-employee', [DisciplinaryCaseController::class, 'getGroupedByEmployee']);
+    Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-statistics', [DisciplinaryCaseController::class, 'getStatistics']);
+    Route::middleware(['role.access:disciplinary,view'])->get('/disciplinary-cases/employee/{employee}', [DisciplinaryCaseController::class, 'getByEmployee']);
+    Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases/status/{status}', [DisciplinaryCaseController::class, 'getByStatus']);
+    
+    // Parameterized routes must come AFTER specific routes
     Route::middleware(['role.access:disciplinary,view'])->get('/disciplinary-cases/{disciplinaryCase}', [DisciplinaryCaseController::class, 'show']);
     Route::middleware(['role.access:disciplinary,update'])->put('/disciplinary-cases/{disciplinaryCase}', [DisciplinaryCaseController::class, 'update']);
     Route::middleware(['role.access:disciplinary,destroy'])->delete('/disciplinary-cases/{disciplinaryCase}', [DisciplinaryCaseController::class, 'destroy']);
-    Route::middleware(['role.access:disciplinary,view'])->get('/disciplinary-cases/employee/{employee}', [DisciplinaryCaseController::class, 'getByEmployee']);
-    Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases/status/{status}', [DisciplinaryCaseController::class, 'getByStatus']);
-    Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-grouped-by-employee', [DisciplinaryCaseController::class, 'getGroupedByEmployee']);
-    Route::middleware(['role.access:disciplinary,index'])->get('/disciplinary-cases-statistics', [DisciplinaryCaseController::class, 'getStatistics']);
     
     // Disciplinary Case Attachments
     Route::middleware(['role.access:disciplinary,store'])->post('/disciplinary-cases/{disciplinaryCase}/attachments', [DisciplinaryCaseController::class, 'uploadAttachment']);

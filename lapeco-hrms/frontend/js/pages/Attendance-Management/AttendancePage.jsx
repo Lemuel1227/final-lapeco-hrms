@@ -457,19 +457,34 @@ const AttendancePage = () => {
     }
     
     try {
-      const reportData = {
-        title: `Daily Attendance Report - ${currentDate}`,
+      // Prepare data in the format expected by attendance summary report generator
+      const schedules = dailyAttendanceList.map(record => ({
         date: currentDate,
-        data: sortedAndFilteredList,
-        summary: {
-          totalScheduled: dailyAttendanceList.length,
-          totalPresent: dailyAttendanceList.filter(e => e.status === 'Present').length,
-          totalLate: dailyAttendanceList.filter(e => e.status === 'Late').length,
-          totalAbsent: dailyAttendanceList.filter(e => e.status === 'Absent').length
-        }
-      };
+        empId: record.empId,
+        start_time: record.shift ? record.shift.split('-')[0]?.trim() : null,
+        employeeName: record.name
+      }));
+
+      const attendanceLogs = dailyAttendanceList.map(record => ({
+        date: currentDate,
+        empId: record.empId,
+        signIn: record.signIn,
+        signOut: record.signOut
+      }));
+
+      const employees = dailyAttendanceList.map(record => ({
+        id: record.empId,
+        name: record.name,
+        position: record.position
+      }));
+
+      // Call generateReport with correct parameters: (reportId, params, dataSources)
+      await generateReport(
+        'attendance_summary',
+        { startDate: currentDate },
+        { schedules, attendanceLogs, employees }
+      );
       
-      await generateReport(reportData);
       setShowReportPreview(true);
       
     } catch (error) {

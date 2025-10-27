@@ -49,21 +49,8 @@ const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp }) 
             try {
                 setLoading(true);
 
-                let resolvedUser = currentUserProp || currentUser;
-
-                if (!resolvedUser) {
-                    const profile = await getUserProfile();
-                    if (!isMounted) return;
-                    resolvedUser = profile;
-                    setCurrentUser(profile);
-                }
-
-                const employeeId = resolvedUser?.id ?? resolvedUser?.data?.id;
-                if (!employeeId) {
-                    throw new Error('Unable to determine your employee profile.');
-                }
-
-                const response = await disciplinaryCaseAPI.getByEmployee(employeeId);
+                // Use the new getMyCases endpoint which doesn't require employee ID
+                const response = await disciplinaryCaseAPI.getMyCases();
                 if (!isMounted) return;
 
                 const rawCases = Array.isArray(response.data)
@@ -88,6 +75,14 @@ const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp }) 
 
                 setCaseRecords(mappedCases);
                 setError(null);
+                
+                // Fetch current user profile for display purposes
+                if (!currentUser && !currentUserProp) {
+                    const profile = await getUserProfile();
+                    if (isMounted) {
+                        setCurrentUser(profile);
+                    }
+                }
             } catch (err) {
                 console.error('Failed to load cases for current user:', err);
                 if (!isMounted) return;

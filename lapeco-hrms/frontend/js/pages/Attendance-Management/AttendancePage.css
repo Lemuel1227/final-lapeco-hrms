@@ -1,3 +1,8 @@
+/* Attendance page header buttons - prevent text wrapping */
+.attendance-page-header .btn {
+  white-space: nowrap;
+}
+
 .attendance-view-controls {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -12,6 +17,7 @@
   padding: 0.5rem 1.25rem;
   color: var(--text-secondary);
   transition: all 0.2s ease-in-out;
+  white-space: nowrap;
 }
 .attendance-view-controls .btn.active {
   background-color: var(--app-success-color);
