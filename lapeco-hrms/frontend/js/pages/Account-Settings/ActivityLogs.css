@@ -12,7 +12,7 @@
 
 .timeline-date-header {
   padding: 0.75rem 0;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid var(--border-color);
   margin-bottom: 1.5rem;
   z-index: 1;
 }
@@ -20,7 +20,7 @@
 .timeline-date-header h6 {
   margin: 0;
   font-weight: 600;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .timeline-items {
@@ -59,17 +59,17 @@
 .timeline-line {
   width: 2px;
   flex: 1;
-  background: linear-gradient(to bottom, #dee2e6 0%, transparent 100%);
+  background: linear-gradient(to bottom, var(--border-color) 0%, transparent 100%);
   margin-top: 8px;
   min-height: 30px;
 }
 
 .timeline-content {
   flex: 1;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: 8px;
   padding: 1rem 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--card-shadow);
   transition: all 0.2s ease;
 }
 
@@ -85,7 +85,7 @@
 }
 
 .timeline-content p {
-  color: #212529;
+  color: var(--text-primary);
   font-size: 0.925rem;
 }
 
@@ -102,11 +102,18 @@
 
 .activity-description {
   font-size: 0.9rem;
-  color: #212529;
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
 /* Badge Variants */
+.timeline-content .badge.bg-secondary,
+.table .badge.bg-secondary {
+  background-color: var(--text-secondary) !important;
+  color: var(--bg-primary) !important;
+  opacity: 0.9;
+}
+
 .bg-success-subtle {
   background-color: #d1e7dd !important;
 }
@@ -172,12 +179,13 @@
 }
 
 /* Sticky Date Header */
-.sticky-top {
+.timeline-date-header.sticky-top {
   position: sticky;
   top: 0;
   z-index: 10;
   backdrop-filter: blur(10px);
-  background-color: rgba(255, 255, 255, 0.95) !important;
+  background-color: var(--bg-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 /* Empty State */
@@ -211,7 +219,9 @@
 .pagination-sm .page-link {
   border-radius: 6px;
   margin: 0 2px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .pagination-sm .page-item.active .page-link {
@@ -243,8 +253,8 @@
 
 /* Card Header Enhancement */
 .card-header {
-  background-color: #fff;
-  border-bottom: 2px solid #e9ecef;
+  background-color: var(--bg-primary);
+  border-bottom: 2px solid var(--border-color);
 }
 
 .card-header small {
@@ -255,7 +265,7 @@
 
 /* Table Enhancements */
 .table-hover tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   cursor: pointer;
 }
 
@@ -266,7 +276,7 @@
 }
 
 .table-light {
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
 }
 
 /* Animations */
@@ -287,12 +297,17 @@
 
 /* Filter Pills */
 .input-group-text {
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   border-right: none;
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
 
 .input-group .form-control {
   border-left: none;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
 
 .input-group .form-control:focus {

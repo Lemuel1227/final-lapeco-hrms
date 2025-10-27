@@ -127,6 +127,11 @@ const ResignationManagementPage = () => {
         return (resignations || []).filter(req => {
             if (!req || !req.id) return false; // Filter out any invalid records
             
+            // Hide rejected/declined requests
+            if (req.status === 'Declined' || req.status === 'Rejected') {
+                return false;
+            }
+            
             // Hide if the request is 'Approved' and its effective date is in the past
             if (req.status === 'Approved' && req.effectiveDate && isPast(parseISO(req.effectiveDate)) && !isToday(parseISO(req.effectiveDate))) {
                 return false;

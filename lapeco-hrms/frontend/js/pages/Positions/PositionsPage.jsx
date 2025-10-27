@@ -325,13 +325,38 @@ const PositionsPage = (props) => {
     return Number(value) || 0;
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!positions || positions.length === 0) {
       alert("No positions available to generate a report.");
       return;
     }
-    generateReport('positions_report', {}, { employees: allEmployees, positions });
-    setShowReportPreview(true);
+    
+    try {
+      // Fetch all employees first to ensure we have the data
+      const res = await employeeAPI.getAll();
+      const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      // Normalize to { id, name, positionId }
+      const employees = data.map(e => ({ 
+        id: e.id, 
+        name: e.name, 
+        positionId: e.position_id ?? e.positionId ?? null 
+      }));
+      
+      // Normalize positions data to camelCase for the report generator
+      const normalizedPositions = positions.map(pos => ({
+        id: pos.id,
+        title: pos.name || pos.title,
+        description: pos.description || '',
+        monthlySalary: safeMonthlySalary(pos)
+      }));
+      
+      // Generate the report with fetched employee data
+      await generateReport('positions_report', {}, { employees, positions: normalizedPositions });
+      setShowReportPreview(true);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert('Failed to generate report. Please try again.');
+    }
   };
 
   const handleCloseReportPreview = () => {

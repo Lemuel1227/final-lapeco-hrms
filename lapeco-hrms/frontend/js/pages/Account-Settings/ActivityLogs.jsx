@@ -314,7 +314,7 @@ const ActivityLogs = () => {
             ) : (
               Object.entries(groupLogsByDate(displayLogs)).map(([dateStr, dateLogs]) => (
                 <div key={dateStr} className="timeline-group mb-4">
-                  <div className="timeline-date-header sticky-top bg-white">
+                  <div className="timeline-date-header sticky-top">
                     <h6 className="text-muted mb-3">
                       <i className="bi bi-calendar3 me-2"></i>
                       {getDateLabel(dateStr)}
@@ -337,7 +337,7 @@ const ActivityLogs = () => {
                                   {log.action_type}
                                 </span>
                                 {log.entity_type && (
-                                  <span className="badge bg-light text-dark">
+                                  <span className="badge bg-secondary">
                                     {log.entity_type}
                                     {log.entity_id && ` #${log.entity_id}`}
                                   </span>
@@ -409,7 +409,7 @@ const ActivityLogs = () => {
                       </td>
                       <td>
                         {log.entity_type && (
-                          <span className="badge bg-light text-dark">
+                          <span className="badge bg-secondary">
                             {log.entity_type}
                             {log.entity_id && <><br/><small>#{log.entity_id}</small></>}
                           </span>

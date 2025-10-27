@@ -82,8 +82,8 @@
 }
 .schedule-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
 }
 .schedule-item-card {
   border: 1px solid var(--border-color);
@@ -106,11 +106,11 @@
   justify-content: space-between;
   align-items: center;
   background-color: var(--bg-secondary);
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.875rem;
   border-bottom: 1px solid var(--border-color);
 }
 .schedule-item-card .card-title {
-  font-size: 1.05rem; 
+  font-size: 0.95rem; 
   font-weight: 600; 
   margin: 0;
   white-space: nowrap; 
@@ -119,24 +119,27 @@
   color: var(--text-primary);
 }
 .schedule-item-card .card-body { 
-  padding: 1rem; 
+  padding: 0.75rem 0.875rem; 
   flex-grow: 1; 
 }
 .schedule-item-card .template-info-section { 
-  margin-bottom: 0.75rem; 
+  margin-bottom: 0.5rem; 
 }
 .schedule-item-card .template-info-section dt {
-  font-size: 0.75rem; 
+  font-size: 0.7rem; 
   font-weight: 600; 
   color: var(--text-secondary);
-  margin-bottom: 0.25rem; 
+  margin-bottom: 0.2rem; 
   text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .schedule-item-card .template-info-section dd {
   margin-left: 0; 
   display: flex; 
   flex-wrap: wrap; 
-  gap: 0.35rem;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 .schedule-item-card .info-row {
   display: flex; 
@@ -157,12 +160,13 @@
   color: var(--text-primary);
 }
 .schedule-item-card .card-footer {
-  padding: 0.75rem 1rem; 
+  padding: 0.6rem 0.875rem; 
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
   display: flex; 
-  gap: 0.5rem; 
+  gap: 0.4rem; 
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .schedule-preview-container {

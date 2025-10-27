@@ -35,14 +35,14 @@ const ScheduleTemplatesView = ({
             borderStyle: 'dashed', 
             justifyContent: 'center', 
             alignItems: 'center', 
-            minHeight: '220px', 
+            minHeight: '180px', 
             cursor: 'pointer'
           }} 
           onClick={() => handleOpenCreateTemplateModal()}
         >
           <div className="text-center text-muted">
-            <i className="bi bi-plus-square-dotted fs-2"></i>
-            <p className="mt-2 mb-0 fw-bold">Create New Template</p>
+            <i className="bi bi-plus-square-dotted fs-3"></i>
+            <p className="mt-2 mb-0 fw-semibold" style={{fontSize: '0.9rem'}}>Create New Template</p>
           </div>
         </div>
         

@@ -2,7 +2,7 @@ import React from 'react';
 import { differenceInDays, parseISO, startOfToday, format } from 'date-fns';
 import ActionsDropdown from '../../common/ActionsDropdown';
 
-const ResignationRequestRow = ({ request, employee, onApprove, onEditDate, onViewReason, onViewProfile }) => {
+const ResignationRequestRow = ({ request, employee, onApprove, onDecline, onEditDate, onViewReason, onViewProfile, onDelete }) => {
     if (!request || !request.id) {
         return null;
     }
@@ -79,14 +79,10 @@ const ResignationRequestRow = ({ request, employee, onApprove, onEditDate, onVie
                     <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); onViewReason(); }}>
                         <i className="bi bi-info-circle me-2"></i>View Reason
                     </a>
-                    {request.status === 'Pending' && (
-                        <>
-                            <div className="dropdown-divider"></div>
-                            <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); onApprove(); }}>
-                                <i className="bi bi-check-circle-fill me-2"></i>Approve
-                            </a>
-                        </>
-                    )}
+                    <div className="dropdown-divider"></div>
+                    <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); onApprove(); }}>
+                        <i className="bi bi-check-circle-fill me-2"></i>Approve
+                    </a>
                     <div className="dropdown-divider"></div>
                     <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); onEditDate(); }}>
                         <i className="bi bi-calendar-event me-2"></i>Edit Effective Date
