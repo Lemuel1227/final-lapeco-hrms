@@ -121,6 +121,7 @@ export const positionAPI = {
   update: (id, data) => api.put(`/positions/${id}`, data),
   delete: (id) => api.delete(`/positions/${id}`),
   getEmployees: (id) => api.get(`/positions/${id}/employees`),
+  removeEmployee: (positionId, employeeId) => api.post(`/positions/${positionId}/employees/${employeeId}/remove`),
 };
 
 // Schedule API calls

@@ -31,7 +31,7 @@ class CheckAttendanceRates extends Command
         $this->info("Checking attendance rates with threshold: {$threshold}%");
         
         // Get all active employees
-        $employees = User::where('account_status', 'Active')
+        $employees = User::where('employment_status', 'Active')
                         ->where('role', '!=', 'HR_PERSONNEL') // Exclude HR personnel from attendance checks
                         ->get();
         

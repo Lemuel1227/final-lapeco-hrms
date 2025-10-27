@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Position;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Notification;
 use App\Traits\LogsActivity;
 
 class PositionController extends Controller
@@ -109,5 +110,41 @@ class PositionController extends Controller
                 ];
             });
         return response()->json(['employees' => $employees]);
+    }
+
+    public function removeEmployee(Position $position, User $employee)
+    {
+        if ($employee->position_id !== $position->id) {
+            return response()->json([
+                'message' => 'Employee is not assigned to the specified position.',
+            ], 422);
+        }
+
+        $employee->position_id = null;
+
+        if ($employee->role === 'TEAM_LEADER') {
+            $employee->role = 'REGULAR_EMPLOYEE';
+        }
+
+        $employee->save();
+
+        Notification::createForUser(
+            $employee->id,
+            'position_change',
+            'Position Updated',
+            'You have been removed from your position.'
+        );
+
+        $this->logUpdate('employee', $employee->id, $employee->name);
+
+        return response()->json([
+            'message' => 'Employee removed from position successfully.',
+            'employee' => [
+                'id' => $employee->id,
+                'name' => $employee->name,
+                'role' => $employee->role,
+                'position_id' => $employee->position_id,
+            ],
+        ]);
     }
 }

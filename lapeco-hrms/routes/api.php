@@ -118,6 +118,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:position,update'])->put('/positions/{position}', [PositionController::class, 'update']);
     Route::middleware(['role.access:position,destroy'])->delete('/positions/{position}', [PositionController::class, 'destroy']);
     Route::middleware(['role.access:position,view'])->get('/positions/{position}/employees', [PositionController::class, 'employees']);
+    Route::middleware(['role.access:position,update'])->post('/positions/{position}/employees/{employee}/remove', [PositionController::class, 'removeEmployee']);
 
     // Attendance Management - with role-based access control
     Route::middleware(['role.access:attendance,index'])->get('/attendance', [AttendanceController::class, 'index']);

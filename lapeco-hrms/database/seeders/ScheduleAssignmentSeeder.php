@@ -16,10 +16,11 @@ class ScheduleAssignmentSeeder extends Seeder
     public function run(): void
     {
         // Get all users and create schedules for the last 30 days
-        $users = User::all();
+        $users = User::whereNotIn('employment_status', ['Inactive', 'inactive', 'terminated', 'resigned'])
+            ->get();
         
         if ($users->isEmpty()) {
-            $this->command->warn('No users found. Please seed users first.');
+            $this->command->warn('No active users found. Please seed users first.');
             return;
         }
 
@@ -43,7 +44,15 @@ class ScheduleAssignmentSeeder extends Seeder
             );
             
             // Assign 70% of users to work each day (simulate realistic scheduling)
-            $workingUsers = $users->random(max(1, (int)($users->count() * 0.7)));
+            $eligibleUsers = $users->filter(function ($user) {
+                return !in_array(strtolower($user->employment_status ?? ''), ['inactive', 'terminated', 'resigned']);
+            });
+
+            if ($eligibleUsers->isEmpty()) {
+                continue;
+            }
+
+            $workingUsers = $eligibleUsers->random(max(1, (int)($eligibleUsers->count() * 0.7)));
             
             foreach ($workingUsers as $user) {
                 // Skip if assignment already exists

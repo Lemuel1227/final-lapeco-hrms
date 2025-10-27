@@ -18,11 +18,23 @@ class ResignationController extends Controller
      */
     public function index(): JsonResponse
     {
-        $resignations = Resignation::with(['employee', 'approver'])
+        $resignations = Resignation::with([
+                'employee' => function ($query) {
+                    $query->select('id', 'first_name', 'middle_name', 'last_name', 'position_id');
+                },
+                'employee.position' => function ($query) {
+                    $query->select('id', 'name');
+                },
+                'approver' => function ($query) {
+                    $query->select('id', 'first_name', 'middle_name', 'last_name');
+                },
+            ])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json($resignations);
+        return response()->json(
+            $resignations->map(fn (Resignation $resignation) => $this->transformResignation($resignation))
+        );
     }
 
     /**
@@ -39,7 +51,17 @@ class ResignationController extends Controller
         ]);
 
         $resignation = Resignation::create($validated);
-        $resignation->load(['employee', 'approver']);
+        $resignation->loadMissing([
+            'employee' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name', 'position_id');
+            },
+            'employee.position' => function ($query) {
+                $query->select('id', 'name');
+            },
+            'approver' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name');
+            },
+        ]);
         
         // Log activity
         $employeeName = $resignation->employee ? 
@@ -47,7 +69,7 @@ class ResignationController extends Controller
             'Employee';
         $this->logCreate('resignation', $resignation->id, "Resignation for {$employeeName}");
 
-        return response()->json($resignation, 201);
+        return response()->json($this->transformResignation($resignation), 201);
     }
 
     /**
@@ -55,8 +77,19 @@ class ResignationController extends Controller
      */
     public function show(Resignation $resignation): JsonResponse
     {
-        $resignation->load(['employee', 'approver']);
-        return response()->json($resignation);
+        $resignation->loadMissing([
+            'employee' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name', 'position_id');
+            },
+            'employee.position' => function ($query) {
+                $query->select('id', 'name');
+            },
+            'approver' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name');
+            },
+        ]);
+
+        return response()->json($this->transformResignation($resignation));
     }
 
     /**
@@ -75,8 +108,18 @@ class ResignationController extends Controller
         ]);
 
         $resignation->update($validated);
-        $resignation->load(['employee', 'approver']);
-        
+        $resignation->loadMissing([
+            'employee' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name', 'position_id');
+            },
+            'employee.position' => function ($query) {
+                $query->select('id', 'name');
+            },
+            'approver' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name');
+            },
+        ]);
+
         // Log activity
         $this->logUpdate('resignation', $resignation->id, "Resignation #{$resignation->id}");
 
@@ -98,7 +141,7 @@ class ResignationController extends Controller
             }
         }
 
-        return response()->json($resignation);
+        return response()->json($this->transformResignation($resignation));
     }
 
     /**
@@ -134,9 +177,19 @@ class ResignationController extends Controller
         }
 
         $resignation->update($updateData);
-        $resignation->load(['employee', 'approver']);
+        $resignation->loadMissing([
+            'employee' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name', 'position_id');
+            },
+            'employee.position' => function ($query) {
+                $query->select('id', 'name');
+            },
+            'approver' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name');
+            },
+        ]);
 
-        return response()->json($resignation);
+        return response()->json($this->transformResignation($resignation));
     }
 
     /**
@@ -149,7 +202,17 @@ class ResignationController extends Controller
         ]);
 
         $resignation->update($validated);
-        $resignation->load(['employee', 'approver']);
+        $resignation->loadMissing([
+            'employee' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name', 'position_id');
+            },
+            'employee.position' => function ($query) {
+                $query->select('id', 'name');
+            },
+            'approver' => function ($query) {
+                $query->select('id', 'first_name', 'middle_name', 'last_name');
+            },
+        ]);
 
         // If already approved and effective date is today/past, deactivate account
         if ($resignation->status === 'approved' && $resignation->effective_date) {
@@ -161,7 +224,7 @@ class ResignationController extends Controller
             }
         }
 
-        return response()->json($resignation);
+        return response()->json($this->transformResignation($resignation));
     }
 
     /**
@@ -171,5 +234,36 @@ class ResignationController extends Controller
     {
         $resignation->delete();
         return response()->json(['message' => 'Resignation deleted successfully']);
+    }
+
+    private function transformResignation(Resignation $resignation): array
+    {
+        $employee = $resignation->employee;
+        $approver = $resignation->approver;
+
+        return [
+            'id' => $resignation->id,
+            'employee_id' => $resignation->employee_id,
+            'employee_full_name' => $resignation->employee_full_name,
+            'position_name' => $employee?->position?->name,
+            'status' => match ($resignation->status) {
+                'pending' => 'Pending',
+                'approved' => 'Approved',
+                'rejected' => 'Declined',
+                'withdrawn' => 'Withdrawn',
+                default => ucfirst($resignation->status ?? 'Pending'),
+            },
+            'reason' => $resignation->reason,
+            'submission_date' => $resignation->submission_date,
+            'effective_date' => $resignation->effective_date,
+            'hr_comments' => $resignation->hr_comments ?? $resignation->notes,
+            'approved_by' => $resignation->approved_by,
+            'approver' => $approver ? [
+                'id' => $approver->id,
+                'first_name' => $approver->first_name,
+                'middle_name' => $approver->middle_name,
+                'last_name' => $approver->last_name,
+            ] : null,
+        ];
     }
 }

@@ -119,23 +119,12 @@ const HistoryAttendanceView = ({
                 color="var(--warning-color)" 
               />
               <StatDonutChart 
-    
+                size={80} 
+                strokeWidth={9} 
                 label={`Absent (${dailyAttendanceList.filter(e => e.status === 'Absent').length}/${dailyAttendanceList.length})`} 
                 percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Absent').length / dailyAttendanceList.length) * 100) : 0} 
                 color="var(--danger-color)" 
               />
-            </div>
-            <div className={`stat-card present ${statusFilter === 'Present' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Present')}>
-              <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Present').length}</span>
-              <span className="stat-label">Present</span>
-            </div>
-            <div className={`stat-card late ${statusFilter === 'Late' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Late')}>
-              <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Late').length}</span>
-              <span className="stat-label">Late</span>
-            </div>
-            <div className={`stat-card absent ${statusFilter === 'Absent' ? 'active' : ''}`} onClick={() => handleStatusFilterClick('Absent')}>
-              <span className="stat-value">{dailyAttendanceList.filter(e => e.status === 'Absent').length}</span>
-              <span className="stat-label">Absent</span>
             </div>
           </div>
           <div className="filters-group">

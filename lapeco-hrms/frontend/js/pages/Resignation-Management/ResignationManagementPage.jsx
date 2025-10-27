@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { differenceInDays, parseISO, isPast, isToday } from 'date-fns';
 import ResignationRequestRow from './ResignationRequestRow';
 import ConfirmationModal from '../../modals/ConfirmationModal';
@@ -65,28 +65,22 @@ const ResignationManagementPage = () => {
                 ]);
 
                 // Transform resignation data to match expected format
-                const transformedResignations = resignationsRes.data.map(resignation => {
-                    const employee = employeesRes.data.find(emp => emp.id === resignation.employee_id);
-                    const position = employee && employee.position_id ? 
-                        positionsRes.data.find(pos => pos.id === employee.position_id) : null;
-                    
-                    return {
-                        id: resignation.id,
-                        employeeId: resignation.employee_id,
-                        employeeName: resignation.employee?.name || employee?.name || 'Unknown Employee',
-                        position: position?.title || 'Unassigned',
-                        status: resignation.status === 'pending' ? 'Pending' : 
-                               resignation.status === 'approved' ? 'Approved' : 'Declined',
-                        reason: resignation.reason,
-                        submissionDate: resignation.submission_date,
-                        effectiveDate: resignation.effective_date,
-                        hrComments: resignation.hr_comments,
-                        approvedBy: resignation.approved_by,
-                        approver: resignation.approver
-                    };
-                });
-
-                setResignations(transformedResignations);
+                setResignations(resignationsRes.data.map(resignation => ({
+                    id: resignation.id,
+                    employeeId: resignation.employee_id,
+                    employeeName: resignation.employee_full_name || resignation.employee?.name || 'Unknown Employee',
+                    position: resignation.position_name || resignation.employee?.position?.title || resignation.employee?.position?.name || 'Unassigned',
+                    status: resignation.status === 'pending' ? 'Pending'
+                        : resignation.status === 'approved' ? 'Approved'
+                        : resignation.status === 'rejected' ? 'Declined'
+                        : resignation.status,
+                    reason: resignation.reason,
+                    submissionDate: resignation.submission_date,
+                    effectiveDate: resignation.effective_date,
+                    hrComments: resignation.hr_comments,
+                    approvedBy: resignation.approved_by,
+                    approver: resignation.approver,
+                })));
                 setEmployees(employeesRes.data);
                 setPositions(positionsRes.data);
                 
@@ -107,7 +101,27 @@ const ResignationManagementPage = () => {
     }, []);
 
     const employeeMap = useMemo(() => new Map((employees || []).map(e => [e.id, e])), [employees]);
-    const positionMap = useMemo(() => new Map((positions || []).map(p => [p.id, p.title])), [positions]);
+    const positionMap = useMemo(() => new Map((positions || []).map(p => [p.id, p.name || p.title || 'Unknown Position'])), [positions]);
+
+    const refreshResignations = useCallback(async () => {
+        const resignationsRes = await resignationAPI.getAll();
+        setResignations(resignationsRes.data.map(resignation => ({
+            id: resignation.id,
+            employeeId: resignation.employee_id,
+            employeeName: resignation.employee_full_name || resignation.employee?.name || 'Unknown Employee',
+            position: resignation.position_name || resignation.employee?.position?.title || resignation.employee?.position?.name || 'Unassigned',
+            status: resignation.status === 'pending' ? 'Pending'
+                : resignation.status === 'approved' ? 'Approved'
+                : resignation.status === 'rejected' ? 'Declined'
+                : resignation.status,
+            reason: resignation.reason,
+            submissionDate: resignation.submission_date,
+            effectiveDate: resignation.effective_date,
+            hrComments: resignation.hr_comments,
+            approvedBy: resignation.approved_by,
+            approver: resignation.approver,
+        })));
+    }, []);
 
     const activeResignations = useMemo(() => {
         return (resignations || []).filter(req => {
@@ -191,21 +205,7 @@ const ResignationManagementPage = () => {
                 });
                 
                 // Refresh data after update
-                const resignationsRes = await resignationAPI.getAll();
-                const transformedResignations = resignationsRes.data.map(resignation => ({
-                    id: resignation.id,
-                    employeeId: resignation.employee_id,
-                    employeeName: resignation.employee?.name || 'Unknown Employee',
-                    status: resignation.status === 'pending' ? 'Pending' : 
-                           resignation.status === 'approved' ? 'Approved' : 'Declined',
-                    reason: resignation.reason,
-                    submissionDate: resignation.submission_date,
-                    effectiveDate: resignation.effective_date,
-                    hrComments: resignation.hr_comments,
-                    approvedBy: resignation.approved_by,
-                    approver: resignation.approver
-                }));
-                setResignations(transformedResignations);
+                await refreshResignations();
                 
                 setRequestToAction(null);
                 setAction({ type: '', comments: '' });
@@ -221,21 +221,7 @@ const ResignationManagementPage = () => {
             await resignationAPI.updateEffectiveDate(resignationId, { effective_date: newDate });
             
             // Refresh data after update
-            const resignationsRes = await resignationAPI.getAll();
-            const transformedResignations = resignationsRes.data.map(resignation => ({
-                id: resignation.id,
-                employeeId: resignation.employee_id,
-                employeeName: resignation.employee?.name || 'Unknown Employee',
-                status: resignation.status === 'pending' ? 'Pending' : 
-                       resignation.status === 'approved' ? 'Approved' : 'Declined',
-                reason: resignation.reason,
-                submissionDate: resignation.submission_date,
-                effectiveDate: resignation.effective_date,
-                hrComments: resignation.hr_comments,
-                approvedBy: resignation.approved_by,
-                approver: resignation.approver
-            }));
-            setResignations(transformedResignations);
+            await refreshResignations();
             
             setEditingRequest(null);
         } catch (err) {

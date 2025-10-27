@@ -8,6 +8,7 @@ import AddEditHolidayModal from '../../modals/AddEditHolidayModal';
 import HolidayCard from './HolidayCard';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 import Layout from '@/layout/Layout';
+import ToastNotification from '../../common/ToastNotification';
 import { holidayAPI } from '@/services/api';
 
 const HolidayManagementPage = (props) => {
@@ -22,6 +23,8 @@ const HolidayManagementPage = (props) => {
   const [typeFilter, setTypeFilter] = useState('All');
   const [holidayToDelete, setHolidayToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const calendarRef = useRef(null);
   const popoverRef = useRef(null);
@@ -121,9 +124,57 @@ const HolidayManagementPage = (props) => {
     }
   };
 
-  const handleOpenModal = (holiday = null) => { setEditingHoliday(holiday); setShowModal(true); };
+  const refreshHolidays = async () => {
+    const res = await holidayAPI.getAll();
+    const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+    setHolidays(data);
+  };
+
+  const normalizeHolidayForModal = (holiday) => {
+    if (!holiday) return null;
+    return {
+      ...holiday,
+      name: holiday.name ?? holiday.title ?? '',
+      type: holiday.type === 'REGULAR'
+        ? 'Regular Holiday'
+        : holiday.type === 'SPECIAL'
+          ? 'Special Non-Working Day'
+          : holiday.type || 'Regular Holiday',
+    };
+  };
+
+  const handleOpenModal = (holiday = null) => {
+    setEditingHoliday(normalizeHolidayForModal(holiday));
+    setShowModal(true);
+  };
   const handleCloseModal = () => { setEditingHoliday(null); setShowModal(false); };
-  const handleSaveHoliday = (formData, holidayId) => { props.handlers?.saveHoliday?.(formData, holidayId); handleCloseModal(); };
+  const handleSaveHoliday = async (formData, holidayId) => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const payload = {
+        title: formData.name,
+        date: formData.date,
+        type: formData.type === 'Regular Holiday' ? 'REGULAR' : 'SPECIAL',
+      };
+
+      if (holidayId) {
+        await holidayAPI.update(holidayId, payload);
+        setToast({ show: true, message: 'Holiday updated successfully!', type: 'success' });
+      } else {
+        await holidayAPI.create(payload);
+        setToast({ show: true, message: 'Holiday created successfully!', type: 'success' });
+      }
+
+      await refreshHolidays();
+      handleCloseModal();
+    } catch (error) {
+      const message = error?.response?.data?.message || 'Failed to save holiday.';
+      setToast({ show: true, message, type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const handleDeleteHoliday = (e, holidayId) => {
     e?.preventDefault();
     const holiday = holidays.find(h => h.id === holidayId);
@@ -141,22 +192,18 @@ const HolidayManagementPage = (props) => {
       setIsDeleting(true);
       try {
         await holidayAPI.delete(holidayToDelete.id);
-        // Refresh holidays data after deletion
-        const res = await holidayAPI.getAll();
-        const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-        setHolidays(data);
+        await refreshHolidays();
+        setToast({ show: true, message: 'Holiday deleted successfully!', type: 'success' });
       } catch (error) {
         if (error.response?.status === 404) {
-          alert('Holiday not found. It may have already been deleted.');
-          // Refresh data to sync with server state
+          setToast({ show: true, message: 'Holiday not found. It may have already been deleted.', type: 'warning' });
           try {
-            const res = await holidayAPI.getAll();
-            const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-            setHolidays(data);
+            await refreshHolidays();
           } catch (refreshError) {
           }
         } else {
-          alert('Failed to delete holiday. Please try again.');
+          const message = error?.response?.data?.message || 'Failed to delete holiday. Please try again.';
+          setToast({ show: true, message, type: 'error' });
         }
       } finally {
         setIsDeleting(false);
@@ -262,6 +309,13 @@ const HolidayManagementPage = (props) => {
       </div>
 
       <AddEditHolidayModal show={showModal} onClose={handleCloseModal} onSave={handleSaveHoliday} holidayData={editingHoliday} />
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        />
+      )}
       <ConfirmationModal
         show={!!holidayToDelete}
         onClose={handleCloseDeleteConfirm}
