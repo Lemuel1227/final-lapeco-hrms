@@ -502,8 +502,6 @@ function ApplicationModal({ show, onHide }) {
                   <option value="">Select...</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">Please select your gender.</Form.Control.Feedback>
               </Form.Group>

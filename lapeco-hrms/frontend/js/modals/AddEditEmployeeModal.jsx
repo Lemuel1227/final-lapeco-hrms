@@ -5,6 +5,41 @@ import placeholderImage from '../assets/placeholder-profile.jpg';
 import ResumeIframe from '../common/ResumeIframe';
 import { employeeAPI } from '../services/api';
 
+const formatSssNumber = (value = '') => {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (digits.length !== 10) {
+    return value?.trim() || '';
+  }
+  return `${digits.slice(0, 2)}-${digits.slice(2, 9)}-${digits.slice(9)}`;
+};
+
+const formatTinNumber = (value = '') => {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (digits.length === 9) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 12) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 9)}-${digits.slice(9)}`;
+  }
+  return value?.trim() || '';
+};
+
+const formatPagIbigNumber = (value = '') => {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (digits.length !== 12) {
+    return value?.trim() || '';
+  }
+  return `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8)}`;
+};
+
+const formatPhilhealthNumber = (value = '') => {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (digits.length !== 12) {
+    return value?.trim() || '';
+  }
+  return `${digits.slice(0, 2)}-${digits.slice(2, 11)}-${digits.slice(11)}`;
+};
+
 const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData, positions, viewOnly, onSwitchToEdit }) => {
   
   const initialFormState = {
@@ -305,6 +340,11 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
     dataToSave.first_name = formData.firstName;
     dataToSave.middle_name = formData.middleName || null;
     dataToSave.last_name = formData.lastName;
+
+    dataToSave.sssNo = formatSssNumber(formData.sssNo);
+    dataToSave.tinNo = formatTinNumber(formData.tinNo);
+    dataToSave.pagIbigNo = formatPagIbigNumber(formData.pagIbigNo);
+    dataToSave.philhealthNo = formatPhilhealthNumber(formData.philhealthNo);
 
     if (!formData.middleName) {
       delete dataToSave.middleName;

@@ -1,7 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const EditEffectiveDateModal = ({ show, onClose, onSave, request }) => {
-  const [effectiveDate, setEffectiveDate] = useState(request.effectiveDate || '');
+  const [effectiveDate, setEffectiveDate] = useState('');
+
+  useEffect(() => {
+    if (request?.effectiveDate) {
+      const dateValue = typeof request.effectiveDate === 'string'
+        ? request.effectiveDate.split('T')[0]
+        : '';
+      setEffectiveDate(dateValue);
+    } else {
+      setEffectiveDate('');
+    }
+  }, [request]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

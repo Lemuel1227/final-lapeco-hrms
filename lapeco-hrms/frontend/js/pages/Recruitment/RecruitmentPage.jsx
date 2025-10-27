@@ -222,12 +222,13 @@ const RecruitmentPage = () => {
             return inRange(appDate);
         });
     }
-    if (searchTerm) {
-        const lowerSearch = searchTerm.toLowerCase();
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (normalizedSearch) {
         results = results.filter(app => {
-            const name = app.name || '';
-            const email = app.email || '';
-            return name.toLowerCase().includes(lowerSearch) || email.toLowerCase().includes(lowerSearch);
+            const fullName = (app.full_name || [app.first_name, app.middle_name, app.last_name].filter(Boolean).join(' ')).toLowerCase();
+            const email = (app.email || '').toLowerCase();
+            const phone = (app.phone || '').toLowerCase();
+            return fullName.includes(normalizedSearch) || email.includes(normalizedSearch) || phone.includes(normalizedSearch);
         });
     }
     results.sort((a, b) => {
