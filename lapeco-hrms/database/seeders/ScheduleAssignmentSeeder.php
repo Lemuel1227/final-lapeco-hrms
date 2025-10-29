@@ -66,12 +66,12 @@ class ScheduleAssignmentSeeder extends Seeder
                 $shiftType = rand(1, 3);
                 switch ($shiftType) {
                     case 1: // Morning shift
-                        $startTime = '08:00';
-                        $endTime = '16:00';
+                        $startTime = '06:00';
+                        $endTime = '14:00';
                         break;
                     case 2: // Afternoon shift
-                        $startTime = '13:00';
-                        $endTime = '20:00';
+                        $startTime = '14:00';
+                        $endTime = '22:00';
                         break;
                     case 3: // Night shift
                         $startTime = '22:00';

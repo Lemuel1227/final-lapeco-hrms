@@ -14,36 +14,48 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState('light');
 
-  // Initialize theme from user data
+  // Initialize theme from localStorage first (immediate)
+  const [initialized, setInitialized] = useState(false);
+
   useEffect(() => {
     const initializeTheme = () => {
+      // 1. First check localStorage for theme preference (fastest)
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        setTheme(savedTheme);
+      }
+
+      // 2. Then check user data (might be async)
       try {
         const userData = localStorage.getItem('user');
         if (userData) {
           const user = JSON.parse(userData);
-          if (user.theme_preference && (user.theme_preference === 'light' || user.theme_preference === 'dark')) {
-            setTheme(user.theme_preference);
-            return;
+          if (user.theme_preference === 'light' || user.theme_preference === 'dark') {
+            // Only update if different from current theme
+            if (savedTheme !== user.theme_preference) {
+              setTheme(user.theme_preference);
+              localStorage.setItem('theme', user.theme_preference);
+            }
           }
         }
       } catch (error) {
         console.error('Error parsing user data:', error);
       }
       
-      // Fallback to localStorage for backward compatibility
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
-        setTheme(savedTheme);
-      }
+      setInitialized(true);
     };
     
-    initializeTheme();
-  }, []);
+    if (!initialized) {
+      initializeTheme();
+    }
+  }, [initialized]);
 
   // Save theme to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+    if (initialized) {
+      localStorage.setItem('theme', theme);
+    }
+  }, [theme, initialized]);
 
   // Apply theme to body
   useEffect(() => {
