@@ -270,9 +270,9 @@ const MyProfilePage = () => {
                 setToast({ show: true, message: 'Please select a valid image file.', type: 'error' });
                 return;
             }
-            // Validate file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                setToast({ show: true, message: 'Image size must be less than 5MB.', type: 'error' });
+            // Validate file size (max 2MB to match backend validation)
+            if (file.size > 2 * 1024 * 1024) {
+                setToast({ show: true, message: 'Image size must be less than 2MB.', type: 'error' });
                 return;
             }
             setProfileImage(file);
@@ -302,10 +302,10 @@ const MyProfilePage = () => {
             const hasNewProfileImage = profileImage && profileImage instanceof File;
             const hasNewFile = hasNewResumeFile || hasNewProfileImage;
             
-            let payload;
+            let response;
             if (hasNewFile) {
                 // Use FormData for file uploads
-                payload = new FormData();
+                const payload = new FormData();
                 payload.append('_method', 'PUT'); // Method override for Laravel
                 payload.append('contact_number', formData.contact_number || '');
                 payload.append('address', formData.address || '');
@@ -317,11 +317,11 @@ const MyProfilePage = () => {
                     payload.append('resume_file', resumeFile);
                 }
                 if (hasNewProfileImage) {
-                    payload.append('profile_picture', profileImage);
+                    payload.append('imageUrl', profileImage);
                 }
                 
                 // Use POST with method override for file uploads
-                await api.post(`/employees/${currentUser.id}`, payload);
+                response = await api.post(`/employees/${currentUser.id}`, payload);
             } else {
                 // Use regular JSON for non-file updates
                 const formattedData = {
@@ -331,19 +331,24 @@ const MyProfilePage = () => {
                     pag_ibig_no: formatPagIbigNumber(formData.pag_ibig_no),
                     philhealth_no: formatPhilhealthNumber(formData.philhealth_no)
                 };
-                await employeeAPI.update(currentUser.id, formattedData);
+                response = await employeeAPI.update(currentUser.id, formattedData);
             }
             
-            // Update localStorage with new data
-            const updatedUser = { ...currentUser, ...formData };
+            // Update localStorage with response data from backend
+            const updatedEmployeeData = response.data.employee || response.data;
+            const updatedUser = { 
+                ...currentUser, 
+                ...formData,
+                // Update image_url from backend response if profile picture was uploaded
+                image_url: updatedEmployeeData.image_url || updatedEmployeeData.profile_picture_url || currentUser.image_url
+            };
+            
             if (hasNewResumeFile) {
                 updatedUser.resume_file = 'uploaded'; // Indicate file was uploaded
                 // Update preview to show new file
                 setResumePreview(`http://localhost:8000/api/employees/${currentUser.id}/resume`);
             }
-            if (hasNewProfileImage) {
-                updatedUser.image_url = profileImagePreview; // Update with new image
-            }
+            
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setCurrentUser(updatedUser);
             
@@ -355,7 +360,27 @@ const MyProfilePage = () => {
             setToast({ show: true, message: 'Profile updated successfully!', type: 'success' });
         } catch (error) {
             console.error('Profile update error:', error);
-            setToast({ show: true, message: 'Error updating profile. Please try again.', type: 'error' });
+            
+            // Extract user-friendly error message from backend response
+            let message = 'Error updating profile. Please try again.';
+            
+            if (error?.response?.data?.message) {
+                // Use the user-friendly message from backend
+                message = error.response.data.message;
+            } else if (error?.response?.data?.errors) {
+                // Handle validation errors - extract and format them
+                const apiErrors = error.response.data.errors;
+                const errorMessages = Object.values(apiErrors).flat();
+                message = errorMessages.join('\n');
+            } else if (error?.response?.status === 403) {
+                message = 'Access denied. You do not have permission to perform this action.';
+            } else if (error?.response?.status === 422) {
+                message = error.response.data.message || 'Please check your input and try again.';
+            } else if (error?.response?.status >= 500) {
+                message = 'Server error occurred. Please try again later or contact support.';
+            }
+            
+            setToast({ show: true, message: message, type: 'error' });
         }
     };
 
