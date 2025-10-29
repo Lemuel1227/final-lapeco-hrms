@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import { USER_ROLES } from '../../constants/roles';
-import { employeeAPI, positionAPI } from '../../services/api';
+import { employeeAPI } from '../../services/api';
 import './MyProfilePage.css';
 import ResumeIframe from '../../common/ResumeIframe';
 import ToastNotification from '../../common/ToastNotification';
@@ -60,8 +60,6 @@ const MyProfilePage = () => {
     const [profileImagePreview, setProfileImagePreview] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [userRole, setUserRole] = useState(null);
-    const [positions, setPositions] = useState([]);
-    const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -69,36 +67,36 @@ const MyProfilePage = () => {
     const fileInputRef = useRef(null);
     const isHrUser = userRole === USER_ROLES.HR_PERSONNEL;
 
-    // Initialize user data from localStorage
+    // Fetch current user data from API
     useEffect(() => {
-        try {
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-                const userData = JSON.parse(storedUser);
+        const fetchUserData = async () => {
+            try {
+                const response = await api.get('/user');
+                const userData = response.data;
                 setCurrentUser(userData);
                 setUserRole(userData.role || USER_ROLES.HR_PERSONNEL);
-            }
-        } catch (error) {
-        }
-    }, []);
-
-    // Fetch positions and employees data
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [positionsResponse, employeesResponse] = await Promise.all([
-                    positionAPI.getAll(),
-                    employeeAPI.getAll()
-                ]);
-                setPositions(positionsResponse.data || []);
-                setEmployees(employeesResponse.data || []);
+                
+                // Update localStorage with fresh data
+                localStorage.setItem('user', JSON.stringify(userData));
             } catch (error) {
+                console.error('Error fetching user data:', error);
+                // Fallback to localStorage if API fails
+                try {
+                    const storedUser = localStorage.getItem('user');
+                    if (storedUser) {
+                        const userData = JSON.parse(storedUser);
+                        setCurrentUser(userData);
+                        setUserRole(userData.role || USER_ROLES.HR_PERSONNEL);
+                    }
+                } catch (err) {
+                    console.error('Error parsing stored user:', err);
+                }
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchData();
+        fetchUserData();
     }, []);
 
     // Update form data when currentUser changes
@@ -121,14 +119,8 @@ const MyProfilePage = () => {
         }
     }, [currentUser]);
 
-    const positionTitle = useMemo(() => 
-        positions.find(p => p.id === currentUser?.position_id)?.title || 'Unassigned'
-    , [currentUser, positions]);
-
-    const manager = useMemo(() => {
-        if (!currentUser?.position_id) return null;
-        return employees.find(emp => emp.position_id === currentUser.position_id && emp.is_team_leader);
-    }, [currentUser, employees]);
+    // Get position title from user data
+    const positionTitle = currentUser?.position_name || 'Unassigned';
 
 
     if (loading || !currentUser) {
@@ -403,7 +395,7 @@ const MyProfilePage = () => {
                     onChange={handleProfileImageChange}
                 />
                 <div className="profile-header-info">
-                    <h1 className="profile-name">{currentUser.name}</h1>
+                    <h1 className="profile-name">{currentUser.first_name} {currentUser.middle_name} {currentUser.last_name}</h1>
                     <p className="profile-position">{positionTitle}</p>
                 </div>
             </div>
@@ -473,8 +465,8 @@ const MyProfilePage = () => {
                             <div className="info-grid">
                                 <InfoField label="Employee ID" value={currentUser.employee_id || currentUser.id} />
                                 <InfoField label="Joining Date" value={currentUser.joining_date} />
-                                <InfoField label="Status" value={currentUser.status || 'Active'} />
-                                <InfoField label="Reports To" value={manager?.name} />
+                                <InfoField label="Status" value={currentUser.account_status || 'Active'} />
+                                <InfoField label="Employment Status" value={currentUser.employment_status || 'Active'} />
                             </div>
                         )}
 

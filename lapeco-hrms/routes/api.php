@@ -66,7 +66,18 @@ Route::get('/email/verify/{id}/{hash}', [ProfileController::class, 'verifyEmail'
 Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // User profile
     Route::get('/user', function (Request $request) {
-        return $request->user();
+        $user = $request->user();
+        $userData = $user->toArray();
+        
+        // Add position name if user has a position
+        if ($user->position_id) {
+            $position = \App\Models\Position::find($user->position_id);
+            $userData['position_name'] = $position ? $position->name : null;
+        } else {
+            $userData['position_name'] = null;
+        }
+        
+        return response()->json($userData);
     });
     
     // User theme preference
