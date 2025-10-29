@@ -66,7 +66,25 @@ Route::get('/email/verify/{id}/{hash}', [ProfileController::class, 'verifyEmail'
 Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // User profile
     Route::get('/user', function (Request $request) {
-        return $request->user();
+        $user = $request->user();
+        $userData = $user->toArray();
+        
+        // Add position name if user has a position
+        if ($user->position_id) {
+            $position = \App\Models\Position::find($user->position_id);
+            $userData['position_name'] = $position ? $position->name : null;
+        } else {
+            $userData['position_name'] = null;
+        }
+        
+        // Format profile picture URL with full path
+        if ($user->image_url) {
+            $userData['profile_picture_url'] = asset('storage/' . $user->image_url);
+        } else {
+            $userData['profile_picture_url'] = null;
+        }
+        
+        return response()->json($userData);
     });
     
     // User theme preference
