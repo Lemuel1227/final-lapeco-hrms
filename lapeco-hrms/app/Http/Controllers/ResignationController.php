@@ -101,7 +101,7 @@ class ResignationController extends Controller
             'reason' => 'sometimes|string',
             'submission_date' => 'sometimes|date',
             'effective_date' => 'sometimes|date|after:submission_date',
-            'status' => ['sometimes', Rule::in(['pending', 'approved'])],
+            'status' => ['sometimes', Rule::in(['pending', 'approved', 'withdrawn'])],
             'notes' => 'nullable|string',
             'approved_by' => 'nullable|exists:users,id',
             'approved_at' => 'nullable|date'
@@ -150,7 +150,7 @@ class ResignationController extends Controller
     public function updateStatus(Request $request, Resignation $resignation): JsonResponse
     {
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['pending', 'approved'])],
+            'status' => ['required', Rule::in(['pending', 'approved','withdrawn'])],
             'notes' => 'nullable|string'
         ]);
 
