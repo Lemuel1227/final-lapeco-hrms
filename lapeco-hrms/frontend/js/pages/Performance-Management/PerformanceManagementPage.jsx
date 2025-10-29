@@ -162,7 +162,7 @@ const PerformanceManagementPage = ({
   const handleGenerateReport = () => setShowReportConfigModal(true);
 
   const handleRunReport = (params) => {
-    generateReport('performance_summary', { startDate: params.startDate, endDate: params.endDate }, { employees, positions, evaluations });
+    generateReport('performance_summary', { periodId: params.periodId }, { employees, positions, evaluations, evaluationPeriods });
     setShowReportConfigModal(false);
     setShowReportPreview(true);
   };
@@ -184,6 +184,11 @@ const PerformanceManagementPage = ({
       setToast({ show: true, message: 'Failed to load evaluation periods.', type: 'error' });
     }
   };
+
+  useEffect(() => {
+    // Fetch evaluation periods on mount
+    refreshEvaluationPeriods();
+  }, []);
 
   useEffect(() => {
     if (propEvaluationPeriods.length) {
@@ -336,7 +341,8 @@ const PerformanceManagementPage = ({
       <PerformanceReportModal 
         show={showReportConfigModal} 
         onClose={() => setShowReportConfigModal(false)} 
-        onGenerate={handleRunReport} 
+        onGenerate={handleRunReport}
+        evaluationPeriods={evaluationPeriods}
       />
 
       {(isLoading || pdfDataUri) && (

@@ -1,27 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import Select from 'react-select';
 
-const PerformanceReportModal = ({ show, onClose, onGenerate }) => {
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+const PerformanceReportModal = ({ show, onClose, onGenerate, evaluationPeriods = [] }) => {
+  const [periodId, setPeriodId] = useState('all');
   const [error, setError] = useState('');
 
-  const handleGenerateClick = () => {
-    if (!startDate || !endDate) {
-      setError('Both start and end dates are required.');
-      return;
+  const performancePeriodOptions = useMemo(() => [
+    { value: 'all', label: 'All Time' },
+    ...evaluationPeriods.map(p => ({ value: p.id, label: p.name }))
+  ], [evaluationPeriods]);
+
+  useEffect(() => {
+    if (show) {
+      setPeriodId('all');
+      setError('');
     }
-    if (new Date(endDate) < new Date(startDate)) {
-      setError('End date cannot be before the start date.');
+  }, [show]);
+
+  const handleGenerateClick = () => {
+    if (!periodId) {
+      setError('An evaluation period must be selected.');
       return;
     }
     setError('');
-    onGenerate({ startDate, endDate });
+    onGenerate({ periodId });
     onClose();
   };
 
   const handleClose = () => {
-    setStartDate('');
-    setEndDate('');
+    setPeriodId('all');
     setError('');
     onClose();
   };
@@ -37,29 +44,19 @@ const PerformanceReportModal = ({ show, onClose, onGenerate }) => {
             <button type="button" className="btn-close" onClick={handleClose}></button>
           </div>
           <div className="modal-body">
-            <p className="text-muted">Select a date range to include in the report. The report will summarize all evaluations completed within this period.</p>
+            <p className="text-muted">Select an evaluation period to include in the report. The report will summarize all evaluations completed within the selected period.</p>
             {error && <div className="alert alert-danger py-2">{error}</div>}
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label htmlFor="reportStartDate" className="form-label">Start Date*</label>
-                <input
-                  type="date"
-                  id="reportStartDate"
-                  className="form-control"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                />
-              </div>
-              <div className="col-md-6">
-                <label htmlFor="reportEndDate" className="form-label">End Date*</label>
-                <input
-                  type="date"
-                  id="reportEndDate"
-                  className="form-control"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                />
-              </div>
+            <div className="mb-3">
+              <label htmlFor="periodId" className="form-label">Select Evaluation Period*</label>
+              <Select
+                id="periodId"
+                options={performancePeriodOptions}
+                value={performancePeriodOptions.find(opt => opt.value === periodId)}
+                onChange={(option) => setPeriodId(option ? option.value : 'all')}
+                className="react-select-container"
+                classNamePrefix="react-select"
+                required
+              />
             </div>
           </div>
           <div className="modal-footer">
