@@ -77,6 +77,13 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
             $userData['position_name'] = null;
         }
         
+        // Format profile picture URL with full path
+        if ($user->image_url) {
+            $userData['profile_picture_url'] = asset('storage/' . $user->image_url);
+        } else {
+            $userData['profile_picture_url'] = null;
+        }
+        
         return response()->json($userData);
     });
     

@@ -381,7 +381,7 @@ const MyProfilePage = () => {
             <div className="profile-page-header">
                 <div className="profile-avatar-container" onClick={() => fileInputRef.current.click()}>
                     <img 
-                        src={profileImagePreview || currentUser.image_url || placeholderAvatar}
+                        src={profileImagePreview || currentUser.profile_picture_url || placeholderAvatar}
                         alt="My Avatar"
                         className="profile-avatar-large"
                     />
