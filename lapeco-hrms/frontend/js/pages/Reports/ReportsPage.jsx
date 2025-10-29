@@ -4,7 +4,7 @@ import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI, trainingAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, trainingAPI, performanceAPI } from '../../services/api';
 import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
 
@@ -20,6 +20,7 @@ const ReportsPage = (props) => {
   const [terminations, setTerminations] = useState([]);
   const [trainingPrograms, setTrainingPrograms] = useState([]);
   const [trainingEnrollments, setTrainingEnrollments] = useState([]);
+  const [evaluationPeriods, setEvaluationPeriods] = useState([]);
   const [isFetchingData, setIsFetchingData] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
@@ -52,13 +53,14 @@ const ReportsPage = (props) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes] = await Promise.all([
+        const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes, periodsRes] = await Promise.all([
           employeeAPI.getAll(),
           positionAPI.getAll(),
           resignationAPI.getAll(),
           terminationAPI.getAll(),
           trainingAPI.getPrograms(),
           trainingAPI.getEnrollments(),
+          performanceAPI.getEvaluationPeriods(),
         ]);
         
         // Normalize the data similar to EmployeeDataPage
@@ -174,6 +176,17 @@ const ReportsPage = (props) => {
         setTerminations(normalizedTerminations);
         setTrainingPrograms(normalizedPrograms);
         setTrainingEnrollments(normalizedEnrollments);
+        
+        // Normalize evaluation periods data
+        const periodsData = periodsRes.data?.evaluationPeriods || [];
+        const normalizedPeriods = periodsData.map(period => ({
+          id: period.id,
+          name: period.name || '',
+          evaluationStart: period.evaluationStart || period.evaluation_start || '',
+          evaluationEnd: period.evaluationEnd || period.evaluation_end || '',
+          status: period.status || 'Draft'
+        }));
+        setEvaluationPeriods(normalizedPeriods);
       } catch (error) {
         console.error('Error fetching data for reports:', error);
       }
@@ -344,6 +357,23 @@ const ReportsPage = (props) => {
       };
     }
     
+    if (reportId === 'performance_summary') {
+      if (!evaluationPeriods.length) {
+        alert('No evaluation periods found. Please create at least one evaluation period before generating this report.');
+        return;
+      }
+      if (!finalParams.periodId) {
+        alert('Please select an evaluation period before generating the report.');
+        return;
+      }
+      
+      // Add evaluation periods to dataSources
+      dataSources = {
+        ...dataSources,
+        evaluationPeriods
+      };
+    }
+    
     // ... existing logic for predictive_analytics_summary
     
     if (reportId === 'thirteenth_month_pay') {
@@ -454,7 +484,8 @@ const ReportsPage = (props) => {
         reportConfig={configModalState.config}
         onRunReport={handleRunReport}
         trainingPrograms={trainingPrograms}
-        payrolls={props.payrolls} 
+        payrolls={props.payrolls}
+        evaluationPeriods={evaluationPeriods}
       />
 
       {(isLoading || isFetchingData) && (

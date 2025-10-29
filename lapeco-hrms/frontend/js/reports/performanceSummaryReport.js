@@ -1,10 +1,29 @@
 export const generatePerformanceSummaryReport = async (layoutManager, dataSources, params) => {
-  const { evaluations, employees, positions } = dataSources;
-  const { startDate, endDate } = params;
+  const { evaluations, employees, positions, evaluationPeriods } = dataSources;
+  const { periodId } = params;
   const { doc, margin } = layoutManager;
 
   // --- 1. DATA PREPARATION ---
-  const filteredEvals = evaluations || [];
+  let filteredEvals = evaluations || [];
+  let periodName = 'All Time';
+  let periodStartDate = null;
+  let periodEndDate = null;
+
+  // Filter evaluations by selected period
+  if (periodId && periodId !== 'all') {
+    const selectedPeriod = evaluationPeriods?.find(p => p.id === parseInt(periodId));
+    if (selectedPeriod) {
+      periodName = selectedPeriod.name;
+      periodStartDate = new Date(selectedPeriod.evaluationStart);
+      periodEndDate = new Date(selectedPeriod.evaluationEnd);
+      
+      // Filter evaluations that fall within the period
+      filteredEvals = evaluations.filter(ev => {
+        const evalDate = new Date(ev.periodEnd || ev.evaluationDate || ev.created_at);
+        return evalDate >= periodStartDate && evalDate <= periodEndDate;
+      });
+    }
+  }
 
   if (filteredEvals.length === 0) {
     doc.text("No performance evaluations were found for the selected period.", margin, layoutManager.y);
@@ -40,7 +59,7 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
   };
 
   // --- 3. SUMMARY TEXT ---
-  const periodText = startDate === 'All Time' ? 'all time' : `the period from ${startDate} to ${endDate}`;
+  const periodText = periodId === 'all' ? 'all time' : `the "${periodName}" evaluation period`;
   const summaryText = `During ${periodText}, a total of ${filteredEvals.length} performance evaluations were completed. The average score across all evaluations was ${avgScore.toFixed(2)}%. Of these, ${brackets['Outstanding (>90%)']} employee(s) were rated as 'Outstanding', while ${brackets['Needs Improvement (<70%)']} were identified as needing improvement.`;
 
   // --- 4. TABLE DATA ---
@@ -60,7 +79,7 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
   });
 
   // --- 5. PDF ASSEMBLY ---
-  const reportTitle = startDate === 'All Time' ? 'Overall Performance Distribution' : `Performance Distribution (${startDate} to ${endDate})`;
+  const reportTitle = periodId === 'all' ? 'Overall Performance Distribution' : `Performance Distribution - ${periodName}`;
   await layoutManager.addChartWithTitle(reportTitle, chartConfig);
   layoutManager.addSummaryText(summaryText);
   layoutManager.addSectionTitle("Detailed Evaluation Results");
