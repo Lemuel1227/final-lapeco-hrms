@@ -442,6 +442,18 @@ const MyProfilePage = () => {
                                         value={formData.contact_number} 
                                         onChange={handleFormChange}
                                         onBlur={handleBlur}
+                                        onInput={(e) => {
+                                            // Remove invalid characters
+                                            let value = e.target.value.replace(/[^0-9+\-()\s]/g, '');
+                                            // Count only digits
+                                            const digitCount = value.replace(/[^0-9]/g, '').length;
+                                            // If more than 11 digits, trim to 11
+                                            if (digitCount > 11) {
+                                                const digits = value.replace(/[^0-9]/g, '').slice(0, 11);
+                                                value = digits;
+                                            }
+                                            e.target.value = value;
+                                        }}
                                     />
                                     {formErrors.contact_number && <div className="invalid-feedback">{formErrors.contact_number}</div>}
                                 </div>
@@ -482,6 +494,15 @@ const MyProfilePage = () => {
                                         value={formData.sss_no} 
                                         onChange={handleFormChange}
                                         onBlur={handleBlur}
+                                        onInput={(e) => {
+                                            let value = e.target.value.replace(/[^0-9-]/g, '');
+                                            const digitCount = value.replace(/[^0-9]/g, '').length;
+                                            if (digitCount > 10) {
+                                                const digits = value.replace(/[^0-9]/g, '').slice(0, 10);
+                                                value = digits;
+                                            }
+                                            e.target.value = value;
+                                        }}
                                         placeholder="12-3456789-0"
                                         disabled={!isHrUser} 
                                     />
@@ -497,6 +518,15 @@ const MyProfilePage = () => {
                                         value={formData.tin_no} 
                                         onChange={handleFormChange}
                                         onBlur={handleBlur}
+                                        onInput={(e) => {
+                                            let value = e.target.value.replace(/[^0-9-]/g, '');
+                                            const digitCount = value.replace(/[^0-9]/g, '').length;
+                                            if (digitCount > 12) {
+                                                const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                                                value = digits;
+                                            }
+                                            e.target.value = value;
+                                        }}
                                         placeholder="123-456-789-000"
                                         disabled={!isHrUser} 
                                     />
@@ -512,6 +542,15 @@ const MyProfilePage = () => {
                                         value={formData.pag_ibig_no} 
                                         onChange={handleFormChange}
                                         onBlur={handleBlur}
+                                        onInput={(e) => {
+                                            let value = e.target.value.replace(/[^0-9-]/g, '');
+                                            const digitCount = value.replace(/[^0-9]/g, '').length;
+                                            if (digitCount > 12) {
+                                                const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                                                value = digits;
+                                            }
+                                            e.target.value = value;
+                                        }}
                                         placeholder="1234-5678-9012"
                                         disabled={!isHrUser} 
                                     />
@@ -527,6 +566,15 @@ const MyProfilePage = () => {
                                         value={formData.philhealth_no} 
                                         onChange={handleFormChange}
                                         onBlur={handleBlur}
+                                        onInput={(e) => {
+                                            let value = e.target.value.replace(/[^0-9-]/g, '');
+                                            const digitCount = value.replace(/[^0-9]/g, '').length;
+                                            if (digitCount > 12) {
+                                                const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                                                value = digits;
+                                            }
+                                            e.target.value = value;
+                                        }}
                                         placeholder="12-345678901-2"
                                         disabled={!isHrUser} 
                                     />

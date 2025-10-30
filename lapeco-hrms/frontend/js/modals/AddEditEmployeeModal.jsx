@@ -490,7 +490,29 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="contactNumber" className="form-label">Contact Number*</label>
-                            <input type="tel" className={`form-control ${formErrors.contactNumber ? 'is-invalid' : ''}`} id="contactNumber" name="contactNumber" value={formData.contactNumber} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode} />
+                            <input 
+                              type="tel" 
+                              className={`form-control ${formErrors.contactNumber ? 'is-invalid' : ''}`} 
+                              id="contactNumber" 
+                              name="contactNumber" 
+                              value={formData.contactNumber} 
+                              onChange={handleChange} 
+                              onBlur={handleBlur}
+                              onInput={(e) => {
+                                // Remove invalid characters
+                                let value = e.target.value.replace(/[^0-9+\-()\s]/g, '');
+                                // Count only digits
+                                const digitCount = value.replace(/[^0-9]/g, '').length;
+                                // If more than 11 digits, trim to 11
+                                if (digitCount > 11) {
+                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 11);
+                                  value = digits;
+                                }
+                                e.target.value = value;
+                              }}
+                              required 
+                              disabled={isViewMode} 
+                            />
                             {formErrors.contactNumber && <div className="invalid-feedback">{formErrors.contactNumber}</div>}
                           </div>
                           <div className="col-md-6">
@@ -522,22 +544,98 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label htmlFor="sssNo" className="form-label">SSS No.</label>
-                            <input type="text" className={`form-control ${formErrors.sssNo ? 'is-invalid' : ''}`} id="sssNo" name="sssNo" value={formData.sssNo} onChange={handleChange} onBlur={handleBlur} placeholder="12-3456789-0" disabled={isViewMode} />
+                            <input 
+                              type="text" 
+                              className={`form-control ${formErrors.sssNo ? 'is-invalid' : ''}`} 
+                              id="sssNo" 
+                              name="sssNo" 
+                              value={formData.sssNo} 
+                              onChange={handleChange} 
+                              onBlur={handleBlur}
+                              onInput={(e) => {
+                                let value = e.target.value.replace(/[^0-9-]/g, '');
+                                const digitCount = value.replace(/[^0-9]/g, '').length;
+                                if (digitCount > 10) {
+                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 10);
+                                  value = digits;
+                                }
+                                e.target.value = value;
+                              }}
+                              placeholder="12-3456789-0" 
+                              disabled={isViewMode} 
+                            />
                             {formErrors.sssNo && <div className="invalid-feedback">{formErrors.sssNo}</div>}
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="tinNo" className="form-label">TIN No.</label>
-                            <input type="text" className={`form-control ${formErrors.tinNo ? 'is-invalid' : ''}`} id="tinNo" name="tinNo" value={formData.tinNo} onChange={handleChange} onBlur={handleBlur} placeholder="123-456-789-000" disabled={isViewMode} />
+                            <input 
+                              type="text" 
+                              className={`form-control ${formErrors.tinNo ? 'is-invalid' : ''}`} 
+                              id="tinNo" 
+                              name="tinNo" 
+                              value={formData.tinNo} 
+                              onChange={handleChange} 
+                              onBlur={handleBlur}
+                              onInput={(e) => {
+                                let value = e.target.value.replace(/[^0-9-]/g, '');
+                                const digitCount = value.replace(/[^0-9]/g, '').length;
+                                if (digitCount > 12) {
+                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                                  value = digits;
+                                }
+                                e.target.value = value;
+                              }}
+                              placeholder="123-456-789-000" 
+                              disabled={isViewMode} 
+                            />
                             {formErrors.tinNo && <div className="invalid-feedback">{formErrors.tinNo}</div>}
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="pagIbigNo" className="form-label">Pag-IBIG No.</label>
-                            <input type="text" className={`form-control ${formErrors.pagIbigNo ? 'is-invalid' : ''}`} id="pagIbigNo" name="pagIbigNo" value={formData.pagIbigNo} onChange={handleChange} onBlur={handleBlur} placeholder="1234-5678-9012" disabled={isViewMode} />
+                            <input 
+                              type="text" 
+                              className={`form-control ${formErrors.pagIbigNo ? 'is-invalid' : ''}`} 
+                              id="pagIbigNo" 
+                              name="pagIbigNo" 
+                              value={formData.pagIbigNo} 
+                              onChange={handleChange} 
+                              onBlur={handleBlur}
+                              onInput={(e) => {
+                                let value = e.target.value.replace(/[^0-9-]/g, '');
+                                const digitCount = value.replace(/[^0-9]/g, '').length;
+                                if (digitCount > 12) {
+                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                                  value = digits;
+                                }
+                                e.target.value = value;
+                              }}
+                              placeholder="1234-5678-9012" 
+                              disabled={isViewMode} 
+                            />
                             {formErrors.pagIbigNo && <div className="invalid-feedback">{formErrors.pagIbigNo}</div>}
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="philhealthNo" className="form-label">PhilHealth No.</label>
-                            <input type="text" className={`form-control ${formErrors.philhealthNo ? 'is-invalid' : ''}`} id="philhealthNo" name="philhealthNo" value={formData.philhealthNo} onChange={handleChange} onBlur={handleBlur} placeholder="12-345678901-2" disabled={isViewMode} />
+                            <input 
+                              type="text" 
+                              className={`form-control ${formErrors.philhealthNo ? 'is-invalid' : ''}`} 
+                              id="philhealthNo" 
+                              name="philhealthNo" 
+                              value={formData.philhealthNo} 
+                              onChange={handleChange} 
+                              onBlur={handleBlur}
+                              onInput={(e) => {
+                                let value = e.target.value.replace(/[^0-9-]/g, '');
+                                const digitCount = value.replace(/[^0-9]/g, '').length;
+                                if (digitCount > 12) {
+                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                                  value = digits;
+                                }
+                                e.target.value = value;
+                              }}
+                              placeholder="12-345678901-2" 
+                              disabled={isViewMode} 
+                            />
                             {formErrors.philhealthNo && <div className="invalid-feedback">{formErrors.philhealthNo}</div>}
                           </div>
                         </div>

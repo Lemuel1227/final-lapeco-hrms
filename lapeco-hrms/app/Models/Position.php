@@ -14,7 +14,9 @@ class Position extends Model
         'description',
         'monthly_salary',
         'base_rate_per_hour',
-        'overtime_rate_per_hour',
+        'regular_day_ot_rate',
+        'special_ot_rate',
+        'regular_holiday_ot_rate',
         'night_diff_rate_per_hour',
         'late_deduction_per_minute',
     ];

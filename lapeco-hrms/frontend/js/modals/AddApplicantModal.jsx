@@ -421,6 +421,18 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     name="phone" 
                     value={formData.phone} 
                     onChange={handleChange}
+                    onInput={(e) => {
+                      // Remove invalid characters
+                      let value = e.target.value.replace(/[^0-9+\-()\s]/g, '');
+                      // Count only digits
+                      const digitCount = value.replace(/[^0-9]/g, '').length;
+                      // If more than 11 digits, trim to 11
+                      if (digitCount > 11) {
+                        const digits = value.replace(/[^0-9]/g, '').slice(0, 11);
+                        value = digits;
+                      }
+                      e.target.value = value;
+                    }}
                     placeholder="09XXXXXXXXX"
                   />
                   {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
