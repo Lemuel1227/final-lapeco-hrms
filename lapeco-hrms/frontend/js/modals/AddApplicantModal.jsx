@@ -44,6 +44,8 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
             error = 'First name can only contain letters, spaces, hyphens, and apostrophes.';
           } else if (value.trim().length < 2) {
             error = 'First name must be at least 2 characters.';
+          } else if (value.trim().length > 50) {
+            error = 'First name must not exceed 50 characters.';
           }
         }
         break;
@@ -51,6 +53,8 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
         if (value && value.trim()) {
           if (!/^[a-zA-Z\s'-]+$/.test(value)) {
             error = 'Middle name can only contain letters, spaces, hyphens, and apostrophes.';
+          } else if (value.trim().length > 50) {
+            error = 'Middle name must not exceed 50 characters.';
           }
         }
         break;
@@ -60,6 +64,8 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
             error = 'Last name can only contain letters, spaces, hyphens, and apostrophes.';
           } else if (value.trim().length < 2) {
             error = 'Last name must be at least 2 characters.';
+          } else if (value.trim().length > 50) {
+            error = 'Last name must not exceed 50 characters.';
           }
         }
         break;
@@ -67,6 +73,8 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
         if (value && value.trim()) {
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
             error = 'Email address is invalid.';
+          } else if (value.trim().length > 255) {
+            error = 'Email must not exceed 255 characters.';
           }
         }
         break;
@@ -196,14 +204,33 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
     const newErrors = {};
     
     // Required fields
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required.';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required.';
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required.';
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = 'First name must be at least 2 characters.';
+    } else if (formData.firstName.trim().length > 50) {
+      newErrors.firstName = 'First name must not exceed 50 characters.';
+    }
+    
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required.';
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = 'Last name must be at least 2 characters.';
+    } else if (formData.lastName.trim().length > 50) {
+      newErrors.lastName = 'Last name must not exceed 50 characters.';
+    }
+    
+    if (formData.middleName && formData.middleName.trim().length > 50) {
+      newErrors.middleName = 'Middle name must not exceed 50 characters.';
+    }
     
     // Email validation
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required.';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email address is invalid.';
+    } else if (formData.email.trim().length > 255) {
+      newErrors.email = 'Email must not exceed 255 characters.';
     }
     
     // Position validation
@@ -367,7 +394,11 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     id="firstName" 
                     name="firstName" 
                     value={formData.firstName} 
-                    onChange={handleChange} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                    }}
+                    maxLength="50"
                     required 
                   />
                   {errors.firstName && <div className="invalid-feedback">{errors.firstName}</div>}
@@ -380,7 +411,11 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     id="middleName" 
                     name="middleName" 
                     value={formData.middleName} 
-                    onChange={handleChange} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                    }}
+                    maxLength="50"
                   />
                   {errors.middleName && <div className="invalid-feedback">{errors.middleName}</div>}
                 </div>
@@ -392,7 +427,11 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     id="lastName" 
                     name="lastName" 
                     value={formData.lastName} 
-                    onChange={handleChange} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                    }}
+                    maxLength="50"
                     required 
                   />
                   {errors.lastName && <div className="invalid-feedback">{errors.lastName}</div>}
@@ -407,7 +446,11 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     id="email" 
                     name="email" 
                     value={formData.email} 
-                    onChange={handleChange} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z0-9@._+-]/g, '');
+                    }}
+                    maxLength="255"
                     required 
                   />
                   {errors.email && <div className="invalid-feedback">{errors.email}</div>}
@@ -519,6 +562,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     name="sssNo" 
                     value={formData.sssNo} 
                     onChange={handleChange}
+                    maxLength="12"
                     placeholder="XX-XXXXXXX-X"
                   />
                   {errors.sssNo && <div className="invalid-feedback">{errors.sssNo}</div>}
@@ -532,6 +576,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     name="tinNo" 
                     value={formData.tinNo} 
                     onChange={handleChange}
+                    maxLength="15"
                     placeholder="XXX-XXX-XXX-XXX"
                   />
                   {errors.tinNo && <div className="invalid-feedback">{errors.tinNo}</div>}
@@ -545,6 +590,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     name="pagIbigNo" 
                     value={formData.pagIbigNo} 
                     onChange={handleChange}
+                    maxLength="14"
                     placeholder="XXXX-XXXX-XXXX"
                   />
                   {errors.pagIbigNo && <div className="invalid-feedback">{errors.pagIbigNo}</div>}
@@ -558,6 +604,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     name="philhealthNo" 
                     value={formData.philhealthNo} 
                     onChange={handleChange}
+                    maxLength="14"
                     placeholder="XX-XXXXXXXXX-X"
                   />
                   {errors.philhealthNo && <div className="invalid-feedback">{errors.philhealthNo}</div>}

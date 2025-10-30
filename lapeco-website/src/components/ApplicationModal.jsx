@@ -76,6 +76,8 @@ function ApplicationModal({ show, onHide }) {
             error = 'First name can only contain letters, spaces, hyphens, and apostrophes';
           } else if (value.trim().length < 2) {
             error = 'First name must be at least 2 characters';
+          } else if (value.trim().length > 50) {
+            error = 'First name must not exceed 50 characters';
           }
         }
         break;
@@ -83,6 +85,8 @@ function ApplicationModal({ show, onHide }) {
         if (value && value.trim()) {
           if (!/^[a-zA-Z\s'-]+$/.test(value)) {
             error = 'Middle name can only contain letters, spaces, hyphens, and apostrophes';
+          } else if (value.trim().length > 50) {
+            error = 'Middle name must not exceed 50 characters';
           }
         }
         break;
@@ -92,6 +96,8 @@ function ApplicationModal({ show, onHide }) {
             error = 'Last name can only contain letters, spaces, hyphens, and apostrophes';
           } else if (value.trim().length < 2) {
             error = 'Last name must be at least 2 characters';
+          } else if (value.trim().length > 50) {
+            error = 'Last name must not exceed 50 characters';
           }
         }
         break;
@@ -99,6 +105,8 @@ function ApplicationModal({ show, onHide }) {
         if (value && value.trim()) {
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
             error = 'Invalid email format';
+          } else if (value.trim().length > 255) {
+            error = 'Email must not exceed 255 characters';
           }
         }
         break;
@@ -253,11 +261,34 @@ function ApplicationModal({ show, onHide }) {
   const validateFormData = () => {
     const newErrors = {};
     
+    // Name validations
+    if (formData.first_name && formData.first_name.trim()) {
+      if (formData.first_name.trim().length < 2) {
+        newErrors.first_name = 'First name must be at least 2 characters';
+      } else if (formData.first_name.trim().length > 50) {
+        newErrors.first_name = 'First name must not exceed 50 characters';
+      }
+    }
+    
+    if (formData.last_name && formData.last_name.trim()) {
+      if (formData.last_name.trim().length < 2) {
+        newErrors.last_name = 'Last name must be at least 2 characters';
+      } else if (formData.last_name.trim().length > 50) {
+        newErrors.last_name = 'Last name must not exceed 50 characters';
+      }
+    }
+    
+    if (formData.middle_name && formData.middle_name.trim().length > 50) {
+      newErrors.middle_name = 'Middle name must not exceed 50 characters';
+    }
+    
     // Email validation
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
+    } else if (formData.email.trim().length > 255) {
+      newErrors.email = 'Email must not exceed 255 characters';
     }
     
     // Phone validation (Philippine format)
@@ -395,6 +426,10 @@ function ApplicationModal({ show, onHide }) {
                   name="first_name" 
                   value={formData.first_name} 
                   onChange={handleChange}
+                  onInput={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                  }}
+                  maxLength={50}
                   isInvalid={!!errors.first_name}
                   required 
                 />
@@ -409,6 +444,10 @@ function ApplicationModal({ show, onHide }) {
                   name="middle_name" 
                   value={formData.middle_name} 
                   onChange={handleChange}
+                  onInput={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                  }}
+                  maxLength={50}
                   isInvalid={!!errors.middle_name}
                 />
                 <Form.Control.Feedback type="invalid">{errors.middle_name}</Form.Control.Feedback>
@@ -420,6 +459,10 @@ function ApplicationModal({ show, onHide }) {
                   name="last_name" 
                   value={formData.last_name} 
                   onChange={handleChange}
+                  onInput={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z\s'-]/g, '');
+                  }}
+                  maxLength={50}
                   isInvalid={!!errors.last_name}
                   required 
                 />
@@ -435,7 +478,11 @@ function ApplicationModal({ show, onHide }) {
                   type="email" 
                   name="email" 
                   value={formData.email} 
-                  onChange={handleChange} 
+                  onChange={handleChange}
+                  onInput={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z0-9@._+-]/g, '');
+                  }}
+                  maxLength={255}
                   placeholder="example@email.com" 
                   isInvalid={!!errors.email}
                   required 
@@ -450,7 +497,16 @@ function ApplicationModal({ show, onHide }) {
                   type="tel" 
                   name="phone" 
                   value={formData.phone} 
-                  onChange={handleChange} 
+                  onChange={handleChange}
+                  onInput={(e) => {
+                    let value = e.target.value.replace(/[^0-9+\-()\s]/g, '');
+                    const digitCount = value.replace(/[^0-9]/g, '').length;
+                    if (digitCount > 11) {
+                      const digits = value.replace(/[^0-9]/g, '').slice(0, 11);
+                      value = digits;
+                    }
+                    e.target.value = value;
+                  }}
                   placeholder="09XXXXXXXXX" 
                   isInvalid={!!errors.phone}
                   required 
@@ -552,7 +608,17 @@ function ApplicationModal({ show, onHide }) {
                   type="text" 
                   name="sss" 
                   value={formData.sss} 
-                  onChange={handleChange} 
+                  onChange={handleChange}
+                  onInput={(e) => {
+                    let value = e.target.value.replace(/[^0-9-]/g, '');
+                    const digitCount = value.replace(/[^0-9]/g, '').length;
+                    if (digitCount > 10) {
+                      const digits = value.replace(/[^0-9]/g, '').slice(0, 10);
+                      value = digits;
+                    }
+                    e.target.value = value;
+                  }}
+                  maxLength={12}
                   placeholder="XX-XXXXXXX-X"
                   isInvalid={!!errors.sss}
                 />
@@ -564,7 +630,17 @@ function ApplicationModal({ show, onHide }) {
                   type="text" 
                   name="tin" 
                   value={formData.tin} 
-                  onChange={handleChange} 
+                  onChange={handleChange}
+                  onInput={(e) => {
+                    let value = e.target.value.replace(/[^0-9-]/g, '');
+                    const digitCount = value.replace(/[^0-9]/g, '').length;
+                    if (digitCount > 12) {
+                      const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                      value = digits;
+                    }
+                    e.target.value = value;
+                  }}
+                  maxLength={15}
                   placeholder="XXX-XXX-XXX-XXX"
                   isInvalid={!!errors.tin}
                 />
@@ -578,7 +654,17 @@ function ApplicationModal({ show, onHide }) {
                   type="text" 
                   name="pagibig" 
                   value={formData.pagibig} 
-                  onChange={handleChange} 
+                  onChange={handleChange}
+                  onInput={(e) => {
+                    let value = e.target.value.replace(/[^0-9-]/g, '');
+                    const digitCount = value.replace(/[^0-9]/g, '').length;
+                    if (digitCount > 12) {
+                      const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                      value = digits;
+                    }
+                    e.target.value = value;
+                  }}
+                  maxLength={14}
                   placeholder="XXXX-XXXX-XXXX"
                   isInvalid={!!errors.pagibig}
                 />
@@ -590,7 +676,17 @@ function ApplicationModal({ show, onHide }) {
                   type="text" 
                   name="philhealth" 
                   value={formData.philhealth} 
-                  onChange={handleChange} 
+                  onChange={handleChange}
+                  onInput={(e) => {
+                    let value = e.target.value.replace(/[^0-9-]/g, '');
+                    const digitCount = value.replace(/[^0-9]/g, '').length;
+                    if (digitCount > 12) {
+                      const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                      value = digits;
+                    }
+                    e.target.value = value;
+                  }}
+                  maxLength={14}
                   placeholder="XX-XXXXXXXXX-X"
                   isInvalid={!!errors.philhealth}
                 />

@@ -407,6 +407,9 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         value={formData.firstName}
                         onChange={handleChange}
                         onBlur={handleBlur}
+                        onInput={(e) => {
+                          e.target.value = e.target.value.replace(/[^a-zA-Z\s.-]/g, '');
+                        }}
                         maxLength="50"
                         required
                         disabled={isViewMode}
@@ -423,6 +426,9 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         value={formData.middleName}
                         onChange={handleChange}
                         onBlur={handleBlur}
+                        onInput={(e) => {
+                          e.target.value = e.target.value.replace(/[^a-zA-Z\s.-]/g, '');
+                        }}
                         maxLength="50"
                         disabled={isViewMode}
                       />
@@ -438,6 +444,9 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         value={formData.lastName}
                         onChange={handleChange}
                         onBlur={handleBlur}
+                        onInput={(e) => {
+                          e.target.value = e.target.value.replace(/[^a-zA-Z\s.-]/g, '');
+                        }}
                         maxLength="50"
                         required
                         disabled={isViewMode}
@@ -485,7 +494,21 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label htmlFor="email" className="form-label">Email Address*</label>
-                            <input type="email" className={`form-control ${formErrors.email ? 'is-invalid' : ''}`} id="email" name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode} />
+                            <input 
+                              type="email" 
+                              className={`form-control ${formErrors.email ? 'is-invalid' : ''}`} 
+                              id="email" 
+                              name="email" 
+                              value={formData.email} 
+                              onChange={handleChange} 
+                              onBlur={handleBlur}
+                              onInput={(e) => {
+                                e.target.value = e.target.value.replace(/[^a-zA-Z0-9@._+-]/g, '');
+                              }}
+                              maxLength="255" 
+                              required 
+                              disabled={isViewMode} 
+                            />
                             {formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
                           </div>
                           <div className="col-md-6">
@@ -533,7 +556,21 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                           </div>
                           <div className="col-12">
                             <label htmlFor="address" className="form-label">Address*</label>
-                            <textarea className={`form-control ${formErrors.address ? 'is-invalid' : ''}`} id="address" name="address" rows="3" value={formData.address} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode}></textarea>
+                            <textarea 
+                              className={`form-control ${formErrors.address ? 'is-invalid' : ''}`} 
+                              id="address" 
+                              name="address" 
+                              rows="3" 
+                              value={formData.address} 
+                              onChange={handleChange} 
+                              onBlur={handleBlur}
+                              onInput={(e) => {
+                                e.target.value = e.target.value.replace(/[^a-zA-Z0-9\s,.#\-/()'"]/g, '');
+                              }}
+                              maxLength="500" 
+                              required 
+                              disabled={isViewMode}
+                            ></textarea>
                             {formErrors.address && <div className="invalid-feedback">{formErrors.address}</div>}
                           </div>
                         </div>
