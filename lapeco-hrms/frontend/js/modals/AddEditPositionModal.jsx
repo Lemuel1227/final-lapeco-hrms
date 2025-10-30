@@ -143,140 +143,165 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
                 )}
 
                 {activeTab === 'pay' && (
-                  <>
-                    {/* Base Rate Section */}
-                    <div className="mb-4">
-                      <h6 className="text-muted mb-3">
-                        <i className="bi bi-cash-coin me-2"></i>Base Compensation
-                      </h6>
-                      <div className="mb-3">
-                        <label htmlFor="base_rate_per_hour" className="form-label fw-semibold">Base Rate (per hour)*</label>
-                        <div className="input-group input-group-lg">
-                          <span className="input-group-text bg-light">₱</span>
-                          <input 
-                            type="number" 
-                            step="0.01" 
-                            className={`form-control ${errors.base_rate_per_hour ? 'is-invalid' : ''}`} 
-                            id="base_rate_per_hour" 
-                            name="base_rate_per_hour" 
-                            value={formData.base_rate_per_hour} 
-                            onChange={handleChange} 
-                            required 
-                            placeholder="e.g., 102.27" 
-                          />
-                        </div>
-                        {errors.base_rate_per_hour && <div className="invalid-feedback d-block">{errors.base_rate_per_hour}</div>}
-                      </div>
-                      <div className="alert alert-info mb-0">
+                  <div className="pay-structure-container">
+                    {/* Base Compensation Card */}
+                    <div className="pay-section-card mb-4">
+                      <div className="pay-section-header">
                         <div className="d-flex align-items-center">
-                          <i className="bi bi-calculator me-2"></i>
+                          <div className="icon-wrapper icon-wrapper-primary me-3">
+                            <i className="bi bi-cash-coin"></i>
+                          </div>
                           <div>
-                            <div className="fw-semibold">Calculated Monthly Salary: ₱ {monthlySalary.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-                            <small className="text-muted">Based on (Rate × 8 hours × 22 days)</small>
+                            <h6 className="mb-0 fw-bold">Base Compensation</h6>
+                            <small className="text-muted">Hourly rate for this position</small>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pay-section-body">
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <label htmlFor="base_rate_per_hour" className="form-label fw-semibold">
+                              Base Rate (per hour)*
+                            </label>
+                            <div className="input-group">
+                              <span className="input-group-text">
+                                <i className="bi bi-currency-peso"></i>
+                              </span>
+                              <input 
+                                type="number" 
+                                step="0.01" 
+                                className={`form-control ${errors.base_rate_per_hour ? 'is-invalid' : ''}`} 
+                                id="base_rate_per_hour" 
+                                name="base_rate_per_hour" 
+                                value={formData.base_rate_per_hour} 
+                                onChange={handleChange} 
+                                required 
+                                placeholder="Enter hourly rate" 
+                              />
+                            </div>
+                            {errors.base_rate_per_hour && <div className="invalid-feedback d-block">{errors.base_rate_per_hour}</div>}
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label fw-semibold">Monthly Salary</label>
+                            <div className="salary-display-card">
+                              <div className="salary-amount">₱ {monthlySalary.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                              <div className="salary-formula">
+                                <i className="bi bi-calculator me-1"></i>
+                                Rate × 8 hrs × 22 days
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <hr className="my-4"/>
-
-                    {/* Overtime Rates Section */}
-                    <div className="mb-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <i className="bi bi-clock-history me-2 text-success"></i>
-                        <h6 className="text-muted mb-0">Overtime Rates</h6>
-                      </div>
-                      <div className="alert alert-success mb-3">
-                        <div className="d-flex align-items-start">
-                          <i className="bi bi-info-circle me-2 mt-1"></i>
+                    {/* Overtime Rates Card */}
+                    <div className="pay-section-card mb-4">
+                      <div className="pay-section-header">
+                        <div className="d-flex align-items-center">
+                          <div className="icon-wrapper icon-wrapper-success me-3">
+                            <i className="bi bi-clock-history"></i>
+                          </div>
                           <div>
-                            <strong>Auto-Calculated (Philippine Labor Law)</strong>
-                            <div className="small text-muted mt-1">Rates are automatically calculated from the base hourly rate</div>
+                            <h6 className="mb-0 fw-bold">Overtime Rates</h6>
+                            <small className="text-muted">Auto-calculated per Labor Law</small>
                           </div>
                         </div>
                       </div>
-                      <div className="row g-3">
-                        <div className="col-md-4">
-                          <div className="card border-0 bg-light h-100">
-                            <div className="card-body">
-                              <label className="form-label small text-muted mb-2">Regular Day OT</label>
-                              <div className="input-group">
-                                <span className="input-group-text bg-white">₱</span>
-                                <input type="text" className="form-control bg-white" value={calculatedRates.regularDayOT.toFixed(2)} readOnly />
+                      <div className="pay-section-body">
+                        <div className="row g-3">
+                          <div className="col-md-4">
+                            <div className="rate-card rate-card-regular">
+                              <div className="rate-card-header">
+                                <i className="bi bi-calendar-check me-2"></i>
+                                <span className="rate-card-title">Regular Day OT</span>
                               </div>
-                              <small className="text-success fw-semibold mt-1 d-block">Base × 1.25</small>
+                              <div className="rate-card-value">₱ {calculatedRates.regularDayOT.toFixed(2)}</div>
+                              <div className="rate-card-formula">Base × 1.25</div>
                             </div>
                           </div>
-                        </div>
-                        <div className="col-md-4">
-                          <div className="card border-0 bg-light h-100">
-                            <div className="card-body">
-                              <label className="form-label small text-muted mb-2">Special OT</label>
-                              <div className="input-group">
-                                <span className="input-group-text bg-white">₱</span>
-                                <input type="text" className="form-control bg-white" value={calculatedRates.specialOT.toFixed(2)} readOnly />
+                          <div className="col-md-4">
+                            <div className="rate-card rate-card-special">
+                              <div className="rate-card-header">
+                                <i className="bi bi-star me-2"></i>
+                                <span className="rate-card-title">Special OT</span>
                               </div>
-                              <small className="text-success fw-semibold mt-1 d-block">Base × 1.30</small>
-                              <small className="text-muted d-block" style={{fontSize: '0.7rem'}}>Rest days & special holidays</small>
+                              <div className="rate-card-value">₱ {calculatedRates.specialOT.toFixed(2)}</div>
+                              <div className="rate-card-formula">Base × 1.30</div>
+                              <div className="rate-card-note">Rest days & special</div>
                             </div>
                           </div>
-                        </div>
-                        <div className="col-md-4">
-                          <div className="card border-0 bg-light h-100">
-                            <div className="card-body">
-                              <label className="form-label small text-muted mb-2">Regular Holiday OT</label>
-                              <div className="input-group">
-                                <span className="input-group-text bg-white">₱</span>
-                                <input type="text" className="form-control bg-white" value={calculatedRates.regularHolidayOT.toFixed(2)} readOnly />
+                          <div className="col-md-4">
+                            <div className="rate-card rate-card-holiday">
+                              <div className="rate-card-header">
+                                <i className="bi bi-calendar-event me-2"></i>
+                                <span className="rate-card-title">Regular Holiday OT</span>
                               </div>
-                              <small className="text-success fw-semibold mt-1 d-block">Base × 2.00</small>
+                              <div className="rate-card-value">₱ {calculatedRates.regularHolidayOT.toFixed(2)}</div>
+                              <div className="rate-card-formula">Base × 2.00</div>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <hr className="my-4"/>
-
-                    {/* Additional Rates Section */}
-                    <div>
-                      <div className="d-flex align-items-center mb-3">
-                        <i className="bi bi-moon-stars me-2 text-primary"></i>
-                        <h6 className="text-muted mb-0">Additional Rates & Deductions</h6>
+                    {/* Additional Rates Card */}
+                    <div className="pay-section-card">
+                      <div className="pay-section-header">
+                        <div className="d-flex align-items-center">
+                          <div className="icon-wrapper icon-wrapper-info me-3">
+                            <i className="bi bi-plus-circle"></i>
+                          </div>
+                          <div>
+                            <h6 className="mb-0 fw-bold">Additional Rates</h6>
+                            <small className="text-muted">Night differential & deductions</small>
+                          </div>
+                        </div>
                       </div>
-                      <div className="row g-3">
-                        <div className="col-md-6">
-                          <div className="card border-0 bg-light">
-                            <div className="card-body">
-                              <label className="form-label small text-muted mb-2">Night Differential (10 PM - 6 AM)</label>
-                              <div className="input-group">
-                                <span className="input-group-text bg-white">₱</span>
-                                <input type="text" className="form-control bg-white" value={calculatedRates.nightDiff.toFixed(2)} readOnly />
+                      <div className="pay-section-body">
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <div className="rate-card rate-card-night">
+                              <div className="rate-card-header">
+                                <i className="bi bi-moon-stars me-2"></i>
+                                <span className="rate-card-title">Night Differential</span>
                               </div>
-                              <small className="text-primary fw-semibold mt-1 d-block">Base × 0.10 (10%)</small>
+                              <div className="rate-card-subtitle">10:00 PM - 6:00 AM</div>
+                              <div className="rate-card-value">₱ {calculatedRates.nightDiff.toFixed(2)}</div>
+                              <div className="rate-card-formula">Base × 0.10 (10%)</div>
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <div className="editable-rate-card">
+                              <label htmlFor="late_deduction_per_minute" className="form-label fw-semibold mb-2">
+                                <i className="bi bi-exclamation-triangle me-2 text-warning"></i>
+                                Late Deduction/min
+                              </label>
+                              <div className="input-group">
+                                <span className="input-group-text">
+                                  <i className="bi bi-currency-peso"></i>
+                                </span>
+                                <input 
+                                  type="number" 
+                                  step="0.01" 
+                                  className="form-control" 
+                                  id="late_deduction_per_minute" 
+                                  name="late_deduction_per_minute" 
+                                  value={formData.late_deduction_per_minute} 
+                                  onChange={handleChange}
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <small className="text-muted d-block mt-2">
+                                <i className="bi bi-info-circle me-1"></i>
+                                Deducted per minute late
+                              </small>
                             </div>
                           </div>
                         </div>
-                        <div className="col-md-6">
-                          <label htmlFor="late_deduction_per_minute" className="form-label small text-muted">Late Deduction (per minute)</label>
-                          <div className="input-group">
-                            <span className="input-group-text bg-light">₱</span>
-                            <input 
-                              type="number" 
-                              step="0.01" 
-                              className="form-control" 
-                              id="late_deduction_per_minute" 
-                              name="late_deduction_per_minute" 
-                              value={formData.late_deduction_per_minute} 
-                              onChange={handleChange}
-                              placeholder="0.00"
-                            />
-                          </div>
-                          <small className="text-muted d-block mt-1">Amount deducted per minute of tardiness</small>
-                        </div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
