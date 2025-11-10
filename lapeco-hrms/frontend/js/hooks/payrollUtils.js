@@ -45,9 +45,10 @@ export const calculateFinalPay = (employee, position, payrolls = []) => {
     }
 
     // --- Find the last official payroll record for this employee ---
+    const targetEmpId = String(employee?.employee_id ?? employee?.id ?? '');
     const employeePayrolls = payrolls
-        .flatMap(run => run.records.filter(rec => rec.empId === employee.id))
-        .sort((a, b) => new Date(b.payEndDate) - new Date(a.payEndDate));
+        .flatMap(run => (run.records || []).filter(rec => String(rec.empId) === targetEmpId))
+        .sort((a, b) => new Date(b.payEndDate || 0) - new Date(a.payEndDate || 0));
 
     const lastPayroll = employeePayrolls[0];
 
@@ -56,29 +57,49 @@ export const calculateFinalPay = (employee, position, payrolls = []) => {
     const baseDeductions = lastPayroll?.deductions || {};
     const baseOtherDeductions = lastPayroll?.otherDeductions || [];
 
-    const totalBaseEarnings = baseEarnings.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const totalBaseDeductions = Object.values(baseDeductions).reduce((sum, val) => sum + val, 0) 
-                              + baseOtherDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    // Prefer explicit totals when available; gracefully fallback to computed sums
+    const earningsFromItems = baseEarnings.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const grossFromRecord = Number(lastPayroll?.grossEarning ?? 0);
+    const totalBaseEarnings = grossFromRecord > 0 ? grossFromRecord : earningsFromItems;
+
+    const deductionsFromItems = Object.values(baseDeductions).reduce((sum, val) => sum + (Number(val) || 0), 0)
+        + baseOtherDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalDeductionsFromRecord = Math.abs(Number(lastPayroll?.totalDeductionsAmount ?? 0));
+    const totalBaseDeductions = totalDeductionsFromRecord > 0 ? totalDeductionsFromRecord : deductionsFromItems;
+
+    const netFromRecord = Number(lastPayroll?.netPay ?? (totalBaseEarnings - totalBaseDeductions) ?? 0);
 
     // --- FINAL PAY ADJUSTMENTS ---
-    const dailyRate = position.monthlySalary / 22; // Assumption: 22 work days
-    const leaveCreditPayout = (employee.leaveCredits?.vacation || 0) * dailyRate;
+    const monthlySalary = Number(position?.monthly_salary ?? position?.monthlySalary ?? 0);
+    const baseRatePerHour = Number(position?.base_rate_per_hour ?? position?.baseRatePerHour ?? 0);
+    const inferredDailyRate = monthlySalary > 0 ? monthlySalary / 22 : (baseRatePerHour > 0 ? baseRatePerHour * 8 : 0);
+    const dailyRate = Number(position?.dailyRate ?? inferredDailyRate);
+    const vacationDays = Number(employee?.leaveCredits?.vacation ?? 0);
+    const leaveCreditPayout = vacationDays * (dailyRate || 0);
 
     // --- FINAL CALCULATION ---
-    const totalEarnings = totalBaseEarnings + leaveCreditPayout;
-    const totalDeductions = totalBaseDeductions;
-    const finalPay = totalEarnings - totalDeductions;
-    
-    const earningsBreakdown = [
-        ...baseEarnings.map(e => ({ label: e.description, amount: e.amount })),
-        { label: `Unused Vacation Leave (${employee.leaveCredits?.vacation || 0} days)`, amount: leaveCreditPayout },
-    ];
-    
-    const deductionsBreakdown = [
-        ...Object.entries(baseDeductions).map(([key, value]) => ({ label: key.toUpperCase(), amount: value })),
-        ...baseOtherDeductions.map(d => ({ label: d.description, amount: d.amount })),
-    ];
+    // Build display breakdowns that align with the computed totals
+    const earningsBreakdown = [];
+    if (baseEarnings.length > 0) {
+        earningsBreakdown.push(...baseEarnings.map(e => ({ label: e.description, amount: Number(e.amount) || 0 })));
+    } else if (totalBaseEarnings > 0) {
+        earningsBreakdown.push({ label: 'Gross Pay (last payroll)', amount: totalBaseEarnings });
+    }
+    earningsBreakdown.push({ label: `Unused Vacation Leave (${vacationDays} days)`, amount: leaveCreditPayout });
 
+    const deductionsBreakdown = [];
+    const mappedBaseDeductions = Object.entries(baseDeductions).map(([key, value]) => ({ label: key.toUpperCase(), amount: Number(value) || 0 }));
+    const mappedOtherDeductions = baseOtherDeductions.map(d => ({ label: d.description, amount: Number(d.amount) || 0 }));
+    if (mappedBaseDeductions.length + mappedOtherDeductions.length > 0) {
+        deductionsBreakdown.push(...mappedBaseDeductions, ...mappedOtherDeductions);
+    } else if (totalBaseDeductions > 0) {
+        deductionsBreakdown.push({ label: 'Total Deductions (last payroll)', amount: totalBaseDeductions });
+    }
+
+    const totalEarnings = earningsBreakdown.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+    const totalDeductions = deductionsBreakdown.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+    const finalPay = (netFromRecord || (totalBaseEarnings - totalBaseDeductions) || 0) + leaveCreditPayout;
+    
     return {
         finalPay,
         breakdown: {

@@ -18,12 +18,62 @@ const HistoryAttendanceView = ({
   sortedAndFilteredList,
   handleRequestSort,
   getSortIcon,
-  handleOpenEditModal
+  handleOpenEditModal,
+  historySearchTerm,
+  setHistorySearchTerm,
+  historyMonthFilter,
+  setHistoryMonthFilter,
+  historyYearFilter,
+  setHistoryYearFilter,
+  availableHistoryYears
 }) => {
   if (activeView === 'historyList') {
     return (
       <>
         <h4 className="mb-3">Attendance History</h4>
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+          <div className="d-flex align-items-center gap-2">
+            <input
+              type="text"
+              className="form-control"
+              value={historySearchTerm}
+              onChange={(e) => setHistorySearchTerm(e.target.value)}
+              placeholder="Search date (e.g., Friday or 2025-11-07)"
+              style={{ maxWidth: '300px' }}
+            />
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <select
+              className="form-select"
+              value={historyMonthFilter}
+              onChange={(e) => setHistoryMonthFilter(e.target.value)}
+            >
+              <option value="">All Months</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+            <select
+              className="form-select"
+              value={historyYearFilter}
+              onChange={(e) => setHistoryYearFilter(e.target.value)}
+            >
+              <option value="">All Years</option>
+              {Array.isArray(availableHistoryYears) && availableHistoryYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         {attendanceHistoryDisplay.length > 0 ? (
           <div className="attendance-history-grid">
             {attendanceHistoryDisplay.map(day => (
@@ -92,6 +142,14 @@ const HistoryAttendanceView = ({
   if (activeView === 'historyDetail') {
     return (
       <>
+        <div className="d-flex align-items-center mb-3">
+          <i className="bi bi-calendar-date me-2"></i>
+          <strong>
+            {currentDate ? new Date(currentDate).toLocaleDateString('en-US', {
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            }) : 'Select a date'}
+          </strong>
+        </div>
         <div className="daily-view-header-bar">
           <div className="date-picker-group">
             <button className="btn btn-outline-secondary" onClick={() => setActiveView('historyList')}>
@@ -110,6 +168,9 @@ const HistoryAttendanceView = ({
                 label={`Present (${dailyAttendanceList.filter(e => e.status === 'Present').length}/${dailyAttendanceList.length})`} 
                 percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Present').length / dailyAttendanceList.length) * 100) : 0} 
                 color="var(--app-success-color)" 
+                isClickable={true}
+                isActive={statusFilter === 'Present'}
+                onClick={() => handleStatusFilterClick('Present')}
               />
               <StatDonutChart 
                 size={80} 
@@ -117,6 +178,9 @@ const HistoryAttendanceView = ({
                 label={`Late (${dailyAttendanceList.filter(e => e.status === 'Late').length}/${dailyAttendanceList.length})`} 
                 percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Late').length / dailyAttendanceList.length) * 100) : 0} 
                 color="var(--warning-color)" 
+                isClickable={true}
+                isActive={statusFilter === 'Late'}
+                onClick={() => handleStatusFilterClick('Late')}
               />
               <StatDonutChart 
                 size={80} 
@@ -124,6 +188,9 @@ const HistoryAttendanceView = ({
                 label={`Absent (${dailyAttendanceList.filter(e => e.status === 'Absent').length}/${dailyAttendanceList.length})`} 
                 percentage={dailyAttendanceList.length > 0 ? Math.round((dailyAttendanceList.filter(e => e.status === 'Absent').length / dailyAttendanceList.length) * 100) : 0} 
                 color="var(--danger-color)" 
+                isClickable={true}
+                isActive={statusFilter === 'Absent'}
+                onClick={() => handleStatusFilterClick('Absent')}
               />
             </div>
           </div>

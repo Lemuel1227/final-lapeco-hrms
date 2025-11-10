@@ -4,6 +4,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import placeholderImage from '../assets/placeholder-profile.jpg';
 import ResumeIframe from '../common/ResumeIframe';
 import { employeeAPI } from '../services/api';
+import { IMaskInput } from 'react-imask';
 
 const formatSssNumber = (value = '') => {
   const digits = value.replace(/[^0-9]/g, '');
@@ -571,97 +572,65 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label htmlFor="sssNo" className="form-label">SSS No.</label>
-                            <input 
-                              type="text" 
-                              className={`form-control ${formErrors.sssNo ? 'is-invalid' : ''}`} 
-                              id="sssNo" 
-                              name="sssNo" 
-                              value={formData.sssNo} 
-                              onChange={handleChange} 
-                              onBlur={handleBlur}
-                              onInput={(e) => {
-                                let value = e.target.value.replace(/[^0-9-]/g, '');
-                                const digitCount = value.replace(/[^0-9]/g, '').length;
-                                if (digitCount > 10) {
-                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 10);
-                                  value = digits;
-                                }
-                                e.target.value = value;
-                              }}
-                              placeholder="12-3456789-0" 
-                              disabled={isViewMode} 
+                            <IMaskInput
+                              mask="00-0000000-0"
+                              unmask={true}
+                              onAccept={(value) => handleChange({ target: { name: 'sssNo', value } })}
+                              value={formData.sssNo}
+                              type="text"
+                              className={`form-control ${formErrors.sssNo ? 'is-invalid' : ''}`}
+                              id="sssNo"
+                              name="sssNo"
+                              placeholder="00-0000000-0"
+                              disabled={isViewMode}
                             />
                             {formErrors.sssNo && <div className="invalid-feedback">{formErrors.sssNo}</div>}
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="tinNo" className="form-label">TIN No.</label>
-                            <input 
-                              type="text" 
-                              className={`form-control ${formErrors.tinNo ? 'is-invalid' : ''}`} 
-                              id="tinNo" 
-                              name="tinNo" 
-                              value={formData.tinNo} 
-                              onChange={handleChange} 
-                              onBlur={handleBlur}
-                              onInput={(e) => {
-                                let value = e.target.value.replace(/[^0-9-]/g, '');
-                                const digitCount = value.replace(/[^0-9]/g, '').length;
-                                if (digitCount > 12) {
-                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
-                                  value = digits;
-                                }
-                                e.target.value = value;
-                              }}
-                              placeholder="123-456-789-000" 
-                              disabled={isViewMode} 
+                            <IMaskInput
+                              mask="000-000-000-000"
+                              unmask={true}
+                              onAccept={(value) => handleChange({ target: { name: 'tinNo', value } })}
+                              value={formData.tinNo}
+                              type="text"
+                              className={`form-control ${formErrors.tinNo ? 'is-invalid' : ''}`}
+                              id="tinNo"
+                              name="tinNo"
+                              placeholder="000-000-000-000"
+                              disabled={isViewMode}
                             />
                             {formErrors.tinNo && <div className="invalid-feedback">{formErrors.tinNo}</div>}
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="pagIbigNo" className="form-label">Pag-IBIG No.</label>
-                            <input 
-                              type="text" 
-                              className={`form-control ${formErrors.pagIbigNo ? 'is-invalid' : ''}`} 
-                              id="pagIbigNo" 
-                              name="pagIbigNo" 
-                              value={formData.pagIbigNo} 
-                              onChange={handleChange} 
-                              onBlur={handleBlur}
-                              onInput={(e) => {
-                                let value = e.target.value.replace(/[^0-9-]/g, '');
-                                const digitCount = value.replace(/[^0-9]/g, '').length;
-                                if (digitCount > 12) {
-                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
-                                  value = digits;
-                                }
-                                e.target.value = value;
-                              }}
-                              placeholder="1234-5678-9012" 
-                              disabled={isViewMode} 
+                            <IMaskInput
+                              mask="0000-0000-0000"
+                              unmask={true}
+                              onAccept={(value) => handleChange({ target: { name: 'pagIbigNo', value } })}
+                              value={formData.pagIbigNo}
+                              type="text"
+                              className={`form-control ${formErrors.pagIbigNo ? 'is-invalid' : ''}`}
+                              id="pagIbigNo"
+                              name="pagIbigNo"
+                              placeholder="0000-0000-0000"
+                              disabled={isViewMode}
                             />
                             {formErrors.pagIbigNo && <div className="invalid-feedback">{formErrors.pagIbigNo}</div>}
                           </div>
                           <div className="col-md-6">
                             <label htmlFor="philhealthNo" className="form-label">PhilHealth No.</label>
-                            <input 
-                              type="text" 
-                              className={`form-control ${formErrors.philhealthNo ? 'is-invalid' : ''}`} 
-                              id="philhealthNo" 
-                              name="philhealthNo" 
-                              value={formData.philhealthNo} 
-                              onChange={handleChange} 
-                              onBlur={handleBlur}
-                              onInput={(e) => {
-                                let value = e.target.value.replace(/[^0-9-]/g, '');
-                                const digitCount = value.replace(/[^0-9]/g, '').length;
-                                if (digitCount > 12) {
-                                  const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
-                                  value = digits;
-                                }
-                                e.target.value = value;
-                              }}
-                              placeholder="12-345678901-2" 
-                              disabled={isViewMode} 
+                            <IMaskInput
+                              mask="00-000000000-0"
+                              unmask={true}
+                              onAccept={(value) => handleChange({ target: { name: 'philhealthNo', value } })}
+                              value={formData.philhealthNo}
+                              type="text"
+                              className={`form-control ${formErrors.philhealthNo ? 'is-invalid' : ''}`}
+                              id="philhealthNo"
+                              name="philhealthNo"
+                              placeholder="00-000000000-0"
+                              disabled={isViewMode}
                             />
                             {formErrors.philhealthNo && <div className="invalid-feedback">{formErrors.philhealthNo}</div>}
                           </div>

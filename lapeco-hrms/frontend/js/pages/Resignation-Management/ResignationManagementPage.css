@@ -165,3 +165,43 @@
     background-color: rgba(var(--danger-rgb), 0.1);
     color: var(--danger-color);
 }
+
+/* --- Final Pay Status Badges --- */
+.resignation-tab-content .status-badge {
+    display: inline-block;
+    padding: 0.35em 0.7em;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+.resignation-tab-content .status-badge.status-pending {
+    background-color: var(--warning-color);
+    color: var(--text-primary) !important;
+}
+.resignation-tab-content .status-badge.status-processing {
+    background-color: var(--info-color);
+    color: var(--text-primary) !important;
+}
+.resignation-tab-content .status-badge.status-paid {
+    background-color: var(--app-success-color);
+    color: var(--text-on-success) !important;
+}
+.resignation-tab-content .status-badge.status-unknown {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+.resignation-tab-content .status-badge.status-no-final-pay {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary) !important;
+    border: 1px dashed var(--border-color);
+}
+.dark-theme .resignation-tab-content .status-badge.status-pending {
+    color: var(--text-primary) !important;
+}
+.dark-theme .resignation-tab-content .status-badge.status-processing {
+    color: var(--text-primary) !important;
+}
+.dark-theme .resignation-tab-content .status-badge.status-paid {
+    color: var(--text-on-success) !important;
+}

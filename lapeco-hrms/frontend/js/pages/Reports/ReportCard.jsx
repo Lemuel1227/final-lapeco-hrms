@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ReportCard = ({ title, description, icon, onGenerate }) => {
+const ReportCard = ({ title, description, icon, onGenerate, disabled = false, disabledTitle = '' }) => {
   return (
     <div className="report-card-v2">
       <div className="report-card-v2-body">
@@ -13,7 +13,12 @@ const ReportCard = ({ title, description, icon, onGenerate }) => {
         </div>
       </div>
       <div className="report-card-v2-footer">
-        <button className="btn btn-sm btn-success" onClick={onGenerate}>
+        <button
+          className="btn btn-sm btn-success"
+          onClick={onGenerate}
+          disabled={disabled}
+          title={disabled ? disabledTitle : ''}
+        >
           Generate <i className="bi bi-arrow-right-short"></i>
         </button>
       </div>

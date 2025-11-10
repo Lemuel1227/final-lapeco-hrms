@@ -146,16 +146,25 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
 
         const details = eligibleEmployees.map(emp => {
             let totalBasicSalary = 0;
+            const canonicalEmpId = String(emp?.employee_id ?? emp?.employeeId ?? emp?.id ?? '');
 
             recordsForYear.forEach(record => {
-                if ((record.empId === emp.id || String(record.empId) === String(emp.id))) {
+                const recEmpId = String(record?.empId ?? record?.employeeId ?? '');
+                if (recEmpId && recEmpId === canonicalEmpId) {
                     if (Array.isArray(record.earnings) && record.earnings.length > 0) {
-                        record.earnings.forEach(earning => {
+                        const baseFromItems = record.earnings.reduce((sum, earning) => {
                             const desc = (earning.description || '').toLowerCase();
-                            if (desc.includes('regular') || desc.includes('basic') || desc.includes('salary')) {
-                                totalBasicSalary += Number(earning.amount) || 0;
-                            }
-                        });
+                            const isBase = desc.includes('regular') || desc.includes('basic') || desc.includes('salary');
+                            return sum + (isBase ? (Number(earning.amount) || 0) : 0);
+                        }, 0);
+                        // If we couldn't detect base from descriptions, fallback to gross or sum of earnings
+                        if (baseFromItems > 0) {
+                            totalBasicSalary += baseFromItems;
+                        } else {
+                            const sumAllEarnings = record.earnings.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+                            const gross = Number(record.grossEarning) || 0;
+                            totalBasicSalary += (gross > 0 ? gross : sumAllEarnings);
+                        }
                     } else {
                         // Fallback: if detailed earnings are unavailable, use grossEarning as proxy
                         totalBasicSalary += Number(record.grossEarning) || 0;
@@ -172,12 +181,14 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
             };
         });
 
-        const totalPayout = details.reduce((sum, emp) => sum + (emp.thirteenthMonthPay || 0), 0);
-        
+        // Exclude employees who have no computed 13th month pay yet
+        const filteredDetails = details.filter(emp => (emp.thirteenthMonthPay || 0) > 0);
+        const totalPayout = filteredDetails.reduce((sum, emp) => sum + (emp.thirteenthMonthPay || 0), 0);
+
         return {
-            details,
+            details: filteredDetails,
             totalPayout,
-            eligibleCount: eligibleEmployees.length,
+            eligibleCount: filteredDetails.length,
         };
     }, [year, localEmployees, localPayrolls, runRecordsByPeriod]);
 

@@ -462,6 +462,9 @@ class DatabaseSeeder extends Seeder
         
         //Seed Attendance data
         $this->call(AttendanceSeeder::class);
+
+        // Seed sample payroll periods and records for final pay display
+        $this->call(PayrollSeeder::class);
     }
     
     /**
