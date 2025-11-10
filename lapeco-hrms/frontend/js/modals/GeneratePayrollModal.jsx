@@ -31,7 +31,7 @@ const GeneratePayrollModal = ({ show, onClose, onGenerate, allEmployees, existin
       }
       const cutOff = `${startDate} to ${endDate}`;
       if (existingPayrolls.some(p => p.cutOff === cutOff)) {
-          setError('A payroll for this period already exists.');
+          setError('A payroll for this period already exists. Delete the period to generate again.');
           return;
       }
       setSelectedEmployeeIds(allEmployees.map(emp => emp.empId));

@@ -13,7 +13,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import { calculateFinalPay } from '../../hooks/payrollUtils';
 import { reportsConfig } from '../../config/reports.config';
 import useReportGenerator from '../../hooks/useReportGenerator';
-import { resignationAPI, employeeAPI, positionAPI, terminationAPI } from '../../services/api';
+import { resignationAPI, employeeAPI, positionAPI, terminationAPI, payrollAPI } from '../../services/api';
 import './ResignationManagementPage.css';
 
 const STATUS_ORDER = { 'Pending': 1, 'Approved': 2 };
@@ -89,7 +89,29 @@ const ResignationManagementPage = () => {
                 // Load terminations and payrolls
                 const terminationsRes = await terminationAPI.getAll();
                 setTerminations(terminationsRes.data);
-                setPayrolls([]); // TODO: Load payrolls when API is available
+
+                // Load payroll runs and enrich with records for each period
+                const payrollRunsRes = await payrollAPI.getAll();
+                const payrollRuns = payrollRunsRes.data?.payroll_runs || [];
+
+                const runsWithRecords = await Promise.all(
+                    payrollRuns.map(async (run) => {
+                        try {
+                            const detailsRes = await payrollAPI.getPeriodDetails(run.periodId);
+                            const records = (detailsRes.data?.records || []).map(rec => ({
+                                ...rec,
+                                // Add period end date for sorting in OffboardedEmployeesTab
+                                payEndDate: run.periodEnd,
+                            }));
+                            return { ...run, records };
+                        } catch (e) {
+                            console.warn('Failed to load payroll details for period', run.periodId, e);
+                            return { ...run, records: [] };
+                        }
+                    })
+                );
+
+                setPayrolls(runsWithRecords);
 
             } catch (err) {
                 console.error('Error loading resignation data:', err);
@@ -140,10 +162,13 @@ const ResignationManagementPage = () => {
                 return false;
             }
             
-            // Hide if the request is 'Approved' and its effective date is in the past
-            if (req.status === 'Approved' && req.effectiveDate && isPast(parseISO(req.effectiveDate)) && !isToday(parseISO(req.effectiveDate))) {
-                console.log('Filtered out approved with past date:', req.employeeName);
-                return false;
+            // Hide if the request is 'Approved' and its effective date is today or in the past
+            if (req.status === 'Approved' && req.effectiveDate) {
+                const eff = parseISO(req.effectiveDate);
+                if (isPast(eff) || isToday(eff)) {
+                    console.log('Filtered out approved with effective today/past:', req.employeeName);
+                    return false;
+                }
             }
             console.log('Keeping resignation:', req.employeeName, req.status);
             return true;
@@ -339,7 +364,7 @@ const ResignationManagementPage = () => {
     const handleViewFinalPay = (employee) => {
         const resignationRecord = resignations.find(r => r.employeeId === employee.id);
         const lastPositionTitle = resignationRecord?.position || positionMap.get(employee.positionId);
-        const position = positions.find(p => p.title === lastPositionTitle);
+        const position = positions.find(p => (p.title || p.name) === lastPositionTitle);
         const calculation = calculateFinalPay(employee, position, payrolls);
         setFinalPayDetails({ ...calculation, employeeName: employee.name });
     };

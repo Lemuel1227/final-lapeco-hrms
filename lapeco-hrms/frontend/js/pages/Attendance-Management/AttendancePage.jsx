@@ -208,17 +208,52 @@ const AttendancePage = () => {
     return list;
   }, [dailyAttendanceList, positionFilter, statusFilter, sortConfig]);
 
+  // History list filters
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historyMonthFilter, setHistoryMonthFilter] = useState(''); // '': All, otherwise 1..12
+  const [historyYearFilter, setHistoryYearFilter] = useState('');   // '': All, otherwise year number
+
+  const availableHistoryYears = useMemo(() => {
+    if (!attendanceHistory) return [];
+    const years = Array.from(new Set(attendanceHistory.map(d => new Date(d.date).getFullYear())));
+    return years.sort((a, b) => b - a);
+  }, [attendanceHistory]);
+
   const attendanceHistoryDisplay = useMemo(() => {
     if (!attendanceHistory) return [];
-    
-    return attendanceHistory.map(day => ({
+    let list = attendanceHistory.map(day => ({
       date: day.date.split('T')[0],
       present: day.present,
       late: day.late,
       absent: day.absent,
       total: day.total,
-    })).sort((a,b) => new Date(b.date) - new Date(a.date));
-  }, [attendanceHistory]);
+    }));
+
+    // Apply Month filter (1..12)
+    if (historyMonthFilter) {
+      const targetMonth = Number(historyMonthFilter);
+      list = list.filter(d => (new Date(d.date).getMonth() + 1) === targetMonth);
+    }
+
+    // Apply Year filter
+    if (historyYearFilter) {
+      const targetYear = Number(historyYearFilter);
+      list = list.filter(d => new Date(d.date).getFullYear() === targetYear);
+    }
+
+    // Apply search on formatted date or ISO string
+    if (historySearchTerm) {
+      const term = historySearchTerm.toLowerCase();
+      list = list.filter(d => {
+        const formatted = new Date(d.date).toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        }).toLowerCase();
+        return formatted.includes(term) || d.date.includes(historySearchTerm);
+      });
+    }
+
+    return list.sort((a,b) => new Date(b.date) - new Date(a.date));
+  }, [attendanceHistory, historyMonthFilter, historyYearFilter, historySearchTerm]);
 
   const availableEmployees = useMemo(() => {
     return Array.isArray(employeesList) ? employeesList : [];
@@ -964,6 +999,13 @@ const AttendancePage = () => {
             handleRequestSort={handleRequestSort}
             getSortIcon={getSortIcon}
             handleOpenEditModal={handleOpenEditModal}
+            historySearchTerm={historySearchTerm}
+            setHistorySearchTerm={setHistorySearchTerm}
+            historyMonthFilter={historyMonthFilter}
+            setHistoryMonthFilter={setHistoryMonthFilter}
+            historyYearFilter={historyYearFilter}
+            setHistoryYearFilter={setHistoryYearFilter}
+            availableHistoryYears={availableHistoryYears}
           />
         )}
       </div>

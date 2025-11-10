@@ -60,15 +60,50 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
     }
   }, [selectedYear, selectedMonth, selectedPeriod]);
 
+  // Keep a local cache of existing runs to ensure up-to-date checks
+  const [existingRuns, setExistingRuns] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    const checkExisting = async () => {
+      try {
+        const { data } = await payrollAPI.getAll();
+        const runs = Array.isArray(data?.payroll_runs) ? data.payroll_runs : [];
+        if (!cancelled) setExistingRuns(runs);
+      } catch (e) {
+        // If the check fails, fall back to the passed-in payrolls prop
+        if (!cancelled) setExistingRuns([]);
+      }
+    };
+    checkExisting();
+    return () => { cancelled = true; };
+  }, [cutOffString]);
+
   const isPeriodGenerated = useMemo(() => {
-    return (payrolls || []).some(p => p.cutOff === cutOffString);
-  }, [payrolls, cutOffString]);
+    const sourceRuns = (existingRuns && existingRuns.length > 0) ? existingRuns : (payrolls || []);
+    return sourceRuns.some(p => p.cutOff === cutOffString);
+  }, [existingRuns, payrolls, cutOffString]);
 
   const [calculatedData, setCalculatedData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // When a period is already generated, clear any previous calculations once
   useEffect(() => {
+    if (isPeriodGenerated) {
+      if (calculatedData.length !== 0) setCalculatedData([]);
+      if (isLoading) setIsLoading(false);
+      if (error) setError('');
+      lastRequestKeyRef.current = null;
+      activeFetchRef.current = null;
+    }
+  }, [isPeriodGenerated]);
+
+  useEffect(() => {
+    // Do not calculate if the period is already generated
+    if (isPeriodGenerated) {
+      return;
+    }
+
     if (!startDate || !endDate || new Date(endDate) < new Date(startDate)) {
       setCalculatedData([]);
       setError('');
@@ -178,7 +213,7 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
     };
 
     fetchPayroll();
-  }, [startDate, endDate, schedules, attendanceLogs, employees.length, positions.length]);
+  }, [startDate, endDate, schedules, attendanceLogs, employees.length, positions.length, isPeriodGenerated]);
 
   const summary = useMemo(() => ({
     totalGross: calculatedData.reduce((acc, curr) => acc + curr.totalGross, 0),
@@ -222,7 +257,11 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
             <div className="col-md-4"><label htmlFor="month" className="form-label fw-bold">Month</label><select id="month" className="form-select" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>{MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}</select></div>
             <div className="col-md-5"><label htmlFor="period" className="form-label fw-bold">Period</label><select id="period" className="form-select" value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>{PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
           </div>
-          {isPeriodGenerated && <div className="alert alert-warning mt-3">A payroll run for this period (<strong>{cutOffString}</strong>) already exists.</div>}
+          {isPeriodGenerated && (
+            <div className="alert alert-warning mt-3">
+              A payroll run for this period (<strong>{cutOffString}</strong>) already exists. Delete the period to generate again.
+            </div>
+          )}
         </div>
       </div>
 

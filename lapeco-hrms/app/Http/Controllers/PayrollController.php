@@ -290,25 +290,28 @@ class PayrollController extends Controller
 
         $startDate = $periodStart->toDateString();
         $endDate = $periodEnd->toDateString();
+        // Prevent regenerating the same payroll period unless it was deleted
+        $existingPeriod = PayrollPeriod::where('period_start', $startDate)
+            ->where('period_end', $endDate)
+            ->first();
+
+        if ($existingPeriod) {
+            return response()->json([
+                'message' => 'A payroll period for these dates already exists. Delete the period before generating again.',
+                'period' => [
+                    'id' => $existingPeriod->id,
+                    'start' => $existingPeriod->period_start->toDateString(),
+                    'end' => $existingPeriod->period_end->toDateString(),
+                ],
+            ], 409);
+        }
 
         $result = DB::transaction(function () use ($periodStart, $startDate, $endDate) {
-            $payrollPeriod = PayrollPeriod::firstOrCreate(
-                [
-                    'period_start' => $startDate,
-                    'period_end' => $endDate,
-                ],
-                [
-                    'period_year' => $periodStart->year,
-                ]
-            );
-
-            $existingPayrolls = EmployeePayroll::where('period_id', $payrollPeriod->id)->get();
-            foreach ($existingPayrolls as $payroll) {
-                $payroll->earnings()->delete();
-                $payroll->deductions()->delete();
-                $payroll->statutoryRequirements()->delete();
-                $payroll->delete();
-            }
+            $payrollPeriod = PayrollPeriod::create([
+                'period_start' => $startDate,
+                'period_end' => $endDate,
+                'period_year' => $periodStart->year,
+            ]);
 
             $assignments = ScheduleAssignment::with(['schedule', 'attendance', 'user.position'])
                 ->whereHas('schedule', function ($query) use ($startDate, $endDate) {

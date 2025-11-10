@@ -23,6 +23,7 @@ const ReportsPage = (props) => {
   const [evaluationPeriods, setEvaluationPeriods] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [isFetchingData, setIsFetchingData] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
 
@@ -44,6 +45,24 @@ const ReportsPage = (props) => {
     }
   };
 
+  const normalizeAccountStatus = (status = '') => {
+    const s = status?.toString().trim().toLowerCase();
+    switch (s) {
+      case 'active':
+        return 'Active';
+      case 'inactive':
+        return 'Inactive';
+      case 'deactivated':
+        return 'Deactivated';
+      case 'terminated':
+        return 'Terminated';
+      case 'resigned':
+        return 'Resigned';
+      default:
+        return status || 'Active';
+    }
+  };
+
   const buildEmployeeName = (user = {}) => {
     if (user.name) return user.name;
     const parts = [user.first_name, user.middle_name, user.last_name].filter(Boolean);
@@ -54,6 +73,7 @@ const ReportsPage = (props) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setIsInitialLoading(true);
         const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes, periodsRes, leavesRes] = await Promise.all([
           employeeAPI.getAll(),
           positionAPI.getAll(),
@@ -92,16 +112,17 @@ const ReportsPage = (props) => {
           position: e.position ?? positionMap[e.position_id ?? e.positionId],
           joiningDate: e.joining_date ?? e.joiningDate,
           role: e.role,
-          status: e.account_status ?? e.status
+          status: normalizeAccountStatus(e.account_status ?? e.status ?? e.employment_status)
         }));
         
         // Keep all employees for offboarding reports
         setAllEmployees(normalizedEmployees);
         
-        // Filter only active employees for most reports
-        const activeEmployees = normalizedEmployees.filter(emp => 
-          emp.status === 'Active' || emp.status === 'Inactive'
-        );
+        // Filter only non-offboarded employees for most reports
+        const activeEmployees = normalizedEmployees.filter(emp => {
+          const s = (emp.status || '').toString().trim().toLowerCase();
+          return s !== 'terminated' && s !== 'resigned';
+        });
         
         // Normalize resignations data
         const resData = Array.isArray(resignationsRes.data) ? resignationsRes.data : (resignationsRes.data?.data || []);
@@ -207,6 +228,8 @@ const ReportsPage = (props) => {
         setLeaveRequests(normalizedLeaves);
       } catch (error) {
         console.error('Error fetching data for reports:', error);
+      } finally {
+        setIsInitialLoading(false);
       }
     };
     fetchData();
@@ -234,6 +257,13 @@ const ReportsPage = (props) => {
     }
     return reports;
   }, [activeCategory, searchTerm]);
+
+  // Gate masterlist generation until employees and positions are ready, so first click always works
+  const masterlistReady = useMemo(() => {
+    const hasEmployees = (employees && employees.length) || (allEmployees && allEmployees.length);
+    const hasPositions = positions && positions.length;
+    return Boolean(hasEmployees && hasPositions && !isInitialLoading);
+  }, [employees, allEmployees, positions, isInitialLoading]);
 
   const handleOpenConfig = (reportConfig) => {
     if (reportConfig.parameters) {
@@ -287,11 +317,14 @@ const ReportsPage = (props) => {
 
     // Ensure employees and positions are loaded before generating employee-related reports
     if (reportId === 'employee_masterlist') {
-      if (employees.length === 0) {
+      const sourceEmployees = employees.length ? employees : allEmployees;
+      const sourcePositions = positions;
+
+      if (sourceEmployees.length === 0) {
         alert('No employee data available to generate this report.');
         return;
       }
-      if (positions.length === 0) {
+      if (sourcePositions.length === 0) {
         alert('No position data available to generate this report.');
         return;
       }
@@ -305,8 +338,10 @@ const ReportsPage = (props) => {
       }
     }
 
-    // Use allEmployees for offboarding report, regular employees for others
-    const employeesForReport = reportId === 'offboarding_summary' ? allEmployees : employees;
+    // Use allEmployees for offboarding report, otherwise use employees with fallback
+    const employeesForReport = reportId === 'offboarding_summary'
+      ? allEmployees
+      : (employees.length ? employees : allEmployees);
     
     const { payrolls = [] } = props;
 
@@ -521,34 +556,50 @@ const ReportsPage = (props) => {
       </div>
 
       <div className="reports-content-area">
-        <div className="input-group search-bar">
-          <span className="input-group-text"><i className="bi bi-search"></i></span>
-          <input
-            type="text"
-            className="form-control"
-            placeholder={`Search all reports...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="reports-grid-v2">
-          {filteredReports.map(config => (
-            <ReportCard
-              key={config.id}
-              title={config.title}
-              description={config.description}
-              icon={config.icon}
-              onGenerate={() => handleOpenConfig(config)}
-            />
-          ))}
-        </div>
-
-        {filteredReports.length === 0 && (
+        {isInitialLoading ? (
           <div className="text-center p-5 bg-light rounded">
-              <h5>No Reports Found</h5>
-              <p className="text-muted">Try adjusting your category selection or search term.</p>
+            <h5>Preparing reports…</h5>
+            <p className="text-muted">Loading required data.</p>
           </div>
+        ) : (
+          <>
+            <div className="input-group search-bar">
+              <span className="input-group-text"><i className="bi bi-search"></i></span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder={`Search all reports...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="reports-grid-v2">
+              {filteredReports.map(config => {
+                const isMasterlist = config.id === 'employee_masterlist';
+                const disabled = isMasterlist ? !masterlistReady : false;
+                const disabledTitle = isMasterlist && disabled ? 'Preparing data… please wait a moment' : '';
+                return (
+                  <ReportCard
+                    key={config.id}
+                    title={config.title}
+                    description={config.description}
+                    icon={config.icon}
+                    onGenerate={() => handleOpenConfig(config)}
+                    disabled={disabled}
+                    disabledTitle={disabledTitle}
+                  />
+                );
+              })}
+            </div>
+
+            {filteredReports.length === 0 && (
+              <div className="text-center p-5 bg-light rounded">
+                  <h5>No Reports Found</h5>
+                  <p className="text-muted">Try adjusting your category selection or search term.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
