@@ -21,7 +21,7 @@ export const calculateSssContribution = (salary, isProvisional = false) => {
     let msc = Math.min(monthlyEquivalent, 30000);
     
     // Minimum MSC is ₱4,000 (updated from ₱3,000)
-    if (msc < 4000) msc = 4000;
+    if (msc < 3000) msc = 3000;
 
     // Round MSC to nearest ₱500 bracket
     if (msc < 30000) {
@@ -89,24 +89,20 @@ export const calculatePhilhealthContribution = (salary, isProvisional = false) =
  * Max Employer Share: ₱100/month
  */
 export const calculatePagibigContribution = (salary, isProvisional = false) => {
-    // Convert semi-monthly to monthly if provisional
     const monthlyEquivalent = isProvisional ? salary * 2 : salary;
     
-    // Employee rate: 1% if ≤₱1,500, otherwise 2%
-    let employeeShare;
-    if (monthlyEquivalent <= 1500) {
-        employeeShare = monthlyEquivalent * 0.01; // 1%
-    } else {
-        employeeShare = monthlyEquivalent * 0.02; // 2%
-    }
+    // Per Pag-IBIG rules, the maximum monthly compensation for calculation is ₱5,000.
+    const maxCompensation = 5000;
+    const calculationBase = Math.min(monthlyEquivalent, maxCompensation);
+
+    // The rate is determined by the actual monthly salary, not the capped base.
+    const employeeRate = monthlyEquivalent <= 1500 ? 0.01 : 0.02;
+
+    // Calculate shares based on the capped compensation base.
+    const employeeShare = calculationBase * employeeRate;
+    const employerShare = calculationBase * 0.02;
     
-    // Cap employee share at ₱100/month
-    employeeShare = Math.min(employeeShare, 100);
-    
-    // Employer always contributes 2%, capped at ₱100/month
-    const employerShare = Math.min(monthlyEquivalent * 0.02, 100);
-    
-    // Divide by 2 if semi-monthly payroll
+    // Divide by 2 for semi-monthly payroll.
     const divisor = isProvisional ? 2 : 1;
 
     return {

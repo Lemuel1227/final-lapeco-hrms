@@ -77,14 +77,14 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
 
   const systemCalculatedDeductions = useMemo(() => {
     if (!position) return { sss: 0, philhealth: 0, hdmf: 0 };
-    const monthlySalary = position.monthlySalary || 0;
-    const sss = calculateSssContribution(monthlySalary);
-    const philhealth = calculatePhilhealthContribution(monthlySalary);
-    const pagibig = calculatePagibigContribution(monthlySalary);
+    const semiMonthlySalary = (position.monthly_salary || 0) / 2;
+    const sss = calculateSssContribution(semiMonthlySalary, true);
+    const philhealth = calculatePhilhealthContribution(semiMonthlySalary, true);
+    const pagibig = calculatePagibigContribution(semiMonthlySalary, true);
     return {
-      sss: parseFloat((sss.employeeShare / 2).toFixed(2)),
-      philhealth: parseFloat((philhealth.employeeShare / 2).toFixed(2)),
-      hdmf: parseFloat((pagibig.employeeShare / 2).toFixed(2)),
+      sss: parseFloat(sss.employeeShare.toFixed(2)),
+      philhealth: parseFloat(philhealth.employeeShare.toFixed(2)),
+      hdmf: parseFloat(pagibig.employeeShare.toFixed(2)),
     };
   }, [position]);
 
@@ -115,9 +115,9 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
         
         const initialGrossPay = combinedEarnings.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
         
-        const initialSss = parseFloat((payrollData.deductions?.sss ?? systemCalculatedDeductions.sss).toFixed(2));
-        const initialPhilhealth = parseFloat((payrollData.deductions?.philhealth ?? systemCalculatedDeductions.philhealth).toFixed(2));
-        const initialHdmf = parseFloat((payrollData.deductions?.hdmf ?? systemCalculatedDeductions.hdmf).toFixed(2));
+        const initialSss = parseFloat((payrollData.deductions?.sss || systemCalculatedDeductions.sss).toFixed(2));
+        const initialPhilhealth = parseFloat((payrollData.deductions?.philhealth || systemCalculatedDeductions.philhealth).toFixed(2));
+        const initialHdmf = parseFloat((payrollData.deductions?.pagibig || systemCalculatedDeductions.hdmf).toFixed(2));
         
         const initialTaxableIncome = initialGrossPay - (initialSss + initialPhilhealth + initialHdmf);
         const { taxWithheld } = calculateTin(initialTaxableIncome);
@@ -282,7 +282,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
           earnings: finalEarnings.map(({isDefault, isNew, tempId, ...rest}) => ({ ...rest, amount: parseFloat(Number(rest.amount).toFixed(2)) })), 
           otherDeductions: finalDeductions.map(d => ({...d, amount: parseFloat(Number(d.amount).toFixed(2)) })),
           absences: absences, 
-          deductions: Object.fromEntries(Object.entries(statutoryDeductions).map(([key, value]) => [key, parseFloat(Number(value).toFixed(2))])),
+          deductions: Object.fromEntries(Object.entries(statutoryDeductions).map(([key, value]) => [key === 'hdmf' ? 'pagibig' : key, parseFloat(Number(value).toFixed(2))])),
           netPay: totals.netPay 
       });
     }

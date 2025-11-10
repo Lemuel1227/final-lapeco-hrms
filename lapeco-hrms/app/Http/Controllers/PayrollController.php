@@ -147,7 +147,7 @@ class PayrollController extends Controller
 
     public function showRunDetails($periodId)
     {
-        // Load only employee list for detail modal
+        // Eager-load all necessary relationships for efficiency
         $period = PayrollPeriod::with([
             'employeePayrolls.employee:id,first_name,middle_name,last_name',
         ])->findOrFail($periodId);
@@ -160,18 +160,27 @@ class PayrollController extends Controller
                 $employeeName = trim(implode(' ', $parts)) ?: 'Unnamed Employee';
             }
 
-            $netPay = (float) $payroll->gross_earning - (float) $payroll->total_deductions;
+            $gross = (float) $payroll->gross_earning;
+            $deductions = (float) $payroll->total_deductions;
+            $netPay = $gross - $deductions;
 
             return [
                 'payrollId' => $payroll->id,
                 'empId' => (string) $employee?->id,
                 'employeeName' => $employeeName ?? 'Unknown Employee',
+                'grossEarning' => $gross,
+                'totalDeductionsAmount' => $deductions,
                 'netPay' => round($netPay, 2),
                 'status' => $payroll->paid_status,
+                // For consistency, we can add empty arrays if details aren't stored directly
+                'earnings' => $payroll->earnings_summary ?? [],
+                'deductions' => $payroll->deductions_summary ?? [],
+                'otherDeductions' => $payroll->other_deductions_summary ?? [],
             ];
         })->values();
 
         return response()->json([
+            'runId' => sprintf('PR-%05d', $period->id),
             'periodId' => $period->id,
             'cutOff' => $period->period_start->toDateString() . ' to ' . $period->period_end->toDateString(),
             'records' => $records,
