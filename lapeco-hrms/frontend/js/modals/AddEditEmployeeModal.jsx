@@ -396,40 +396,28 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                   </div>
                   <input type="file" ref={fileInputRef} name="imageUrl" accept="image/*" onChange={handleChange} className="d-none" disabled={isViewMode} />
 
-                  <div className="row g-2">
-                    <div className="col-md-5">
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-4">
                       <input
                         type="text"
                         className={`form-control ${formErrors.firstName ? 'is-invalid' : ''}`}
-                        id="firstName"
                         name="firstName"
-                        placeholder="First Name"
                         value={formData.firstName}
                         onChange={handleChange}
-                        onBlur={handleBlur}
-                        onInput={(e) => {
-                          e.target.value = e.target.value.replace(/[^a-zA-Z\s.-]/g, '');
-                        }}
-                        maxLength="50"
-                        required
+                        placeholder="First Name*"
                         disabled={isViewMode}
+                        required
                       />
                       {formErrors.firstName && <div className="invalid-feedback">{formErrors.firstName}</div>}
                     </div>
-                    <div className="col-md-3">
+                    <div className="col-md-4">
                       <input
                         type="text"
                         className={`form-control ${formErrors.middleName ? 'is-invalid' : ''}`}
-                        id="middleName"
                         name="middleName"
-                        placeholder="Middle Name"
                         value={formData.middleName}
                         onChange={handleChange}
-                        onBlur={handleBlur}
-                        onInput={(e) => {
-                          e.target.value = e.target.value.replace(/[^a-zA-Z\s.-]/g, '');
-                        }}
-                        maxLength="50"
+                        placeholder="Middle Name"
                         disabled={isViewMode}
                       />
                       {formErrors.middleName && <div className="invalid-feedback">{formErrors.middleName}</div>}
@@ -438,25 +426,27 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                       <input
                         type="text"
                         className={`form-control ${formErrors.lastName ? 'is-invalid' : ''}`}
-                        id="lastName"
                         name="lastName"
-                        placeholder="Last Name"
                         value={formData.lastName}
                         onChange={handleChange}
-                        onBlur={handleBlur}
-                        onInput={(e) => {
-                          e.target.value = e.target.value.replace(/[^a-zA-Z\s.-]/g, '');
-                        }}
-                        maxLength="50"
-                        required
+                        placeholder="Last Name*"
                         disabled={isViewMode}
+                        required
                       />
                       {formErrors.lastName && <div className="invalid-feedback">{formErrors.lastName}</div>}
                     </div>
                   </div>
-                  <div className="form-group">
+
+                  <div className="mb-3 text-start">
                     <label htmlFor="positionId" className="form-label">Position*</label>
-                    <select className={`form-select ${formErrors.positionId ? 'is-invalid' : ''}`} id="positionId" name="positionId" value={formData.positionId} onChange={handleChange} onBlur={handleBlur} required disabled={isViewMode}>
+                    <select
+                        className={`form-select ${formErrors.positionId ? 'is-invalid' : ''}`}
+                        id="positionId"
+                        name="positionId"
+                        value={formData.positionId}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        required disabled={isViewMode}>
                         <option value="">Select a position...</option>
                         {(positions || []).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                     </select>

@@ -4,7 +4,7 @@ import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI, trainingAPI, performanceAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI } from '../../services/api';
 import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
 
@@ -21,6 +21,7 @@ const ReportsPage = (props) => {
   const [trainingPrograms, setTrainingPrograms] = useState([]);
   const [trainingEnrollments, setTrainingEnrollments] = useState([]);
   const [evaluationPeriods, setEvaluationPeriods] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [isFetchingData, setIsFetchingData] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
@@ -53,7 +54,7 @@ const ReportsPage = (props) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes, periodsRes] = await Promise.all([
+        const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes, periodsRes, leavesRes] = await Promise.all([
           employeeAPI.getAll(),
           positionAPI.getAll(),
           resignationAPI.getAll(),
@@ -61,6 +62,7 @@ const ReportsPage = (props) => {
           trainingAPI.getPrograms(),
           trainingAPI.getEnrollments(),
           performanceAPI.getEvaluationPeriods(),
+          leaveAPI.getAll(),
         ]);
         
         // Normalize the data similar to EmployeeDataPage
@@ -187,6 +189,22 @@ const ReportsPage = (props) => {
           status: period.status || 'Draft'
         }));
         setEvaluationPeriods(normalizedPeriods);
+
+        // Normalize leave requests data
+        const leaveData = Array.isArray(leavesRes?.data) ? leavesRes.data : (leavesRes?.data?.data || []);
+        const normalizedLeaves = (leaveData || []).map(l => ({
+          leaveId: l.id,
+          empId: l.user?.id ?? l.user_id,
+          name: l.user?.name ?? [l.user?.first_name, l.user?.middle_name, l.user?.last_name].filter(Boolean).join(' '),
+          position: l.user?.position?.name ?? l.user?.position?.title ?? '',
+          leaveType: l.type ?? l.leaveType,
+          dateFrom: l.date_from ?? l.dateFrom,
+          dateTo: l.date_to ?? l.dateTo,
+          days: l.days,
+          status: l.status,
+          reason: l.reason,
+        }));
+        setLeaveRequests(normalizedLeaves);
       } catch (error) {
         console.error('Error fetching data for reports:', error);
       }
@@ -226,6 +244,47 @@ const ReportsPage = (props) => {
   };
 
   const handleRunReport = async (reportId, params) => {
+    // Special handling for Payroll Run Summary: we need a single run with records
+    if (reportId === 'payroll_run_summary') {
+      const { payrolls = [] } = props;
+      const selectedRunId = params?.runId || null;
+
+      if (!selectedRunId) {
+        alert('Please select a payroll run before generating the report.');
+        return;
+      }
+
+      const selectedRun = (payrolls || []).find(r => r.runId === selectedRunId);
+
+      try {
+        let runDetails = null;
+
+        // If the selected run already contains records, use it directly
+        if (selectedRun && Array.isArray(selectedRun.records)) {
+          runDetails = selectedRun;
+        } else if (selectedRun?.periodId) {
+          // Otherwise fetch full details by periodId
+          const response = await payrollAPI.getPeriodDetails(selectedRun.periodId);
+          runDetails = response?.data || null;
+        }
+
+        if (!runDetails || !Array.isArray(runDetails.records) || runDetails.records.length === 0) {
+          alert('The selected payroll run could not be loaded or contains no records.');
+          return;
+        }
+
+        // Generate report using the single run as data source
+        await generateReport(reportId, { runId: selectedRunId }, runDetails);
+        setConfigModalState({ show: false, config: null });
+        setShowPreview(true);
+        return; // Do not continue to generic flow
+      } catch (error) {
+        console.error('Error loading payroll run details:', error);
+        alert('Failed to load the selected payroll run. Please try again.');
+        return;
+      }
+    }
+
     // Ensure employees and positions are loaded before generating employee-related reports
     if (reportId === 'employee_masterlist') {
       if (employees.length === 0) {
@@ -248,8 +307,21 @@ const ReportsPage = (props) => {
 
     // Use allEmployees for offboarding report, regular employees for others
     const employeesForReport = reportId === 'offboarding_summary' ? allEmployees : employees;
+    
+    const { payrolls = [] } = props;
 
-    let dataSources = { ...props, employees: employeesForReport, positions, resignations, terminations };
+    let dataSources = {
+      employees: employeesForReport,
+      allEmployees,
+      positions,
+      resignations,
+      terminations,
+      trainingPrograms,
+      trainingEnrollments,
+      evaluationPeriods,
+      payrolls,
+      leaveRequests,
+    };
     let finalParams = { ...params };
     if (reportId === 'attendance_summary') {
       const today = new Date().toISOString().split('T')[0];
@@ -374,32 +446,34 @@ const ReportsPage = (props) => {
       };
     }
     
-    // ... existing logic for predictive_analytics_summary
-    
     if (reportId === 'thirteenth_month_pay') {
         const { payrolls = [] } = props;
         const year = params.year;
 
-        const eligibleEmployees = employees.filter(emp => new Date(emp.joiningDate).getFullYear() <= year);
-
-        const details = eligibleEmployees.map(emp => {
+        // Compute based on actual earnings recorded within the selected year.
+        // Avoid filtering by joining date to prevent invalid date formats from excluding employees;
+        // employees with no earnings in the year will be filtered out below.
+        const details = (employees || []).map(emp => {
             let totalBasicSalary = 0;
-            payrolls.forEach(run => {
-                if (!run.cutOff.includes(year.toString())) return;
-                const record = run.records.find(r => r.empId === emp.id);
-                if (record && record.earnings) {
+            (payrolls || []).forEach(run => {
+                const cutOffStr = String(run.cutOff || '');
+                if (!cutOffStr.includes(String(year))) return;
+                const record = (run.records || []).find(r => r.empId === emp.id);
+                if (record && Array.isArray(record.earnings)) {
                     record.earnings.forEach(earning => {
-                        if (earning.description?.toLowerCase().includes('regular pay')) {
+                        const desc = (earning.description || '').toLowerCase();
+                        // Include common descriptors for base pay
+                        if (desc.includes('regular') || desc.includes('basic') || desc.includes('salary')) {
                             totalBasicSalary += Number(earning.amount) || 0;
                         }
                     });
                 }
             });
-            const thirteenthMonthPay = totalBasicSalary > 0 ? totalBasicSalary / 12 : 0;
+            const thirteenthMonthPay = totalBasicSalary > 0 ? (totalBasicSalary / 12) : 0;
             return { ...emp, totalBasicSalary, thirteenthMonthPay };
-        }).filter(empData => empData.totalBasicSalary > 0);
+        }).filter(empData => (empData.totalBasicSalary || 0) > 0);
 
-        const totalPayout = details.reduce((sum, emp) => sum + emp.thirteenthMonthPay, 0);
+        const totalPayout = details.reduce((sum, emp) => sum + (emp.thirteenthMonthPay || 0), 0);
 
         dataSources.thirteenthMonthPayData = {
             year,
@@ -480,33 +554,20 @@ const ReportsPage = (props) => {
 
       <ReportConfigurationModal
         show={configModalState.show}
-        onClose={() => setConfigModalState({ show: false, config: null })}
         reportConfig={configModalState.config}
+        onClose={() => setConfigModalState({ show: false, config: null })}
         onRunReport={handleRunReport}
         trainingPrograms={trainingPrograms}
         payrolls={props.payrolls}
         evaluationPeriods={evaluationPeriods}
       />
 
-      {(isLoading || isFetchingData) && (
-         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-            <div className="modal-dialog modal-dialog-centered">
-                <div className="modal-content"><div className="modal-body text-center p-4">
-                    <div className="spinner-border text-success mb-3" role="status"><span className="visually-hidden">Loading...</span></div>
-                    <h4>{isFetchingData ? 'Preparing Attendance Data...' : 'Generating Report...'}</h4>
-                </div></div>
-            </div>
-        </div>
-      )}
-
-      {pdfDataUri && (
-         <ReportPreviewModal
-            show={showPreview}
-            onClose={handleClosePreview}
-            pdfDataUri={pdfDataUri}
-            reportTitle={configModalState.config?.title || 'Report Preview'}
-        />
-      )}
+      <ReportPreviewModal 
+        show={showPreview} 
+        onClose={handleClosePreview}
+        pdfDataUri={pdfDataUri}
+        reportTitle={configModalState.config?.title || 'Report Preview'}
+      />
     </div>
   );
 };

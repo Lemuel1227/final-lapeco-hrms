@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { employeeAPI, payrollAPI } from '../../services/api';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import useReportGenerator from '../../hooks/useReportGenerator';
@@ -20,35 +21,145 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
     const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
     const [showReportPreview, setShowReportPreview] = useState(false);
 
+    // Local data state: fetch when props are not provided
+    const [localEmployees, setLocalEmployees] = useState(Array.isArray(employees) ? employees : []);
+    const [localPayrolls, setLocalPayrolls] = useState(Array.isArray(payrolls) ? payrolls : []);
+    // Detailed records per payroll period (populated for selected year)
+    const [runRecordsByPeriod, setRunRecordsByPeriod] = useState({});
+    const [isFetchingYearDetails, setIsFetchingYearDetails] = useState(false);
+
+    useEffect(() => {
+        // If no employees or payrolls passed in, fetch them
+        const needsEmployees = !Array.isArray(localEmployees) || localEmployees.length === 0;
+        const needsPayrolls = !Array.isArray(localPayrolls) || localPayrolls.length === 0;
+        if (!needsEmployees && !needsPayrolls) return;
+
+        const fetchData = async () => {
+            try {
+                const promises = [];
+                if (needsEmployees) promises.push(employeeAPI.getAll());
+                if (needsPayrolls) promises.push(payrollAPI.getAll());
+                const results = await Promise.all(promises);
+
+                let idx = 0;
+                if (needsEmployees) {
+                    const empRes = results[idx++];
+                    const empData = Array.isArray(empRes?.data) ? empRes.data : (empRes?.data?.data || []);
+                    const normalizedEmployees = empData.map(e => ({
+                        id: e.id,
+                        name: e.name || [e.first_name, e.middle_name, e.last_name].filter(Boolean).join(' '),
+                        joiningDate: e.joining_date ?? e.joiningDate ?? null,
+                        positionId: e.position_id ?? e.positionId,
+                        position: e.position ?? e.position?.name ?? '',
+                        imageUrl: e.image_url ? (typeof e.image_url === 'string' ? e.image_url : null) : null,
+                        status: e.account_status ?? e.status,
+                    }));
+                    setLocalEmployees(normalizedEmployees);
+                }
+                if (needsPayrolls) {
+                    const prRes = results[idx++];
+                    const runs = Array.isArray(prRes?.data?.payroll_runs) ? prRes.data.payroll_runs : [];
+                    setLocalPayrolls(runs);
+                }
+            } catch (err) {
+                // If fetch fails, keep existing state (may be empty)
+                console.error('Failed to load employees/payrolls for 13th month page:', err);
+            }
+        };
+        fetchData();
+    }, [localEmployees, localPayrolls]);
+
+    // Robust year parsing for varying date formats
+    const parseYear = (dateLike) => {
+        if (!dateLike) return NaN;
+        const str = String(dateLike);
+        // Try ISO
+        const iso = new Date(str);
+        if (!isNaN(iso.getTime())) return iso.getFullYear();
+        // Try DD/MM/YYYY
+        const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) return Number(m[3]);
+        return NaN;
+    };
+
     const uniqueYears = useMemo(() => {
-        const years = new Set(payrolls.map(run => new Date(run.cutOff.split(' to ')[0]).getFullYear()));
+        const years = new Set((localPayrolls || []).map(run => {
+            const left = String(run.cutOff || '').split(' to ')[0];
+            const d = new Date(left);
+            return isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+        }));
         const currentYear = new Date().getFullYear();
         years.add(currentYear);
         return Array.from(years).sort((a, b) => b - a);
-    }, [payrolls]);
+    }, [localPayrolls]);
+
+    // Fetch detailed payroll run records for the selected year
+    useEffect(() => {
+        const selectedYearStr = year.toString();
+        const runsForYear = (localPayrolls || []).filter(r => String(r.cutOff || '').includes(selectedYearStr));
+        const missingPeriodIds = runsForYear
+            .map(r => r.periodId)
+            .filter(pid => pid && !runRecordsByPeriod[pid]);
+
+        if (missingPeriodIds.length === 0) return;
+
+        let cancelled = false;
+        const fetchDetails = async () => {
+            try {
+                setIsFetchingYearDetails(true);
+                const responses = await Promise.all(missingPeriodIds.map(pid => payrollAPI.getPeriodDetails(pid).catch(() => null)));
+                const nextMap = { ...runRecordsByPeriod };
+                responses.forEach((res, idx) => {
+                    const pid = missingPeriodIds[idx];
+                    const records = Array.isArray(res?.data?.records) ? res.data.records : [];
+                    nextMap[pid] = records;
+                });
+                if (!cancelled) setRunRecordsByPeriod(nextMap);
+            } catch (e) {
+                console.error('Failed to fetch payroll period details for 13th month:', e);
+            } finally {
+                if (!cancelled) setIsFetchingYearDetails(false);
+            }
+        };
+        fetchDetails();
+        return () => { cancelled = true; };
+    }, [year, localPayrolls, runRecordsByPeriod]);
 
     const calculationResults = useMemo(() => {
-        const selectedYear = year.toString();
-        
-        const eligibleEmployees = employees.filter(emp => {
-            const joiningYear = new Date(emp.joiningDate).getFullYear();
-            return joiningYear <= selectedYear;
+        const selectedYearStr = year.toString();
+        const selectedYearNum = Number(year);
+        const employeeList = Array.isArray(localEmployees) ? localEmployees : [];
+
+        // Flatten records from fetched period details for the selected year
+        const recordsForYear = (localPayrolls || [])
+            .filter(run => String(run.cutOff || '').includes(selectedYearStr))
+            .flatMap(run => {
+                const recs = runRecordsByPeriod[run.periodId];
+                return Array.isArray(recs) ? recs : [];
+            });
+
+        // Eligibility: joined on or before selected year; if unknown join date, include
+        const eligibleEmployees = employeeList.filter(emp => {
+            const jy = parseYear(emp.joiningDate);
+            return isNaN(jy) ? true : (jy <= selectedYearNum);
         });
 
         const details = eligibleEmployees.map(emp => {
             let totalBasicSalary = 0;
 
-            payrolls.forEach(run => {
-                if (!run.cutOff.includes(selectedYear)) {
-                    return;
-                }
-                const record = run.records.find(r => r.empId === emp.id);
-                if (record && record.earnings) {
-                    record.earnings.forEach(earning => {
-                        if (earning.description?.toLowerCase().includes('regular pay')) {
-                            totalBasicSalary += Number(earning.amount) || 0;
-                        }
-                    });
+            recordsForYear.forEach(record => {
+                if ((record.empId === emp.id || String(record.empId) === String(emp.id))) {
+                    if (Array.isArray(record.earnings) && record.earnings.length > 0) {
+                        record.earnings.forEach(earning => {
+                            const desc = (earning.description || '').toLowerCase();
+                            if (desc.includes('regular') || desc.includes('basic') || desc.includes('salary')) {
+                                totalBasicSalary += Number(earning.amount) || 0;
+                            }
+                        });
+                    } else {
+                        // Fallback: if detailed earnings are unavailable, use grossEarning as proxy
+                        totalBasicSalary += Number(record.grossEarning) || 0;
+                    }
                 }
             });
 
@@ -59,16 +170,16 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
                 totalBasicSalary,
                 thirteenthMonthPay,
             };
-        }).filter(empData => empData.totalBasicSalary > 0);
+        });
 
-        const totalPayout = details.reduce((sum, emp) => sum + emp.thirteenthMonthPay, 0);
+        const totalPayout = details.reduce((sum, emp) => sum + (emp.thirteenthMonthPay || 0), 0);
         
         return {
             details,
             totalPayout,
-            eligibleCount: details.length,
+            eligibleCount: eligibleEmployees.length,
         };
-    }, [year, employees, payrolls]);
+    }, [year, localEmployees, localPayrolls, runRecordsByPeriod]);
 
     useEffect(() => {
         setStatuses(prev => {
@@ -247,12 +358,7 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
                                     <td>{item.id}</td>
                                     <td>
                                         <div className="d-flex align-items-center">
-                                            <img
-                                                src={item.imageUrl}
-                                                alt={item.name}
-                                                size="sm"
-                                                className="me-3"
-                                            />
+                                            {/* Avatar removed per request */}
                                             <div>
                                                 <div className="fw-bold">{item.name}</div>
                                             </div>
