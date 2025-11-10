@@ -312,37 +312,7 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
           dataForReport = null;
         } else {
           const response = await payrollAPI.getPeriodDetails(periodId);
-          const baseRun = response.data?.payroll_runs?.[0] || response.data || {};
-
-          // If only minimal records are returned, fetch full details per payrollId
-          const minimalRecords = baseRun.records || [];
-          const detailedRecords = await Promise.all(minimalRecords.map(async (rec) => {
-            try {
-              const detailResp = await payrollAPI.getPayrollRecord(rec.payrollId);
-              const detail = detailResp.data || {};
-              return {
-                payrollId: rec.payrollId,
-                empId: rec.empId,
-                employeeName: rec.employeeName,
-                status: rec.status,
-                // Prefer detailed fields; fallback to minimal
-                earnings: detail.earnings || rec.earnings || [],
-                deductions: detail.deductions || rec.deductions || {},
-                otherDeductions: detail.otherDeductions || rec.otherDeductions || [],
-                grossEarning: detail.grossEarning ?? rec.grossEarning ?? 0,
-                totalDeductionsAmount: detail.totalDeductionsAmount ?? rec.totalDeductionsAmount ?? 0,
-                netPay: detail.netPay ?? rec.netPay ?? 0,
-              };
-            } catch (e) {
-              console.warn('Failed to load payroll record details for', rec.payrollId, e);
-              return rec; // Use minimal record if detail fails
-            }
-          }));
-
-          dataForReport = {
-            ...baseRun,
-            records: detailedRecords,
-          };
+          dataForReport = response.data; // The API now returns all necessary data
         }
       } catch (error) {
         console.error('Error fetching payroll details for report:', error);

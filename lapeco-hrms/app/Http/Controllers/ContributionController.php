@@ -21,8 +21,8 @@ class ContributionController extends Controller
         $msc = min($monthlySalary, 30000);
         
         // Minimum MSC is ₱4,000
-        if ($msc < 4000) {
-            $msc = 4000;
+        if ($msc < 3000) {
+            $msc = 3000;
         }
 
         // Round MSC to nearest ₱500 bracket
@@ -74,18 +74,16 @@ class ContributionController extends Controller
      */
     private function calculatePagibigContribution($monthlySalary)
     {
-        // Employee rate: 1% if ≤₱1,500, otherwise 2%
-        if ($monthlySalary <= 1500) {
-            $employeeShare = $monthlySalary * 0.01; // 1%
-        } else {
-            $employeeShare = $monthlySalary * 0.02; // 2%
-        }
-        
-        // Cap employee share at ₱100/month
-        $employeeShare = min($employeeShare, 100);
-        
-        // Employer always contributes 2%, capped at ₱100/month
-        $employerShare = min($monthlySalary * 0.02, 100);
+        // Per Pag-IBIG rules, the maximum monthly compensation for calculation is ₱5,000.
+        $maxCompensation = 5000;
+        $calculationBase = min($monthlySalary, $maxCompensation);
+
+        // The rate is determined by the actual monthly salary, not the capped base.
+        $employeeRate = $monthlySalary <= 1500 ? 0.01 : 0.02;
+
+        // Calculate shares based on the capped compensation base.
+        $employeeShare = $calculationBase * $employeeRate;
+        $employerShare = $calculationBase * 0.02;
 
         return [
             'employeeShare' => round($employeeShare, 2),
