@@ -38,7 +38,7 @@ const HistoryAttendanceView = ({
               className="form-control"
               value={historySearchTerm}
               onChange={(e) => setHistorySearchTerm(e.target.value)}
-              placeholder="Search date (e.g., Friday or 2025-11-07)"
+              placeholder="Search date (e.g., Friday or 11-07-2025)"
               style={{ maxWidth: '300px' }}
             />
           </div>

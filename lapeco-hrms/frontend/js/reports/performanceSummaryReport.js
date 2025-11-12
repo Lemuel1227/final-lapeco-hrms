@@ -33,12 +33,13 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
         const s = String(value);
         // Try to grab date part from common formats
         const datePart = s.includes('T') ? s.split('T')[0] : s.split(' ')[0];
+        // Fallback: return as-is if unparsable
         return datePart || s;
       }
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
+      return `${mm}-${dd}-${yyyy}`; // Month-Day-Year
     } catch {
       return 'N/A';
     }

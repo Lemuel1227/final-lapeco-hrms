@@ -10,17 +10,21 @@
  */
 export const formatDate = (date, format = 'medium') => {
   if (!date) return 'N/A';
-  
+
   const dateObj = new Date(date);
   if (isNaN(dateObj.getTime())) return 'Invalid Date';
-  
-  const options = {
-    short: { month: 'short', day: 'numeric', year: 'numeric' },
-    medium: { month: 'short', day: 'numeric', year: 'numeric' },
-    long: { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
-  };
-  
-  return dateObj.toLocaleDateString('en-US', options[format] || options.medium);
+
+  const yyyy = dateObj.getFullYear();
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateObj.getDate()).padStart(2, '0');
+
+  if (format === 'long') {
+    const monthName = dateObj.toLocaleString('en-US', { month: 'long' });
+    return `${monthName}-${dd}-${yyyy}`; // e.g., November-07-2025
+  }
+
+  // Default to numeric Month-Day-Year
+  return `${mm}-${dd}-${yyyy}`; // e.g., 11-07-2025
 };
 
 /**
@@ -31,24 +35,18 @@ export const formatDate = (date, format = 'medium') => {
  */
 export const formatDateRange = (startDate, endDate) => {
   if (!startDate || !endDate) return 'N/A';
-  
+
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'Invalid Date Range';
-  
+
   // If same date, return single date
   if (start.toDateString() === end.toDateString()) {
     return formatDate(start, 'short');
   }
-  
-  // If same month and year, show abbreviated format
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    const monthYear = start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    return `${monthYear} ${start.getDate()}-${end.getDate()}`;
-  }
-  
-  // Different months or years
+
+  // Always show Month-Day-Year for both ends
   return `${formatDate(start, 'short')} - ${formatDate(end, 'short')}`;
 };
 
