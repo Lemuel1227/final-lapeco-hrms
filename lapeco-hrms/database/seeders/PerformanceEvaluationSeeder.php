@@ -133,6 +133,17 @@ class PerformanceEvaluationSeeder extends Seeder
             }
         }
 
+        // Update overall score per period based on seeded evaluations
+        foreach ($createdPeriods as $period) {
+            $average = PerformanceEvaluation::where('period_id', $period->id)
+                ->whereNotNull('average_score')
+                ->avg('average_score');
+
+            $period->update([
+                'overall_score' => $average ? round($average, 2) : null,
+            ]);
+        }
+
         $this->command->info('Performance evaluation data seeded successfully!');
     }
 
@@ -143,13 +154,8 @@ class PerformanceEvaluationSeeder extends Seeder
         PerformanceEvaluationPeriod $period,
         bool $membersEvaluatingLeader = false
     ): void {
-        $evaluation->update([
-            'average_score' => rand(300, 500) / 100, // This will give scores between 3.00 and 5.00
-            'responses_count' => 0,
-            'completed_at' => Carbon::parse($period->evaluation_end)->subDays(rand(1, 15)),
-        ]);
-
         $usedEvaluators = collect();
+        $responseAverages = [];
 
         foreach ($evaluatorCandidates as $candidate) {
             if ($excludeCandidates->contains('id', $candidate->id)) {
@@ -184,10 +190,22 @@ class PerformanceEvaluationSeeder extends Seeder
             ]);
 
             $usedEvaluators->push($response->id);
+
+            $scoreSum = 0;
+            $scoreCount = count(PerformanceEvaluatorResponse::SCORE_FIELDS);
+            foreach (PerformanceEvaluatorResponse::SCORE_FIELDS as $field) {
+                $scoreSum += $response->{$field};
+            }
+            $responseAverages[] = round($scoreSum / max($scoreCount, 1), 2);
         }
 
+        $responsesCount = $usedEvaluators->count();
         $evaluation->update([
-            'responses_count' => $usedEvaluators->count(),
+            'responses_count' => $responsesCount,
+            'average_score' => $responsesCount > 0 ? round(collect($responseAverages)->avg(), 2) : null,
+            'completed_at' => $responsesCount > 0
+                ? Carbon::parse($period->evaluation_end)->subDays(rand(1, 15))
+                : null,
         ]);
     }
 

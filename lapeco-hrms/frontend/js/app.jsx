@@ -5,7 +5,7 @@ import './bootstrap';
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { payrollAPI, templateAPI } from './services/api';
+import { templateAPI } from './services/api';
 
 // Import components
 
@@ -66,7 +66,6 @@ import '../css/index.css';
 // Create the main App component
 function App() {
   const [templates, setTemplates] = useState([]);
-  const [payrolls, setPayrolls] = useState([]);
 
   // Load initial data only if authenticated
   useEffect(() => {
@@ -78,14 +77,9 @@ function App() {
       }
       
       try {
-        const [templatesResponse, payrollsResponse] = await Promise.all([
-          templateAPI.getAll(),
-          payrollAPI.getAll()
-        ]);
+        const templatesResponse = await templateAPI.getAll();
 
         setTemplates(Array.isArray(templatesResponse?.data) ? templatesResponse.data : (templatesResponse?.data?.data || []));
-        // API returns { payroll_runs: [...] }
-        setPayrolls(Array.isArray(payrollsResponse?.data?.payroll_runs) ? payrollsResponse.data.payroll_runs : []);
       } catch (error) {
         // If API calls fail due to authentication, clear the token
         if (error.response?.status === 401) {
@@ -133,10 +127,11 @@ function App() {
             <Route path="dashboard/performance" element={<PerformanceManagementPage />} />
             <Route path="dashboard/training" element={<TrainingPage />} />
             <Route path="dashboard/training/:programId" element={<ProgramDetailPage />} />
+            <Route path="dashboard/predictive-analytics" element={<PredictiveAnalyticsPage />} />
             <Route path="dashboard/case-management" element={<CaseManagementPage />} />
             <Route path="dashboard/resignation-management" element={<ResignationManagementPage />} />
             <Route path="dashboard/recruitment" element={<RecruitmentPage />} />
-            <Route path="dashboard/reports" element={<ReportsPage payrolls={payrolls} />} />
+            <Route path="dashboard/reports" element={<ReportsPage />} />
             <Route path="dashboard/my-profile" element={<MyProfilePage />} />
             <Route path="dashboard/account-settings" element={<AccountSettingsPage />} />
             <Route path="dashboard/accounts" element={<AccountsPage />} />

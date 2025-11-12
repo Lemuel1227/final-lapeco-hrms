@@ -20,6 +20,7 @@ const navItemsConfig = {
     { path: '/dashboard/performance', icon: 'bi-graph-up-arrow', label: 'Performance Management' },
     { path: '/dashboard/training', icon: 'bi-mortarboard-fill', label: 'Training and Development' },
     { path: '/dashboard/case-management', icon: 'bi-briefcase-fill', label: 'Case Management' },
+    { path: '/dashboard/predictive-analytics', icon: 'bi-robot', label: 'Predictive Analytics' },
     { path: '/dashboard/resignation-management', icon: 'bi-box-arrow-left', label: 'Resignation Management' },
     { path: '/dashboard/recruitment', icon: 'bi-person-plus-fill', label: 'Recruitment' },
     { path: '/dashboard/accounts', icon: 'bi-shield-lock-fill', label: 'Accounts Management' },

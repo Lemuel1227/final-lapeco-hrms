@@ -29,6 +29,8 @@ use App\Http\Controllers\TeamLeaderDashboardController;
 use App\Http\Controllers\EmployeeDashboardController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\MLPredictionController;
+use App\Http\Controllers\PredictiveAnalyticsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -300,6 +302,15 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::post('/notifications', [NotificationController::class, 'store']);
 
+    // ML Predictions - with role-based access control
+    Route::middleware(['role.access:performance,index'])->get('/ml/predictions', [MLPredictionController::class, 'getPredictions']);
+    Route::middleware(['role.access:performance,index'])->get('/ml/predictions/{employeeId}', [MLPredictionController::class, 'getEmployeePrediction']);
+    Route::middleware(['role.access:performance,index'])->get('/ml/stats', [MLPredictionController::class, 'getModelStats']);
+    Route::middleware(['role.access:performance,store'])->post('/ml/clear-cache', [MLPredictionController::class, 'clearCache']);
+    Route::middleware(['role.access:performance,store'])->post('/ml/retrain', [MLPredictionController::class, 'retrainModel']);
+
+    // Predictive Analytics - optimized data endpoint
+    Route::middleware(['role.access:performance,index'])->get('/predictive-analytics/data', [PredictiveAnalyticsController::class, 'getData']);
 
     // Logout
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);

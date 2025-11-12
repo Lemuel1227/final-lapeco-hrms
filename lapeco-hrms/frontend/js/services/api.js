@@ -353,4 +353,21 @@ export const notificationAPI = {
   create: (data) => api.post('/notifications', data),
 };
 
+// ML Predictions API calls
+export const mlAPI = {
+  getPredictions: (forceRefresh = false) => {
+    const url = forceRefresh ? '/ml/predictions?refresh=true' : '/ml/predictions';
+    return api.get(url);
+  },
+  getEmployeePrediction: (employeeId) => api.get(`/ml/predictions/${employeeId}`),
+  getStats: () => api.get('/ml/stats'),
+  clearCache: () => api.post('/ml/clear-cache'),
+  retrainModel: () => api.post('/ml/retrain'),
+};
+
+// Predictive Analytics API calls
+export const predictiveAnalyticsAPI = {
+  getData: () => api.get('/predictive-analytics/data'),
+};
+
 export default api;

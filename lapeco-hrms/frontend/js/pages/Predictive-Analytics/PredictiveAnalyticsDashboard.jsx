@@ -7,17 +7,18 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointE
 
 const PredictiveAnalyticsDashboard = ({ data, positions = [], theme }) => {
 
+  const safeData = useMemo(() => Array.isArray(data) ? data : [], [data]);
   const chartTextColor = theme === 'dark' ? '#adb5bd' : '#6c757d';
   const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
   const classificationCounts = useMemo(() => {
-    return data.reduce((acc, emp) => {
+    return safeData.reduce((acc, emp) => {
         if (emp.isHighPotential) acc['High Potential']++;
         else if (emp.isTurnoverRisk) acc['Turnover Risk']++;
         else acc['Meets Expectations']++;
         return acc;
     }, { 'High Potential': 0, 'Turnover Risk': 0, 'Meets Expectations': 0 });
-  }, [data]);
+  }, [safeData]);
 
   const classificationData = useMemo(() => {
     return {
@@ -40,21 +41,21 @@ const PredictiveAnalyticsDashboard = ({ data, positions = [], theme }) => {
     return {
       datasets: [{
         label: 'Employees',
-        data: data.map(emp => ({
+        data: safeData.map(emp => ({
           x: emp.latestScore,
           y: emp.riskScore,
           label: emp.name,
         })),
-        backgroundColor: data.map(getPointBackgroundColor),
+        backgroundColor: safeData.map(getPointBackgroundColor),
         pointRadius: 6,
         pointHoverRadius: 8,
       }]
     };
-  }, [data]);
+  }, [safeData]);
   
   const riskByPositionData = useMemo(() => {
     const positionMap = new Map();
-    data.forEach(emp => {
+    safeData.forEach(emp => {
       if (!positionMap.has(emp.positionTitle)) {
         positionMap.set(emp.positionTitle, { totalRisk: 0, count: 0 });
       }
@@ -82,7 +83,7 @@ const PredictiveAnalyticsDashboard = ({ data, positions = [], theme }) => {
         borderWidth: 1,
       }]
     };
-  }, [data]);
+  }, [safeData]);
 
   const baseChartOptions = {
     responsive: true,
@@ -99,7 +100,7 @@ const PredictiveAnalyticsDashboard = ({ data, positions = [], theme }) => {
     }
   };
 
-  if (!data || data.length === 0) {
+  if (!safeData || safeData.length === 0) {
     return (
       <div className="text-center p-5 bg-light rounded">
         <h5 className="text-muted">No Data for Dashboard</h5>
@@ -138,7 +139,7 @@ const PredictiveAnalyticsDashboard = ({ data, positions = [], theme }) => {
         </div>
       </div>
       
-      <DashboardRecommendations data={data} positions={positions} />
+      <DashboardRecommendations data={safeData} positions={positions} />
 
       <div className="card dashboard-chart-card">
         <div className="card-header"><h6>Average Risk Score by Position</h6></div>
