@@ -9,25 +9,25 @@
 }
 .program-detail-header .program-meta {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 0.5rem 0.75rem;
     margin-top: 0.5rem;
     margin-bottom: 1rem; /* extra spacing below */
     font-size: 0.95rem;
 }
 
-/* Ensure all six items stay on one row on large screens */
+/* Large screens - maintain auto-fit and modest gap to avoid overflow */
 @media (min-width: 1200px) {
     .program-detail-header .program-meta {
-        grid-template-columns: repeat(6, minmax(160px, 1fr));
-        gap: 0.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.75rem; /* slightly larger but safe */
     }
 }
 
-/* Large screens - allow all items in one row */
-@media (min-width: 1200px) {
+/* Remove excessive spacing on very large screens */
+@media (min-width: 1600px) {
     .program-detail-header .program-meta {
-        gap: 2rem;
+        gap: 1rem;
     }
 }
 
@@ -50,7 +50,8 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    white-space: nowrap;
+    white-space: nowrap; /* keep single line */
+    min-width: 0; /* allow child to shrink for ellipsis */
     width: 100%;
     background: #f8f9fa;
     border: 1px solid #e9ecef;
@@ -63,6 +64,16 @@
     margin: 0;
     color: #6c757d;
     flex-shrink: 0; /* Prevent icons from shrinking */
+}
+
+/* Text inside meta item should ellipsize on overflow */
+.program-detail-header .meta-item .meta-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /* === NEW: Styles for table controls === */
