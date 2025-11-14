@@ -174,10 +174,9 @@ const PerformanceManagementPage = ({
         reportEmployees = resp?.data?.employees || employees;
       } else {
         // For a specific period, fetch its evaluations directly
-        const resp = await performanceAPI.getPeriodicEvaluations(periodId);
+        const resp = await performanceAPI.getPeriodicSummary(periodId);
         const payload = resp?.data || {};
-        const fetchedPeriod = payload.period || {};
-        reportEvaluations = Array.isArray(fetchedPeriod.evaluations) ? fetchedPeriod.evaluations : [];
+        reportEvaluations = Array.isArray(payload.evaluations) ? payload.evaluations : [];
       }
     } catch (error) {
       console.error('Failed to prepare data for performance report', error);
