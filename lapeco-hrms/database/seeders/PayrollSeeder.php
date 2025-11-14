@@ -106,7 +106,7 @@ class PayrollSeeder extends Seeder
 
                 // Other deductions
                 $otherDeductions = [
-                    ['type' => 'Lateness', 'amount' => 150.00],
+                    ['type' => 'Late', 'amount' => 150.00],
                     ['type' => 'Uniform', 'amount' => 0.00],
                 ];
                 $totalOther = 0;
