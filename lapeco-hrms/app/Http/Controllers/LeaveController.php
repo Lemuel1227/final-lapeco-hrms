@@ -230,12 +230,39 @@
             $originalStatus = $leave->status;
             
             if (isset($validated['status'])) {
-                if (!in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
-                    return response()->json(['message' => 'Forbidden'], 403);
+                $requestedStatus = $validated['status'];
+
+                if (in_array($requestedStatus, ['Approved', 'Declined', 'Pending'])) {
+                    if (!in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                        return response()->json([
+                            'message' => 'Access denied. Only HR personnel or team leaders can modify this leave status.',
+                            'error_type' => 'authorization_error',
+                        ], 403);
+                    }
+                } elseif ($requestedStatus === 'Canceled') {
+                    if ($leave->user_id !== $user->id && !in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                        return response()->json([
+                            'message' => 'Access denied. You can only cancel your own leave requests.',
+                            'error_type' => 'authorization_error',
+                        ], 403);
+                    }
+
+                    // Regular employees can only change the status when cancelling
+                    if ($leave->user_id === $user->id && !in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                        $validated = ['status' => 'Canceled'];
+                    }
+                } else {
+                    return response()->json([
+                        'message' => 'Access denied. Invalid status update request.',
+                        'error_type' => 'authorization_error',
+                    ], 403);
                 }
             } else {
                 if ($leave->user_id !== $user->id) {
-                    return response()->json(['message' => 'Forbidden'], 403);
+                    return response()->json([
+                        'message' => 'Access denied. You can only modify your own leave details.',
+                        'error_type' => 'authorization_error',
+                    ], 403);
                 }
             }
 

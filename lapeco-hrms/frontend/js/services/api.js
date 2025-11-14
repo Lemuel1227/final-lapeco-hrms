@@ -260,6 +260,7 @@ export const performanceAPI = {
   getOverview: () => api.get('/performance/overview'),
   getEmployeeHistory: (employeeId) => api.get(`/performance/employees/${employeeId}/history`),
   getPeriodicEvaluations: (periodId) => api.get(`/performance/periods/${periodId}`),
+  getPeriodicSummary: (periodId) => api.get(`/performance/periods/${periodId}/summary`),
   getEvaluationResponses: (evaluationId) => api.get(`/performance/evaluations/${evaluationId}/responses`),
   getEvaluationResponseDetail: (responseId) => api.get(`/performance/evaluation-responses/${responseId}`),
   getEvaluationPeriods: () => api.get('/performance'),
