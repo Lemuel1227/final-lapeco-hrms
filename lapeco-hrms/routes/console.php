@@ -21,3 +21,9 @@ Schedule::command('resignations:deactivate')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Update training enrollments progress daily based on Required Days and enrollment date
+Schedule::command('training:update-progress')
+    ->dailyAt('00:10')
+    ->withoutOverlapping()
+    ->runInBackground();
+

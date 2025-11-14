@@ -106,20 +106,20 @@ const ProgramDetailHeader = ({ program, enrolledCount, onGenerateReport, onEnrol
         )}
         {/* Meta badges moved below description/requirements */}
         <div className="program-meta mt-3">
-          <span className="meta-item"><i className="bi bi-clock-fill"></i>{getDailyTime() || 'N/A'}</span>
+          <span className="meta-item"><i className="bi bi-clock-fill"></i><span className="meta-text">{getDailyTime() || 'N/A'}</span></span>
           <span className="meta-item">
             <i className="bi bi-circle-fill me-1" style={{color: program.status === 'Active' ? '#28a745' : '#6c757d'}}></i>
-            {program.status || 'N/A'}
+            <span className="meta-text">{program.status || 'N/A'}</span>
           </span>
           {(() => {
             const days = getRequiredDays();
             return (
-              <span className="meta-item"><i className="bi bi-calendar-check"></i>Required Days: {days ? `${days}` : 'N/A'}</span>
+              <span className="meta-item"><i className="bi bi-calendar-check"></i><span className="meta-text">Required Days: {days ? `${days}` : 'N/A'}</span></span>
             );
           })()}
-          {program.location && <span className="meta-item"><i className="bi bi-geo-alt-fill"></i>{program.location}</span>}
-          {program.type && <span className="meta-item"><i className="bi bi-tag-fill"></i>{program.type}</span>}
-          {program.max_participants && <span className="meta-item"><i className="bi bi-person-lines-fill"></i>Max: {program.max_participants}</span>}
+          {program.location && <span className="meta-item"><i className="bi bi-geo-alt-fill"></i><span className="meta-text">{program.location}</span></span>}
+          {program.type && <span className="meta-item"><i className="bi bi-tag-fill"></i><span className="meta-text">{program.type}</span></span>}
+          {program.max_participants && <span className="meta-item"><i className="bi bi-person-lines-fill"></i><span className="meta-text">Max: {program.max_participants}</span></span>}
         </div>
 
         {/* No fixed calendar period; showing required days instead */}
