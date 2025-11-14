@@ -20,8 +20,6 @@ const UpdateEnrollmentStatusModal = ({ show, onClose, onSave, enrollmentData }) 
       setProgress(100);
     } else if (newStatus === 'Not Started') {
       setProgress(0);
-    } else if (newStatus === 'Dropped') {
-      setProgress(0);
     } else if (newStatus === 'In Progress' && progress === 0) {
       setProgress(10);
     }
@@ -29,12 +27,7 @@ const UpdateEnrollmentStatusModal = ({ show, onClose, onSave, enrollmentData }) 
 
   const handleProgressChange = (e) => {
     const newProgress = Number(e.target.value);
-    
-    // Validate progress based on current status
-    if (status === 'Dropped') {
-      return; // Don't allow progress changes when dropped
-    }
-    
+
     setProgress(newProgress);
     
     // Auto-adjust status based on progress
@@ -68,7 +61,6 @@ const UpdateEnrollmentStatusModal = ({ show, onClose, onSave, enrollmentData }) 
                   <option value="Not Started">Not Started</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Completed">Completed</option>
-                  <option value="Dropped">Dropped</option>
                 </select>
               </div>
               <div className="mb-3">
@@ -80,14 +72,8 @@ const UpdateEnrollmentStatusModal = ({ show, onClose, onSave, enrollmentData }) 
                   value={progress} 
                   min="0" 
                   max="100" 
-                  disabled={status === 'Dropped'}
                   onChange={handleProgressChange}
                 />
-                {status === 'Dropped' && (
-                  <div className="form-text text-muted">
-                    Progress cannot be modified for dropped enrollments
-                  </div>
-                )}
               </div>
             </div>
             <div className="modal-footer"><button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button><button type="submit" className="btn btn-primary">Save Status</button></div>

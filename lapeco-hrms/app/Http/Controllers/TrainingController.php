@@ -67,7 +67,8 @@ class TrainingController extends Controller
             'duration' => 'nullable|string|max:100',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'status' => ['required', Rule::in(['Draft', 'Active', 'Completed', 'Cancelled'])],
+            // status is now auto-computed; accept optional input but ignore
+            'status' => ['nullable', Rule::in(['Inactive', 'Active', 'Completed', 'Cancelled'])],
             'cost' => 'nullable|numeric|min:0',
             'location' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['Online', 'In-person', 'Hybrid'])],
@@ -75,7 +76,24 @@ class TrainingController extends Controller
             'requirements' => 'nullable|string'
         ]);
 
-        $program = TrainingProgram::create($validated);
+        // Create program without trusting provided status
+        $program = TrainingProgram::create(collect($validated)->except('status')->toArray());
+
+        // Auto-compute status based on enrollments
+        $program->status = $this->computeProgramStatus($program);
+        try {
+            $program->save();
+        } catch (\Throwable $e) {
+            // Fallback for legacy enum schemas that don't include 'Inactive'
+            $msg = strtolower($e->getMessage());
+            $isEnumIssue = str_contains($msg, 'enum') || str_contains($msg, 'data truncated for column') || str_contains($msg, 'sqlstate[01000]');
+            if ($isEnumIssue && $program->status === 'Inactive') {
+                $program->status = 'Draft';
+                $program->save();
+            } else {
+                throw $e;
+            }
+        }
         
         // Log activity
         $this->logCreate('training_program', $program->id, $program->title);
@@ -122,7 +140,8 @@ class TrainingController extends Controller
             'duration' => 'nullable|string|max:100',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'status' => ['required', Rule::in(['Draft', 'Active', 'Completed', 'Cancelled'])],
+            // status is auto-computed; accept optional for compatibility but ignore
+            'status' => ['nullable', Rule::in(['Inactive', 'Active', 'Completed', 'Cancelled'])],
             'cost' => 'nullable|numeric|min:0',
             'location' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['Online', 'In-person', 'Hybrid'])],
@@ -130,7 +149,26 @@ class TrainingController extends Controller
             'requirements' => 'nullable|string'
         ]);
 
-        $program->update($validated);
+        // Update program without trusting provided status
+        $program->update(collect($validated)->except('status')->toArray());
+
+        // Auto-compute status after update
+        $computed = $this->computeProgramStatus($program);
+        if ($program->status !== $computed) {
+            $program->status = $computed;
+            try {
+                $program->save();
+            } catch (\Throwable $e) {
+                $msg = strtolower($e->getMessage());
+                $isEnumIssue = str_contains($msg, 'enum') || str_contains($msg, 'data truncated for column') || str_contains($msg, 'sqlstate[01000]');
+                if ($isEnumIssue && $program->status === 'Inactive') {
+                    $program->status = 'Draft';
+                    $program->save();
+                } else {
+                    throw $e;
+                }
+            }
+        }
         
         // Log activity
         $this->logUpdate('training_program', $program->id, $program->title);
@@ -139,6 +177,22 @@ class TrainingController extends Controller
             'message' => 'Training program updated successfully',
             'program' => $program
         ]);
+    }
+
+    /**
+     * Compute training program status based on enrollments.
+     */
+    private function computeProgramStatus(TrainingProgram $program): string
+    {
+        $enrollments = $program->enrollments()->get();
+        $total = $enrollments->count();
+        if ($total === 0) {
+            return 'Inactive';
+        }
+        $completedCount = $enrollments->filter(function ($e) {
+            return strtolower($e->status) === 'completed';
+        })->count();
+        return $completedCount === $total ? 'Completed' : 'Active';
     }
 
     /**
@@ -286,7 +340,7 @@ class TrainingController extends Controller
         $enrollment = TrainingEnrollment::findOrFail($id);
 
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['Not Started', 'In Progress', 'Completed', 'Dropped'])],
+            'status' => ['required', Rule::in(['Not Started', 'In Progress', 'Completed'])],
             'progress' => 'nullable|integer|min:0|max:100',
             'notes' => 'nullable|string',
             'score' => 'nullable|numeric|min:0|max:100'
@@ -301,6 +355,18 @@ class TrainingController extends Controller
         $enrollment->update($validated);
 
         $enrollment->load(['program:id,title', 'user:id,first_name,middle_name,last_name']);
+
+        // Recompute and persist program status after enrollment changes
+        if ($enrollment->program) {
+            $program = TrainingProgram::find($enrollment->program_id);
+            if ($program) {
+                $newStatus = $this->computeProgramStatus($program);
+                if ($program->status !== $newStatus) {
+                    $program->status = $newStatus;
+                    $program->save();
+                }
+            }
+        }
 
         // Compute full name for the user
         if ($enrollment->user) {
@@ -323,7 +389,20 @@ class TrainingController extends Controller
     public function unenroll($id): JsonResponse
     {
         $enrollment = TrainingEnrollment::findOrFail($id);
+        $programId = $enrollment->program_id;
         $enrollment->delete();
+
+        // Recompute and persist program status after unenroll
+        if ($programId) {
+            $program = TrainingProgram::find($programId);
+            if ($program) {
+                $newStatus = $this->computeProgramStatus($program);
+                if ($program->status !== $newStatus) {
+                    $program->status = $newStatus;
+                    $program->save();
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'User unenrolled successfully'

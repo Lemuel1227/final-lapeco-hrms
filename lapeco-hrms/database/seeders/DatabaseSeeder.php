@@ -303,13 +303,13 @@ class DatabaseSeeder extends Seeder
 
 
 
-        // Seed training programs
+        // Seed training programs (normalized duration: "<hours/minutes> per day; Required Days: <N>")
         $trainingPrograms = [
             [
                 'title' => 'Workplace Safety Training',
                 'description' => 'Comprehensive safety training covering warehouse operations, equipment handling, and emergency procedures.',
                 'provider' => 'SafeWork Philippines',
-                'duration' => '8 hours',
+                'duration' => '8 hours per day; Required Days: 1',
                 'start_date' => now()->addDays(7)->format('Y-m-d'),
                 'end_date' => now()->addDays(7)->format('Y-m-d'),
                 'status' => 'Active',
@@ -323,7 +323,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'Leadership Development Program',
                 'description' => 'Advanced leadership skills training for team leaders and supervisors.',
                 'provider' => 'Leadership Institute Manila',
-                'duration' => '16 hours (2 days)',
+                'duration' => '8 hours per day; Required Days: 2',
                 'start_date' => now()->addDays(14)->format('Y-m-d'),
                 'end_date' => now()->addDays(15)->format('Y-m-d'),
                 'status' => 'Active',
@@ -337,7 +337,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'Forklift Operation Certification',
                 'description' => 'Certified training for forklift operation and maintenance.',
                 'provider' => 'Heavy Equipment Training Center',
-                'duration' => '12 hours',
+                'duration' => '6 hours per day; Required Days: 2',
                 'start_date' => now()->addDays(21)->format('Y-m-d'),
                 'end_date' => now()->addDays(22)->format('Y-m-d'),
                 'status' => 'Active',
@@ -351,7 +351,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'Customer Service Excellence',
                 'description' => 'Training focused on improving customer interaction and service quality.',
                 'provider' => 'Service Excellence Academy',
-                'duration' => '6 hours',
+                'duration' => '6 hours per day; Required Days: 1',
                 'start_date' => now()->subDays(30)->format('Y-m-d'),
                 'end_date' => now()->subDays(30)->format('Y-m-d'),
                 'status' => 'Completed',
@@ -365,7 +365,7 @@ class DatabaseSeeder extends Seeder
                 'title' => 'Digital Literacy Workshop',
                 'description' => 'Basic computer skills and digital tools training for all employees.',
                 'provider' => 'TechSkills Philippines',
-                'duration' => '4 hours',
+                'duration' => '4 hours per day; Required Days: 1',
                 'start_date' => now()->subDays(15)->format('Y-m-d'),
                 'end_date' => now()->subDays(15)->format('Y-m-d'),
                 'status' => 'Completed',
@@ -387,6 +387,10 @@ class DatabaseSeeder extends Seeder
         $allUsers = User::where('account_status', 'Active')->get();
         
         foreach ($createdPrograms as $program) {
+            // Skip enrollments for inactive programs to reflect business rules
+            if ($program->status === 'Inactive') {
+                continue;
+            }
             // Determine enrollment count based on program type and status
             $enrollmentCount = match($program->type) {
                 'In-person' => rand(5, min($program->max_participants, 15)),
@@ -400,10 +404,10 @@ class DatabaseSeeder extends Seeder
 
             foreach ($selectedUsers as $user) {
                 $enrollmentStatus = match($program->status) {
-                    'Completed' => ['Completed', 'Completed', 'Dropped'][rand(0, 2)],
+                    'Completed' => 'Completed',
                     'Active' => ['In Progress', 'Not Started'][rand(0, 1)],
-                    'Draft' => 'Not Started',
-                    'Cancelled' => 'Dropped',
+                    'Inactive' => 'Not Started',
+                    'Cancelled' => 'Not Started',
                     default => 'Not Started'
                 };
 
@@ -417,14 +421,13 @@ class DatabaseSeeder extends Seeder
 
                 $score = match($enrollmentStatus) {
                     'Completed' => rand(70, 100),
-                    'Dropped' => null,
                     default => null
                 };
 
                 $enrolledAt = match($program->status) {
                     'Completed' => now()->subDays(rand(35, 45)),
                     'Active' => now()->subDays(rand(1, 10)),
-                    'Draft' => now()->subDays(rand(1, 5)),
+                    'Inactive' => now()->subDays(rand(1, 5)),
                     'Cancelled' => now()->subDays(rand(5, 15)),
                     default => now()->subDays(rand(1, 7))
                 };
@@ -482,7 +485,6 @@ class DatabaseSeeder extends Seeder
             'Completed' => "Training completed successfully by {$userName}. Good participation and engagement.",
             'In Progress' => "Currently enrolled and attending training sessions.",
             'Not Started' => "Enrollment confirmed. Training will begin soon.",
-            'Dropped' => "Training discontinued by {$userName}. May require follow-up.",
             default => "Standard enrollment for {$userName}."
         };
 

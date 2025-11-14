@@ -39,7 +39,8 @@ const ReportsPage = (props) => {
       case 'completed':
         return 'Completed';
       case 'dropped':
-        return 'Dropped';
+        // No dropped status; map to a safe alternative
+        return 'Not Started';
       default:
         return status || 'Not Started';
     }

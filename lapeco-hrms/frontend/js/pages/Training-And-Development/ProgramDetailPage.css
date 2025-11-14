@@ -8,11 +8,20 @@
     color: var(--secondary-color);
 }
 .program-detail-header .program-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.5rem 0.75rem;
     margin-top: 0.5rem;
-    font-size: 0.9rem;
+    margin-bottom: 1rem; /* extra spacing below */
+    font-size: 0.95rem;
+}
+
+/* Ensure all six items stay on one row on large screens */
+@media (min-width: 1200px) {
+    .program-detail-header .program-meta {
+        grid-template-columns: repeat(6, minmax(160px, 1fr));
+        gap: 0.5rem;
+    }
 }
 
 /* Large screens - allow all items in one row */
@@ -40,13 +49,19 @@
     font-weight: 500;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     white-space: nowrap;
-    flex: 0 0 auto; /* Don't grow or shrink, use natural size */
+    width: 100%;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 999px;
+    padding: 8px 12px;
+    gap: 8px;
 }
 
 .program-detail-header .meta-item i {
-    margin-right: 0.5rem;
-    color: var(--secondary-color);
+    margin: 0;
+    color: #6c757d;
     flex-shrink: 0; /* Prevent icons from shrinking */
 }
 
@@ -67,3 +82,120 @@
 .progress-bar-container { flex-grow: 1; background-color: var(--medium-gray); border-radius: 10px; height: 12px; overflow: hidden; }
 .progress-bar-fill { background-color: var(--app-success-color); height: 100%; border-radius: 10px; transition: width 0.3s ease-in-out; }
 .progress-text { font-size: 0.8rem; font-weight: 500; min-width: 40px; text-align: right; }
+
+/* --- Info Grid for Description & Requirements --- */
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+@media (max-width: 768px) {
+    .info-grid { grid-template-columns: 1fr; }
+}
+.info-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+.info-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    justify-content: flex-start;
+}
+.info-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #0d6efd;
+}
+.info-title { margin: 0; font-weight: 700; text-align: left; flex: 0 0 auto; }
+.info-text { margin: 0; color: #495057; white-space: pre-wrap; }
+
+/* Scoped overrides to prevent cross-page conflicts */
+.program-detail-header .info-header { justify-content: flex-start; }
+.program-detail-header .info-title { text-align: left; margin-left: 0; }
+
+/* --- Summary Stat Cards (match global style) --- */
+.program-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    padding: 12px 16px;
+}
+.summary-stat-card {
+    background-color: var(--bg-primary);
+    padding: 1.25rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.summary-stat-card .stat-icon {
+    font-size: 1.5rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.summary-stat-card .stat-info .stat-value { font-size: 2rem; font-weight: 700; line-height: 1.2; color: var(--text-primary); }
+.summary-stat-card .stat-info .stat-label { font-size: 0.9rem; color: var(--text-secondary); }
+
+/* Icon color variants */
+.summary-stat-card .stat-icon.icon-enrolled { background-color: #0d6efd; }
+.summary-stat-card .stat-icon.icon-progress { background-color: var(--info-color); }
+.summary-stat-card .stat-icon.icon-completed { background-color: var(--app-success-color); }
+.summary-stat-card .stat-icon.icon-in-progress { background-color: #fd7e14; }
+.summary-stat-card .stat-icon.icon-not-started { background-color: var(--text-secondary); }
+
+/* --- Enrollment Status Badge (match TrainingPage) --- */
+.enrollment-status-badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35em 0.7em;
+    border-radius: var(--border-radius);
+    color: #fff;
+    text-transform: uppercase;
+}
+.enrollment-status-badge.status-completed { 
+    background-color: var(--app-success-color); 
+    color: var(--text-on-success);
+}
+.enrollment-status-badge.status-in-progress { 
+    background-color: var(--info-color); 
+    color: var(--text-primary);
+}
+.enrollment-status-badge.status-not-started { 
+    background-color: var(--text-secondary); 
+}
+.enrollment-status-badge.status-dropped { 
+    background-color: var(--danger-color); 
+    color: #fff;
+}
+
+/* --- Program Timeline Progress --- */
+.program-timeline-progress .progress-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.program-timeline-progress .progress-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.program-timeline-progress .progress {
+    background-color: var(--bg-tertiary);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+}

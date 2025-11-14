@@ -1,4 +1,4 @@
-  const toKey = (value) => {
+const toKey = (value) => {
     if (value === undefined || value === null) return null;
     return String(value);
   };
@@ -15,7 +15,8 @@
       case 'not_started':
         return 'Not Started';
       case 'dropped':
-        return 'Dropped';
+        // No dropped status; map to a safe alternative
+        return 'Not Started';
       default:
         return status || 'Not Started';
     }
@@ -151,6 +152,26 @@ const ProgramDetailPage = () => {
     }
     return filtered;
   }, [enrolledInProgram, searchTerm, statusFilter, sortConfig]);
+
+  // --- UI Enhancements: Summary Stats ---
+  const summaryStats = useMemo(() => {
+    const total = enrolledInProgram.length;
+    const counts = enrolledInProgram.reduce((acc, enr) => {
+      const key = (enr.status || 'Not Started');
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const avgProgress = total > 0
+      ? Math.round(enrolledInProgram.reduce((acc, enr) => acc + (enr.progress || 0), 0) / total)
+      : 0;
+    return {
+      total,
+      completed: counts['Completed'] || 0,
+      inProgress: counts['In Progress'] || 0,
+      notStarted: counts['Not Started'] || 0,
+      avgProgress,
+    };
+  }, [enrolledInProgram]);
 
   const requestSort = (key) => {
     let direction = 'ascending';
@@ -442,15 +463,68 @@ const ProgramDetailPage = () => {
         onDeleteClick={handleDeleteProgram}
         isGenerateReportDisabled={displayedEnrollments.length === 0}
       />
+      {/* Summary cards moved outside of the data table card */}
+      <div className="card shadow-sm mb-3">
+        <div className="program-summary-cards">
+          <div className="summary-stat-card">
+            <div className="stat-icon icon-enrolled"><i className="bi bi-people-fill"></i></div>
+            <div className="stat-info">
+              <div className="stat-value">{summaryStats.total}</div>
+              <div className="stat-label">Enrolled</div>
+            </div>
+          </div>
+          <div className="summary-stat-card">
+            <div className="stat-icon icon-progress"><i className="bi bi-speedometer2"></i></div>
+            <div className="stat-info">
+              <div className="stat-value">{summaryStats.avgProgress}%</div>
+              <div className="stat-label">Avg Progress</div>
+            </div>
+          </div>
+          <div className="summary-stat-card">
+            <div className="stat-icon icon-completed"><i className="bi bi-check2-circle"></i></div>
+            <div className="stat-info">
+              <div className="stat-value">{summaryStats.completed}</div>
+              <div className="stat-label">Completed</div>
+            </div>
+          </div>
+          <div className="summary-stat-card">
+            <div className="stat-icon icon-in-progress"><i className="bi bi-play-circle"></i></div>
+            <div className="stat-info">
+              <div className="stat-value">{summaryStats.inProgress}</div>
+              <div className="stat-label">In Progress</div>
+            </div>
+          </div>
+          <div className="summary-stat-card">
+            <div className="stat-icon icon-not-started"><i className="bi bi-hourglass-split"></i></div>
+            <div className="stat-info">
+              <div className="stat-value">{summaryStats.notStarted}</div>
+              <div className="stat-label">Not Started</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="card data-table-card shadow-sm">
         <div className="enrollment-table-controls">
-            <div className="input-group"><span className="input-group-text"><i className="bi bi-search"></i></span><input type="text" className="form-control" placeholder="Search by name or ID..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
-            <div className="d-flex align-items-center">
-                <label className="form-label me-2 mb-0">Status:</label>
-                <select className="form-select form-select-sm" style={{width: '180px'}} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                    <option value="All">All</option><option value="Completed">Completed</option><option value="In Progress">In Progress</option><option value="Not Started">Not Started</option>
-                </select>
+            <div className="input-group">
+              <span className="input-group-text"><i className="bi bi-search"></i></span>
+              <input type="text" className="form-control" placeholder="Search by name or ID..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              {searchTerm && (
+                <button className="btn btn-outline-secondary" type="button" onClick={() => setSearchTerm('')}>
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="status-pills" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {['All','Completed','In Progress','Not Started'].map(s => (
+                <button
+                  key={`pill-${s}`}
+                  className={`btn btn-sm ${statusFilter === s ? 'btn-success' : 'btn-outline-success'}`}
+                  onClick={() => setStatusFilter(s)}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
         </div>
         <div className="table-responsive">
@@ -469,10 +543,35 @@ const ProgramDetailPage = () => {
                 <tr key={`enrollment-${enr.id}`}>
                   <td>{enr.employeeId}</td>
                   <td>{enr.employeeName}</td>
-                  <td><div className="progress-bar-cell"><div className="progress-bar-container"><div className="progress-bar-fill" style={{ width: `${enr.progress || 0}%` }}></div></div><span className="progress-text">{enr.progress || 0}%</span></div></td>
-                  <td><span className={`enrollment-status-badge status-${enr.status.replace(/\s+/g, '-').toLowerCase()}`}>{enr.status}</span></td>
+                  <td>
+                    <div className="progress-bar-cell">
+                      <div className="progress flex-grow-1" style={{ height: '12px' }}>
+                        <div
+                          className={`progress-bar ${
+                            (enr.progress || 0) > 50
+                              ? 'bg-success'
+                              : (enr.progress || 0) > 20
+                              ? 'bg-warning'
+                              : 'bg-danger'
+                          }`}
+                          style={{ width: `${enr.progress || 0}%` }}
+                        ></div>
+                      </div>
+                      <span className="progress-text">{enr.progress || 0}%</span>
+                    </div>
+                  </td>
+                  <td>
+                    {(() => {
+                      const statusClass =
+                        enr.status === 'Completed' ? 'status-completed' :
+                        enr.status === 'In Progress' ? 'status-in-progress' :
+                        'status-not-started';
+                      return (
+                        <span className={`enrollment-status-badge ${statusClass}`}>{enr.status}</span>
+                      );
+                    })()}
+                  </td>
                   <td className="text-center">
-                    <button className="btn btn-sm btn-outline-secondary me-2" onClick={() => handleOpenStatusModal(enr)}>Update</button>
                     <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteEnrollment(enr.id, enr.employeeName)}>Remove</button>
                   </td>
                 </tr>
