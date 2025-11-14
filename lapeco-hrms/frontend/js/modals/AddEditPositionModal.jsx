@@ -82,6 +82,9 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = 'Position title is required.';
     if (!formData.description.trim()) newErrors.description = 'Description is required.';
+    if (!formData.base_rate_per_hour || isNaN(formData.base_rate_per_hour) || Number(formData.base_rate_per_hour) <= 0) {
+      newErrors.base_rate_per_hour = 'Base rate must be a valid positive number.';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -156,7 +159,7 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
                       </div>
                       <div className="pay-section-body">
                         <div className="row g-3">
-                          {/* <div className="col-md-6">
+                          <div className="col-md-6">
                             <label htmlFor="base_rate_per_hour" className="form-label fw-semibold">
                               Base Rate (per hour)*
                             </label>
@@ -177,8 +180,8 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
                               />
                             </div>
                             {errors.base_rate_per_hour && <div className="invalid-feedback d-block">{errors.base_rate_per_hour}</div>}
-                          </div> */}
-                          <div className="col-md-12">
+                          </div>
+                          <div className="col-md-6">
                             <label className="form-label fw-semibold">Monthly Salary</label>
                             <div className="salary-display-card">
                               <div className="salary-amount">₱ {monthlySalary.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
@@ -193,7 +196,7 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
                     </div>
 
                     {/* Overtime Rates Card */}
-                    {/* <div className="pay-section-card mb-4">
+                    <div className="pay-section-card mb-4">
                       <div className="pay-section-header">
                         <div className="d-flex align-items-center">
                           <div className="icon-wrapper icon-wrapper-success me-3">
@@ -240,7 +243,7 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
                           </div>
                         </div>
                       </div>
-                    </div> */}
+                    </div>
 
                     {/* Additional Rates Card */}
                     <div className="pay-section-card">
