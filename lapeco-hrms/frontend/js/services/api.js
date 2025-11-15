@@ -296,6 +296,14 @@ export const applicantAPI = {
 // Recruitment API calls
 export const recruitmentAPI = {
   getAll: () => api.get('/recruitment'),
+  getActivities: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/recruitment${queryString ? '?' + queryString : ''}`);
+  },
+  getStatistics: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/recruitment/statistics${queryString ? '?' + queryString : ''}`);
+  },
   createApplicant: (data) => api.post('/recruitment/applicants', data),
   updateApplicant: (id, data) => api.put(`/recruitment/applicants/${id}`, data),
   deleteApplicant: (id) => api.delete(`/recruitment/applicants/${id}`),
@@ -383,6 +391,18 @@ export const terminationAPI = {
   update: (id, data) => api.put(`/terminations/${id}`, data),
   delete: (id) => api.delete(`/terminations/${id}`),
   getByEmployee: (employeeId) => api.get(`/terminations/employee/${employeeId}`),
+};
+
+// Offboarding API calls - comprehensive endpoints for reports and data
+export const offboardingAPI = {
+  getAll: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/offboarding${queryString ? '?' + queryString : ''}`);
+  },
+  getStatistics: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/offboarding/statistics${queryString ? '?' + queryString : ''}`);
+  },
 };
 
 // Reports API calls

@@ -382,11 +382,47 @@ const ResignationManagementPage = () => {
     };
 
     const handleRunReport = (reportId, params) => {
-        generateReport(
-            reportId, 
-            params, 
-            { resignations, terminations, employees }
-        );
+        if (reportId === 'offboarding_summary') {
+            const sDate = params?.startDate ? new Date(params.startDate) : null;
+            const eDate = params?.endDate ? new Date(params.endDate) : null;
+
+            const inRange = (dateStr) => {
+                if (!sDate || !eDate || !dateStr) return true;
+                const d = new Date(dateStr);
+                return d >= sDate && d <= eDate;
+            };
+
+            const voluntaryResignations = (resignations || [])
+                .filter(r => inRange(r.effectiveDate))
+                .map(r => ({
+                id: r.id,
+                type: 'voluntary_resignation',
+                employee_id: r.employeeId,
+                employee_name: r.employeeName,
+                position: r.position,
+                effective_date: r.effectiveDate,
+                reason: r.reason,
+                status: r.status
+            }));
+
+            const involuntaryTerminations = (Array.isArray(terminations) ? terminations : [])
+                .filter(t => inRange(t.termination_date));
+
+            generateReport(
+                reportId,
+                params,
+                {
+                    voluntary_resignations: voluntaryResignations,
+                    involuntary_terminations: involuntaryTerminations,
+                }
+            );
+        } else {
+            generateReport(
+                reportId,
+                params,
+                { resignations, terminations, employees }
+            );
+        }
         setShowReportConfigModal(false);
         setShowReportPreview(true);
     };
