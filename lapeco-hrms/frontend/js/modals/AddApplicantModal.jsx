@@ -299,7 +299,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
       // Transform the data to match the API expectations
@@ -319,8 +319,16 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
         pag_ibig_no: formData.pagIbigNo,
         philhealth_no: formData.philhealthNo,
       };
-      onSave(apiData);
-      onClose();
+      const result = await onSave(apiData);
+      if (result?.ok) {
+        onClose();
+      } else if (result?.errors) {
+        const nextErrors = { ...errors };
+        Object.entries(result.errors).forEach(([field, msgs]) => {
+          nextErrors[field] = Array.isArray(msgs) ? msgs[0] : String(msgs);
+        });
+        setErrors(nextErrors);
+      }
     }
   };
 

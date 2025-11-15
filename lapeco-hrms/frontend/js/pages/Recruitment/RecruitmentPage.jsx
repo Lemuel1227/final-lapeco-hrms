@@ -114,12 +114,27 @@ const RecruitmentPage = () => {
   const handleSaveApplicant = async (applicantData) => {
     try {
       const response = await applicantAPI.create(applicantData);
-      setApplicants(prev => [...prev, response.data]);
+      // Refresh full list to ensure consistent shape (summary view)
+      try {
+        const list = await applicantAPI.getAll(true);
+        setApplicants(list.data || []);
+      } catch (e) {
+        // Fallback: append created item
+        setApplicants(prev => [...prev, response.data]);
+      }
       setShowApplicantModal(false);
       setToast({ show: true, message: `Applicant added: ${response.data.full_name || response.data.name || 'New applicant'}`, type: 'success' });
+      return { ok: true };
     } catch (error) {
-      const msg = error.response?.data?.message || 'Failed to add applicant. Please try again.';
+      let msg = error.response?.data?.message || 'Failed to add applicant. Please try again.';
+      let fieldErrors = null;
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        fieldErrors = error.response.data.errors;
+        const flat = Object.values(fieldErrors).flat();
+        if (flat.length > 0) msg = flat.join(' ');
+      }
       setToast({ show: true, message: msg, type: 'error' });
+      return { ok: false, errors: fieldErrors };
     }
   };
 
