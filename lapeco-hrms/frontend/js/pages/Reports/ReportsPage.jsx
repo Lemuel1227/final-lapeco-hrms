@@ -551,40 +551,94 @@ const ReportsPage = (props) => {
     }
     
     if (reportId === 'thirteenth_month_pay') {
-        const { payrolls = [] } = props;
-        const year = params.year;
+      const selectedYear = params.year;
+      try {
+        setIsFetchingData(true);
 
-        // Compute based on actual earnings recorded within the selected year.
-        // Avoid filtering by joining date to prevent invalid date formats from excluding employees;
-        // employees with no earnings in the year will be filtered out below.
-        const details = (employees || []).map(emp => {
-            let totalBasicSalary = 0;
-            (payrolls || []).forEach(run => {
-                const cutOffStr = String(run.cutOff || '');
-                if (!cutOffStr.includes(String(year))) return;
-                const record = (run.records || []).find(r => r.empId === emp.id);
-                if (record && Array.isArray(record.earnings)) {
-                    record.earnings.forEach(earning => {
-                        const desc = (earning.description || '').toLowerCase();
-                        // Include common descriptors for base pay
-                        if (desc.includes('regular') || desc.includes('basic') || desc.includes('salary')) {
-                            totalBasicSalary += Number(earning.amount) || 0;
-                        }
-                    });
-                }
-            });
-            const thirteenthMonthPay = totalBasicSalary > 0 ? (totalBasicSalary / 12) : 0;
-            return { ...emp, totalBasicSalary, thirteenthMonthPay };
-        }).filter(empData => (empData.totalBasicSalary || 0) > 0);
+        let runs = Array.isArray(props.payrolls) && props.payrolls.length
+          ? props.payrolls
+          : [];
+
+        if (runs.length === 0) {
+          const res = await payrollAPI.getAll();
+          runs = Array.isArray(res?.data?.payroll_runs) ? res.data.payroll_runs : [];
+        }
+
+        const yearStr = String(selectedYear);
+        const runsForYear = (runs || []).filter(r => String(r.cutOff || '').includes(yearStr));
+
+        const runsWithRecords = await Promise.all((runsForYear || []).map(async (run) => {
+          if (Array.isArray(run.records) && run.records.length) return run;
+          if (run.periodId) {
+            const detailsRes = await payrollAPI.getPeriodDetails(run.periodId).catch(() => null);
+            const records = Array.isArray(detailsRes?.data?.records) ? detailsRes.data.records : [];
+            return { ...run, records };
+          }
+          return { ...run, records: [] };
+        }));
+
+        const sourceEmployees = (employees && employees.length) ? employees : allEmployees;
+        const employeeTotals = new Map();
+        (sourceEmployees || []).forEach(e => {
+          const key = String(e?.id ?? e?.employee_id ?? '');
+          if (!key) return;
+          employeeTotals.set(key, { id: key, name: e?.name || 'Employee', totalBasicSalary: 0 });
+        });
+
+        runsWithRecords.forEach(run => {
+          (run.records || []).forEach(record => {
+            const empKey = String(record?.empId ?? record?.employeeId ?? '');
+            if (!empKey) return;
+            if (!employeeTotals.has(empKey)) {
+              employeeTotals.set(empKey, { id: empKey, name: record?.employeeName || 'Employee', totalBasicSalary: 0 });
+            }
+
+            let baseFromItems = 0;
+            if (Array.isArray(record.earnings)) {
+              baseFromItems = record.earnings.reduce((sum, earning) => {
+                const desc = (earning.description || '').toLowerCase();
+                const isBase = desc.includes('regular') || desc.includes('basic') || desc.includes('salary');
+                return sum + (isBase ? (Number(earning.amount) || 0) : 0);
+              }, 0);
+            }
+
+            const current = employeeTotals.get(empKey);
+            if (baseFromItems > 0) {
+              current.totalBasicSalary += baseFromItems;
+            } else {
+              const sumAll = (record.earnings || []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+              const gross = Number(record.grossEarning) || 0;
+              current.totalBasicSalary += (gross > 0 ? gross : sumAll);
+            }
+            employeeTotals.set(empKey, current);
+          });
+        });
+
+        const details = Array.from(employeeTotals.values())
+          .map(emp => ({
+            id: emp.id,
+            name: emp.name,
+            totalBasicSalary: emp.totalBasicSalary,
+            thirteenthMonthPay: emp.totalBasicSalary > 0 ? (emp.totalBasicSalary / 12) : 0,
+          }))
+          .filter(emp => (emp.thirteenthMonthPay || 0) > 0);
 
         const totalPayout = details.reduce((sum, emp) => sum + (emp.thirteenthMonthPay || 0), 0);
 
         dataSources.thirteenthMonthPayData = {
-            year,
-            totalPayout,
-            eligibleCount: details.length,
-            records: details.map(emp => ({ ...emp, status: 'Pending' })),
+          year: selectedYear,
+          totalPayout,
+          eligibleCount: details.length,
+          records: details.map(emp => ({ ...emp, status: 'Pending' })),
         };
+      } catch (error) {
+        console.error('Failed to load payroll data for 13th month report:', error);
+        alert('Unable to load payroll data for the selected year. Please try again.');
+        setIsFetchingData(false);
+        return;
+      } finally {
+        setIsFetchingData(false);
+      }
     }
     
     generateReport(reportId, finalParams, dataSources);
