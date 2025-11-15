@@ -86,7 +86,9 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
         }
         break;
       case 'birthday':
-        if (value) {
+        if (!value) {
+          error = 'Birthday is required.';
+        } else {
           const birthDate = new Date(value);
           const today = new Date();
           const age = today.getFullYear() - birthDate.getFullYear();
@@ -97,6 +99,11 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
           if (actualAge < 18) {
             error = 'Applicant must be at least 18 years old.';
           }
+        }
+        break;
+      case 'gender':
+        if (!value) {
+          error = 'Gender is required.';
         }
         break;
       case 'sssNo':
@@ -242,7 +249,9 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
     }
     
     // Birthday validation (must be 18+)
-    if (formData.birthday) {
+    if (!formData.birthday) {
+      newErrors.birthday = 'Birthday is required.';
+    } else {
       const birthDate = new Date(formData.birthday);
       const today = new Date();
       const age = today.getFullYear() - birthDate.getFullYear();
@@ -253,6 +262,11 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
       if (actualAge < 18) {
         newErrors.birthday = 'Applicant must be at least 18 years old.';
       }
+    }
+    
+    // Gender validation
+    if (!formData.gender) {
+      newErrors.gender = 'Gender is required.';
     }
     
     // Government ID validations
@@ -491,7 +505,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label htmlFor="birthday" className="form-label">Birthday</label>
+                  <label htmlFor="birthday" className="form-label">Birthday*</label>
                   <input 
                     type="date" 
                     className={`form-control ${errors.birthday ? 'is-invalid' : ''}`}
@@ -500,23 +514,26 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     value={formData.birthday} 
                     onChange={handleChange}
                     max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                    required
                   />
                   {errors.birthday && <div className="invalid-feedback">{errors.birthday}</div>}
                   <small className="text-muted">Must be at least 18 years old</small>
                 </div>
                 <div className="col-md-6">
-                  <label htmlFor="gender" className="form-label">Gender</label>
+                  <label htmlFor="gender" className="form-label">Gender*</label>
                   <select 
-                    className="form-select" 
+                    className={`form-select ${errors.gender ? 'is-invalid' : ''}`} 
                     id="gender" 
                     name="gender" 
                     value={formData.gender} 
                     onChange={handleChange}
+                    required
                   >
                     <option value="">Select...</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
+                  {errors.gender && <div className="invalid-feedback">{errors.gender}</div>}
                 </div>
               </div>
 
