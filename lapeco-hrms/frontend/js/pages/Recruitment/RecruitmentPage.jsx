@@ -579,7 +579,15 @@ const RecruitmentPage = () => {
       )}
       
       <AddApplicantModal show={showApplicantModal} onClose={() => setShowApplicantModal(false)} onSave={handleSaveApplicant} positions={positions}/>
-      {selectedApplicant && <ViewApplicantDetailsModal show={showViewModal} onClose={() => setShowViewModal(false)} applicant={selectedApplicant} jobTitle={jobOpeningsMap.get(selectedApplicant?.jobOpeningId)}/>}
+      {selectedApplicant && (
+        <ViewApplicantDetailsModal 
+          show={showViewModal} 
+          onClose={() => setShowViewModal(false)} 
+          applicant={selectedApplicant} 
+          jobTitle={jobOpeningsMap.get(selectedApplicant?.jobOpeningId)}
+          onToast={setToast}
+        />
+      )}
       {selectedApplicant && <ScheduleInterviewModal show={showInterviewModal} onClose={() => setShowInterviewModal(false)} onSave={(data) => handleScheduleInterview(selectedApplicant.id, data)} applicant={selectedApplicant}/>}
       {selectedApplicant && <HireApplicantModal show={showHireModal} onClose={() => { setShowHireModal(false); setHireValidationErrors(null); }} onHire={handleHireApplicant} applicant={selectedApplicant} positions={positions} validationErrors={hireValidationErrors}/>}
       

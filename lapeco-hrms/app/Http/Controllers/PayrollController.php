@@ -1189,39 +1189,50 @@ class PayrollController extends Controller
             return 0.0;
         }
 
+        // Handle overnight shifts (e.g., 10 PM to 6 AM)
         if ($workEnd->lessThanOrEqualTo($workStart)) {
             $workEnd->addDay();
         }
 
+        // Create night period (10 PM to 6 AM)
         $nightStart = Carbon::parse($scheduleDate->toDateString() . ' 22:00');
         $nightEnd = Carbon::parse($scheduleDate->toDateString() . ' 06:00')->addDay();
 
-        $start = $workStart->greaterThan($nightStart) ? $workStart : $nightStart;
-        $end = $workEnd->lessThan($nightEnd) ? $workEnd : $nightEnd;
-
-        if ($start->gte($end)) {
-            return 0.0;
+        // Calculate total work duration in minutes
+        $totalWorkMinutes = $workStart->diffInMinutes($workEnd);
+        
+        // If shift is entirely within night hours, return full duration
+        if ($workStart->greaterThanOrEqualTo($nightStart) && $workEnd->lessThanOrEqualTo($nightEnd)) {
+            return round($totalWorkMinutes / 60, 2);
         }
 
-        $minutes = $start->diffInMinutes($end);
+        // Calculate overlap between work hours and night hours
+        $overlapStart = $workStart->copy()->max($nightStart);
+        $overlapEnd = $workEnd->copy()->min($nightEnd);
+        
+        // If there's an overlap, calculate the minutes
+        $nightMinutes = 0;
+        if ($overlapStart->lessThan($overlapEnd)) {
+            $nightMinutes = $overlapStart->diffInMinutes($overlapEnd);
+        }
 
+        // Handle break time if it exists
         if ($attendance->break_out && $attendance->break_in) {
             $breakStart = $this->combineDateWithTime($attendance->break_out, $scheduleDate);
             $breakEnd = $this->combineDateWithTime($attendance->break_in, $scheduleDate);
 
-            if (!$breakStart || !$breakEnd) {
-                return round(max($minutes, 0) / 60, 2);
-            }
-
-            if ($breakEnd->lessThanOrEqualTo($breakStart)) {
-                $breakEnd->addDay();
-            }
-
-            $breakStart = $breakStart->greaterThan($nightStart) ? $breakStart : $nightStart;
-            $breakEnd = $breakEnd->lessThan($nightEnd) ? $breakEnd : $nightEnd;
-
-            if ($breakStart->lt($breakEnd)) {
-                $minutes -= $breakStart->diffInMinutes($breakEnd);
+            if ($breakStart && $breakEnd) {
+                if ($breakEnd->lessThanOrEqualTo($breakStart)) {
+                    $breakEnd->addDay();
+                }
+                
+                // Calculate break overlap with night hours
+                $breakOverlapStart = $breakStart->copy()->max($nightStart);
+                $breakOverlapEnd = $breakEnd->copy()->min($nightEnd);
+                
+                if ($breakOverlapStart->lessThan($breakOverlapEnd)) {
+                    $nightMinutes -= $breakOverlapStart->diffInMinutes($breakOverlapEnd);
+                }
             }
         }
 

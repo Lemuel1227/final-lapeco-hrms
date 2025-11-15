@@ -1,5 +1,5 @@
 // Account Settings API Service
-const API_BASE_URL = '/api';
+const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL || window?.APP_API_BASE_URL || 'https://localhost:8000/api').replace(/\/$/, '');
 
 // Get authentication token from localStorage or wherever it's stored
 const getAuthToken = () => {
@@ -18,13 +18,25 @@ const getHeaders = () => {
 
 // Handle API response
 const handleResponse = async (response) => {
+    const rawBody = await response.text();
+    let data = null;
+
+    if (rawBody) {
+        try {
+            data = JSON.parse(rawBody);
+        } catch (parseError) {
+            data = rawBody;
+        }
+    }
+
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Network error' }));
-        const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        error.response = { data: errorData, status: response.status };
+        const errorPayload = typeof data === 'string' ? { message: data } : (data ?? {});
+        const error = new Error(errorPayload.message || `HTTP error! status: ${response.status}`);
+        error.response = { data: errorPayload, status: response.status };
         throw error;
     }
-    return response.json();
+
+    return data;
 };
 
 // Change user password
@@ -33,6 +45,7 @@ export const changePassword = async (currentPassword, newPassword, confirmPasswo
         const response = await fetch(`${API_BASE_URL}/password`, {
             method: 'PUT',
             headers: getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({
                 current_password: currentPassword,
                 password: newPassword,
@@ -52,6 +65,7 @@ export const updateThemePreference = async (theme) => {
         const response = await fetch(`${API_BASE_URL}/user/theme-preference`, {
             method: 'PUT',
             headers: getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({
                 theme: theme
             })
@@ -68,7 +82,8 @@ export const getUserProfile = async () => {
     try {
         const response = await fetch(`${API_BASE_URL}/user`, {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -83,6 +98,7 @@ export const updateUserProfile = async (profileData) => {
         const response = await fetch(`${API_BASE_URL}/profile`, {
             method: 'PATCH',
             headers: getHeaders(),
+            credentials: 'include',
             body: JSON.stringify(profileData)
         });
         
@@ -97,7 +113,8 @@ export const getLoginSessions = async () => {
     try {
         const response = await fetch(`${API_BASE_URL}/sessions`, {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -111,7 +128,8 @@ export const checkEmailVerificationStatus = async () => {
     try {
         const response = await fetch(`${API_BASE_URL}/user`, {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -125,7 +143,8 @@ export const resendEmailVerification = async () => {
     try {
         const response = await fetch(`${API_BASE_URL}/email/verification-notification`, {
             method: 'POST',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -139,7 +158,8 @@ export const revokeSession = async (sessionId) => {
     try {
         const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
             method: 'DELETE',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -164,7 +184,8 @@ export const getActivityLogs = async (params = {}) => {
         
         const response = await fetch(url, {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -190,7 +211,8 @@ export const getAllActivityLogs = async (params = {}) => {
         
         const response = await fetch(url, {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -204,7 +226,8 @@ export const getActionTypes = async () => {
     try {
         const response = await fetch(`${API_BASE_URL}/activity-logs/action-types`, {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);
@@ -218,7 +241,8 @@ export const getEntityTypes = async () => {
     try {
         const response = await fetch(`${API_BASE_URL}/activity-logs/entity-types`, {
             method: 'GET',
-            headers: getHeaders()
+            headers: getHeaders(),
+            credentials: 'include'
         });
         
         return await handleResponse(response);

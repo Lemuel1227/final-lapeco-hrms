@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PdfLayoutManager } from '../utils/pdfLayoutManager';
-import reportGenerators from '../reports';
+import { loadReportGenerator } from '../reports';
+import { reportsConfig } from '../config/reports.config';
 
 const useReportGenerator = (theme = 'light') => {
   const [pdfDataUri, setPdfDataUri] = useState('');
@@ -13,7 +14,7 @@ const useReportGenerator = (theme = 'light') => {
     setPdfDataUri('');
 
     try {
-      const generator = reportGenerators[reportId];
+      const generator = await loadReportGenerator(reportId);
       if (!generator) {
         throw new Error(`Report generator for ID "${reportId}" not found.`);
       }
@@ -25,9 +26,7 @@ const useReportGenerator = (theme = 'light') => {
         return;
       }
       
-      const reportConfigModule = await import('../config/reports.config.js');
-      const reportConfig = reportConfigModule.reportsConfig;
-      const title = reportConfig.find(r => r.id === reportId)?.title || "Report";
+      const title = reportsConfig.find(r => r.id === reportId)?.title || "Report";
 
       const isPayslip = reportId === 'payslip';
 
