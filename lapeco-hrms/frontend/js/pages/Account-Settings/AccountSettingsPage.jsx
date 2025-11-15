@@ -5,7 +5,6 @@ import { USER_ROLES } from '../../constants/roles';
 import ChangePassword from './ChangePassword';
 import EmailVerification from './EmailVerification';
 import ThemeSettings from './ThemeSettings';
-import NotificationSettings from './NotificationSettings';
 import LoginActivity from './LoginActivity';
 import ActivityLogs from './ActivityLogs';
 import DataManagementSettings from './DataManagementSettings';
@@ -45,7 +44,6 @@ const AccountSettingsPage = () => {
       { key: 'changePassword', label: 'Change Password', icon: 'bi-key-fill' },
       { key: 'emailVerification', label: 'Email Verification', icon: 'bi-envelope-check-fill' },
       { key: 'theme', label: 'Theme & Appearance', icon: 'bi-palette-fill' },
-      { key: 'notifications', label: 'Notifications', icon: 'bi-bell-fill' },
       { key: 'loginActivity', label: 'Login Activity', icon: 'bi-shield-check' },
       { key: 'activityLogs', label: 'Activity Logs', icon: 'bi-activity' },
     ],
@@ -83,7 +81,6 @@ const AccountSettingsPage = () => {
               {activeSection === 'changePassword' && <ChangePassword currentUser={currentUser} handlers={safeHandlers} />}
               {activeSection === 'emailVerification' && <EmailVerification currentUser={currentUser} />}
               {activeSection === 'theme' && <ThemeSettings theme={theme} onToggleTheme={safeHandlers.toggleTheme} />}
-              {activeSection === 'notifications' && <NotificationSettings />}
               {activeSection === 'loginActivity' && <LoginActivity />}
               {activeSection === 'activityLogs' && <ActivityLogs />}
 
