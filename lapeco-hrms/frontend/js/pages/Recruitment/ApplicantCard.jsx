@@ -17,7 +17,9 @@ const formatDate = (dateString, includeTime = false) => {
 };
 
 const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
-  const PIPELINE_STAGES = ['New Applicant', 'Interview', 'Hired', 'Rejected' , 'Offer'];
+  const PIPELINE_STAGES = ['New Applicant', 'Interview', 'Hired', 'Rejected'];
+  // Avoid duplicating actions: Interview has a dedicated scheduler; Hire/Reject have explicit actions.
+  const MOVEABLE_STAGES = PIPELINE_STAGES.filter(s => !['Interview', 'Hired', 'Rejected'].includes(s));
 
   const {
     attributes,
@@ -56,7 +58,7 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
                     </button>
                     <ul className="dropdown-menu dropdown-menu-end">
                         <li><h6 className="dropdown-header">Move to...</h6></li>
-                        {PIPELINE_STAGES.map(nextStage => (
+                        {MOVEABLE_STAGES.map(nextStage => (
                             nextStage !== applicant.status &&
                             <li key={nextStage}>
                                 <a className="dropdown-item" href="#" onClick={(e) => handleActionClick(e, 'move', { applicantId: applicant.id, newStatus: nextStage })}>
@@ -65,8 +67,8 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
                             </li>
                         ))}
                         <li><hr className="dropdown-divider" /></li>
-                        {/* Schedule Interview - Show only if not already in Interview, Offer, Hired, or Rejected status */}
-                        {!['Interview', 'Offer', 'Hired', 'Rejected'].includes(applicant.status) && (
+                        {/* Schedule Interview - Show only if not already in Interview, Hired, or Rejected status */}
+                        {!['Interview', 'Hired', 'Rejected'].includes(applicant.status) && (
                             <li><a className="dropdown-item" href="#" onClick={(e) => handleActionClick(e, 'scheduleInterview', applicant)}>Schedule Interview</a></li>
                         )}
                         {/* Hire - Show only if not already Hired or Rejected */}

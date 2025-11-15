@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Position;
 use App\Models\ScheduleTemplate;
 use App\Traits\LogsActivity;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 
 class ScheduleController extends Controller
@@ -40,6 +41,20 @@ class ScheduleController extends Controller
         }
 
         try {
+            $duplicateEmployeeIds = $this->findDuplicateEmployeeIds($data['assignments']);
+            if (!empty($duplicateEmployeeIds)) {
+                Log::warning('Schedule creation prevented due to duplicate employee assignments', [
+                    'employee_ids' => $duplicateEmployeeIds,
+                    'request_data' => $request->all()
+                ]);
+
+                return response()->json([
+                    'message' => 'Each employee can only appear once per schedule. Please remove duplicate entries for employee ID(s): ' . implode(', ', $duplicateEmployeeIds) . '.',
+                    'error' => 'DUPLICATE_EMPLOYEE_ASSIGNMENT',
+                    'employee_ids' => $duplicateEmployeeIds,
+                ], 422);
+            }
+
             // Check if a schedule already exists for this date
             $existingSchedule = Schedule::where('date', $data['date'])->first();
             if ($existingSchedule) {
@@ -229,6 +244,21 @@ class ScheduleController extends Controller
             ]);
             
             Log::info('Validation passed for schedule update', ['validated_data' => $data]);
+
+            $duplicateEmployeeIds = $this->findDuplicateEmployeeIds($data['assignments']);
+            if (!empty($duplicateEmployeeIds)) {
+                Log::warning('Schedule update failed: duplicate employee assignments detected before persist', [
+                    'schedule_id' => $id,
+                    'employee_ids' => $duplicateEmployeeIds,
+                    'request_data' => $request->all()
+                ]);
+
+                return response()->json([
+                    'message' => 'Each employee can only appear once per schedule. Duplicate entries found for employee ID(s): ' . implode(', ', $duplicateEmployeeIds) . '.',
+                    'error' => 'DUPLICATE_EMPLOYEE_ASSIGNMENT',
+                    'employee_ids' => $duplicateEmployeeIds,
+                ], 422);
+            }
             
             // Find the schedule to update
             $schedule = Schedule::findOrFail($id);
@@ -318,6 +348,24 @@ class ScheduleController extends Controller
                 'message' => 'Schedule not found.',
                 'error' => 'SCHEDULE_NOT_FOUND'
             ], 404);
+        } catch (QueryException $e) {
+            Log::error('Schedule update failed due to database constraint violation', [
+                'schedule_id' => $id,
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+
+            if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'schedule_assignments_schedule_id_user_id_unique')) {
+                return response()->json([
+                    'message' => 'Each employee can only appear once per schedule. Please remove duplicate entries and try again.',
+                    'error' => 'DUPLICATE_EMPLOYEE_ASSIGNMENT'
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'A database error occurred while saving the schedule. Please try again.',
+                'error' => 'DATABASE_ERROR'
+            ], 500);
         } catch (\Exception $e) {
             Log::error('Schedule update failed with unexpected error', [
                 'schedule_id' => $id,
@@ -376,6 +424,17 @@ class ScheduleController extends Controller
         } catch (\Exception $e) {
             return $value;
         }
+    }
+
+    protected function findDuplicateEmployeeIds(array $assignments): array
+    {
+        return collect($assignments)
+            ->filter(fn($assignment) => isset($assignment['empId']) && $assignment['empId'] !== null && $assignment['empId'] !== '')
+            ->groupBy(fn($assignment) => (string) $assignment['empId'])
+            ->filter(fn($group) => $group->count() > 1)
+            ->keys()
+            ->values()
+            ->all();
     }
 
     public function templatesIndex()

@@ -190,6 +190,96 @@ class PerformanceController extends Controller
     }
 
     /**
+     * Return a compact summary of evaluator responses for a given period.
+     * Fields: employee name, position, evaluator name, evaluation date, score.
+     */
+    public function periodEvaluationSummary(Request $request, PerformanceEvaluationPeriod $period)
+    {
+        $evaluations = PerformanceEvaluation::query()
+            ->where('period_id', $period->id)
+            ->with([
+                'employee:id,first_name,middle_name,last_name,position_id',
+                'employee.position:id,name',
+                'responses' => function ($query) {
+                    $query->select(
+                        'id',
+                        'evaluation_id',
+                        'evaluator_id',
+                        'evaluated_on',
+                        'attendance',
+                        'dedication',
+                        'performance_job_knowledge',
+                        'performance_work_efficiency_professionalism',
+                        'cooperation_task_acceptance',
+                        'cooperation_adaptability',
+                        'initiative_autonomy',
+                        'initiative_under_pressure',
+                        'communication',
+                        'teamwork',
+                        'character',
+                        'responsiveness',
+                        'personality',
+                        'appearance',
+                        'work_habits'
+                    )->with([
+                        'evaluator:id,first_name,middle_name,last_name,position_id',
+                        'evaluator.position:id,name'
+                    ]);
+                },
+            ])
+            ->get();
+
+        $summary = [];
+
+        foreach ($evaluations as $evaluation) {
+            foreach ($evaluation->responses as $response) {
+                $score = $response->overall_score;
+
+                $summary[] = [
+                    'employee' => trim(collect([
+                        $evaluation->employee?->first_name,
+                        $evaluation->employee?->middle_name,
+                        $evaluation->employee?->last_name,
+                    ])->filter()->implode(' ')) ?: 'Employee',
+                    'position' => $evaluation->employee?->position?->name ?? 'Unassigned',
+                    'evaluator' => trim(collect([
+                        $response->evaluator?->first_name,
+                        $response->evaluator?->middle_name,
+                        $response->evaluator?->last_name,
+                    ])->filter()->implode(' ')) ?: 'Evaluator',
+                    'evaluationDate' => $response->evaluated_on?->toDateString(),
+                    'overallScore' => $score,
+                ];
+            }
+
+            if ($evaluation->responses->isEmpty() && $evaluation->average_score !== null) {
+                $score = $evaluation->average_score;
+
+                $summary[] = [
+                    'employee' => trim(collect([
+                        $evaluation->employee?->first_name,
+                        $evaluation->employee?->middle_name,
+                        $evaluation->employee?->last_name,
+                    ])->filter()->implode(' ')) ?: 'Employee',
+                    'position' => $evaluation->employee?->position?->name ?? 'Unassigned',
+                    'evaluator' => null,
+                    'evaluationDate' => $evaluation->completed_at?->toDateString(),
+                    'overallScore' => $score,
+                    'score' => $score,
+                ];
+            }
+        }
+
+        return response()->json([
+            'period' => [
+                'id' => $period->id,
+                'name' => $period->name,
+            ],
+            'evaluations' => $summary,
+        ]);
+    }
+
+    /**
      * Get detailed responses for a specific evaluation record of an employee.
      */
     public function employeeEvaluationResponses(Request $request, PerformanceEvaluation $evaluation)

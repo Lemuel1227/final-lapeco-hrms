@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { format, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+import { formatDate as formatMDY } from '../utils/dateUtils';
 import StarRating from '../pages/Performance-Management/StarRating';
 import { performanceAPI } from '../services/api';
 import { evaluationFactorsConfig } from '../config/evaluation.config';
@@ -87,7 +88,7 @@ const ReviewSubmissionModal = ({ show, onClose, employeeId, employeeName, submis
                     <div className="row">
                       <div className="col-md-6">
                         <p className="mb-1"><strong>Evaluated By:</strong> {responseData.evaluator?.name || 'Unknown'}</p>
-                        <p className="mb-1"><strong>Evaluated On:</strong> {responseData.response?.evaluatedOn ? format(parseISO(responseData.response.evaluatedOn), 'MMM dd, yyyy') : 'N/A'}</p>
+                        <p className="mb-1"><strong>Evaluated On:</strong> {responseData.response?.evaluatedOn ? formatMDY(parseISO(responseData.response.evaluatedOn), 'long') : 'N/A'}</p>
                       </div>
                       <div className="col-md-6 text-end">
                         <p className="mb-1"><strong>Overall Score:</strong></p>

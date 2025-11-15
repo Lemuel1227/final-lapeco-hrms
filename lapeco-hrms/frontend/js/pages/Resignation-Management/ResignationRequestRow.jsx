@@ -1,5 +1,6 @@
 import React from 'react';
-import { differenceInDays, parseISO, startOfToday, format } from 'date-fns';
+import { differenceInDays, parseISO, startOfToday } from 'date-fns';
+import { formatDate as formatMDY } from '../../utils/dateUtils';
 import ActionsDropdown from '../../common/ActionsDropdown';
 
 const ResignationRequestRow = ({ request, employee, onApprove, onDecline, onEditDate, onViewReason, onViewProfile, onDelete }) => {
@@ -56,8 +57,8 @@ const ResignationRequestRow = ({ request, employee, onApprove, onDecline, onEdit
                 <div className="fw-bold">{request.employeeName}</div>
             </td>
             <td>{request.position}</td>
-            <td>{request.submissionDate ? format(submissionDate, 'MMM dd, yyyy') : 'N/A'}</td>
-            <td><strong>{request.effectiveDate ? format(effectiveDate, 'MMM dd, yyyy') : 'N/A'}</strong></td>
+            <td>{request.submissionDate ? formatMDY(submissionDate, 'long') : 'N/A'}</td>
+            <td><strong>{request.effectiveDate ? formatMDY(effectiveDate, 'long') : 'N/A'}</strong></td>
             <td className="text-center">
                 {noticeInDays !== null ? (
                     <span className={`notice-badge ${noticeBadgeClass}`}>{noticeInDays} days</span>

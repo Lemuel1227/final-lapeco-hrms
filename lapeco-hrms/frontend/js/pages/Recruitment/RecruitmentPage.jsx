@@ -16,7 +16,7 @@ import { reportsConfig } from '../../config/reports.config';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { positionAPI, applicantAPI } from '../../services/api';
 
-const PIPELINE_STAGES = ['New Applicant', 'Interview', 'Hired', 'Rejected', 'Offer'];
+const PIPELINE_STAGES = ['New Applicant', 'Interview', 'Hired', 'Rejected'];
 
 const calculateAge = (birthdate) => {
     if (!birthdate) return 'N/A';
@@ -114,10 +114,27 @@ const RecruitmentPage = () => {
   const handleSaveApplicant = async (applicantData) => {
     try {
       const response = await applicantAPI.create(applicantData);
-      setApplicants(prev => [...prev, response.data]);
+      // Refresh full list to ensure consistent shape (summary view)
+      try {
+        const list = await applicantAPI.getAll(true);
+        setApplicants(list.data || []);
+      } catch (e) {
+        // Fallback: append created item
+        setApplicants(prev => [...prev, response.data]);
+      }
       setShowApplicantModal(false);
+      setToast({ show: true, message: `Applicant added: ${response.data.full_name || response.data.name || 'New applicant'}`, type: 'success' });
+      return { ok: true };
     } catch (error) {
-      // Handle error (show toast, etc.)
+      let msg = error.response?.data?.message || 'Failed to add applicant. Please try again.';
+      let fieldErrors = null;
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        fieldErrors = error.response.data.errors;
+        const flat = Object.values(fieldErrors).flat();
+        if (flat.length > 0) msg = flat.join(' ');
+      }
+      setToast({ show: true, message: msg, type: 'error' });
+      return { ok: false, errors: fieldErrors };
     }
   };
 
@@ -194,8 +211,10 @@ const RecruitmentPage = () => {
       await applicantAPI.delete(applicantId);
       setApplicants(prev => prev.filter(app => app.id !== applicantId));
       setApplicantToDelete(null);
+      setToast({ show: true, message: 'Applicant deleted successfully.', type: 'success' });
     } catch (error) {
-      // Handle error (show toast, etc.)
+      const msg = error.response?.data?.message || 'Failed to delete applicant. Please try again.';
+      setToast({ show: true, message: msg, type: 'error' });
     }
   };
 
@@ -238,7 +257,9 @@ const RecruitmentPage = () => {
         if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1;
         return 0;
     });
-    return results;
+    // Normalize statuses: map legacy 'Offer' to 'Interview' for display
+    const normalizeStatus = (s) => (s === 'Offer' ? 'Interview' : s);
+    return results.map(app => ({ ...app, status: normalizeStatus(app.status) }));
   }, [applicants, searchTerm, startDate, endDate, sortConfig]);
   
   const stats = useMemo(() => {
@@ -307,6 +328,7 @@ const RecruitmentPage = () => {
       { applicants, jobOpenings }
     );
     setShowReportPreview(true);
+    setToast({ show: true, message: 'Recruitment report generated.', type: 'success' });
   };
   
   const handleClosePreview = () => {
@@ -357,6 +379,7 @@ const RecruitmentPage = () => {
       if (response.data.account_details) {
         setNewlyGeneratedAccount(response.data.account_details);
       }
+      setToast({ show: true, message: 'Applicant hired successfully.', type: 'success' });
       // Return success to indicate the operation completed successfully
       return Promise.resolve();
     } catch (error) {
@@ -423,19 +446,29 @@ const RecruitmentPage = () => {
           <tbody>
             {filteredApplicants.map(applicant => (
               <tr key={applicant.id}>
-                <td><div>{applicant.full_name || applicant.name}</div><small className="text-muted">{jobOpeningsMap.get(applicant.jobOpeningId)}</small></td>
+                <td>
+                  <div>{applicant.full_name || applicant.name}</div>
+                  <small className="text-muted">{jobOpeningsMap.get(applicant.jobOpeningId || applicant.job_opening_id) || 'N/A'}</small>
+                </td>
                 <td>{applicant.gender}</td><td>{calculateAge(applicant.birthday)}</td>
-                <td>{applicant.phone}</td><td>{formatDate(applicant.application_date)}</td>
+                <td>{applicant.phone}</td>
+                <td>{formatDate(applicant.application_date || applicant.applicationDate)}</td>
                 <td>{formatDate(applicant.updated_at, true)}</td>
-                <td><span className={`applicant-status-badge status-${applicant.status.replace(/\s+/g, '-').toLowerCase()}`}>{applicant.status}</span></td>
+                <td>
+                  {(() => {
+                    const status = applicant.status || 'New Applicant';
+                    const slug = status.replace(/\s+/g, '-').toLowerCase();
+                    return <span className={`applicant-status-badge status-${slug}`}>{status}</span>;
+                  })()}
+                </td>
                 <td>
                   {/* THE FIX: Replace the old dropdown with our new portal-based component */}
                   <ActionsDropdown>
                     <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('view', applicant); }}>View Details</a>
-                    {/* Schedule Interview - Show only if not already in Interview, Offer, Hired, or Rejected status */}
-                    {!['Interview', 'Offer', 'Hired', 'Rejected'].includes(applicant.status) && (
-                      <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('scheduleInterview', applicant); }}>Schedule Interview</a>
-                    )}
+              {/* Schedule Interview - Show only if not already in Interview, Hired, or Rejected status */}
+              {!['Interview', 'Hired', 'Rejected'].includes(applicant.status) && (
+                <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('scheduleInterview', applicant); }}>Schedule Interview</a>
+              )}
                     <div className="dropdown-divider"></div>
                     {/* Hire - Show only if not already Hired or Rejected */}
                     {!['Hired', 'Rejected'].includes(applicant.status) && (
@@ -470,15 +503,15 @@ const RecruitmentPage = () => {
 
       <div className="recruitment-stats-bar">
         <div className="recruitment-stat-card">
-            <div className="stat-main"><div className="stat-icon icon-total-applicants"><i className="bi bi-people-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.totalApplicants}</span><span className="stat-label">Applicants in View</span></div></div>
+            <div className="stat-main"><div className="stat-icon icon-total-applicants"><i className="bi bi-people-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.totalApplicants}</span><span className="stat-label"> Applicants in View</span></div></div>
             <div className="stat-period">{dateRangeText}</div>
         </div>
         <div className="recruitment-stat-card">
-            <div className="stat-main"><div className="stat-icon icon-hired"><i className="bi bi-person-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.newlyHired}</span><span className="stat-label">Hired in View</span></div></div>
+            <div className="stat-main"><div className="stat-icon icon-hired"><i className="bi bi-person-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.newlyHired}</span><span className="stat-label"> Hired in View</span></div></div>
             <div className="stat-period">{dateRangeText}</div>
         </div>
         <div className="recruitment-stat-card">
-            <div className="stat-main"><div className="stat-icon icon-interviews-set"><i className="bi bi-calendar2-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.interviewsSet}</span><span className="stat-label">Interviews in View</span></div></div>
+            <div className="stat-main"><div className="stat-icon icon-interviews-set"><i className="bi bi-calendar2-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.interviewsSet}</span><span className="stat-label"> Interviews in View</span></div></div>
             <div className="stat-period">{dateRangeText}</div>
         </div>
       </div>
@@ -546,7 +579,15 @@ const RecruitmentPage = () => {
       )}
       
       <AddApplicantModal show={showApplicantModal} onClose={() => setShowApplicantModal(false)} onSave={handleSaveApplicant} positions={positions}/>
-      {selectedApplicant && <ViewApplicantDetailsModal show={showViewModal} onClose={() => setShowViewModal(false)} applicant={selectedApplicant} jobTitle={jobOpeningsMap.get(selectedApplicant?.jobOpeningId)}/>}
+      {selectedApplicant && (
+        <ViewApplicantDetailsModal 
+          show={showViewModal} 
+          onClose={() => setShowViewModal(false)} 
+          applicant={selectedApplicant} 
+          jobTitle={jobOpeningsMap.get(selectedApplicant?.jobOpeningId)}
+          onToast={setToast}
+        />
+      )}
       {selectedApplicant && <ScheduleInterviewModal show={showInterviewModal} onClose={() => setShowInterviewModal(false)} onSave={(data) => handleScheduleInterview(selectedApplicant.id, data)} applicant={selectedApplicant}/>}
       {selectedApplicant && <HireApplicantModal show={showHireModal} onClose={() => { setShowHireModal(false); setHireValidationErrors(null); }} onHire={handleHireApplicant} applicant={selectedApplicant} positions={positions} validationErrors={hireValidationErrors}/>}
       

@@ -12,17 +12,82 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
     return num; // assume already a percent
   };
 
+  const extractTrimmedString = (value) => {
+    if (value == null) return null;
+    const str = String(value).trim();
+    return str.length ? str : null;
+  };
+
+  const extractName = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      return extractTrimmedString(value);
+    }
+
+    const parts = [
+      value.firstName ?? value.first_name ?? null,
+      value.middleName ?? value.middle_name ?? null,
+      value.lastName ?? value.last_name ?? null,
+    ].map(extractTrimmedString).filter(Boolean);
+    if (parts.length) {
+      return parts.join(' ');
+    }
+
+    const fallbackFields = ['name', 'fullName', 'full_name', 'displayName', 'display_name'];
+    for (const field of fallbackFields) {
+      const candidate = extractTrimmedString(value[field]);
+      if (candidate) return candidate;
+    }
+
+    const emailCandidate = extractTrimmedString(value.email);
+    if (emailCandidate) return emailCandidate;
+
+    return null;
+  };
+
+  const extractId = (value) => {
+    if (!value || typeof value === 'string') return null;
+    return value.id ?? value.employeeId ?? value.employee_id ?? value.userId ?? value.user_id ?? null;
+  };
+
+  const extractPositionId = (value) => {
+    if (!value || typeof value === 'string') return null;
+    return value.positionId ?? value.position_id ?? value.position?.id ?? null;
+  };
+
+  const extractPositionName = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      return extractTrimmedString(value);
+    }
+
+    if (value.position) {
+      if (typeof value.position === 'string') {
+        const candidate = extractTrimmedString(value.position);
+        if (candidate) return candidate;
+      }
+      const nested = extractTrimmedString(value.position?.name);
+      if (nested) return nested;
+    }
+
+    const candidate = extractTrimmedString(value.positionName ?? value.position_name);
+    if (candidate) return candidate;
+
+    return null;
+  };
+
   const normalizeEval = (ev) => ({
-    employeeId: ev.employeeId ?? ev.employee_id ?? ev.userId ?? ev.user_id ?? ev.employee?.id ?? ev.employee?.user_id ?? null,
-    employeeName: ev.employeeName ?? ev.employee?.name ?? ([ev.employee?.firstName, ev.employee?.middleName, ev.employee?.lastName].filter(Boolean).join(' ') || [ev.employee?.first_name, ev.employee?.middle_name, ev.employee?.last_name].filter(Boolean).join(' ')) ?? null,
-    positionId: ev.positionId ?? ev.employee?.positionId ?? ev.employee?.position_id ?? ev.employee?.position?.id ?? null,
-    evaluatorId: ev.evaluatorId ?? ev.evaluator_id ?? ev.evaluator?.id ?? ev.evaluator?.user_id ?? null,
-    evaluatorName: ev.evaluatorName ?? ev.evaluator?.name ?? ([ev.evaluator?.firstName, ev.evaluator?.middleName, ev.evaluator?.lastName].filter(Boolean).join(' ') || [ev.evaluator?.first_name, ev.evaluator?.middle_name, ev.evaluator?.last_name].filter(Boolean).join(' ')) ?? null,
+    employeeId: ev.employeeId ?? ev.employee_id ?? ev.userId ?? ev.user_id ?? extractId(ev.employee),
+    employeeName: extractName(ev.employeeName ?? ev.employee),
+    positionId: ev.positionId ?? extractPositionId(ev.employee),
+    position: extractPositionName(ev.position ?? ev.employee),
+    evaluatorId: ev.evaluatorId ?? ev.evaluator_id ?? extractId(ev.evaluator),
+    evaluatorName: extractName(ev.evaluatorName ?? ev.evaluator),
     periodId: ev.periodId ?? ev.period_id,
     periodStart: ev.periodStart ?? ev.period_start,
     periodEnd: ev.periodEnd ?? ev.period_end,
     evaluationDate: ev.evaluationDate ?? ev.evaluatedOn ?? ev.evaluated_on ?? ev.completedAt ?? ev.created_at ?? ev.updated_at ?? null,
-    overallScore: toPercent(ev.overallScore ?? ev.averageScore ?? ev.overall_score ?? ev.average_score),
+    overallScore: toPercent(ev.overallScore ?? ev.averageScore ?? ev.overall_score ?? ev.average_score ?? ev.score),
   });
 
   const formatDateSimple = (value) => {
@@ -33,12 +98,13 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
         const s = String(value);
         // Try to grab date part from common formats
         const datePart = s.includes('T') ? s.split('T')[0] : s.split(' ')[0];
+        // Fallback: return as-is if unparsable
         return datePart || s;
       }
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
+      return `${mm}-${dd}-${yyyy}`; // Month-Day-Year
     } catch {
       return 'N/A';
     }
@@ -185,16 +251,16 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
   (evaluationPeriods || []).forEach(p => {
     (p.employees || []).forEach(e => collectedEmployees.push(e));
     (p.evaluations || []).forEach(ev => {
-      if (ev.employee) collectedEmployees.push(ev.employee);
+      if (ev.employee && typeof ev.employee === 'object') collectedEmployees.push(ev.employee);
       if (Array.isArray(ev.responses)) ev.responses.forEach(resp => {
-        if (resp.evaluator) collectedEmployees.push(resp.evaluator);
+        if (resp.evaluator && typeof resp.evaluator === 'object') collectedEmployees.push(resp.evaluator);
       });
     });
   });
   (evaluations || []).forEach(ev => {
-    if (ev.employee) collectedEmployees.push(ev.employee);
+    if (ev.employee && typeof ev.employee === 'object') collectedEmployees.push(ev.employee);
     if (Array.isArray(ev.responses)) ev.responses.forEach(resp => {
-      if (resp.evaluator) collectedEmployees.push(resp.evaluator);
+      if (resp.evaluator && typeof resp.evaluator === 'object') collectedEmployees.push(resp.evaluator);
     });
   });
   // Include comprehensive employees from attendance (including inactive) when available
@@ -244,6 +310,7 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
   });
   // positionMap already built above
   const resolvePosition = (emp, ev, employeeLabel) => {
+    if (ev?.position) return ev.position;
     // Accept string or object position on employee
     const empPosStr = typeof emp?.position === 'string' ? emp.position : emp?.position?.name;
     const evPosStr = typeof ev?.position === 'string' ? ev.position : ev?.position?.name;
@@ -266,8 +333,8 @@ export const generatePerformanceSummaryReport = async (layoutManager, dataSource
   const tableBody = normalizedEvals.map(ev => {
     const emp = employeeMap.get(String(ev.employeeId));
     const evaluator = ev.evaluatorId ? employeeMap.get(String(ev.evaluatorId)) : null;
-    const evaluatorLabel = ev.evaluatorName || evaluator?.name || 'N/A';
-    const employeeLabel = emp?.name || ev.employeeName || ev.employeeId || 'N/A';
+    const evaluatorLabel = ev.evaluatorName || evaluator?.name || ev.evaluator || 'N/A';
+    const employeeLabel = emp?.name || ev.employeeName || ev.employee || ev.employeeId || 'N/A';
     const positionLabel = resolvePosition(emp, ev, employeeLabel);
     return [
       employeeLabel,

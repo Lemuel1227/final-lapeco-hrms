@@ -1,5 +1,5 @@
 import React from 'react';
-import { format } from 'date-fns';
+import { formatDate as formatMDY } from '../../utils/dateUtils';
 
 const EmployeeCaseDetailView = ({ caseInfo, onBack }) => {
     return (
@@ -30,7 +30,7 @@ const EmployeeCaseDetailView = ({ caseInfo, onBack }) => {
                     </div>
                     <div className="meta-item">
                         <span className="meta-label">Incident Date</span>
-                        <div className="meta-value">{format(new Date(caseInfo.issueDate + 'T00:00:00'), 'MMM dd, yyyy')}</div>
+                        <div className="meta-value">{formatMDY(new Date(caseInfo.issueDate + 'T00:00:00'), 'long')}</div>
                     </div>
                 </div>
             </div>
@@ -44,7 +44,7 @@ const EmployeeCaseDetailView = ({ caseInfo, onBack }) => {
                                 {caseInfo.actionLog.sort((a, b) => new Date(b.date) - new Date(a.date)).map((log, index) => (
                                     <li key={index} className="log-item">
                                         <div className="log-icon"><i className="bi bi-dot"></i></div>
-                                        <div className="log-date">{format(new Date(log.date + 'T00:00:00'), 'MMM dd, yyyy')}</div>
+                                        <div className="log-date">{formatMDY(new Date(log.date + 'T00:00:00'), 'long')}</div>
                                         <div className="log-action">{log.action}</div>
                                     </li>
                                 ))}

@@ -53,6 +53,11 @@ class ScheduleTemplateSeeder extends Seeder
                 'name' => 'IT Support Rotation',
                 'description' => 'IT support team rotation template covering different technical areas and on-call duties.',
                 'columns' => ['support_tier', 'technology_focus', 'escalation_path', 'on_call_status']
+            ],
+            [
+                'name' => 'Core Operations Day Shift',
+                'description' => 'Predefined day shift for HR, packing, and moving personnel with fixed break schedules.',
+                'columns' => []
             ]
         ];
 

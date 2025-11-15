@@ -6,7 +6,24 @@ export const generateRecruitmentActivityReport = async (layoutManager, dataSourc
   // --- 1. DATA PREPARATION ---
   const dateRangeText = startDate && endDate ? `from ${startDate} to ${endDate}` : 'for all time';
 
-  let filteredApps = [...(applicants || [])];
+  // Normalize records for consistency (legacy field names and statuses)
+  const normalizeStatus = (s = '') => {
+    if (!s) return 'New Applicant';
+    const t = String(s).trim();
+    return t === 'Offer' ? 'Interview' : t;
+  };
+
+  const normalizeDate = (app) => app.applicationDate || app.application_date || app.applied_at || null;
+  const normalizeName = (app) => app.name || app.full_name || [app.first_name, app.middle_name, app.last_name].filter(Boolean).join(' ');
+  const normalizeJobOpeningId = (app) => app.jobOpeningId || app.job_opening_id || app.job_openingId || null;
+
+  let filteredApps = [...(applicants || [])].map(app => ({
+    ...app,
+    status: normalizeStatus(app.status),
+    applicationDate: normalizeDate(app),
+    name: normalizeName(app),
+    jobOpeningId: normalizeJobOpeningId(app)
+  }));
   if (startDate && endDate) {
     filteredApps = filteredApps.filter(app => {
       const appDate = new Date(app.applicationDate);
@@ -19,8 +36,10 @@ export const generateRecruitmentActivityReport = async (layoutManager, dataSourc
     return;
   }
 
+  const PIPELINE_ORDER = ['New Applicant', 'Interview', 'Hired', 'Rejected'];
   const statusCounts = filteredApps.reduce((acc, app) => {
-    acc[app.status] = (acc[app.status] || 0) + 1;
+    const s = PIPELINE_ORDER.includes(app.status) ? app.status : 'New Applicant';
+    acc[s] = (acc[s] || 0) + 1;
     return acc;
   }, {});
 
@@ -28,14 +47,22 @@ export const generateRecruitmentActivityReport = async (layoutManager, dataSourc
   const rejectedCount = statusCounts['Rejected'] || 0;
 
   // --- 2. CHART CONFIGURATION ---
+  const COLORS = {
+    'New Applicant': '#0d6efd',
+    'Interview': '#0dcaf0',
+    'Hired': '#198754',
+    'Rejected': '#dc3545'
+  };
+
+  const orderedLabels = PIPELINE_ORDER.filter(l => statusCounts[l] > 0);
   const chartConfig = {
     type: 'bar',
     data: {
-      labels: Object.keys(statusCounts),
+      labels: orderedLabels,
       datasets: [{
         label: 'Number of Applicants',
-        data: Object.values(statusCounts),
-        backgroundColor: ['#0d6efd', '#6c757d', '#0dcaf0', '#ffc107', '#198754', '#dc3545']
+        data: orderedLabels.map(l => statusCounts[l]),
+        backgroundColor: orderedLabels.map(l => COLORS[l] || '#6c757d')
       }]
     },
     options: {
@@ -49,11 +76,24 @@ export const generateRecruitmentActivityReport = async (layoutManager, dataSourc
 
   // --- 4. TABLE DATA ---
   const jobOpeningsMap = new Map((jobOpenings || []).map(j => [j.id, j.title]));
+  const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    try {
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) {
+        // Fallback: if not a valid date, try to trim ISO
+        return String(dateStr).split('T')[0];
+      }
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) {
+      return String(dateStr);
+    }
+  };
   const tableHead = ["Applicant Name", "Applied For", "Application Date", "Status"];
   const tableBody = filteredApps.map(app => [
     app.name,
     jobOpeningsMap.get(app.jobOpeningId) || 'N/A',
-    app.applicationDate,
+    formatDisplayDate(app.applicationDate),
     app.status
   ]);
   

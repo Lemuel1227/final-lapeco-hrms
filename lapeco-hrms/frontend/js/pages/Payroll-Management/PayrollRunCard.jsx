@@ -1,5 +1,6 @@
 import React from 'react';
 import { format, addDays } from 'date-fns';
+import { formatDate as formatMDY } from '../../utils/dateUtils';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { payrollAPI } from '../../services/api';
@@ -88,7 +89,7 @@ const PayrollRunCard = ({ run, onViewDetails, onMarkAsPaid, onDelete }) => {
         <div className="body-column details">
             <div className="detail-item">
                 <span className="detail-label">Pay Date</span>
-                <span className="detail-value">{format(new Date(payDate + 'T00:00:00'), 'MMM dd, yyyy')}</span>
+                <span className="detail-value">{formatMDY(new Date(payDate + 'T00:00:00'), 'long')}</span>
             </div>
             <div className="detail-item">
                 <span className="detail-label">Employees</span>

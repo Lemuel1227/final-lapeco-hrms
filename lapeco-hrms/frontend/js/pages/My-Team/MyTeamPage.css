@@ -4,18 +4,20 @@
     gap: 1.25rem;
 }
 .team-member-card-final {
-    background: #ffffff;
+    background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     transition: all 0.25s ease-in-out;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: var(--card-shadow);
+    /* Allow overlays like dropdowns to render outside the card */
+    overflow: visible;
 }
 .team-member-card-final:hover {
     transform: translateY(-5px);
-    box-shadow: 0 7px 14px rgba(0,0,0,0.07), 0 3px 6px rgba(0,0,0,0.05);
+    box-shadow: var(--card-shadow);
 }
 .team-member-card-final.leader {
-    background: linear-gradient(to right, #f7fdf7, #ffffff);
+    background: linear-gradient(to right, rgba(var(--app-success-rgb), 0.08), var(--bg-primary));
     border-color: var(--app-success-color);
 }
 
@@ -78,6 +80,9 @@
     border-top: 1px solid var(--border-color);
     padding: 0.75rem 1rem;
     background-color: var(--light-gray);
+    border-bottom-left-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+    background-clip: padding-box;
 }
 .contact-link {
     display: flex;
@@ -147,4 +152,43 @@
 
 .controls-bar .sort-dropdown {
     flex-shrink: 0;
+}
+
+/* === Quick View Modal Modern Styles === */
+.team-member-quick-view .modal-content {
+    border-radius: 16px;
+    overflow: hidden;
+}
+.team-member-quick-view .modal-header {
+    background: linear-gradient(0deg, var(--bg-secondary), var(--bg-primary));
+}
+.team-member-quick-view .kv-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.team-member-quick-view .kv-row:last-child {
+    border-bottom: 0;
+}
+.team-member-quick-view .kv-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background-color: var(--bg-tertiary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: var(--card-shadow);
+}
+.team-member-quick-view .kv-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.125rem;
+}
+.team-member-quick-view .kv-value {
+    font-size: 0.95rem;
+    color: var(--text-primary);
 }

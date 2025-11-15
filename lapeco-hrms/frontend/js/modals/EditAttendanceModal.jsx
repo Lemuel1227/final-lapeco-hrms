@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDate as formatMDY } from '../utils/dateUtils';
 
 const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
   const [formData, setFormData] = useState({
@@ -31,7 +32,11 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
     
     // Handle ot_hours specially to ensure it's always a valid number
     if (name === 'ot_hours') {
-      const numValue = value === '' ? 0 : parseInt(value, 10);
+      if (value === '') {
+        setFormData(prev => ({ ...prev, [name]: '' }));
+        return;
+      }
+      const numValue = parseInt(value, 10);
       setFormData(prev => ({ ...prev, [name]: isNaN(numValue) ? 0 : numValue }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -40,7 +45,8 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(attendanceRecord.id, attendanceRecord.date, formData);
+    const payload = { ...formData, ot_hours: Number(formData.ot_hours || 0) };
+    onSave(attendanceRecord.id, attendanceRecord.date, payload);
   };
 
   return (
@@ -53,7 +59,7 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
               <button type="button" className="btn-close" onClick={onClose} aria-label="Close"></button>
             </div>
             <div className="modal-body">
-              <p className="text-muted">Editing attendance for {new Date(attendanceRecord.date + 'T00:00:00').toLocaleDateString()}.</p>
+              <p className="text-muted">Editing attendance for {formatMDY(new Date(attendanceRecord.date + 'T00:00:00'), 'long')}.</p>
               <div className="row g-3">
                 <div className="col-md-6 mb-3">
                   <label htmlFor="signIn" className="form-label">Sign In</label>

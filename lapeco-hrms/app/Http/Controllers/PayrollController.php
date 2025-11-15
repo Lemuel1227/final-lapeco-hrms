@@ -599,23 +599,34 @@ class PayrollController extends Controller
                     $scheduleDate = $schedule->date instanceof Carbon ? $schedule->date->copy() : Carbon::parse($schedule->date);
                     $scheduledHours = $this->calculateScheduledHours($assignment->start_time, $assignment->end_time);
                     $attendance = $assignment->attendance;
+                    $status = $this->determineAttendanceStatus($attendance, $scheduleDate);
                     $attendedHours = $this->calculateAttendanceHours($attendance);
                     $overtimeHours = $this->calculateOvertimeHours($assignment->ot_hours, $attendedHours, $scheduledHours);
                     $regularHours = min($attendedHours, $scheduledHours);
 
-                    $regularPay = $baseRate * $regularHours;
-                    $overtimePay = $overtimeRate * $overtimeHours;
-                    $dailyPay = round($regularPay + $overtimePay, 2);
+                    $dailyPay = 0;
+                    $regularPay = 0;
+                    $overtimePay = 0;
 
-                    $gross += $dailyPay;
+                    // Only calculate pay for Present or Late statuses
+                    if (in_array($status, ['Present', 'Late'])) {
+                        $regularPay = $baseRate * $regularHours;
+                        $overtimePay = $overtimeRate * $overtimeHours;
+                        $dailyPay = round($regularPay + $overtimePay, 2);
+                        $gross += $dailyPay;
+                    }
 
                     $breakdown[] = [
                         'date' => $scheduleDate->toDateString(),
-                        'status' => $this->determineAttendanceStatus($attendance, $scheduleDate),
+                        'status' => $status,
                         'scheduled_hours' => max((int) floor($scheduledHours), 0),
                         'attended_hours' => max((int) floor($attendedHours), 0),
                         'overtime_hours' => max((int) floor($overtimeHours), 0),
                         'pay' => $dailyPay,
+                        'base_rate' => $baseRate,
+                        'overtime_rate' => $overtimeRate,
+                        'regular_pay' => $regularPay,
+                        'overtime_pay' => $overtimePay
                     ];
                 }
 
@@ -1079,6 +1090,7 @@ class PayrollController extends Controller
             $leaveDays = $leave->days ?? 1;
             $leaveAmount = round($leaveDays * $dailyRate, 2);
             $leavePay += $leaveAmount;
+            $leavePayHours = $leaveDays * 8;
 
             $leaveEarningsSummary[] = [
                 'type' => $leave->type,
@@ -1089,7 +1101,7 @@ class PayrollController extends Controller
 
         // Add leave pay to earnings if any
         if ($leavePay > 0) {
-            $this->addEarning($earnings, 'Leave Pay', 0, $leavePay);
+            $this->addEarning($earnings, 'Leave Pay', $leavePayHours, $leavePay);
             $gross += $leavePay;
         }
 
@@ -1166,10 +1178,10 @@ class PayrollController extends Controller
             $type = strtoupper((string) $holiday->type);
 
             if ($type === 'REGULAR') {
-                return [2.0, 2.0, 'Holiday Pay Reg', 'Holiday Pay OT'];
+                return [2.0, 2.0, 'Regular Holiday Pay', 'Regular Holiday Pay OT'];
             }
 
-            return [1.3, 1.3, 'Special Rate Pay Reg', 'Special Rate Pay OT'];
+            return [1.3, 1.3, 'Special Holiday Pay', 'Special Holiday Pay OT'];
         }
 
         return [1.0, 1.0, 'Regular Hours', 'Overtime Pay'];
@@ -1188,39 +1200,50 @@ class PayrollController extends Controller
             return 0.0;
         }
 
+        // Handle overnight shifts (e.g., 10 PM to 6 AM)
         if ($workEnd->lessThanOrEqualTo($workStart)) {
             $workEnd->addDay();
         }
 
+        // Create night period (10 PM to 6 AM)
         $nightStart = Carbon::parse($scheduleDate->toDateString() . ' 22:00');
         $nightEnd = Carbon::parse($scheduleDate->toDateString() . ' 06:00')->addDay();
 
-        $start = $workStart->greaterThan($nightStart) ? $workStart : $nightStart;
-        $end = $workEnd->lessThan($nightEnd) ? $workEnd : $nightEnd;
-
-        if ($start->gte($end)) {
-            return 0.0;
+        // Calculate total work duration in minutes
+        $totalWorkMinutes = $workStart->diffInMinutes($workEnd);
+        
+        // If shift is entirely within night hours, return full duration
+        if ($workStart->greaterThanOrEqualTo($nightStart) && $workEnd->lessThanOrEqualTo($nightEnd)) {
+            return round($totalWorkMinutes / 60, 2);
         }
 
-        $minutes = $start->diffInMinutes($end);
+        // Calculate overlap between work hours and night hours
+        $overlapStart = $workStart->copy()->max($nightStart);
+        $overlapEnd = $workEnd->copy()->min($nightEnd);
+        
+        // If there's an overlap, calculate the minutes
+        $nightMinutes = 0;
+        if ($overlapStart->lessThan($overlapEnd)) {
+            $nightMinutes = $overlapStart->diffInMinutes($overlapEnd);
+        }
 
+        // Handle break time if it exists
         if ($attendance->break_out && $attendance->break_in) {
             $breakStart = $this->combineDateWithTime($attendance->break_out, $scheduleDate);
             $breakEnd = $this->combineDateWithTime($attendance->break_in, $scheduleDate);
 
-            if (!$breakStart || !$breakEnd) {
-                return round(max($minutes, 0) / 60, 2);
-            }
-
-            if ($breakEnd->lessThanOrEqualTo($breakStart)) {
-                $breakEnd->addDay();
-            }
-
-            $breakStart = $breakStart->greaterThan($nightStart) ? $breakStart : $nightStart;
-            $breakEnd = $breakEnd->lessThan($nightEnd) ? $breakEnd : $nightEnd;
-
-            if ($breakStart->lt($breakEnd)) {
-                $minutes -= $breakStart->diffInMinutes($breakEnd);
+            if ($breakStart && $breakEnd) {
+                if ($breakEnd->lessThanOrEqualTo($breakStart)) {
+                    $breakEnd->addDay();
+                }
+                
+                // Calculate break overlap with night hours
+                $breakOverlapStart = $breakStart->copy()->max($nightStart);
+                $breakOverlapEnd = $breakEnd->copy()->min($nightEnd);
+                
+                if ($breakOverlapStart->lessThan($breakOverlapEnd)) {
+                    $nightMinutes -= $breakOverlapStart->diffInMinutes($breakOverlapEnd);
+                }
             }
         }
 

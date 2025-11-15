@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { addDays } from 'date-fns';
+import { formatDate as formatMDY } from '../utils/dateUtils';
 import './PayrollAdjustmentModal.css';
 import ReportPreviewModal from './ReportPreviewModal';
 import useReportGenerator from '../hooks/useReportGenerator';
@@ -11,8 +12,10 @@ const defaultEarnings = [
     { description: 'Regular Hours', hours: 0, amount: 0, isDefault: true },
     { description: 'Overtime Pay', hours: 0, amount: 0, isDefault: true },
     { description: 'Night Differential', hours: 0, amount: 0, isDefault: true },
-    { description: 'Holiday Pay Reg', hours: 0, amount: 0, isDefault: true },
-    { description: 'Holiday Pay OT', hours: 0, amount: 0, isDefault: true },
+    { description: 'Regular Holiday Pay', hours: 0, amount: 0, isDefault: true },
+    { description: 'Regular Holiday Pay OT', hours: 0, amount: 0, isDefault: true },
+    { description: 'Special Holiday Pay', hours: 0, amount: 0, isDefault: true },
+    { description: 'Special Holiday Pay OT', hours: 0, amount: 0, isDefault: true },
     { description: 'Allowance', hours: '--', amount: 0, isDefault: true },
     { description: 'Leave Pay', hours: '--', amount: 0, isDefault: true },
     { description: 'Pay Adjustment', hours: '--', amount: 0, isDefault: true },
@@ -102,12 +105,32 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
         setOtherDeductions(payrollData.otherDeductions || []);
 
         const defaultEarningsCopy = JSON.parse(JSON.stringify(defaultEarnings));
+        const normalizedMap = {
+            'night differential pay': 'Night Differential',
+            'special rate pay reg': 'Special Holiday Pay Reg',
+            'special rate pay ot': 'Special Holiday Pay OT',
+        };
+
         const combinedEarnings = defaultEarningsCopy.map(defaultItem => {
-            const foundEarning = (payrollData.earnings || []).find(pde => defaultItem.description.toLowerCase().includes(pde.description.toLowerCase().replace(' pay', '')));
-            return foundEarning ? { ...defaultItem, ...foundEarning, description: defaultItem.description } : { ...defaultItem };
+            const normalizedDefault = defaultItem.description.toLowerCase();
+            const match = (payrollData.earnings || []).find(pde => {
+                const normalizedDescription = pde.description.toLowerCase();
+                const mapped = normalizedMap[normalizedDescription] || pde.description;
+                return mapped.toLowerCase() === defaultItem.description.toLowerCase();
+            });
+
+            if (match) {
+                return { ...defaultItem, ...match, description: defaultItem.description };
+            }
+
+            return { ...defaultItem };
         });
+
         (payrollData.earnings || []).forEach(earning => {
-            if (!defaultEarningsCopy.some(de => de.description.toLowerCase().includes(earning.description.toLowerCase().replace(' pay', '')))) {
+            const normalizedDescription = earning.description.toLowerCase();
+            const mapped = (normalizedMap[normalizedDescription] || earning.description).toLowerCase();
+            const hasDefault = defaultEarningsCopy.some(de => de.description.toLowerCase() === mapped);
+            if (!hasDefault) {
                 combinedEarnings.push({ ...earning, isNew: true });
             }
         });
@@ -513,7 +536,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
                           <option value="Unexcused">Unexcused</option><option value="Excused">Excused</option>
                         </select>
                       </td>
-                      <td>{new Date(item.startDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
+                      <td>{formatMDY(new Date(item.startDate + 'T00:00:00'), 'long')}</td>
                   </tr>
                   ))}
               </tbody>

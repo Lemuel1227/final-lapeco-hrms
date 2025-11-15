@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate as formatMDY } from '../../utils/dateUtils';
 import StatDonutChart from '../../common/StatDonutChart';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
@@ -38,6 +39,7 @@ const ByEmployeeAttendanceView = ({
                 className="form-control"
                 value={employeeDateFilter.start}
                 onChange={(e) => setEmployeeDateFilter(prev => ({ ...prev, start: e.target.value }))}
+                placeholder="mm-dd-yyyy"
               />
             </div>
             <div className="filter-group">
@@ -49,6 +51,7 @@ const ByEmployeeAttendanceView = ({
                 value={employeeDateFilter.end}
                 onChange={(e) => setEmployeeDateFilter(prev => ({ ...prev, end: e.target.value }))}
                 min={employeeDateFilter.start}
+                placeholder="mm-dd-yyyy"
               />
             </div>
             <button 
@@ -112,7 +115,7 @@ const ByEmployeeAttendanceView = ({
                           dateStr = dateStr.split('T')[0];
                         }
                         const date = new Date(dateStr);
-                        return isNaN(date.getTime()) ? rec.date : date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                        return isNaN(date.getTime()) ? rec.date : formatMDY(date, 'long');
                       } catch (error) {
                         return rec.date;
                       }

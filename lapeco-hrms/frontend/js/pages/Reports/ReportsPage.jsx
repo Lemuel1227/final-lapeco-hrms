@@ -39,7 +39,8 @@ const ReportsPage = (props) => {
       case 'completed':
         return 'Completed';
       case 'dropped':
-        return 'Dropped';
+        // No dropped status; map to a safe alternative
+        return 'Not Started';
       default:
         return status || 'Not Started';
     }
@@ -290,10 +291,10 @@ const ReportsPage = (props) => {
 
   // Gate masterlist generation until employees and positions are ready, so first click always works
   const masterlistReady = useMemo(() => {
-    const hasEmployees = (employees && employees.length) || (allEmployees && allEmployees.length);
-    const hasPositions = positions && positions.length;
+    const hasEmployees = Boolean(employees && employees.length); // Only active employees
+    const hasPositions = Boolean(positions && positions.length);
     return Boolean(hasEmployees && hasPositions && !isInitialLoading);
-  }, [employees, allEmployees, positions, isInitialLoading]);
+  }, [employees, positions, isInitialLoading]);
 
   const handleOpenConfig = (reportConfig) => {
     if (reportConfig.parameters) {
@@ -347,14 +348,14 @@ const ReportsPage = (props) => {
 
     // Ensure employees and positions are loaded before generating employee-related reports
     if (reportId === 'employee_masterlist') {
-      const sourceEmployees = employees.length ? employees : allEmployees;
+      const sourceEmployees = employees; // Use active employees only
       const sourcePositions = positions;
 
-      if (sourceEmployees.length === 0) {
-        alert('No employee data available to generate this report.');
+      if (!sourceEmployees.length) {
+        alert('Active employee data is not ready yet. Please wait a moment and try again.');
         return;
       }
-      if (sourcePositions.length === 0) {
+      if (!sourcePositions.length) {
         alert('No position data available to generate this report.');
         return;
       }
@@ -369,9 +370,12 @@ const ReportsPage = (props) => {
     }
 
     // Use allEmployees for offboarding report, otherwise use employees with fallback
-    const employeesForReport = reportId === 'offboarding_summary'
-      ? allEmployees
-      : (employees.length ? employees : allEmployees);
+    const employeesForReport =
+      reportId === 'offboarding_summary'
+        ? allEmployees
+        : reportId === 'employee_masterlist'
+          ? employees // strictly active employees
+          : (employees.length ? employees : allEmployees);
     
     const { payrolls = [] } = props;
 

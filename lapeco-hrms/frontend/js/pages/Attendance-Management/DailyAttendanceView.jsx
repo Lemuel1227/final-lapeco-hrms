@@ -20,14 +20,15 @@ const DailyAttendanceView = ({
       <div className="daily-view-header-bar">
         <div className="date-picker-group">
           <div>
-            <label htmlFor="daily-date-picker" className="date-label">VIEWING DATE</label>
-            <input 
-              id="daily-date-picker" 
-              type="date" 
-              className="form-control" 
-              value={currentDate} 
-              onChange={(e) => setCurrentDate(e.target.value)} 
-            />
+          <label htmlFor="daily-date-picker" className="date-label">VIEWING DATE</label>
+          <input 
+            id="daily-date-picker" 
+            type="date" 
+            className="form-control" 
+            value={currentDate} 
+            onChange={(e) => setCurrentDate(e.target.value)} 
+            placeholder="mm-dd-yyyy"
+          />
           </div>
         </div>
         <div className="stat-cards-group">

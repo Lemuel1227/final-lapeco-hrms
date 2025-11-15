@@ -180,15 +180,19 @@ const MyLeavePage = () => {
       if (err.response?.data) {
         const errorData = err.response.data;
         
-        if (errorData.message) {
-          // Use backend error message
-          errorMessage = errorData.message;
-        } else if (errorData.errors) {
-          // Handle validation errors
+        if (errorData.errors) {
+          // Prefer detailed validation errors when available
           const validationErrors = Object.values(errorData.errors).flat();
-          errorMessage = validationErrors.length > 0 
-            ? validationErrors.join('\n') 
-            : 'Please check your input and try again.';
+          if (validationErrors.length > 0) {
+            errorMessage = validationErrors.join('\n');
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else {
+            errorMessage = 'Please check your input and try again.';
+          }
+        } else if (errorData.message) {
+          // Use backend error message when no detailed errors exist
+          errorMessage = errorData.message;
         }
       } else if (err.message) {
         // Network or other errors

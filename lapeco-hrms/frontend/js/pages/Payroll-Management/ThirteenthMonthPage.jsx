@@ -27,6 +27,7 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
     // Detailed records per payroll period (populated for selected year)
     const [runRecordsByPeriod, setRunRecordsByPeriod] = useState({});
     const [isFetchingYearDetails, setIsFetchingYearDetails] = useState(false);
+    const [isFetchingBaseData, setIsFetchingBaseData] = useState(false);
 
     useEffect(() => {
         // If no employees or payrolls passed in, fetch them
@@ -36,6 +37,7 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
 
         const fetchData = async () => {
             try {
+                setIsFetchingBaseData(true);
                 const promises = [];
                 if (needsEmployees) promises.push(employeeAPI.getAll());
                 if (needsPayrolls) promises.push(payrollAPI.getAll());
@@ -64,6 +66,8 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
             } catch (err) {
                 // If fetch fails, keep existing state (may be empty)
                 console.error('Failed to load employees/payrolls for 13th month page:', err);
+            } finally {
+                setIsFetchingBaseData(false);
             }
         };
         fetchData();
@@ -305,6 +309,8 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
         setPdfDataUri('');
     };
 
+    const isCalculating = isFetchingBaseData || isFetchingYearDetails;
+
     return (
         <div className="thirteenth-month-container">
             <div className="thirteenth-month-summary-grid">
@@ -329,28 +335,35 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
                                 placeholder="Search employees..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
+                                disabled={isCalculating}
                             />
                         </div>
                         <div className="year-selector-group">
                              <label htmlFor="year-select" className="form-label">Year:</label>
-                             <select id="year-select" className="form-select form-select-sm" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+                             <select id="year-select" className="form-select form-select-sm" value={year} onChange={(e) => setYear(Number(e.target.value))} disabled={isCalculating}>
                                 {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
                     </div>
                     <div className="controls-right d-flex gap-2">
-                        <button className="btn btn-sm btn-success" onClick={() => setShowConfirmMarkAll(true)} disabled={filteredAndSortedDetails.length === 0}>
+                        <button className="btn btn-sm btn-success" onClick={() => setShowConfirmMarkAll(true)} disabled={isCalculating || filteredAndSortedDetails.length === 0}>
                             <i className="bi bi-check2-all me-2"></i>Mark All as Paid
                         </button>
-                        <button className="btn btn-sm btn-outline-secondary" onClick={handleExport} disabled={filteredAndSortedDetails.length === 0}>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={handleExport} disabled={isCalculating || filteredAndSortedDetails.length === 0}>
                             <i className="bi bi-download me-2"></i>Export Excel
                         </button>
-                        <button className="btn btn-sm btn-outline-secondary" onClick={handleGenerateReport} disabled={isLoading || filteredAndSortedDetails.length === 0}>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={handleGenerateReport} disabled={isCalculating || isLoading || filteredAndSortedDetails.length === 0}>
                             <i className="bi bi-file-earmark-text-fill me-2"></i>Generate Report
                         </button>
                     </div>
                 </div>
-                <div className="table-responsive">
+                <div className="table-responsive position-relative" style={{ minHeight: '220px' }}>
+                    {isCalculating && (
+                        <div className="d-flex flex-column align-items-center justify-content-center position-absolute top-0 start-0 w-100 h-100" style={{ background: 'rgba(0,0,0,0.03)' }}>
+                            <div className="spinner-border text-success" role="status"></div>
+                            <div className="mt-3 text-muted fw-medium">Calculating 13th month pay</div>
+                        </div>
+                    )}
                     <table className="table data-table mb-0 align-middle">
                         <thead>
                             <tr>
@@ -383,13 +396,14 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
                                             value={status}
                                             onChange={(e) => handleStatusChange(item.id, e.target.value)}
                                             style={{ minWidth: '120px' }}
+                                            disabled={isCalculating}
                                         >
                                             <option value="Pending">Pending</option>
                                             <option value="Paid">Paid</option>
                                         </select>
                                     </td>
                                 </tr>
-                            )}) : (
+                            )}) : (!isCalculating ? (
                                 <tr>
                                     <td colSpan="5">
                                         <div className="text-center p-5">
@@ -400,7 +414,7 @@ const ThirteenthMonthPage = ({ employees = [], payrolls = [] }) => {
                                         </div>
                                     </td>
                                 </tr>
-                            )}
+                            ) : null)}
                         </tbody>
                     </table>
                 </div>

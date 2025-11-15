@@ -22,7 +22,7 @@ const EnrollEmployeeModal = ({ show, onClose, onEnroll, program, allEmployees, e
     if (isNominationMode) return [];
     
     // Filter out enrolled employees and apply search
-    return allEmployees
+    const base = allEmployees
       .filter(emp => !enrolledIdSet.has(String(emp.id)))
       .filter(emp => {
         if (!searchTerm) return true;
@@ -33,7 +33,20 @@ const EnrollEmployeeModal = ({ show, onClose, onEnroll, program, allEmployees, e
           emp.email?.toLowerCase().includes(searchLower)
         );
       });
-  }, [allEmployees, enrolledIdSet, isNominationMode, searchTerm]);
+
+    // Apply position restriction if program defines allowed positions
+    const allowed = Array.isArray(program?.positions_allowed)
+      ? program.positions_allowed
+      : (typeof program?.positions_allowed === 'string' ? JSON.parse(program.positions_allowed || '[]') : []);
+    if (allowed && allowed.length > 0) {
+      const allowedSet = new Set(allowed.map(id => String(id)));
+      return base.filter(emp => {
+        const pid = emp.positionId ?? emp.position_id ?? emp.positionID;
+        return pid != null && allowedSet.has(String(pid));
+      });
+    }
+    return base;
+  }, [allEmployees, enrolledIdSet, isNominationMode, searchTerm, program]);
 
   useEffect(() => {
     if (!show) {

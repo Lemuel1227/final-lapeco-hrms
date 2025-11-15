@@ -2,11 +2,26 @@ export const generateEmployeeMasterlistReport = async (layoutManager, dataSource
   const { employees = [], positions = [] } = dataSources;
   
   // --- 1. DATA PREPARATION ---
+  const normalizeStatus = (status = '') => status ? status.toString().trim().toLowerCase() : '';
+  const filteredEmployees = (employees || []).filter(emp => {
+    const s = normalizeStatus(emp.status ?? emp.account_status ?? emp.employment_status);
+    const hasEmail = !!(emp.email && String(emp.email).trim());
+    const hasJoiningDate = !!(emp.joiningDate);
+    return (
+      s !== 'terminated' &&
+      s !== 'resigned' &&
+      s !== 'deactivated' &&
+      s !== 'inactive' &&
+      hasEmail &&
+      hasJoiningDate
+    );
+  });
+
   const positionMap = new Map(positions.map(p => [p.id, p.title]));
   
   const counts = positions.reduce((acc, pos) => ({ ...acc, [pos.title]: 0 }), {});
-  employees.forEach(emp => {
-      const positionTitle = positionMap.get(emp.positionId);
+  filteredEmployees.forEach(emp => {
+      const positionTitle = positionMap.get(emp.positionId ?? emp.position_id);
       if (positionTitle && counts.hasOwnProperty(positionTitle)) counts[positionTitle]++;
   });
 
@@ -31,14 +46,14 @@ export const generateEmployeeMasterlistReport = async (layoutManager, dataSource
   };
   
   // --- 3. SUMMARY TEXT ---
-  const summaryText = `This report provides a complete list of all ${employees.length} active employees in the organization. The data indicates that '${mostPopulousPosition[0]}' is currently the position with the most employees, having ${mostPopulousPosition[1]} individuals.`;
+  const summaryText = `This report provides a complete list of all ${filteredEmployees.length} active employees in the organization. The data indicates that '${mostPopulousPosition[0]}' is currently the position with the most employees, having ${mostPopulousPosition[1]} individuals.`;
   
   // --- 4. TABLE DATA ---
   const tableHead = ['ID', 'Name', 'Position', 'Email', 'Joining Date'];
-  const tableBody = employees.map(emp => [
+  const tableBody = filteredEmployees.map(emp => [
     emp.id,
     emp.name,
-    positionMap.get(emp.positionId) || 'Unassigned',
+    positionMap.get(emp.positionId ?? emp.position_id) || emp.position || 'Unassigned',
     emp.email,
     emp.joiningDate
   ]);
@@ -68,7 +83,7 @@ export const generateEmployeeMasterlistReport = async (layoutManager, dataSource
   
   // Center text vertically: y position = box top + (box height / 2) + (font size / 2) - 1
   const textY = layoutManager.y + (boxHeight / 2) + (11 / 2) - 1;
-  doc.text(`Total Employees: ${employees.length}`, margin + textPadding, textY);
+  doc.text(`Total Employees: ${filteredEmployees.length}`, margin + textPadding, textY);
   
   doc.setTextColor(0, 0, 0); // Reset to black
   doc.setFont('helvetica', 'normal');

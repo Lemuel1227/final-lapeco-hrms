@@ -9,17 +9,21 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const numValue = Number(value);
     setCreditsToAdd(prev => ({
       ...prev,
-      [name]: numValue < 0 ? 0 : numValue,
+      [name]: value === '' ? '' : Math.max(0, Number(value)),
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!isSubmitting) {
-      onConfirm(creditsToAdd);
+      const payload = {
+        vacation: Number(creditsToAdd.vacation || 0),
+        sick: Number(creditsToAdd.sick || 0),
+        emergency: Number(creditsToAdd.emergency || 0),
+      };
+      onConfirm(payload);
     }
   };
 

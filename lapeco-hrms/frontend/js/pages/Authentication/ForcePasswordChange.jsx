@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { authAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
@@ -18,6 +18,37 @@ const ForcePasswordChange = () => {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+
+  useEffect(() => {
+    const verifyAccess = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      try {
+        const response = await authAPI.getUser();
+        const userData = response.data;
+
+        if (!userData || userData.password_changed) {
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+
+        // Keep local profile data in sync
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (err) {
+        navigate('/login', { replace: true });
+        return;
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+
+    verifyAccess();
+  }, [navigate]);
 
   // Function to handle going back to login
   const handleBackToLogin = () => {
@@ -121,6 +152,19 @@ const ForcePasswordChange = () => {
       setIsLoading(false);
     }
   };
+
+  if (isCheckingAccess) {
+    return (
+      <div className="vh-100 d-flex flex-column justify-content-center align-items-center bg-container login-page-wrapper">
+        <div className="text-center text-light">
+          <div className="spinner-border text-light mb-3" role="status">
+            <span className="visually-hidden">Checking access…</span>
+          </div>
+          <p className="mb-0">Preparing secure password change flow...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="vh-100 d-flex flex-column justify-content-center align-items-center bg-container login-page-wrapper">
