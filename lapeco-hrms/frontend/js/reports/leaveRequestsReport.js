@@ -1,3 +1,5 @@
+import { formatDate } from '../utils/dateUtils';
+
 export const generateLeaveRequestsReport = async (layoutManager, dataSources, params) => {
   const { leaveRequests } = dataSources;
   const { startDate, endDate } = params;
@@ -41,7 +43,7 @@ export const generateLeaveRequestsReport = async (layoutManager, dataSources, pa
   const tableHead = ["ID", "Name", "Position", "Leave Type", "Date Range", "Days", "Status"];
   const tableBody = filteredRequests.map(req => [
     req.empId, req.name, req.position, req.leaveType,
-    `${req.dateFrom} to ${req.dateTo}`, req.days, req.status
+    `${formatDate(new Date(req.dateFrom), 'short')} - ${formatDate(new Date(req.dateTo), 'short')}`, req.days, req.status
   ]);
 
   // --- 5. PDF ASSEMBLY ---
