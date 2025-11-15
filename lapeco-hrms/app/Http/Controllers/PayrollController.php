@@ -599,23 +599,34 @@ class PayrollController extends Controller
                     $scheduleDate = $schedule->date instanceof Carbon ? $schedule->date->copy() : Carbon::parse($schedule->date);
                     $scheduledHours = $this->calculateScheduledHours($assignment->start_time, $assignment->end_time);
                     $attendance = $assignment->attendance;
+                    $status = $this->determineAttendanceStatus($attendance, $scheduleDate);
                     $attendedHours = $this->calculateAttendanceHours($attendance);
                     $overtimeHours = $this->calculateOvertimeHours($assignment->ot_hours, $attendedHours, $scheduledHours);
                     $regularHours = min($attendedHours, $scheduledHours);
 
-                    $regularPay = $baseRate * $regularHours;
-                    $overtimePay = $overtimeRate * $overtimeHours;
-                    $dailyPay = round($regularPay + $overtimePay, 2);
+                    $dailyPay = 0;
+                    $regularPay = 0;
+                    $overtimePay = 0;
 
-                    $gross += $dailyPay;
+                    // Only calculate pay for Present or Late statuses
+                    if (in_array($status, ['Present', 'Late'])) {
+                        $regularPay = $baseRate * $regularHours;
+                        $overtimePay = $overtimeRate * $overtimeHours;
+                        $dailyPay = round($regularPay + $overtimePay, 2);
+                        $gross += $dailyPay;
+                    }
 
                     $breakdown[] = [
                         'date' => $scheduleDate->toDateString(),
-                        'status' => $this->determineAttendanceStatus($attendance, $scheduleDate),
+                        'status' => $status,
                         'scheduled_hours' => max((int) floor($scheduledHours), 0),
                         'attended_hours' => max((int) floor($attendedHours), 0),
                         'overtime_hours' => max((int) floor($overtimeHours), 0),
                         'pay' => $dailyPay,
+                        'base_rate' => $baseRate,
+                        'overtime_rate' => $overtimeRate,
+                        'regular_pay' => $regularPay,
+                        'overtime_pay' => $overtimePay
                     ];
                 }
 
