@@ -54,14 +54,16 @@ const EditMaternityDetailsModal = ({ show, onClose, onSave, request }) => {
         type: formData.maternityType,
         isSoloParent: formData.isSoloParent,
         actualDeliveryDate: formData.actualDeliveryDate,
-        allocationDays: formData.maternityType === 'miscarriage' ? 0 : formData.allocationDays,
+        allocationDays: formData.maternityType === 'miscarriage' ? 0 : Number(formData.allocationDays || 0),
     };
     onSave(request.leaveId, updatedDetails, calculatedDays, calculatedEndDate);
     onClose();
   };
   
   const handleAllocationChange = (e) => {
-      let value = parseInt(e.target.value, 10) || 0;
+      const raw = e.target.value;
+      if (raw === '') { setFormData({...formData, allocationDays: ''}); return; }
+      let value = parseInt(raw, 10) || 0;
       if (value < 0) value = 0;
       if (value > 7) value = 7;
       setFormData({...formData, allocationDays: value});

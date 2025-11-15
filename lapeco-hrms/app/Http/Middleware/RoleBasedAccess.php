@@ -145,6 +145,21 @@ class RoleBasedAccess
                 return true;
             
             case 'update':
+                if (in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                    return true;
+                }
+
+                if ($role === 'REGULAR_EMPLOYEE') {
+                    $targetLeave = $request->route('leave');
+                    $newStatus = $request->input('status');
+
+                    if ($targetLeave && $targetLeave->user_id === $user->id && $newStatus === 'Canceled') {
+                        return true;
+                    }
+                }
+
+                return false;
+
             case 'approve':
                 // HR can approve all, Team Leaders can approve team leaves
                 return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER']);

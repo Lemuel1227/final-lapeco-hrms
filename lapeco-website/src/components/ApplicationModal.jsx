@@ -54,14 +54,24 @@ function ApplicationModal({ show, onHide }) {
   }, []);
 
   useEffect(() => {
+    if (!show) {
+      return undefined;
+    }
+
     loadPositions();
+
     return () => {
       abortControllerRef.current?.abort();
+    };
+  }, [show, loadPositions]);
+
+  useEffect(() => {
+    return () => {
       if (photoPreview) {
         URL.revokeObjectURL(photoPreview);
       }
     };
-  }, [loadPositions, photoPreview]);
+  }, [photoPreview]);
 
   const [errors, setErrors] = useState({});
 

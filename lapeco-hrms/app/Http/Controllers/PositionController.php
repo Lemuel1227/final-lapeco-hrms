@@ -15,7 +15,9 @@ class PositionController extends Controller
     {
         // Enhanced version for authenticated users (web interface)
         $positions = Position::all()->map(function ($pos) {
-            $employeeCount = \App\Models\User::where('position_id', $pos->id)->count();
+            $employeeCount = \App\Models\User::where('position_id', $pos->id)
+                ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                ->count();
             return [
                 'id' => $pos->id,
                 'title' => $pos->name,
@@ -99,6 +101,7 @@ class PositionController extends Controller
     public function employees($id)
     {
         $employees = User::where('position_id', $id)
+            ->whereNotIn('employment_status', ['terminated', 'resigned'])
             ->get()
             ->map(function ($user) {
                 return [

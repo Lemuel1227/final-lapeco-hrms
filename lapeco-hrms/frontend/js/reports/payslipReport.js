@@ -1,5 +1,6 @@
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+import { formatDate as formatMDY } from '../utils/dateUtils';
 import logo from '../assets/logo.png';
 
 // --- HELPERS & CONFIG ---
@@ -17,7 +18,7 @@ const COLOR_BRAND = [25, 135, 84];
 const COLOR_WHITE = [255, 255, 255];
 
 const formatCurrency = (val) => (val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const formatDateString = (dateStr) => dateStr ? format(new Date(dateStr + 'T00:00:00'), 'MMMM dd, yyyy') : 'N/A';
+const formatDateString = (dateStr) => dateStr ? formatMDY(new Date(dateStr + 'T00:00:00'), 'long') : 'N/A';
 
 const addFooterAndConcernSlip = (doc, y, pageWidth, employeeDetails, payrollId) => {
     doc.setFont(FONT_REGULAR, 'bold'); doc.setFontSize(8); doc.setTextColor(COLOR_SECONDARY);
@@ -117,7 +118,7 @@ export const generatePayslipReport = async (layoutManager, dataSources) => {
     doc.setFont(FONT_REGULAR, 'normal');
     doc.setFontSize(8);
     doc.setTextColor(COLOR_SECONDARY);
-    doc.text(`Generated on: ${format(new Date(), 'MMMM dd, yyyy, hh:mm a')}`, pageWidth / 2, 82, { align: 'center' });
+    doc.text(`Generated on: ${formatMDY(new Date(), 'long')}, ${format(new Date(), 'hh:mm a')}`, pageWidth / 2, 82, { align: 'center' });
     y = 95;
   };
 

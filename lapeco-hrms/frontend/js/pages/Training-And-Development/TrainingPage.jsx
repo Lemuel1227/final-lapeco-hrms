@@ -49,6 +49,28 @@ const TrainingPage = () => {
     fetchData();
   }, []);
 
+  // Normalize enrollment status values to consistent labels
+  const normalizeTrainingStatus = (status = '') => {
+    const s = status?.toString().trim().toLowerCase();
+    switch (s) {
+      case 'completed':
+        return 'Completed';
+      case 'in progress':
+      case 'in_progress':
+        return 'In Progress';
+      case 'not started':
+      case 'not_started':
+      case 'pending':
+        return 'Not Started';
+      case 'dropped':
+      case 'cancelled':
+        // No dropped/cancelled status in new rules; treat as Not Started
+        return 'Not Started';
+      default:
+        return status || 'Not Started';
+    }
+  };
+
   const programStats = useMemo(() => {
     const activeProgramIds = new Set(enrollments.filter(e => e.status === 'enrolled' || e.status === 'in_progress').map(e => e.program_id));
     return {
@@ -62,8 +84,12 @@ const TrainingPage = () => {
     return trainingPrograms.map(prog => {
       const relevantEnrollments = enrollments.filter(e => e.program_id === prog.id);
       const enrolledCount = relevantEnrollments.length;
-      const completedCount = relevantEnrollments.filter(e => e.status === 'completed').length;
-      const completionRate = enrolledCount > 0 ? (completedCount / enrolledCount) * 100 : 0;
+      const completedCount = relevantEnrollments
+        .map(e => normalizeTrainingStatus(e.status))
+        .filter(s => s === 'Completed').length;
+      const completionRate = prog.status === 'Completed'
+        ? 100
+        : (enrolledCount > 0 ? (completedCount / enrolledCount) * 100 : 0);
       return { ...prog, enrolledCount, completionRate };
     });
   }, [trainingPrograms, enrollments]);
@@ -244,7 +270,6 @@ const TrainingPage = () => {
             <thead>
               <tr>
                 <th>Program Title</th>
-                <th>Provider</th>
                 <th>Status</th>
                 <th>Enrolled</th>
                 <th style={{ width: '20%' }}>Completion</th>
@@ -255,7 +280,6 @@ const TrainingPage = () => {
               {filteredPrograms.map(prog => (
                 <tr key={prog.id}>
                   <td>{prog.title}</td>
-                  <td>{prog.provider}</td>
                   <td>
                     <span className={`badge ${prog.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>
                       {prog.status || 'N/A'}
@@ -291,7 +315,7 @@ const TrainingPage = () => {
                   </td>
                 </tr>
               ))}
-              {filteredPrograms.length === 0 && (<tr><td colSpan="7" className="text-center p-5">No training programs found.</td></tr>)}
+              {filteredPrograms.length === 0 && (<tr><td colSpan="6" className="text-center p-5">No training programs found.</td></tr>)}
             </tbody>
           </table>
         </div>

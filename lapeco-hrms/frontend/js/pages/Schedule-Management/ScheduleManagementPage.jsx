@@ -346,8 +346,24 @@ const ScheduleManagementPage = (props) => {
     if (positionFilter) {
       employeesToProcess = employeesToProcess.filter(emp => emp.position_name === positionFilter);
     }
+    
+    // Apply sorting
     if (dailySortConfig.key) {
       employeesToProcess.sort((a, b) => {
+        // Handle null or undefined values
+        if (a[dailySortConfig.key] == null) return 1;
+        if (b[dailySortConfig.key] == null) return -1;
+        
+        // Special handling for time fields
+        if (['start_time', 'end_time', 'break_start', 'break_end'].includes(dailySortConfig.key)) {
+          const timeA = a[dailySortConfig.key] || '';
+          const timeB = b[dailySortConfig.key] || '';
+          return dailySortConfig.direction === 'ascending' 
+            ? timeA.localeCompare(timeB)
+            : timeB.localeCompare(timeA);
+        }
+        
+        // Default string comparison for other fields
         const valA = String(a[dailySortConfig.key] || '').toLowerCase();
         const valB = String(b[dailySortConfig.key] || '').toLowerCase();
         if (valA < valB) return dailySortConfig.direction === 'ascending' ? -1 : 1;
@@ -927,6 +943,8 @@ const ScheduleManagementPage = (props) => {
             sortedAndFilteredDailyEmployees={sortedAndFilteredDailyEmployees}
             dailyViewColumns={dailyViewColumns}
             formatTimeToAMPM={formatTimeToAMPM}
+            sortConfig={dailySortConfig}
+            onSortChange={setDailySortConfig}
             onEditSchedule={handleOpenEditScheduleModal}
             positionFilter={positionFilter}
             isLoading={dailyScheduleLoading}

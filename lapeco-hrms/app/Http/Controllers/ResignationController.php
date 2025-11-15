@@ -113,17 +113,16 @@ class ResignationController extends Controller
         // Update employee status if resignation is approved or withdrawn
         if (isset($validated['status']) && $resignation->employee) {
             if ($validated['status'] === 'approved') {
-                // Mark as resigned but keep account active until effective date
                 $resignation->employee->update([
                     'employment_status' => 'resigned',
                 ]);
 
-                // If effective date is today or in the past, deactivate now
                 if ($resignation->effective_date) {
                     $effective = \Carbon\Carbon::parse($resignation->effective_date);
                     if ($effective->lte(\Carbon\Carbon::today())) {
                         $resignation->employee->update([
-                            'account_status' => 'Deactivated'
+                            'account_status' => 'Deactivated',
+                            'position_id' => null,
                         ]);
                     }
                 }
@@ -235,17 +234,16 @@ class ResignationController extends Controller
             $updateData['approved_by'] = Auth::id();
             $updateData['approved_at'] = now();
             
-            // Mark as resigned but keep account active until effective date
             $resignation->employee->update([
                 'employment_status' => 'resigned',
             ]);
 
-            // If effective date is today or in the past, deactivate now
             if ($resignation->effective_date) {
                 $effective = \Carbon\Carbon::parse($resignation->effective_date);
                 if ($effective->lte(\Carbon\Carbon::today())) {
                     $resignation->employee->update([
-                        'account_status' => 'Deactivated'
+                        'account_status' => 'Deactivated',
+                        'position_id' => null,
                     ]);
                 }
             }

@@ -335,17 +335,46 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
     e.preventDefault();
     if (!validateForm() || isSubmitting) return;
     setIsSubmitting(true);
-    const dataToSave = { ...formData };
+    const normalizeOptionalField = (value) => {
+      if (value === undefined || value === null) return null;
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed === '' ? null : trimmed;
+      }
+      return value;
+    };
+
+    const contactNumberValue = formData.contactNumber?.trim() || '';
+    const formattedSssNo = formatSssNumber(formData.sssNo);
+    const formattedTinNo = formatTinNumber(formData.tinNo);
+    const formattedPagIbigNo = formatPagIbigNumber(formData.pagIbigNo);
+    const formattedPhilhealthNo = formatPhilhealthNumber(formData.philhealthNo);
+    const normalizedPositionId = formData.positionId ? Number(formData.positionId) : null;
+
+    const dataToSave = { ...formData, contactNumber: contactNumberValue };
     delete dataToSave.imagePreviewUrl;
     dataToSave.name = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(' ').trim();
     dataToSave.first_name = formData.firstName;
     dataToSave.middle_name = formData.middleName || null;
     dataToSave.last_name = formData.lastName;
+    dataToSave.contact_number = contactNumberValue;
 
-    dataToSave.sssNo = formatSssNumber(formData.sssNo);
-    dataToSave.tinNo = formatTinNumber(formData.tinNo);
-    dataToSave.pagIbigNo = formatPagIbigNumber(formData.pagIbigNo);
-    dataToSave.philhealthNo = formatPhilhealthNumber(formData.philhealthNo);
+    dataToSave.sssNo = formattedSssNo;
+    dataToSave.sss_no = normalizeOptionalField(formattedSssNo);
+    dataToSave.tinNo = formattedTinNo;
+    dataToSave.tin_no = normalizeOptionalField(formattedTinNo);
+    dataToSave.pagIbigNo = formattedPagIbigNo;
+    dataToSave.pag_ibig_no = normalizeOptionalField(formattedPagIbigNo);
+    dataToSave.philhealthNo = formattedPhilhealthNo;
+    dataToSave.philhealth_no = normalizeOptionalField(formattedPhilhealthNo);
+
+    dataToSave.position_id = normalizedPositionId;
+    if (formData.joiningDate) {
+      dataToSave.joining_date = formData.joiningDate;
+    }
+    if (formData.status) {
+      dataToSave.account_status = formData.status;
+    }
 
     if (!formData.middleName) {
       delete dataToSave.middleName;

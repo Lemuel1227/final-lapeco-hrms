@@ -23,13 +23,18 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
     const { name, value } = e.target;
     setCredits(prev => ({
       ...prev,
-      [name]: Number(value) < 0 ? 0 : Number(value)
+      [name]: value === '' ? '' : Math.max(0, Number(value))
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(employeeData.id, credits);
+    const payload = {
+      sick: Number(credits.sick || 0),
+      vacation: Number(credits.vacation || 0),
+      emergency: Number(credits.emergency || 0),
+    };
+    onSave(employeeData.id, payload);
   };
 
   if (!show) return null;

@@ -271,7 +271,7 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
             type: formData.maternityType, 
             isSoloParent: formData.isSoloParent && canClaimSoloParent, 
             deliveryDate: formData.deliveryDate, 
-            allocationDays: formData.willAllocate ? formData.allocationDays : 0, 
+            allocationDays: formData.willAllocate ? Number(formData.allocationDays || 0) : 0, 
             medicalDocumentName: formData.medicalDocument?.name || editingRequest?.maternityDetails?.medicalDocumentName || null, 
             soloParentDocumentName: formData.soloParentDocument?.name || editingRequest?.maternityDetails?.soloParentDocumentName || null 
           };
@@ -601,7 +601,7 @@ const attachmentHint = useMemo(() => {
                           {formData.willAllocate && (
                             <div className="mt-2 ps-4">
                               <label htmlFor="allocationDays" className="form-label">Days to Allocate (Max 7)</label>
-                              <input type="number" className={`form-control ${errors.allocationDays ? 'is-invalid' : ''}`} id="allocationDays" min="0" max="7" value={formData.allocationDays} onChange={(e) => setFormData({...formData, allocationDays: parseInt(e.target.value, 10) || 0})} />
+                              <input type="number" className={`form-control ${errors.allocationDays ? 'is-invalid' : ''}`} id="allocationDays" min="0" max="7" value={formData.allocationDays} onChange={(e) => setFormData({...formData, allocationDays: e.target.value === '' ? '' : Math.max(0, Math.min(7, parseInt(e.target.value, 10) || 0))})} />
                               {errors.allocationDays && <div className="invalid-feedback">{errors.allocationDays}</div>}
                             </div>
                           )}

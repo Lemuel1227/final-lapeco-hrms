@@ -19,13 +19,15 @@ class TrainingProgram extends Model
         'location',
         'type',
         'max_participants',
-        'requirements'
+        'requirements',
+        'positions_allowed'
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
-        'cost' => 'decimal:2'
+        'cost' => 'decimal:2',
+        'positions_allowed' => 'array'
     ];
 
     /**

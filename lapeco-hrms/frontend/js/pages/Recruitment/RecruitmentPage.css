@@ -143,17 +143,13 @@
 .kanban-header-new-applicant { background-color: #0d6efd; }
 .kanban-header-screening { background-color: #6c757d; }
 .kanban-header-interview { background-color: var(--info-color); }
-.kanban-header-offer { background-color: var(--warning-color); }
 .kanban-header-hired { background-color: var(--app-success-color); }
 .kanban-header-rejected { background-color: var(--danger-color); }
 .kanban-header-interview .column-title,
-.kanban-header-offer .column-title,
-.kanban-header-interview .applicant-count-badge,
-.kanban-header-offer .applicant-count-badge {
+.kanban-header-interview .applicant-count-badge {
   color: var(--text-primary);
 }
-.kanban-header-interview .applicant-count-badge,
-.kanban-header-offer .applicant-count-badge {
+.kanban-header-interview .applicant-count-badge {
     background-color: rgba(0,0,0,0.1);
 }
 .dark-theme .kanban-header-hired {
@@ -169,6 +165,7 @@
   gap: 0.75rem;
   transition: background-color 0.2s ease;
   min-height: 100px;
+  max-height: calc(100vh - 300px);
 }
 .kanban-column-body.is-dragging-over {
     background-color: var(--bg-primary);
@@ -294,6 +291,5 @@
 .applicant-status-badge.status-new-applicant { background-color: #0d6efd; }
 .applicant-status-badge.status-screening { background-color: #6c757d; }
 .applicant-status-badge.status-interview { background-color: var(--info-color); color: var(--text-primary) !important; }
-.applicant-status-badge.status-offer { background-color: var(--warning-color); color: var(--text-primary) !important; }
 .applicant-status-badge.status-hired { background-color: var(--app-success-color); color: var(--text-on-success) !important; }
 .applicant-status-badge.status-rejected { background-color: var(--danger-color); }

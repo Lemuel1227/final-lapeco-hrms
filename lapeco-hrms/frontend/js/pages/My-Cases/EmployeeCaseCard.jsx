@@ -1,5 +1,5 @@
 import React from 'react';
-import { format } from 'date-fns';
+import { formatDate as formatMDY } from '../../utils/dateUtils';
 
 const EmployeeCaseCard = ({ caseInfo, onView }) => {
     const statusClass = caseInfo.status.toLowerCase();
@@ -17,7 +17,7 @@ const EmployeeCaseCard = ({ caseInfo, onView }) => {
                 </div>
                 <div className="detail-item">
                     <i className="bi bi-calendar-event"></i>
-                    <span className="text-muted">Incident on {format(new Date(caseInfo.issueDate + 'T00:00:00'), 'MMM dd, yyyy')}</span>
+                    <span className="text-muted">Incident on {formatMDY(new Date(caseInfo.issueDate + 'T00:00:00'), 'long')}</span>
                 </div>
             </div>
             <div className="employee-case-card-footer">

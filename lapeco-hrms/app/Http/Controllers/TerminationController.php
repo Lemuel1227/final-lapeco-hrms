@@ -86,11 +86,11 @@ class TerminationController extends Controller
 
         $termination = Termination::create($validated);
         
-        // Update employee status to terminated
         $employee = User::find($validated['employee_id']);
         if ($employee) {
             $employee->employment_status = 'terminated';
             $employee->account_status = 'Deactivated';
+            $employee->position_id = null;
             $employee->save();
         }
 

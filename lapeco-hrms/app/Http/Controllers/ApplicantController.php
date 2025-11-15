@@ -232,7 +232,7 @@ class ApplicantController extends Controller
         $applicant = Applicant::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:New Applicant,Interview,Offer,Hired,Rejected',
+            'status' => 'required|in:New Applicant,Interview,Hired,Rejected',
             'notes' => 'nullable|string',
         ]);
 

@@ -9,8 +9,24 @@ const DailyScheduleView = ({
   formatTimeToAMPM,
   onEditSchedule,
   positionFilter,
+  sortConfig = { key: 'name', direction: 'ascending' },
+  onSortChange = () => {},
   isLoading = false
 }) => {
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    onSortChange({ key, direction });
+  };
+
+  const renderSortIcon = (key) => {
+    if (sortConfig.key !== key) return <i className="bi bi-arrow-down-up sort-icon ms-1"></i>;
+    return sortConfig.direction === 'ascending' 
+      ? <i className="bi bi-sort-up sort-icon active ms-1"></i> 
+      : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
+  };
   return (
     <>
       <div className="daily-view-header">
@@ -49,7 +65,15 @@ const DailyScheduleView = ({
                   <thead>
                     <tr>
                       {dailyViewColumns.map((col) => (
-                        <th key={col.key}>{col.name}</th>
+                        <th 
+                          key={col.key} 
+                          className={sortConfig.key === col.key ? 'sortable active' : 'sortable'}
+                          onClick={() => handleSort(col.key)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {col.name}
+                          {renderSortIcon(col.key)}
+                        </th>
                       ))}
                     </tr>
                   </thead>

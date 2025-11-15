@@ -4,6 +4,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import { employeeAPI, positionAPI } from '../../services/api';
 import './MyTeamPage.css';
+import TeamMemberQuickViewModal from './TeamMemberQuickViewModal';
 
 const MyTeamPage = () => {
   const [employees, setEmployees] = useState([]);
@@ -14,6 +15,7 @@ const MyTeamPage = () => {
   const [viewMode, setViewMode] = useState('card');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
+  const [selectedMember, setSelectedMember] = useState(null);
 
   // Fetch data from API on component mount
   useEffect(() => {
@@ -25,7 +27,13 @@ const MyTeamPage = () => {
         // Get current user from localStorage
         const userData = localStorage.getItem('user');
         if (userData) {
-          setCurrentUser(JSON.parse(userData));
+          const parsed = JSON.parse(userData);
+          // Normalize leader flag for gating UI actions
+          const normalized = {
+            ...parsed,
+            isTeamLeader: Boolean(parsed.isTeamLeader || parsed.is_team_leader || parsed.role === 'TEAM_LEADER')
+          };
+          setCurrentUser(normalized);
         }
         
         // Fetch employees and positions from API
@@ -51,7 +59,9 @@ const MyTeamPage = () => {
           contactNumber: emp.contact_number || emp.phone,
           positionId: emp.position_id,
           isTeamLeader: emp.role === 'TEAM_LEADER' || emp.is_team_leader,
-          avatarUrl: emp.avatar_url || emp.profile_picture
+          avatarUrl: emp.avatar_url || emp.profile_picture,
+          gender: emp.gender || emp.sex,
+          birthdate: emp.birthdate || emp.date_of_birth || emp.dob || emp.birthday
         }));
         
         // Transform position data to match expected format
@@ -74,6 +84,7 @@ const MyTeamPage = () => {
   }, []);
 
   const positionMap = useMemo(() => new Map(positions.map(p => [p.id, p.title])), [positions]);
+  const currentUserIsLeader = useMemo(() => Boolean(currentUser?.isTeamLeader || currentUser?.role === 'TEAM_LEADER'), [currentUser]);
 
   const { teamRoster, teamLeaders, currentPositionTitle } = useMemo(() => {
     if (!currentUser || !employees || !positions) {
@@ -145,6 +156,10 @@ const MyTeamPage = () => {
     return sortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
   };
 
+  const handleViewProfile = (member) => {
+    setSelectedMember(member);
+  };
+
   const renderCardView = () => (
     <div className="my-team-grid">
       {sortedAndFilteredTeam.map(member => (
@@ -160,21 +175,31 @@ const MyTeamPage = () => {
               <h6 className="member-name">{member.name}</h6>
               <p className="member-id text-muted">{member.id}</p>
             </div>
-            {member.isTeamLeader ? 
-                <span className="leader-tag-card"><i className="bi bi-star-fill"></i> LEADER</span>
-              :
+            {member.isTeamLeader ? (
+              <span className="leader-tag-card"><i className="bi bi-star-fill"></i> LEADER</span>
+            ) : (
+              currentUserIsLeader ? (
                 <div className="card-actions">
                   <div className="dropdown">
-                    <button className="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button 
+                      className="btn btn-sm btn-light" 
+                      type="button" 
+                      data-bs-toggle="dropdown" 
+                      aria-expanded="false"
+                      data-bs-container="body"
+                      data-bs-boundary="viewport"
+                      data-bs-offset="0,8"
+                    >
                       <i className="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul className="dropdown-menu dropdown-menu-end">
-                      <li><a className="dropdown-item" href="#">View Profile</a></li>
-                      {currentUser.isTeamLeader && <li><a className="dropdown-item" href="#">Evaluate</a></li>}
+                      <li><button className="dropdown-item" onClick={() => handleViewProfile(member)}>View Profile</button></li>
+                      <li><Link to="/dashboard/evaluate-team" className="dropdown-item">Evaluate</Link></li>
                     </ul>
                   </div>
                 </div>
-            }
+              ) : null
+            )}
           </div>
           <div className="card-bottom-section">
             <a href={`mailto:${member.email}`} className="contact-link">
@@ -197,7 +222,7 @@ const MyTeamPage = () => {
                         <th className="sortable" onClick={() => requestSort('name')}>Name {getSortIcon('name')}</th>
                         <th>Email</th>
                         <th>Contact No.</th>
-                        <th>Action</th>
+                        {currentUserIsLeader && <th>Action</th>}
                     </tr>
                 </thead>
                 <tbody>
@@ -213,17 +238,19 @@ const MyTeamPage = () => {
                             </td>
                             <td>{member.email}</td>
                             <td>{member.contactNumber || 'N/A'}</td>
-                            <td>
-                              {!member.isTeamLeader && (
-                                <div className="dropdown">
-                                    <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
-                                    <ul className="dropdown-menu dropdown-menu-end">
-                                        <li><a className="dropdown-item" href="#">View Profile</a></li>
-                                        {currentUser.isTeamLeader && <li><a className="dropdown-item" href="#">Evaluate</a></li>}
-                                    </ul>
-                                </div>
-                              )}
-                            </td>
+                            {currentUserIsLeader && (
+                              <td>
+                                {!member.isTeamLeader && (
+                                  <div className="dropdown">
+                                      <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
+                                      <ul className="dropdown-menu dropdown-menu-end">
+                                          <li><button className="dropdown-item" onClick={() => handleViewProfile(member)}>View Profile</button></li>
+                                          <li><Link to="/dashboard/evaluate-team" className="dropdown-item">Evaluate</Link></li>
+                                      </ul>
+                                  </div>
+                                )}
+                              </td>
+                            )}
                         </tr>
                     ))}
                 </tbody>
@@ -308,6 +335,13 @@ const MyTeamPage = () => {
             <p className="text-muted">{teamRoster.length > 0 && searchTerm ? "Try a different name or ID." : "Please contact HR if you believe this is an error."}</p>
         </div>
       )}
+
+      <TeamMemberQuickViewModal
+        show={Boolean(selectedMember)}
+        onClose={() => setSelectedMember(null)}
+        member={selectedMember}
+        positionTitle={selectedMember ? positionMap.get(selectedMember.positionId) : ''}
+      />
     </div>
   );
 };

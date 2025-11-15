@@ -24,6 +24,11 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
             return;
         }
 
+        $coreOperationsTemplate = $templates->firstWhere('name', 'Core Operations Day Shift');
+        if ($coreOperationsTemplate) {
+            $this->seedCoreOperationsTemplate($coreOperationsTemplate);
+        }
+
         // Define shift patterns for different templates
         $shiftPatterns = [
             'Morning Shift Production' => [
@@ -118,6 +123,9 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
         ];
 
         foreach ($templates as $template) {
+            if ($template->name === 'Core Operations Day Shift') {
+                continue; // Already seeded with explicit assignments
+            }
             $templateName = $template->name;
             $shifts = $shiftPatterns[$templateName] ?? [['start' => '09:00', 'end' => '17:00']];
             $notes = $sampleNotes[$templateName] ?? ['Standard assignment'];
@@ -168,5 +176,53 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
         }
 
         $this->command->info('Schedule template assignments seeded successfully!');
+    }
+
+    protected function seedCoreOperationsTemplate(ScheduleTemplate $template): void
+    {
+        $assignments = [
+            [
+                'user_id' => 1,
+                'start_time' => '07:00',
+                'end_time' => '18:00',
+                'break_start' => '12:10',
+                'break_end' => '12:30',
+                'ot_hours' => 0,
+                'notes' => 'HR Personnel core coverage'
+            ],
+            [
+                'user_id' => 2,
+                'start_time' => '07:00',
+                'end_time' => '17:00',
+                'break_start' => null,
+                'break_end' => null,
+                'ot_hours' => 0,
+                'notes' => 'Packer leader standard shift'
+            ],
+            [
+                'user_id' => 18,
+                'start_time' => '07:00',
+                'end_time' => '19:00',
+                'break_start' => '12:10',
+                'break_end' => '12:00',
+                'ot_hours' => 0,
+                'notes' => 'Mover extended coverage'
+            ],
+            [
+                'user_id' => 27,
+                'start_time' => '08:00',
+                'end_time' => '11:00',
+                'break_start' => null,
+                'break_end' => null,
+                'ot_hours' => 0,
+                'notes' => 'Mover partial shift'
+            ],
+        ];
+
+        foreach ($assignments as $assignment) {
+            ScheduleAssignment::create(array_merge($assignment, [
+                'schedule_template_id' => $template->id,
+            ]));
+        }
     }
 }

@@ -12,7 +12,7 @@
 
 .timeline-date-header {
   padding: 0.75rem 0;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 1.5rem;
   z-index: 1;
 }
@@ -21,6 +21,9 @@
   margin: 0;
   font-weight: 600;
   color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .timeline-items {
@@ -30,8 +33,8 @@
 .timeline-item {
   position: relative;
   display: flex;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
 }
 
 .timeline-marker {
@@ -39,19 +42,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-right: 1.5rem;
+  margin-right: 1rem;
   flex-shrink: 0;
 }
 
 .timeline-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 1rem;
+  box-shadow: var(--card-shadow);
   z-index: 2;
   position: relative;
 }
@@ -60,125 +63,104 @@
   width: 2px;
   flex: 1;
   background: linear-gradient(to bottom, var(--border-color) 0%, transparent 100%);
-  margin-top: 8px;
-  min-height: 30px;
+  margin-top: 6px;
+  min-height: 24px;
 }
 
 .timeline-content {
   flex: 1;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
+  background: var(--bg-primary);
+  border-radius: var(--border-radius);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
   box-shadow: var(--card-shadow);
-  transition: all 0.2s ease;
+  transition: all 0.2s ease-in-out;
 }
 
 .timeline-content:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--card-shadow);
   transform: translateY(-2px);
 }
 
 .timeline-content .badge {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .timeline-content p {
   color: var(--text-primary);
-  font-size: 0.925rem;
+  font-size: 0.875rem;
+  margin: 0;
 }
 
 /* Table View Enhancements */
 .activity-icon-sm {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: var(--border-radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .activity-description {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--text-primary);
   line-height: 1.5;
+  margin: 0;
 }
 
-/* Badge Variants */
-.timeline-content .badge.bg-secondary,
-.table .badge.bg-secondary {
+/* Status Badge Variants - Matching project design patterns */
+.timeline-content .badge,
+.table .badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-radius: 4px;
+}
+
+/* Status-specific colors using project variables */
+.status-success {
+  background-color: var(--app-success-color) !important;
+  color: var(--text-on-success) !important;
+}
+
+.status-danger {
+  background-color: var(--danger-color) !important;
+  color: var(--white-color) !important;
+}
+
+.status-warning {
+  background-color: var(--warning-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.status-info {
+  background-color: var(--info-color) !important;
+  color: var(--white-color) !important;
+}
+
+.status-secondary {
   background-color: var(--text-secondary) !important;
   color: var(--bg-primary) !important;
-  opacity: 0.9;
 }
 
-.bg-success-subtle {
-  background-color: #d1e7dd !important;
-}
-
-.text-success-emphasis {
-  color: #0f5132 !important;
-}
-
-.bg-danger-subtle {
-  background-color: #f8d7da !important;
-}
-
-.text-danger {
-  color: #842029 !important;
-}
-
-.bg-info-subtle {
-  background-color: #cff4fc !important;
-}
-
-.text-info {
-  color: #055160 !important;
-}
-
-.bg-warning-subtle {
-  background-color: #fff3cd !important;
-}
-
-.text-warning {
-  color: #664d03 !important;
-}
-
-.bg-primary-subtle {
-  background-color: #cfe2ff !important;
-}
-
-.text-primary {
-  color: #084298 !important;
-}
-
-.bg-secondary-subtle {
-  background-color: #e2e3e5 !important;
-}
-
-.text-secondary {
-  color: #41464b !important;
-}
-
-.bg-light-subtle {
-  background-color: #fcfcfd !important;
-}
-
-.text-dark {
-  color: #212529 !important;
-}
-
-/* Filter Section */
+/* Filter Section - Matching project form styles */
 .form-label.small {
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
   font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
-/* Sticky Date Header */
+/* Sticky Date Header - Enhanced with glass effect */
 .timeline-date-header.sticky-top {
   position: sticky;
   top: 0;
@@ -186,27 +168,29 @@
   backdrop-filter: blur(10px);
   background-color: var(--bg-primary);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--border-color);
 }
 
 /* Empty State */
 .text-center.py-5 i.bi-inbox {
   opacity: 0.5;
+  color: var(--text-secondary);
 }
 
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 768px) {
   .timeline-marker {
-    margin-right: 1rem;
+    margin-right: 0.75rem;
   }
   
   .timeline-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 0.9rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.875rem;
   }
   
   .timeline-content {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem;
   }
   
   .timeline-content .d-flex.gap-3 {
@@ -215,64 +199,75 @@
   }
 }
 
-/* Pagination Enhancement */
+/* Pagination Enhancement - Matching project button styles */
 .pagination-sm .page-link {
-  border-radius: 6px;
+  border-radius: var(--border-radius);
   margin: 0 2px;
   border: 1px solid var(--border-color);
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.pagination-sm .page-link:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
 }
 
 .pagination-sm .page-item.active .page-link {
-  background-color: var(--bs-primary);
-  border-color: var(--bs-primary);
+  background-color: var(--app-success-color);
+  border-color: var(--app-success-color);
+  color: var(--text-on-success);
 }
 
 /* Loading State */
 .spinner-border {
-  width: 3rem;
-  height: 3rem;
-  border-width: 0.3rem;
+  width: 2rem;
+  height: 2rem;
+  border-width: 0.2rem;
+  color: var(--app-success-color);
 }
 
-/* Monospace font for IP */
-.font-monospace {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.85rem;
-}
-
-/* View Mode Toggle */
+/* View Mode Toggle - Enhanced button group */
 .btn-group .btn {
-  transition: all 0.2s ease;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
 }
 
 .btn-group .btn i {
-  margin-right: 4px;
+  margin-right: 0.25rem;
 }
 
-/* Card Header Enhancement */
+/* Card Header Enhancement - Matching project card styles */
 .card-header {
-  background-color: var(--bg-primary);
-  border-bottom: 2px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 1.25rem;
 }
 
 .card-header small {
   display: block;
   margin-top: 0.25rem;
   font-weight: normal;
+  color: var(--text-secondary);
 }
 
-/* Table Enhancements */
+/* Table Enhancements - Matching project table styles */
 .table-hover tbody tr:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-tertiary);
   cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
 }
 
 .table thead {
   position: sticky;
   top: 0;
   z-index: 5;
+  background-color: var(--bg-tertiary);
+  border-bottom: 2px solid var(--border-color);
 }
 
 .table-light {
@@ -295,12 +290,13 @@
   animation: slideIn 0.3s ease;
 }
 
-/* Filter Pills */
+/* Filter Input Groups - Matching project input styles */
 .input-group-text {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-tertiary);
   border-right: none;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   border-color: var(--border-color);
+  font-size: 0.875rem;
 }
 
 .input-group .form-control {
@@ -308,13 +304,14 @@
   background-color: var(--bg-primary);
   color: var(--text-primary);
   border-color: var(--border-color);
+  font-size: 0.875rem;
 }
 
 .input-group .form-control:focus {
-  border-color: #86b7fe;
-  box-shadow: none;
+  border-color: var(--app-success-color);
+  box-shadow: var(--input-focus-shadow);
 }
 
 .input-group:focus-within .input-group-text {
-  border-color: #86b7fe;
+  border-color: var(--app-success-color);
 }

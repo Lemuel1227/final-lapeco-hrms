@@ -16,6 +16,7 @@
   color: #343a40; 
   font-weight: 500;
   position: relative;
+  cursor: pointer;
   margin: 0 10px;
   padding-bottom: 8px;
   transition: color 0.3s ease-in-out;

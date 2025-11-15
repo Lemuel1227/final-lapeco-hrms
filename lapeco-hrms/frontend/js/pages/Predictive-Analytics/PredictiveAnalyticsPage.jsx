@@ -375,19 +375,46 @@ const PredictiveAnalyticsPage = () => {
     }
   };
 
+  const transformCaseForApi = (caseData = {}) => {
+    if (!caseData.employeeId) {
+      throw new Error('Missing employee selection for disciplinary case');
+    }
+
+    const payload = {
+      employee_id: caseData.employeeId,
+      action_type: caseData.actionType,
+      description: caseData.description || '',
+      incident_date: caseData.issueDate,
+      reason: caseData.reason,
+      status: caseData.status || 'Ongoing',
+      resolution_taken: caseData.nextSteps || '',
+    };
+
+    return payload;
+  };
+
   // Action handlers
   const handlers = {
-    enrollEmployees: async (enrollmentData) => {
+    enrollEmployees: async (programId, employeeIds) => {
       try {
-        // Transform data to match API expectations
-        const transformedData = {
-          program_id: enrollmentData.programId || enrollmentData.program_id,
-          user_id: enrollmentData.employeeId || enrollmentData.userId || enrollmentData.user_id,
-          enrolled_date: enrollmentData.enrolledDate || enrollmentData.enrolled_date || new Date().toISOString().split('T')[0],
-          status: enrollmentData.status || 'enrolled'
-        };
-        
-        await trainingAPI.enroll(transformedData);
+        const ids = Array.isArray(employeeIds)
+          ? employeeIds.filter((id) => id !== undefined && id !== null)
+          : [employeeIds].filter((id) => id !== undefined && id !== null);
+
+        if (!programId || ids.length === 0) {
+          throw new Error('Missing program or employee selection for enrollment');
+        }
+
+        const enrolledDate = new Date().toISOString().split('T')[0];
+        const payloads = ids.map((userId) => ({
+          program_id: programId,
+          user_id: userId,
+          enrolled_date: enrolledDate,
+          status: 'enrolled'
+        }));
+
+        await Promise.all(payloads.map((payload) => trainingAPI.enroll(payload)));
+
         // Refresh enrollments
         const enrollmentsRes = await trainingAPI.getEnrollments();
         setEnrollments(enrollmentsRes.data || []);
@@ -398,7 +425,8 @@ const PredictiveAnalyticsPage = () => {
     },
     saveCase: async (caseData) => {
       try {
-        await disciplinaryCaseAPI.create(caseData);
+        const payload = transformCaseForApi(caseData);
+        await disciplinaryCaseAPI.create(payload);
         // Case saved successfully
       } catch (err) {
         console.error('Error saving case:', err);
@@ -434,19 +462,23 @@ const PredictiveAnalyticsPage = () => {
         break;
       case 'startPip':
         setPrefillCaseData({
-            employeeId: employee.id,
-            reason: 'Performance Improvement Plan (PIP)',
-            actionType: 'Performance Improvement Plan (PIP)',
-            description: `Initiated due to a performance score of ${employee.latestScore.toFixed(1)}%.`,
+          employeeId: employee.id,
+          actionType: 'Performance Improvement Plan (PIP)',
+          reason: 'Poor Performance',
+          issueDate: new Date().toISOString().split('T')[0],
+          status: 'Ongoing',
+          description: `Initiated due to a performance score of ${employee.latestScore.toFixed(1)}%.`,
         });
         setModalState({ logCase: true });
         break;
       case 'reviewAttendance':
         setPrefillCaseData({
-            employeeId: employee.id,
-            reason: 'Attendance Review',
-            actionType: 'Verbal Warning',
-            description: `Initiated due to high absenteeism (${employee.attendance.absences} absences and ${employee.attendance.lates} lates in the last 90 days).`,
+          employeeId: employee.id,
+          actionType: 'Verbal Warning',
+          reason: 'Tardiness / Punctuality',
+          issueDate: new Date().toISOString().split('T')[0],
+          status: 'Ongoing',
+          description: `Initiated due to high absenteeism (${employee.attendance.absences} absences and ${employee.attendance.lates} lates in the last 90 days).`,
         });
         setModalState({ logCase: true });
         break;

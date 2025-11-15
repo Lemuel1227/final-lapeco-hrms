@@ -831,16 +831,43 @@ const AttendancePage = () => {
   };
 
   // CONFIRM IMPORT - Use backend API
+  const formatForBackend = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+    const pad = (value) => value.toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  };
+
   const handleConfirmImport = async (importedRecords) => {
     setIsImporting(true);
     
     try {
       // Transform data to match backend API expectations
-      const records = importedRecords.map(record => ({
-        employeeId: record.employeeId,
-        dateTime: record.dateTime.toISOString(),
-        logType: record.logType
-      }));
+      const records = importedRecords
+        .map(record => {
+          const formattedDateTime = formatForBackend(record.dateTime);
+          return {
+            employeeId: record.employeeId,
+            dateTime: formattedDateTime,
+            logType: record.logType
+          };
+        })
+        .filter(record => Boolean(record.employeeId) && Boolean(record.dateTime));
+
+      if (records.length === 0) {
+        setToast({
+          show: true,
+          message: 'No valid attendance records to import after validation.',
+          type: 'warning'
+        });
+        setIsImporting(false);
+        return;
+      }
       
       // Call backend import API
       const response = await attendanceAPI.import({ records });
