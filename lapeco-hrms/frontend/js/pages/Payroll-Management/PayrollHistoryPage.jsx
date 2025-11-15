@@ -111,11 +111,13 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
       if (run.totalNet !== undefined && run.isPaid !== undefined) {
         if ((run.totalGross === undefined || run.totalDeductions === undefined) && run.records && Array.isArray(run.records)) {
           const totals = run.records.reduce((acc, rec) => {
-              const totalEarnings = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-              const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
-              const totalOther = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-              acc.totalGross += totalEarnings;
-              acc.totalDeductions += totalStatutory + totalOther;
+              const earningsFromItems = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+              const gross = Number(rec.grossEarning ?? earningsFromItems ?? 0);
+              const deductionsFromItems = Object.values(rec.deductions || {}).reduce((sum, val) => sum + (Number(val) || 0), 0) +
+                                         (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+              const deductions = Math.abs(Number(rec.totalDeductionsAmount ?? deductionsFromItems ?? 0));
+              acc.totalGross += gross;
+              acc.totalDeductions += deductions;
               return acc;
           }, { totalGross: 0, totalDeductions: 0 });
           const employeeCount = run.records.length;
@@ -127,12 +129,15 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
       // Fallback for old API format with records array
       if (run.records && Array.isArray(run.records)) {
         const totals = run.records.reduce((acc, rec) => {
-            const totalEarnings = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-            const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
-            const totalOther = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-            acc.totalGross += totalEarnings;
-            acc.totalDeductions += totalStatutory + totalOther;
-            acc.totalNet += totalEarnings - totalStatutory - totalOther;
+            const earningsFromItems = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            const gross = Number(rec.grossEarning ?? earningsFromItems ?? 0);
+            const deductionsFromItems = Object.values(rec.deductions || {}).reduce((sum, val) => sum + (Number(val) || 0), 0) +
+                                       (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            const deductions = Math.abs(Number(rec.totalDeductionsAmount ?? deductionsFromItems ?? 0));
+            const net = Number(rec.netPay ?? (gross - deductions));
+            acc.totalGross += gross;
+            acc.totalDeductions += deductions;
+            acc.totalNet += net;
             return acc;
         }, { totalGross: 0, totalDeductions: 0, totalNet: 0 });
 

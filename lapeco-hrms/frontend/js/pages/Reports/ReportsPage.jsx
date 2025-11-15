@@ -629,11 +629,19 @@ const ReportsPage = (props) => {
         const totalPayout = details.reduce((sum, emp) => sum + (emp.thirteenthMonthPay || 0), 0);
 
         dataSources.thirteenthMonthPayData = {
-            year,
-            totalPayout,
-            eligibleCount: details.length,
-            records: details.map(emp => ({ ...emp, status: 'Pending' })),
+          year: selectedYear,
+          totalPayout,
+          eligibleCount: details.length,
+          records: details.map(emp => ({ ...emp, status: 'Pending' })),
         };
+      } catch (error) {
+        console.error('Failed to load payroll data for 13th month report:', error);
+        alert('Unable to load payroll data for the selected year. Please try again.');
+        setIsFetchingData(false);
+        return;
+      } finally {
+        setIsFetchingData(false);
+      }
     }
     
     // Add offboarding data for offboarding summary report
