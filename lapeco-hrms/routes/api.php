@@ -23,6 +23,7 @@ use App\Http\Controllers\ActionLogController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ResignationController;
 use App\Http\Controllers\TerminationController;
+use App\Http\Controllers\OffboardingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TeamLeaderDashboardController;
@@ -196,6 +197,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
 
     // Recruitment - with role-based access control
     Route::middleware(['role.access:recruitment,index'])->get('/recruitment', [RecruitmentController::class, 'index']);
+    Route::middleware(['role.access:recruitment,index'])->get('/recruitment/statistics', [RecruitmentController::class, 'statistics']);
     Route::middleware(['role.access:recruitment,store'])->post('/recruitment/applicants', [RecruitmentController::class, 'storeApplicant']);
     Route::middleware(['role.access:recruitment,update'])->put('/recruitment/applicants/{applicant}', [RecruitmentController::class, 'updateApplicant']);
     Route::middleware(['role.access:recruitment,destroy'])->delete('/recruitment/applicants/{applicant}', [RecruitmentController::class, 'destroyApplicant']);
@@ -294,6 +296,10 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:employee,destroy'])->delete('/terminations/{termination}', [TerminationController::class, 'destroy']);
     Route::middleware(['role.access:employee,view'])->get('/terminations/employee/{employee}', [TerminationController::class, 'getByEmployee']);
     Route::middleware(['role.access:employee,index'])->get('/terminations/statistics', [TerminationController::class, 'getStatistics']);
+
+    // Offboarding Management - comprehensive endpoints for reports and data
+    Route::middleware(['role.access:employee,index'])->get('/offboarding', [OffboardingController::class, 'index']);
+    Route::middleware(['role.access:employee,index'])->get('/offboarding/statistics', [OffboardingController::class, 'statistics']);
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
