@@ -128,13 +128,14 @@
                 
                 // Check leave credits for applicable leave types (skip Unpaid Leave and Paternity Leave)
                 if (!in_array($data['type'], ['Unpaid Leave', 'Paternity Leave'])) {
-                    $leaveCredit = LeaveCredit::getOrCreateForUser($user->id, $data['type']);
+                    $creditType = $data['type'] === 'Emergency Leave' ? 'Vacation Leave' : $data['type'];
+                    $leaveCredit = LeaveCredit::getOrCreateForUser($user->id, $creditType);
                     
                     if (!$leaveCredit->hasEnoughCredits($data['days'])) {
                         $remaining = $leaveCredit->remaining_credits;
                         return response()->json([
                             'success' => false,
-                            'message' => "Insufficient leave credits. You have {$remaining} days remaining for {$data['type']}.",
+                            'message' => "Insufficient leave credits. You have {$remaining} days remaining for {$creditType}.",
                             'error' => 'Insufficient credits'
                         ], 422);
                     }
@@ -351,7 +352,7 @@
                 ->keyBy('leave_type');
             
             // Ensure all leave types have records (only types with credit limits)
-            $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Emergency Leave'];
+            $leaveTypes = ['Vacation Leave', 'Sick Leave'];
             $result = [];
             
             foreach ($leaveTypes as $type) {
@@ -384,7 +385,7 @@
                 ->groupBy('user_id');
             
             // Define leave types (only types with credit limits)
-            $leaveTypes = ['Vacation Leave', 'Sick Leave', 'Emergency Leave'];
+            $leaveTypes = ['Vacation Leave', 'Sick Leave'];
             
             $result = [];
             
@@ -424,7 +425,7 @@
             }
             
             $validated = $request->validate([
-                'leave_type' => 'required|string|in:Vacation Leave,Sick Leave,Emergency Leave',
+                'leave_type' => 'required|string|in:Vacation Leave,Sick Leave',
                 'total_credits' => 'required|integer|min:0',
             ]);
             
@@ -450,7 +451,6 @@
             $validated = $request->validate([
                 'vacation' => 'integer|min:0',
                 'sick' => 'integer|min:0',
-                'emergency' => 'integer|min:0',
             ]);
             
             $updatedRecords = 0;
@@ -469,11 +469,7 @@
                     $updatedRecords++;
                 }
                 
-                if ($validated['emergency'] > 0) {
-                    $credit = LeaveCredit::getOrCreateForUser($targetUser->id, 'Emergency Leave');
-                    $credit->increment('total_credits', $validated['emergency']);
-                    $updatedRecords++;
-                }
+                // Emergency leave credits removed; requests will deduct from Vacation Leave
             }
             
             return response()->json([
@@ -495,7 +491,7 @@
             
             $validated = $request->validate([
                 'user_id' => 'nullable|exists:users,id',
-                'leave_type' => 'nullable|string|in:Vacation Leave,Sick Leave,Emergency Leave',
+                'leave_type' => 'nullable|string|in:Vacation Leave,Sick Leave',
                 'reset_all_users' => 'boolean',
                 'reset_all_types' => 'boolean',
             ]);

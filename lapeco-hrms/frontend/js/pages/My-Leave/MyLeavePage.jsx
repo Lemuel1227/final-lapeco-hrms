@@ -18,7 +18,7 @@ const MyLeavePage = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [leaveBalances, setLeaveBalances] = useState({ vacation: 0, sick: 0, emergency: 0 });
+  const [leaveBalances, setLeaveBalances] = useState({ vacation: 0, sick: 0 });
   const [requestToCancel, setRequestToCancel] = useState(null);
 
   // Load user's leave requests and user profile from API
@@ -77,20 +77,19 @@ const MyLeavePage = () => {
           const credits = creditsRes.data;
           const balances = {
             vacation: (credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0),
-            sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0),
-            emergency: (credits['Emergency Leave']?.total_credits || 0) - (credits['Emergency Leave']?.used_credits || 0)
+            sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0)
           };
           setLeaveBalances(balances);
         } else {
           // Set default balances if credits couldn't be loaded
-          setLeaveBalances({ vacation: 0, sick: 0, emergency: 0 });
+          setLeaveBalances({ vacation: 0, sick: 0 });
         }
         
         setError(null);
       } catch (err) {
         console.error('Error loading leave requests:', err);
         setLeaveRequests([]);
-        setLeaveBalances({ vacation: 0, sick: 0, emergency: 0 });
+        setLeaveBalances({ vacation: 0, sick: 0 });
         setError('Failed to load leave requests. Please try again.');
       } finally {
         setLoading(false);
@@ -161,8 +160,7 @@ const MyLeavePage = () => {
         const credits = creditsRes.data;
         const balances = {
           vacation: (credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0),
-          sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0),
-          emergency: (credits['Emergency Leave']?.total_credits || 0) - (credits['Emergency Leave']?.used_credits || 0)
+          sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0)
         };
         setLeaveBalances(balances);
       }
@@ -308,10 +306,7 @@ const MyLeavePage = () => {
                 <div className="balance-icon icon-sick"><i className="bi bi-heart-pulse-fill"></i></div>
                 <div className="balance-info"><span className="balance-value">{leaveBalances.sick}</span><span className="balance-label"> Sick Days Left</span></div>
             </div>
-            <div className="balance-card">
-              <div className="balance-icon icon-emergency"><i className="bi bi-exclamation-triangle-fill"></i></div>
-              <div className="balance-info"><span className="balance-value">{leaveBalances.emergency}</span><span className="balance-label"> Emergency Days Left</span></div>
-            </div>
+            
         </div>
         <div className="upcoming-leave-card">
             <h6><i className="bi bi-calendar-check-fill text-success me-2"></i>Upcoming Leave</h6>

@@ -10,8 +10,7 @@ const ResetCreditsModal = ({ show, onClose, onConfirm, employees }) => {
   // Align with supported credit types used across the app/API
   const leaveTypes = [
     'Vacation Leave',
-    'Sick Leave',
-    'Emergency Leave'
+    'Sick Leave'
   ];
 
   const handleSubmit = (e) => {

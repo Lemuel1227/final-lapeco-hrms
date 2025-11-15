@@ -3,21 +3,24 @@
     max-height: 75vh;
     overflow-y: hidden;
     background-color: var(--bg-secondary); 
+    border-radius: 0.5rem;
   }
   .applicant-details-container {
     display: flex;
     height: 100%;
+    gap: 1.5rem;
   }
   
   .profile-sidebar {
     background-color: var(--bg-primary); 
-    padding: 2rem 1.5rem;
+    padding: 2rem;
     width: 320px;
     flex-shrink: 0;
     border-right: 1px solid var(--border-color);
     text-align: center;
     display: flex;
     flex-direction: column;
+    border-radius: 0.5rem 0 0 0.5rem;
   }
   .profile-avatar {
     width: 120px;
@@ -29,13 +32,13 @@
     margin: 0 auto 1rem auto;
   }
   .applicant-profile-name {
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-primary); 
     margin-bottom: 0.25rem;
   }
   .profile-job-title {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--app-success-color);
     margin-bottom: 1rem;
@@ -48,13 +51,14 @@
     text-align: left;
     border-top: 1px solid var(--border-color);
     padding-top: 1.5rem;
+    margin-top: 1rem;
   }
   .profile-key-info .info-item {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
   }
   .profile-key-info .info-item i {
     margin-top: 0.2rem;
@@ -74,32 +78,40 @@
   
   .profile-sidebar .btn-resume {
     margin-top: auto;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
   }
 
   .profile-main {
     flex-grow: 1;
-    padding: 1.5rem;
+    padding: 2rem;
     overflow-y: auto;
     max-height: 75vh;
+    border-radius: 0 0.5rem 0.5rem 0;
   }
   .profile-main .nav-tabs {
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 1.5rem;
+    gap: 0.5rem;
   }
   .profile-main .nav-tabs .nav-link {
     font-weight: 500;
     color: var(--text-secondary);
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
   }
-
 
   .profile-main .nav-tabs .nav-link.active {
     color: var(--app-success-color);
     border-color: var(--border-color) var(--border-color) var(--bg-secondary);
     background-color: var(--bg-secondary);
+    border-radius: 0.375rem;
   }
 
   .profile-main .info-section-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 1rem;
@@ -114,14 +126,23 @@
       color: var(--text-secondary);
       text-transform: uppercase;
       font-weight: 500;
-      margin-bottom: 0.1rem;
+      margin-bottom: 0.25rem;
       display: block;
+      letter-spacing: 0.05em;
   }
   .profile-main .detail-value {
-      font-size: 0.95rem;
+      font-size: 0.875rem;
       color: var(--text-primary);
   }
-
+  .profile-sidebar .btn-resume i {
+    margin-right: 0.5rem;
+  }
+  .dark-theme .profile-sidebar {
+    background-color: var(--bg-primary);
+  }
+  .dark-theme .profile-main {
+    background-color: var(--bg-secondary);
+  }
   .dark-theme .profile-avatar {
     border-color: var(--bg-tertiary);
   }

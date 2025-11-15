@@ -215,6 +215,8 @@
 .sort-icon { 
     opacity: 0.4; 
     transition: opacity 0.2s ease-in-out;
+    font-size: 0.7rem;
+    vertical-align: middle;
 }
 .data-table th.sortable:hover .sort-icon { 
     opacity: 1; 
@@ -227,17 +229,19 @@
 /* === Leave Credits Table Enhancements (no progress bars) === */
 .leave-credits-table .remaining-badge {
     display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
+    padding: 3px 10px;
+    border-radius: 16px;
     border: 1px solid var(--border-color);
     background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 12px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
 }
 .leave-credits-table .balance-summary {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-weight: 400;
 }
 .dark-theme .leave-credits-table .remaining-badge {
     background-color: var(--bg-tertiary);
@@ -252,5 +256,26 @@
     width: 100%;
 }
 .leave-credits-table th, .leave-credits-table td {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.75rem;
+    vertical-align: middle;
+}
+
+/* Header styling to match OCR image */
+.leave-credits-table th {
+    text-transform: uppercase;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+/* Center unpaid column */
+.leave-credits-table td.text-center {
+    text-align: center;
+}
+
+/* Actions button styling */
+.leave-credits-table .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 4px;
 }

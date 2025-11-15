@@ -18,6 +18,7 @@ import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig } from '../../config/reports.config'; 
 import { disciplinaryCaseAPI, employeeAPI } from '../../services/api';
 import './CaseManagement.css';
+import '../My-Cases/MyCasesPage.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 

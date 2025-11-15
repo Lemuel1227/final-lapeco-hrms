@@ -83,9 +83,10 @@ class Leave extends Model
             return;
         }
 
+        $creditType = $this->type === 'Emergency Leave' ? 'Vacation Leave' : $this->type;
         $leaveCredit = LeaveCredit::getOrCreateForUser(
             $this->user_id,
-            $this->type,
+            $creditType,
             date('Y', strtotime($this->date_from))
         );
 
@@ -102,9 +103,10 @@ class Leave extends Model
             return;
         }
 
+        $creditType = $this->type === 'Emergency Leave' ? 'Vacation Leave' : $this->type;
         $leaveCredit = LeaveCredit::getOrCreateForUser(
             $this->user_id,
-            $this->type,
+            $creditType,
             date('Y', strtotime($this->date_from))
         );
 
@@ -121,9 +123,10 @@ class Leave extends Model
             return true;
         }
 
+        $creditType = $this->type === 'Emergency Leave' ? 'Vacation Leave' : $this->type;
         $leaveCredit = LeaveCredit::getOrCreateForUser(
             $this->user_id,
-            $this->type,
+            $creditType,
             date('Y', strtotime($this->date_from))
         );
 
