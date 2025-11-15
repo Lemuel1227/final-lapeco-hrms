@@ -198,14 +198,14 @@ const ActivityLogs = () => {
         <div className="btn-group btn-group-sm" role="group">
           <button 
             type="button" 
-            className={`btn ${viewMode === 'timeline' ? 'btn-primary' : 'btn-outline-primary'}`}
+            className={`btn ${viewMode === 'timeline' ? 'btn-success' : 'btn-outline-success'}`}
             onClick={() => setViewMode('timeline')}
           >
             <i className="bi bi-list-ul"></i> Timeline
           </button>
           <button 
             type="button" 
-            className={`btn ${viewMode === 'table' ? 'btn-primary' : 'btn-outline-primary'}`}
+            className={`btn ${viewMode === 'table' ? 'btn-success' : 'btn-outline-success'}`}
             onClick={() => setViewMode('table')}
           >
             <i className="bi bi-table"></i> Table
@@ -282,7 +282,7 @@ const ActivityLogs = () => {
         <div className="row mb-3">
           <div className="col-12 d-flex gap-2">
             <button 
-              className="btn btn-sm btn-primary me-1" 
+              className="btn btn-sm btn-success me-1" 
               onClick={handleApplyFilters}
             >
               Apply
@@ -324,7 +324,7 @@ const ActivityLogs = () => {
                     {dateLogs.map((log, index) => (
                       <div key={log.id} className="timeline-item">
                         <div className="timeline-marker">
-                          <div className={`timeline-icon bg-${getActionBadgeClass(log.action_type)}-subtle text-${getActionBadgeClass(log.action_type)}`}>
+                          <div className={`timeline-icon status-${getActionBadgeClass(log.action_type)} bg-${getActionBadgeClass(log.action_type)}-subtle text-${getActionBadgeClass(log.action_type)}`}>
                             <i className={`bi ${getActionIcon(log.action_type)}`}></i>
                           </div>
                           {index !== dateLogs.length - 1 && <div className="timeline-line"></div>}
@@ -333,7 +333,7 @@ const ActivityLogs = () => {
                           <div className="d-flex justify-content-between align-items-start mb-2">
                             <div className="flex-grow-1">
                               <div className="d-flex align-items-center gap-2 mb-1">
-                                <span className={`badge bg-${getActionBadgeClass(log.action_type)}-subtle text-${getActionBadgeClass(log.action_type)}`}>
+                                <span className={`badge status-${getActionBadgeClass(log.action_type)}`}>
                                   {log.action_type}
                                 </span>
                                 {log.entity_type && (
@@ -349,12 +349,6 @@ const ActivityLogs = () => {
                                   <i className="bi bi-clock me-1"></i>
                                   {format(parseISO(log.created_at), 'h:mm a')}
                                 </span>
-                                {log.ip_address && (
-                                  <span>
-                                    <i className="bi bi-geo-alt me-1"></i>
-                                    {log.ip_address}
-                                  </span>
-                                )}
                               </div>
                             </div>
                             <small className="text-muted text-nowrap">
@@ -381,13 +375,12 @@ const ActivityLogs = () => {
                   <th>Description</th>
                   <th style={{width: '15%'}}>Entity</th>
                   <th style={{width: '18%'}}>Time</th>
-                  <th style={{width: '12%'}}>IP Address</th>
                 </tr>
               </thead>
               <tbody>
                 {displayLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="text-center py-5">
+                    <td colSpan="4" className="text-center py-5">
                       <i className="bi bi-inbox fs-1 text-muted mb-3 d-block"></i>
                       <h6 className="text-muted">No activity logs found</h6>
                       <p className="text-muted small">Try adjusting your filters</p>
@@ -398,7 +391,7 @@ const ActivityLogs = () => {
                     <tr key={log.id}>
                       <td>
                         <div className="d-flex align-items-center gap-2">
-                          <div className={`activity-icon-sm bg-${getActionBadgeClass(log.action_type)}-subtle text-${getActionBadgeClass(log.action_type)}`}>
+                          <div className={`activity-icon-sm status-${getActionBadgeClass(log.action_type)} bg-${getActionBadgeClass(log.action_type)}-subtle text-${getActionBadgeClass(log.action_type)}`}>
                             <i className={`bi ${getActionIcon(log.action_type)}`}></i>
                           </div>
                           <span className="small fw-medium">{log.action_type}</span>
@@ -424,9 +417,6 @@ const ActivityLogs = () => {
                             {format(parseISO(log.created_at), 'MMM dd, yyyy h:mm a')}
                           </small>
                         </div>
-                      </td>
-                      <td>
-                        <small className="text-muted font-monospace">{log.ip_address || '-'}</small>
                       </td>
                     </tr>
                   ))
