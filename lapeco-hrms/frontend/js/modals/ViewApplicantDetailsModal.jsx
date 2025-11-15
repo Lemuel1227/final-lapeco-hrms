@@ -17,7 +17,7 @@ const formatDate = (dateString) => {
     });
 };
 
-const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewResume }) => {
+const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewResume, onToast }) => {
   const [activeTab, setActiveTab] = useState('personal');
   const [fullApplicantData, setFullApplicantData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -104,7 +104,8 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                           window.open(url, '_blank');
                         } catch (error) {
                           console.error('Error viewing resume:', error);
-                          alert('Failed to load resume');
+                          const errorMessage = error.response?.data?.message || 'Failed to load resume';
+                          onToast({ show: true, message: errorMessage, type: 'error' });
                         }
                       }}
                     >
@@ -119,9 +120,11 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                             displayData.id, 
                             `resume_${displayData.full_name || displayData.name}.pdf`
                           );
+                          onToast({ show: true, message: 'Resume downloaded successfully', type: 'success' });
                         } catch (error) {
                           console.error('Error downloading resume:', error);
-                          alert('Failed to download resume');
+                          const errorMessage = error.response?.data?.message || 'Failed to download resume';
+                          onToast({ show: true, message: errorMessage, type: 'error' });
                         }
                       }}
                     >

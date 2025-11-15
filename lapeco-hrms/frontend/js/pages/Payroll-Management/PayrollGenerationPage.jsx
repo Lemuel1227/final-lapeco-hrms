@@ -4,6 +4,7 @@ import IncomeBreakdownModal from '../../modals/IncomeBreakdownModal';
 import { calculateSssContribution, calculatePhilhealthContribution, calculatePagibigContribution, calculateTin } from '../../hooks/contributionUtils';
 import { calculateLatenessDeductions } from '../../hooks/payrollUtils';
 import { payrollAPI } from '../../services/api';
+import ToastNotification from '../../common/ToastNotification';
 
 const formatCurrency = (value) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -86,6 +87,7 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
   const [calculatedData, setCalculatedData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
 
   // When a period is already generated, clear any previous calculations once
   useEffect(() => {
@@ -203,7 +205,7 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
         setError(message);
         setCalculatedData([]);
         setSelectedEmployeeData(null);
-        lastRequestKeyRef.current = null;
+        setToast({ show: true, message, type: 'error' });
       } finally {
         if (activeFetchRef.current === fetchId) {
           setIsLoading(false);
@@ -239,6 +241,7 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to generate payroll.';
       setError(message);
+      setToast({ show: true, message, type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -248,6 +251,13 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
 
   return (
     <div className="payroll-generation-container">
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        />
+      )}
       <div className="card shadow-sm mb-4">
         <div className="card-body p-4">
           <h5 className="card-title payroll-projection-title">Step 1: Select Pay Period</h5>

@@ -177,9 +177,8 @@ class Attendance extends Model
         $scheduledStartTime = Carbon::parse($this->scheduleAssignment->start_time);
         $actualSignIn = Carbon::parse($this->sign_in);
         
-        // Consider late if signed in more than 15 minutes after scheduled start
-        $lateThreshold = $scheduledStartTime->copy()->addMinutes(15);
-        $isLate = $actualSignIn->gt($lateThreshold);
+        // Consider late if signed in after scheduled start time (no threshold)
+        $isLate = $actualSignIn->gt($scheduledStartTime);
         
         // Check if they completed their shift
         if (!$this->sign_out) {
@@ -247,9 +246,8 @@ class Attendance extends Model
         $scheduleEnd = Carbon::parse($this->scheduleAssignment->end_time);
         $signInTime = Carbon::parse($this->sign_in);
         
-        // Check if late (more than 15 minutes after scheduled start)
-        $lateThreshold = $scheduleStart->copy()->addMinutes(15);
-        $isLate = $signInTime->gt($lateThreshold);
+        // Check if late (any delay after scheduled start time)
+        $isLate = $signInTime->gt($scheduleStart);
         
         // If no sign out time, consider as absent
         if (!$this->sign_out) {

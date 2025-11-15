@@ -2,60 +2,18 @@ import '../css/app.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './bootstrap';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate} from 'react-router-dom';
 import { templateAPI } from './services/api';
 
+// Login route component to handle redirection
+const LoginRoute = () => {
+  return localStorage.getItem('auth_token') ? <Navigate to="/dashboard" replace /> : <Login />;
+};
+
 // Import components
-
-
-// Import pages
-import Login from './pages/Authentication/Login';
-import ForcePasswordChange from './pages/Authentication/ForcePasswordChange';
-import ForgotPassword from './pages/Authentication/ForgotPassword';
-import ResetPassword from './pages/Authentication/ResetPassword';
-import Dashboard from './pages/Dashboard/Dashboard';
-import EmployeeDataPage from './pages/Employee-Data/EmployeeDataPage';
-import PositionsPage from './pages/Positions/PositionsPage';
-import AttendancePage from './pages/Attendance-Management/AttendancePage';
-import ScheduleManagementPage from './pages/Schedule-Management/ScheduleManagementPage';
-import ScheduleBuilderPage from './pages/Schedule-Management/ScheduleBuilderPage';
-import LeaveManagementPage from './pages/Leave-Management/LeaveManagementPage';
-import PayrollPage from './pages/Payroll-Management/PayrollPage';
-import PayrollHistoryPage from './pages/Payroll-Management/PayrollHistoryPage';
-import PayrollGenerationPage from './pages/Payroll-Management/PayrollGenerationPage';
-import HolidayManagementPage from './pages/Holiday-Management/HolidayManagementPage';
-import RecruitmentPage from './pages/Recruitment/RecruitmentPage';
-import ReportsPage from './pages/Reports/ReportsPage';
-import PerformanceManagementPage from './pages/Performance-Management/PerformanceManagementPage';
-import TrainingPage from './pages/Training-And-Development/TrainingPage';
-import ProgramDetailPage from './pages/Training-And-Development/ProgramDetailPage';
-import ContributionsManagementPage from './pages/Contributions-Management/ContributionsManagementPage';
-import CaseManagementPage from './pages/Case-Management/CaseManagementPage';
-import MyLeavePage from './pages/My-Leave/MyLeavePage';
-import MyAttendancePage from './pages/My-Attendance/MyAttendancePage';
-import MyTeamPage from './pages/My-Team/MyTeamPage';
-import TeamLeaderCasesPage from './pages/Dashboard/TeamLeaderCasesPage';
-import AccountsPage from './pages/Accounts/AccountsPage';
-import MyProfilePage from './pages/My-Profile/MyProfilePage';
-import AccountSettingsPage from './pages/Account-Settings/AccountSettingsPage';
-import PredictiveAnalyticsPage from './pages/Predictive-Analytics/PredictiveAnalyticsPage';
-import LeaderboardsPage from './pages/Leaderboards/LeaderboardsPage';
-import ResignationManagementPage from './pages/Resignation-Management/ResignationManagementPage';
-import MyResignationPage from './pages/My-Resignation/MyResignationPage';
-import EmailVerificationHandler from './pages/Verify-Email/EmailVerificationHandler';
 import ErrorBoundary from './components/ErrorBoundary';
-import MyCasesPage from './pages/My-Cases/MyCasesPage';
-import IncedentReport from './pages/Submit-Report/SubmitReportPage';
-import NotFoundPage from './pages/NotFound/NotFoundPage';
-import ThirteenthMonthPage from './pages/Payroll-Management/ThirteenthMonthPage';
-import MyPayrollProjectionPage from './pages/My-Payroll/MyPayrollProjectionPage';
-import MyPayrollHistoryPage from './pages/My-Payroll/MyPayrollHistoryPage';
-import MyPayrollLayout from './pages/My-Payroll/MyPayrollLayout';
-import EvaluateLeaderPage from './pages/Performance-Management/EvaluateLeaderPage';
-import EvaluateTeamPage from './pages/Performance-Management/EvaluateTeamPage';
-import EvaluationFormPage from './pages/Performance-Management/EvaluationFormPage';
 
 // Import layout, context, and components
 import Layout from './layout/Layout';
@@ -64,6 +22,53 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/index.css';
+
+// Lazy-loaded pages
+const Login = lazy(() => import('./pages/Authentication/Login'));
+const ForcePasswordChange = lazy(() => import('./pages/Authentication/ForcePasswordChange'));
+const ForgotPassword = lazy(() => import('./pages/Authentication/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/Authentication/ResetPassword'));
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
+const EmployeeDataPage = lazy(() => import('./pages/Employee-Data/EmployeeDataPage'));
+const PositionsPage = lazy(() => import('./pages/Positions/PositionsPage'));
+const AttendancePage = lazy(() => import('./pages/Attendance-Management/AttendancePage'));
+const ScheduleManagementPage = lazy(() => import('./pages/Schedule-Management/ScheduleManagementPage'));
+const ScheduleBuilderPage = lazy(() => import('./pages/Schedule-Management/ScheduleBuilderPage'));
+const LeaveManagementPage = lazy(() => import('./pages/Leave-Management/LeaveManagementPage'));
+const PayrollPage = lazy(() => import('./pages/Payroll-Management/PayrollPage'));
+const PayrollHistoryPage = lazy(() => import('./pages/Payroll-Management/PayrollHistoryPage'));
+const PayrollGenerationPage = lazy(() => import('./pages/Payroll-Management/PayrollGenerationPage'));
+const ThirteenthMonthPage = lazy(() => import('./pages/Payroll-Management/ThirteenthMonthPage'));
+const HolidayManagementPage = lazy(() => import('./pages/Holiday-Management/HolidayManagementPage'));
+const ContributionsManagementPage = lazy(() => import('./pages/Contributions-Management/ContributionsManagementPage'));
+const CaseManagementPage = lazy(() => import('./pages/Case-Management/CaseManagementPage'));
+const RecruitmentPage = lazy(() => import('./pages/Recruitment/RecruitmentPage'));
+const ReportsPage = lazy(() => import('./pages/Reports/ReportsPage'));
+const PerformanceManagementPage = lazy(() => import('./pages/Performance-Management/PerformanceManagementPage'));
+const EvaluateLeaderPage = lazy(() => import('./pages/Performance-Management/EvaluateLeaderPage'));
+const EvaluateTeamPage = lazy(() => import('./pages/Performance-Management/EvaluateTeamPage'));
+const EvaluationFormPage = lazy(() => import('./pages/Performance-Management/EvaluationFormPage'));
+const TrainingPage = lazy(() => import('./pages/Training-And-Development/TrainingPage'));
+const ProgramDetailPage = lazy(() => import('./pages/Training-And-Development/ProgramDetailPage'));
+const MyLeavePage = lazy(() => import('./pages/My-Leave/MyLeavePage'));
+const MyAttendancePage = lazy(() => import('./pages/My-Attendance/MyAttendancePage'));
+const MyTeamPage = lazy(() => import('./pages/My-Team/MyTeamPage'));
+const TeamLeaderCasesPage = lazy(() => import('./pages/Dashboard/TeamLeaderCasesPage'));
+const AccountsPage = lazy(() => import('./pages/Accounts/AccountsPage'));
+const MyProfilePage = lazy(() => import('./pages/My-Profile/MyProfilePage'));
+const AccountSettingsPage = lazy(() => import('./pages/Account-Settings/AccountSettingsPage'));
+const PredictiveAnalyticsPage = lazy(() => import('./pages/Predictive-Analytics/PredictiveAnalyticsPage'));
+const LeaderboardsPage = lazy(() => import('./pages/Leaderboards/LeaderboardsPage'));
+const ResignationManagementPage = lazy(() => import('./pages/Resignation-Management/ResignationManagementPage'));
+const MyResignationPage = lazy(() => import('./pages/My-Resignation/MyResignationPage'));
+const EmailVerificationHandler = lazy(() => import('./pages/Verify-Email/EmailVerificationHandler'));
+const MyCasesPage = lazy(() => import('./pages/My-Cases/MyCasesPage'));
+const IncedentReport = lazy(() => import('./pages/Submit-Report/SubmitReportPage'));
+const MyPayrollLayout = lazy(() => import('./pages/My-Payroll/MyPayrollLayout'));
+const MyPayrollProjectionPage = lazy(() => import('./pages/My-Payroll/MyPayrollProjectionPage'));
+const MyPayrollHistoryPage = lazy(() => import('./pages/My-Payroll/MyPayrollHistoryPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFound/NotFoundPage'));
+
 // Create the main App component
 function App() {
   const [templates, setTemplates] = useState([]);
@@ -96,16 +101,17 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider>
         <Router>
-          <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/force-password-change" element={<ForcePasswordChange />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/verify-email" element={<EmailVerificationHandler />} />
+          <Suspense fallback={<div className="d-flex justify-content-center align-items-center py-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>}>
+            <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<LoginRoute />} />
+            <Route path="/force-password-change" element={<ForcePasswordChange />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<EmailVerificationHandler />} />
 
-          {/* Protected routes */}
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            {/* Protected routes */}
+            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
 
@@ -158,9 +164,10 @@ function App() {
           {/* Catch all route */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        </Router>
-      </ThemeProvider>
-    </ErrorBoundary>
+        </Suspense>
+      </Router>
+    </ThemeProvider>
+  </ErrorBoundary>
   );
 }
 
