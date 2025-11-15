@@ -764,12 +764,13 @@ const ReportsPage = (props) => {
         reportTitle={configModalState.config?.title || 'Report Preview'}
       />
 
-      <ToastNotification
-        show={toast.show}
-        onClose={() => setToast({ ...toast, show: false })}
-        message={toast.message}
-        type={toast.type}
-      />
+      {toast.show && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        />
+      )}
     </div>
   );
 };
