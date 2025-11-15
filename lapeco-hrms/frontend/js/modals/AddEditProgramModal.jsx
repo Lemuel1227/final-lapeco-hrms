@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { positionAPI } from '../services/api';
 import './AddEditProgramModal.css';
 
 const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
@@ -16,6 +17,7 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
   };
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
+  const [positions, setPositions] = useState([]);
 
   const isEditMode = Boolean(programData && programData.id);
 
@@ -61,15 +63,28 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
 
   useEffect(() => {
     if (show) {
+      // Load positions for eligibility selector
+      positionAPI.getAll().then(res => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        setPositions(list);
+      }).catch(() => setPositions([]));
+
       if (isEditMode) {
         const parsed = parseDuration(programData?.duration);
-        setFormData({ ...initialFormState, ...programData, ...parsed });
+        const allowed = Array.isArray(programData?.positions_allowed)
+          ? programData.positions_allowed
+          : (typeof programData?.positions_allowed === 'string' ? JSON.parse(programData.positions_allowed || '[]') : []);
+        setFormData({ ...initialFormState, ...programData, positions_allowed: allowed, ...parsed });
       } else {
-        setFormData(initialFormState);
+        setFormData({ ...initialFormState, positions_allowed: [] });
       }
       setErrors({});
     }
   }, [programData, show, isEditMode]);
+
+  const allPositionIds = positions.map(p => String(p.id));
+  const selectedIds = Array.isArray(formData.positions_allowed) ? formData.positions_allowed.map(String) : [];
+  const allSelected = allPositionIds.length > 0 && allPositionIds.every(id => selectedIds.includes(id));
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -93,9 +108,7 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
     } else if (!(Number(hours) > 0)) {
       newErrors.daily_hours = 'Daily hours must be greater than 0.';
     }
-    if (minutes === '' || minutes === null || minutes === undefined) {
-      newErrors.daily_minutes = 'Daily minutes is required.';
-    } else {
+    if (minutes !== '' && minutes !== null && minutes !== undefined) {
       const m = Number(minutes);
       if (!(m >= 0 && m <= 59)) newErrors.daily_minutes = 'Daily minutes must be between 0 and 59.';
     }
@@ -119,7 +132,7 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
     if (!validate()) return;
     const { provider, start_date, end_date, cost, daily_hours, daily_minutes, required_days, ...payload } = formData;
     const dh = Number(daily_hours);
-    const dm = Number(daily_minutes);
+    const dm = Number(daily_minutes === '' ? 0 : daily_minutes);
     const dailyPart = `${dh > 0 ? `${dh} ${dh === 1 ? 'hour' : 'hours'}` : ''}${dh > 0 && dm > 0 ? ' ' : ''}${dm > 0 ? `${dm} ${dm === 1 ? 'minute' : 'minutes'}` : ''}`.trim();
     const reqDays = Number(required_days);
     const requiredPart = isNaN(reqDays) ? '' : `Required Days: ${reqDays}`;
@@ -127,6 +140,10 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
     payload.duration = [dailyLabel, requiredPart].filter(Boolean).join('; ');
     // Strongly type numeric field
     payload.max_participants = Number(payload.max_participants);
+    // Allowed positions (array of ids)
+    if (Array.isArray(formData.positions_allowed) && formData.positions_allowed.length > 0) {
+      payload.positions_allowed = formData.positions_allowed.map(id => Number(id)).filter(id => Number.isFinite(id));
+    }
 
     // Ensure type is present and valid fallback (should be set by validation)
     if (!payload.type) payload.type = 'Online';
@@ -272,21 +289,66 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
                     {errors.location && <div className="invalid-feedback d-block">{errors.location}</div>}
                   </div>
                 </div>
-              </div>
+            </div>
 
-              {/* Requirements */}
-              <div className="form-section">
-                <div className="section-title">Requirements</div>
-                <p className="section-subtitle">List prerequisites or materials needed.</p>
-                <label htmlFor="requirements" className="form-label">Requirements*</label>
-                <textarea className={`form-control ${errors.requirements ? 'is-invalid' : ''}`} id="requirements" name="requirements" rows="3" value={formData.requirements} onChange={handleChange} placeholder="Prerequisites, materials needed, etc." required></textarea>
-                {errors.requirements && <div className="invalid-feedback d-block">{errors.requirements}</div>}
+            {/* Requirements */}
+            <div className="form-section">
+              <div className="section-title">Requirements</div>
+              <p className="section-subtitle">List prerequisites or materials needed.</p>
+              <label htmlFor="requirements" className="form-label">Requirements*</label>
+              <textarea className={`form-control ${errors.requirements ? 'is-invalid' : ''}`} id="requirements" name="requirements" rows="3" value={formData.requirements} onChange={handleChange} placeholder="Prerequisites, materials needed, etc." required></textarea>
+              {errors.requirements && <div className="invalid-feedback d-block">{errors.requirements}</div>}
+            </div>
+
+            {/* Eligibility: Allowed Positions */}
+            <div className="form-section">
+              <div className="section-title">Eligibility</div>
+              <p className="section-subtitle">Limit enrollment to specific positions. Leave empty to allow all positions.</p>
+              <label className="form-label">Allowed Positions</label>
+              <div className="eligibility-checkbox-list" style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.5rem' }}>
+                <div className="form-check mb-2">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="pos-select-all"
+                    checked={allSelected}
+                    onChange={(e) => {
+                      const next = e.target.checked ? allPositionIds : [];
+                      setFormData(prevForm => ({ ...prevForm, positions_allowed: next }));
+                    }}
+                  />
+                  <label className="form-check-label" htmlFor="pos-select-all">Select All</label>
+                </div>
+                {positions.map(pos => {
+                  const idStr = String(pos.id);
+                  const checked = Array.isArray(formData.positions_allowed) ? formData.positions_allowed.map(String).includes(idStr) : false;
+                  return (
+                    <div key={pos.id} className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`pos-${pos.id}`}
+                        checked={checked}
+                        onChange={(e) => {
+                          const prev = Array.isArray(formData.positions_allowed) ? formData.positions_allowed.map(String) : [];
+                          const next = e.target.checked ? Array.from(new Set([...prev, idStr])) : prev.filter(p => p !== idStr);
+                          setFormData(prevForm => ({ ...prevForm, positions_allowed: next }));
+                        }}
+                      />
+                      <label className="form-check-label" htmlFor={`pos-${pos.id}`}>{pos.title || pos.name || pos.position || `Position #${pos.id}`}</label>
+                    </div>
+                  );
+                })}
+                {positions.length === 0 && (
+                  <div className="text-muted small">No positions available.</div>
+                )}
               </div>
             </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-success">{isEditMode ? 'Save Changes' : 'Add Program'}</button>
-            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-success">{isEditMode ? 'Save Changes' : 'Add Program'}</button>
+          </div>
           </form>
         </div>
       </div>

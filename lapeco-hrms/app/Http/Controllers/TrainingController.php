@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TrainingProgram;
 use App\Models\TrainingEnrollment;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
@@ -73,11 +74,17 @@ class TrainingController extends Controller
             'location' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['Online', 'In-person', 'Hybrid'])],
             'max_participants' => 'nullable|integer|min:1',
-            'requirements' => 'nullable|string'
+            'requirements' => 'nullable|string',
+            'positions_allowed' => 'nullable|array',
+            'positions_allowed.*' => 'integer|exists:positions,id'
         ]);
 
         // Create program without trusting provided status
-        $program = TrainingProgram::create(collect($validated)->except('status')->toArray());
+        $payload = collect($validated)->except('status')->toArray();
+        if (!Schema::hasColumn('training_programs', 'positions_allowed')) {
+            unset($payload['positions_allowed']);
+        }
+        $program = TrainingProgram::create($payload);
 
         // Auto-compute status based on enrollments
         $program->status = $this->computeProgramStatus($program);
@@ -146,11 +153,17 @@ class TrainingController extends Controller
             'location' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['Online', 'In-person', 'Hybrid'])],
             'max_participants' => 'nullable|integer|min:1',
-            'requirements' => 'nullable|string'
+            'requirements' => 'nullable|string',
+            'positions_allowed' => 'nullable|array',
+            'positions_allowed.*' => 'integer|exists:positions,id'
         ]);
 
         // Update program without trusting provided status
-        $program->update(collect($validated)->except('status')->toArray());
+        $payload = collect($validated)->except('status')->toArray();
+        if (!Schema::hasColumn('training_programs', 'positions_allowed')) {
+            unset($payload['positions_allowed']);
+        }
+        $program->update($payload);
 
         // Auto-compute status after update
         $computed = $this->computeProgramStatus($program);
@@ -293,6 +306,20 @@ class TrainingController extends Controller
 
         // Check program capacity
         $program = TrainingProgram::findOrFail($validated['program_id']);
+        // Restrict by allowed positions if defined
+        $allowed = $program->positions_allowed;
+        if (is_string($allowed)) {
+            $decoded = json_decode($allowed, true);
+            $allowed = is_array($decoded) ? $decoded : [];
+        }
+        if (is_array($allowed) && !empty($allowed)) {
+            $targetUser = User::findOrFail($validated['user_id']);
+            if (!in_array((int)$targetUser->position_id, array_map('intval', $allowed), true)) {
+                return response()->json([
+                    'message' => 'Your position is not eligible for this program'
+                ], 422);
+            }
+        }
         if ($program->max_participants) {
             $currentEnrollments = $program->enrollments()->count();
             if ($currentEnrollments >= $program->max_participants) {

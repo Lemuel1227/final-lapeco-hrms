@@ -36,7 +36,7 @@ import UpdateEnrollmentStatusModal from '../../modals/UpdateEnrollmentStatusModa
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 import ToastNotification from '../../common/ToastNotification';
-import { trainingAPI, employeeAPI } from '../../services/api';
+import { trainingAPI, employeeAPI, positionAPI } from '../../services/api';
 import useReportGenerator from '../../hooks/useReportGenerator';
 
 const ProgramDetailPage = () => {
@@ -46,6 +46,7 @@ const ProgramDetailPage = () => {
   const [trainingPrograms, setTrainingPrograms] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState(null);
   
@@ -75,15 +76,17 @@ const ProgramDetailPage = () => {
       try {
         setLoading(true);
         setPageError(null);
-        const [programsResponse, enrollmentsResponse, employeesResponse] = await Promise.all([
+        const [programsResponse, enrollmentsResponse, employeesResponse, positionsResponse] = await Promise.all([
           trainingAPI.getAll(),
           trainingAPI.getEnrollments(),
-          employeeAPI.getList()
+          employeeAPI.getList(),
+          positionAPI.getAll()
         ]);
         
         setTrainingPrograms(programsResponse.data || []);
         setEnrollments(enrollmentsResponse.data || []);
         setEmployees(employeesResponse.data || []);
+        setPositions(Array.isArray(positionsResponse.data) ? positionsResponse.data : (positionsResponse.data?.data || []));
       } catch (err) {
         console.error('Error fetching training data:', err);
         setPageError('Failed to load training data. Please try again.');
@@ -100,6 +103,16 @@ const ProgramDetailPage = () => {
     if (!trainingPrograms.length) return null;
     return trainingPrograms.find(p => p.id.toString() === programId);
   }, [trainingPrograms, programId]);
+
+  const allowedPositionTitles = useMemo(() => {
+    if (!selectedProgram) return [];
+    const raw = Array.isArray(selectedProgram.positions_allowed)
+      ? selectedProgram.positions_allowed
+      : (typeof selectedProgram.positions_allowed === 'string' ? JSON.parse(selectedProgram.positions_allowed || '[]') : []);
+    if (!raw || raw.length === 0) return [];
+    const map = new Map(positions.map(p => [String(p.id), p.title || p.name || p.position]));
+    return raw.map(id => map.get(String(id)) || `Position #${id}`);
+  }, [selectedProgram, positions]);
 
   const enrolledInProgram = useMemo(() => {
     if (!selectedProgram || !enrollments.length) return [];
@@ -463,6 +476,15 @@ const ProgramDetailPage = () => {
         onDeleteClick={handleDeleteProgram}
         isGenerateReportDisabled={displayedEnrollments.length === 0}
       />
+      {allowedPositionTitles.length > 0 && (
+        <div className="alert alert-info mt-2">
+          <i className="bi bi-shield-check me-2"></i>
+          Allowed Positions:
+          {allowedPositionTitles.map((t, idx) => (
+            <span key={idx} className="badge bg-secondary ms-2">{t}</span>
+          ))}
+        </div>
+      )}
       {/* Summary cards moved outside of the data table card */}
       <div className="card shadow-sm mb-3">
         <div className="program-summary-cards">
