@@ -219,6 +219,241 @@
 .log-item .log-date { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
 .log-item .log-action { font-size: 0.9rem; color: var(--text-primary); }
 
+/* Conversation-style Action Log */
+.conversation-timeline {
+    border-left: none;
+    padding-left: 0;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.conversation-timeline::-webkit-scrollbar {
+    width: 6px;
+}
+
+.conversation-timeline::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.conversation-timeline::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.conversation-timeline::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.conversation-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: var(--bg-secondary);
+    border-radius: 16px;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    position: relative;
+    padding-left: 1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.conversation-item:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.conversation-item::before {
+    content: none;
+}
+
+/* Sender (current user) messages - aligned to right */
+.conversation-item.sender {
+    flex-direction: row-reverse;
+    background: linear-gradient(135deg, var(--app-success-color), #157347);
+    border-color: var(--app-success-color);
+    color: white;
+    margin-left: auto;
+    max-width: 80%;
+    box-shadow: 0 4px 12px rgba(var(--app-success-rgb), 0.2);
+}
+
+.conversation-item.sender:hover {
+    box-shadow: 0 6px 20px rgba(var(--app-success-rgb), 0.3);
+}
+
+.conversation-item.sender .conversation-content {
+    text-align: right;
+}
+
+.conversation-item.sender .conversation-header {
+    flex-direction: row-reverse;
+}
+
+.conversation-item.sender .conversation-name,
+.conversation-item.sender .conversation-position,
+.conversation-item.sender .conversation-date,
+.conversation-item.sender .conversation-message {
+    color: white;
+}
+
+.conversation-item.sender .conversation-position {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Receiver (other users) messages - aligned to left */
+.conversation-item.receiver {
+    background-color: var(--bg-secondary);
+    margin-right: auto;
+    max-width: 80%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.conversation-item.receiver:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.conversation-avatar {
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.avatar-sm:hover {
+    transform: scale(1.05);
+}
+
+.conversation-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.conversation-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.conversation-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    letter-spacing: 0.3px;
+}
+
+body:not(.dark-theme) .conversation-item.receiver .conversation-name {
+    color: var(--text-primary);
+}
+
+body:not(.dark-theme) .conversation-item.receiver .conversation-message {
+    color: var(--text-primary);
+}
+
+body:not(.dark-theme) .conversation-item.receiver .conversation-position {
+    color: var(--text-secondary);
+}
+
+body:not(.dark-theme) .conversation-item.receiver .conversation-date {
+    color: var(--text-secondary);
+}
+
+.conversation-position {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+}
+
+.conversation-date {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+    opacity: 0.8;
+}
+
+.conversation-message {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    word-wrap: break-word;
+    padding: 0.5rem 0;
+}
+
+.conversation-actions {
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+
+.conversation-actions .btn {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.conversation-actions .btn:hover {
+    opacity: 1;
+}
+
+/* Responsive conversation layout */
+@media (max-width: 768px) {
+    .conversation-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        max-width: 95%;
+        padding: 0.75rem;
+    }
+    
+    .conversation-item.sender {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+    
+    .conversation-item.receiver {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .conversation-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .conversation-item.sender .conversation-header {
+        align-items: flex-end;
+    }
+    
+    .conversation-date {
+        margin-left: 0;
+        margin-top: 0.25rem;
+    }
+    
+    .conversation-actions {
+        margin-left: 0;
+        margin-top: 0.5rem;
+        align-self: flex-end;
+    }
+}
+
 /* Attachments */
 .attachment-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .attachment-item a { text-decoration: none; }
@@ -255,6 +490,10 @@
     color: var(--text-on-success);
 }
 .status-badge.status-ongoing {
+    background-color: var(--warning-color);
+    color: var(--text-primary);
+}
+.status-badge.status-pending {
     background-color: var(--warning-color);
     color: var(--text-primary);
 }

@@ -65,12 +65,22 @@ const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp }) 
                     issueDate: caseItem.incident_date ? String(caseItem.incident_date).slice(0, 10) : '',
                     reason: caseItem.reason,
                     status: caseItem.status,
+                    approvalStatus: caseItem.approval_status,
+                    submittedBy: caseItem.reported_by,
                     nextSteps: caseItem.resolution_taken,
                     actionLog: (caseItem.action_logs || []).map(log => ({
                         id: log.id,
                         date: (log.date_created || log.created_at || log.date || '').slice(0, 10),
                         action: log.description || log.action || 'Updated',
+                        user: log.user ? {
+                            id: log.user.id,
+                            first_name: log.user.first_name,
+                            last_name: log.user.last_name,
+                            imageUrl: log.user.image_url || log.user.profile_image_url,
+                            position: log.user.position
+                        } : null
                     })),
+                    attachments: caseItem.attachment ? [caseItem.attachment] : [],
                 }));
 
                 setCaseRecords(mappedCases);
@@ -127,10 +137,61 @@ const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp }) 
     }, [myCases, statusFilter]);
 
     if (selectedCase) {
+        const currentUserId = (currentUser?.id || currentUser?.data?.id);
+        const canInteract = String(selectedCase.approvalStatus || '').toLowerCase() === 'approved'
+            && String(selectedCase.submittedBy || '') === String(currentUserId || '');
+
+        const handleSaveLog = async (caseId, logEntry) => {
+            let saved;
+            try {
+                const response = await disciplinaryCaseAPI.addActionLog(caseId, {
+                    description: logEntry.action,
+                    date_created: logEntry.date,
+                });
+                saved = response?.data;
+            } catch (e) {
+                console.error('Failed to persist action log, updating UI optimistically:', e);
+            }
+
+            const uiLog = saved ? {
+                id: saved.id,
+                date: (saved.date_created || saved.created_at || logEntry.date || new Date().toISOString()).slice(0, 10),
+                action: saved.description || logEntry.action,
+                user: saved.user ? {
+                    id: saved.user.id,
+                    first_name: saved.user.first_name,
+                    middle_name: saved.user.middle_name,
+                    last_name: saved.user.last_name,
+                    imageUrl: saved.user.image_url || saved.user.profile_image_url,
+                    position: saved.user.position,
+                } : (currentUser ? {
+                    id: currentUser.id,
+                    first_name: currentUser.first_name,
+                    middle_name: currentUser.middle_name,
+                    last_name: currentUser.last_name,
+                    imageUrl: currentUser.image_url,
+                    position: currentUser.position,
+                } : null),
+            } : logEntry;
+
+            setSelectedCase(prev => prev && prev.caseId === caseId ? {
+                ...prev,
+                actionLog: [...(prev.actionLog || []), uiLog]
+            } : prev);
+
+            setCaseRecords(prev => prev.map(c => c.caseId === caseId ? {
+                ...c,
+                actionLog: [...(c.actionLog || []), uiLog]
+            } : c));
+        };
+
         return (
             <EmployeeCaseDetailView
                 caseInfo={selectedCase}
+                currentUser={currentUser}
                 onBack={() => setSelectedCase(null)}
+                onSaveLog={handleSaveLog}
+                canInteract={canInteract}
             />
         );
     }

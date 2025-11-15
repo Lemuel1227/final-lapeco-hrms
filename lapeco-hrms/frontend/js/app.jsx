@@ -36,6 +36,7 @@ import CaseManagementPage from './pages/Case-Management/CaseManagementPage';
 import MyLeavePage from './pages/My-Leave/MyLeavePage';
 import MyAttendancePage from './pages/My-Attendance/MyAttendancePage';
 import MyTeamPage from './pages/My-Team/MyTeamPage';
+import TeamLeaderCasesPage from './pages/Dashboard/TeamLeaderCasesPage';
 import AccountsPage from './pages/Accounts/AccountsPage';
 import MyProfilePage from './pages/My-Profile/MyProfilePage';
 import AccountSettingsPage from './pages/Account-Settings/AccountSettingsPage';
@@ -144,6 +145,7 @@ function App() {
             <Route path="dashboard/my-leave" element={<MyLeavePage />} />
             <Route path="dashboard/my-attendance" element={<MyAttendancePage />} />
             <Route path="dashboard/my-cases" element={<MyCasesPage />} />
+            <Route path="dashboard/team-leader-cases/:caseId" element={<TeamLeaderCasesPage />} />
             <Route path="dashboard/submit-report" element={<IncedentReport />} />
             <Route path="dashboard/my-payroll/*" element={<MyPayrollLayout />}>
               <Route index element={<Navigate to="projection" replace />} />

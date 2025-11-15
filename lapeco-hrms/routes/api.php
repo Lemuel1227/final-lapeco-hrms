@@ -272,6 +272,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:disciplinary,destroy'])->delete('/disciplinary-cases/{disciplinaryCase}/attachments/{filename}', [DisciplinaryCaseController::class, 'deleteAttachment']);
 
     // Action Logs - with role-based access control (disciplinary domain)
+    Route::middleware(['auth:sanctum', 'check.account.status'])->post('/disciplinary-cases/{disciplinaryCase}/action-logs', [ActionLogController::class, 'store']);
     Route::middleware(['role.access:disciplinary,destroy'])->delete('/action-logs/{actionLog}', [ActionLogController::class, 'destroy']);
 
     // Resignation Management - with role-based access control

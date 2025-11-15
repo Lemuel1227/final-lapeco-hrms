@@ -83,8 +83,21 @@ const CaseManagementPage = () => {
   const [caseToDelete, setCaseToDelete] = useState(null);
   const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Fetch data from API on component mount
+  useEffect(() => {
+    // Load current user from localStorage
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        setCurrentUser(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Failed to parse current user for CaseManagementPage', e);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -259,7 +272,14 @@ const CaseManagementPage = () => {
         actionLog: actionLogsSource.map(log => ({
           id: log.id,
           date: log.date_created ? new Date(log.date_created).toISOString().slice(0,10) : (log.date ? String(log.date).slice(0,10) : ''),
-          action: log.description || log.action
+          action: log.description || log.action,
+          user: log.user ? {
+            id: log.user.id,
+            first_name: log.user.first_name,
+            last_name: log.user.last_name,
+            imageUrl: log.user.image_url || log.user.profile_image_url,
+            position: log.user.position
+          } : null
         })),
         attachments,
         nextSteps: data.resolution_taken,
@@ -466,16 +486,47 @@ const CaseManagementPage = () => {
 
   const handlers = {
     saveCase: editingCase ? handleEditCase : handleAddCase,
-    addCaseLogEntry: (caseId, logEntry) => {
-      // Append log entry to the selected case and cases list
+    addCaseLogEntry: async (caseId, logEntry) => {
+      let saved;
+      try {
+        const response = await disciplinaryCaseAPI.addActionLog(caseId, {
+          description: logEntry.action,
+          date_created: logEntry.date,
+        });
+        saved = response?.data;
+      } catch (e) {
+        console.error('Failed to persist action log, updating UI optimistically:', e);
+      }
+
+      const uiLog = saved ? {
+        id: saved.id,
+        date: saved.date_created ? new Date(saved.date_created).toISOString().slice(0,10) : (logEntry.date || new Date().toISOString().slice(0,10)),
+        action: saved.description || logEntry.action,
+        user: saved.user ? {
+          id: saved.user.id,
+          first_name: saved.user.first_name,
+          middle_name: saved.user.middle_name,
+          last_name: saved.user.last_name,
+          imageUrl: saved.user.image_url || saved.user.profile_image_url,
+          position: saved.user.position,
+        } : (currentUser ? {
+          id: currentUser.id,
+          first_name: currentUser.first_name,
+          middle_name: currentUser.middle_name,
+          last_name: currentUser.last_name,
+          imageUrl: currentUser.image_url,
+          position: currentUser.position,
+        } : null),
+      } : logEntry;
+
       setSelectedCase(prev => prev && prev.caseId === caseId ? {
         ...prev,
-        actionLog: [...(prev.actionLog || []), logEntry]
+        actionLog: [...(prev.actionLog || []), uiLog]
       } : prev);
 
       setCases(prev => prev.map(c => c.caseId === caseId ? {
         ...c,
-        actionLog: [...(c.actionLog || []), logEntry]
+        actionLog: [...(c.actionLog || []), uiLog]
       } : c));
     },
     deleteCaseLogEntry: async (caseId, logId, index) => {
@@ -774,6 +825,7 @@ const CaseManagementPage = () => {
         <CaseDetailView 
             caseInfo={selectedCase}
             employee={employeeMap.get(selectedCase.employeeId)}
+            currentUser={currentUser}
             onBack={() => setSelectedCase(null)}
             onSaveLog={handlers.addCaseLogEntry}
             onEdit={handleOpenModal}

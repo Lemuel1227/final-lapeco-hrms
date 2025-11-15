@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 
 const ActionCaseSubmissionModal = ({ show, onClose, onConfirm, submissionData, isProcessing = false }) => {
     const [comments, setComments] = useState('');
+    const [errors, setErrors] = useState({});
 
     useEffect(() => {
         if (show) {
             setComments('');
+            setErrors({});
         }
     }, [show, submissionData?.action, submissionData?.submission?.caseId]);
 
@@ -17,6 +19,12 @@ const ActionCaseSubmissionModal = ({ show, onClose, onConfirm, submissionData, i
     const submissionId = submission.caseId ?? submission.id;
 
     const handleConfirm = () => {
+        // Validate required field for approval
+        if (isApproving && !comments.trim()) {
+            setErrors({ comments: 'Resolution / Next Steps is required.' });
+            return;
+        }
+        
         if (!submissionId || isProcessing) return;
         onConfirm(submissionId, action, comments);
     };
@@ -43,15 +51,24 @@ const ActionCaseSubmissionModal = ({ show, onClose, onConfirm, submissionData, i
                         )}
 
                         <div className="mb-3">
-                            <label htmlFor="hrComments" className="form-label">HR Comments (Optional)</label>
+                            <label htmlFor="hrComments" className="form-label">
+                                {isApproving ? 'Resolution / Next Steps*' : 'HR Comments (Optional)'}
+                            </label>
                             <textarea
                                 id="hrComments"
-                                className="form-control"
+                                className={`form-control ${errors.comments ? 'is-invalid' : ''}`}
                                 rows="3"
                                 value={comments}
-                                onChange={(e) => setComments(e.target.value)}
+                                onChange={(e) => {
+                                    setComments(e.target.value);
+                                    if (errors.comments) {
+                                        setErrors({});
+                                    }
+                                }}
                                 placeholder={isApproving ? "e.g., Acknowledged. Case created and will be monitored." : "e.g., Not enough evidence provided. Please gather more details and resubmit if necessary."}
+                                required={isApproving}
                             ></textarea>
+                            {errors.comments && <div className="invalid-feedback">{errors.comments}</div>}
                         </div>
                     </div>
                     <div className="modal-footer">

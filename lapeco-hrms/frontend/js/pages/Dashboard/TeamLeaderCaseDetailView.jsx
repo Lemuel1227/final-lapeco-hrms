@@ -3,23 +3,19 @@ import { format } from 'date-fns';
 import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 
-export default function CaseDetailView({
+export default function TeamLeaderCaseDetailView({
   caseInfo,
   employee,
   currentUser,
   onBack,
   onSaveLog,
-  onEdit,
-  onDelete,
-  onDeleteLog,
-  onConfirmDeleteCase,
   onUploadAttachment,
   onDeleteAttachment,
   onDownloadAttachment,
+  backLabel = 'Back to Dashboard',
+  canInteract,
 }) {
   const [newLogEntry, setNewLogEntry] = useState('');
-  const [logToDelete, setLogToDelete] = useState(null);
-  const [showDeleteCaseModal, setShowDeleteCaseModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -68,61 +64,95 @@ export default function CaseDetailView({
     <div>
       <div className="page-header mb-4">
         <button className="btn btn-light me-3 back-button mb-3" onClick={onBack}>
-          <i className="bi bi-arrow-left"></i> Back to All Cases
+          <i className="bi bi-arrow-left"></i> {backLabel}
         </button>
       </div>
 
       <div className="case-detail-header-revised">
           <div className="case-detail-header-main">
-            <img src={employee?.imageUrl || placeholderAvatar} alt={employee?.name} className="avatar" />
-            <div className="title-section">
-                <h1 className="case-reason">{caseInfo.reason}</h1>
-                <p className="employee-name">For: {employee?.name || 'Unknown'} ({caseInfo.employeeId})</p>
-            </div>
-            <div className="actions dropdown">
-                <button className="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    Manage Case
-                </button>
-                <ul className="dropdown-menu dropdown-menu-end">
-                    <li>
-                        <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); onEdit(caseInfo); }}>
-                            <i className="bi bi-pencil-fill me-2"></i>Edit Case Details
-                        </a>
-                    </li>
-                    <li><hr className="dropdown-divider" /></li>
-                    <li>
-                        <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); setShowDeleteCaseModal(true); }}>
-                           <i className="bi bi-trash-fill me-2"></i>Delete Case
-                        </a>
-                    </li>
-                </ul>
-            </div>
+              {employee && (
+                  <img src={employee.imageUrl || placeholderAvatar} alt={employee.name} className="avatar" />
+              )}
+              <div className="title-section">
+                  <h1 className="case-reason">{caseInfo.reason}</h1>
+                  <p className="employee-name">
+                      For: {employee?.name || 'Unknown Employee'} ({caseInfo.employeeId})
+                  </p>
+                  {caseInfo.submittedBy && (
+                      <p className="text-muted small">
+                          Submitted by: {caseInfo.submittedBy}
+                      </p>
+                  )}
+              </div>
           </div>
           <div className="case-detail-meta">
               <div className="meta-item">
-                <span className="meta-label">Status</span>
-                <div className="meta-value"><span className={`status-badge status-${caseInfo.status.toLowerCase()}`}>{caseInfo.status}</span></div>
+                  <span className="meta-label">Status</span>
+                  <div className="meta-value">
+                      <span className={`status-badge status-${caseInfo.status.toLowerCase()}`}>
+                          {caseInfo.status}
+                      </span>
+                  </div>
               </div>
               <div className="meta-item">
-                <span className="meta-label">Action Type</span>
-                <div className="meta-value">{caseInfo.actionType}</div>
+                  <span className="meta-label">Action Type</span>
+                  <div className="meta-value">{caseInfo.actionType}</div>
               </div>
               <div className="meta-item">
-                <span className="meta-label">Incident Date</span>
-                <div className="meta-value">{format(new Date(caseInfo.issueDate), 'MMM dd, yyyy')}</div>
+                  <span className="meta-label">Incident Date</span>
+                  <div className="meta-value">
+                      {format(new Date(caseInfo.issueDate), 'MMM dd, yyyy')}
+                  </div>
               </div>
+              {caseInfo.approvalStatus && (
+                  <div className="meta-item">
+                      <span className="meta-label">Approval Status</span>
+                      <div className="meta-value">
+                          <span className={`status-badge status-${caseInfo.approvalStatus.toLowerCase()}`}>
+                              {caseInfo.approvalStatus}
+                          </span>
+                      </div>
+                  </div>
+              )}
           </div>
       </div>
 
       <div className="case-detail-layout">
         <div className="case-detail-main">
           <div className="card">
-            <div className="card-header"><h5><i className="bi bi-clock-history me-2"></i>Action Log & Timeline</h5></div>
+            <div className="card-header d-flex justify-content-between align-items-center">
+                <h5 className="mb-0"><i className="bi bi-clock-history me-2"></i>Action Log & Timeline</h5>
+                <span className="badge bg-secondary">{caseInfo.actionLog?.length || 0} entries</span>
+            </div>
             <div className="card-body">
-              <div className="mb-3">
-                  <textarea className="form-control" rows="2" placeholder="Add a new log entry, note, or update..." value={newLogEntry} onChange={e => setNewLogEntry(e.target.value)}></textarea>
-                  <button className="btn btn-sm btn-success w-100 mt-2" onClick={handleSaveLog} disabled={!newLogEntry.trim()}>Add to Log</button>
-              </div>
+              {canInteract ? (
+                <div className="mb-4">
+                    <label className="form-label fw-semibold">Add to Log</label>
+                    <div className="input-group">
+                        <textarea 
+                            className="form-control" 
+                            rows="2" 
+                            placeholder="Share updates, ask questions, or provide additional information..."
+                            value={newLogEntry} 
+                            onChange={e => setNewLogEntry(e.target.value)}
+                        ></textarea>
+                        <button 
+                            className="btn btn-success" 
+                            onClick={handleSaveLog} 
+                            disabled={!newLogEntry.trim()}
+                            style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                        >
+                            <i className="bi bi-send-fill"></i>
+                        </button>
+                    </div>
+                </div>
+              ) : (
+                <div className="alert alert-light border-0" role="alert">
+                    <i className="bi bi-info-circle me-2"></i>
+                    Log interactions are available to HR and the original submitter once approved.
+                </div>
+              )}
+              
               <ul className="action-log-timeline conversation-timeline">
                 {(caseInfo.actionLog || []).map((log, index) => {
                   const isCurrentUser = currentUser && log.user && 
@@ -137,6 +167,7 @@ export default function CaseDetailView({
                             src={log.user?.imageUrl || placeholderAvatar} 
                             alt={log.user ? `${log.user.first_name} ${log.user.last_name}` : 'User'}
                             className="avatar-sm"
+                            loading="lazy"
                           />
                         </div>
                       )}
@@ -162,21 +193,10 @@ export default function CaseDetailView({
                             src={log.user?.imageUrl || placeholderAvatar} 
                             alt={log.user ? ([log.user.first_name, log.user.middle_name, log.user.last_name].filter(Boolean).join(' ') || log.user.name || 'User') : 'User'}
                             className="avatar-sm"
+                            loading="lazy"
                           />
                         </div>
                       )}
-                      <div className="conversation-actions">
-                        <button 
-                          className="btn btn-sm btn-outline-danger" 
-                          onClick={(e) => { 
-                            e.preventDefault(); 
-                            setLogToDelete({ caseId: caseInfo.caseId, logId: log.id, index }); 
-                          }}
-                          title="Delete log entry"
-                        >
-                          <i className="bi bi-trash-fill"></i>
-                        </button>
-                      </div>
                     </li>
                   );
                 })}
@@ -198,6 +218,8 @@ export default function CaseDetailView({
                 </dl>
              </div>
            </div>
+           
+           {/* Attachments Section */}
            <div className="card mt-4">
              <div className="card-header"><h5><i className="bi bi-paperclip me-2"></i>Attachments</h5></div>
              <div className="card-body">
@@ -212,87 +234,48 @@ export default function CaseDetailView({
                         <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => onDownloadAttachment && onDownloadAttachment(caseInfo.caseId, typeof file === 'string' ? file : file.name)}>
                           <i className="bi bi-download"></i>
                         </button>
-                        <button 
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteAttachment(typeof file === 'string' ? file : file.name)}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
                       </div>
                     </li>
                   )) : <p className="text-muted small">No attachments for this case.</p>}
                 </ul>
                 
-                {/* File Upload Section */}
-                <div className="upload-section mt-3">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="form-control mb-2"
-                    onChange={handleFileSelect}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
-                  />
-                  {selectedFile && (
-                    <div className="selected-file-preview mb-2 p-2 bg-light rounded">
-                      <small className="text-muted">Selected: {selectedFile.name}</small>
-                    </div>
-                  )}
-                  <button 
-                    className="btn btn-sm btn-success w-100"
-                    onClick={handleUploadFile}
-                    disabled={!selectedFile || isUploading}
-                  >
-                    {isUploading ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-upload me-2"></i>Upload File
-                      </>
+                {canInteract && (
+                  <div className="upload-section mt-3">
+                    <label className="form-label fw-semibold">Add Attachment</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="form-control mb-2"
+                      onChange={handleFileSelect}
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+                    />
+                    {selectedFile && (
+                      <div className="selected-file-preview mb-2 p-2 bg-light rounded">
+                        <small className="text-muted">Selected: {selectedFile.name}</small>
+                      </div>
                     )}
-                  </button>
-                </div>
+                    <button 
+                      className="btn btn-sm btn-success w-100"
+                      onClick={handleUploadFile}
+                      disabled={!selectedFile || isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-upload me-2"></i>Upload File
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
              </div>
            </div>
         </div>
       </div>
-
-      {/* Local confirmation modals within CaseDetailView */}
-      <ConfirmationModal
-        show={showDeleteCaseModal}
-        onClose={() => setShowDeleteCaseModal(false)}
-        onConfirm={async () => {
-          if (onConfirmDeleteCase) {
-            await onConfirmDeleteCase(caseInfo);
-          } else if (onDelete) {
-            await onDelete(caseInfo);
-          }
-          setShowDeleteCaseModal(false);
-        }}
-        title="Delete Case"
-        confirmText="Delete"
-        confirmVariant="danger"
-      >
-        <p>Are you sure you want to permanently delete this case?</p>
-      </ConfirmationModal>
-
-      <ConfirmationModal
-        show={!!logToDelete}
-        onClose={() => setLogToDelete(null)}
-        onConfirm={() => {
-          if (logToDelete) {
-            onDeleteLog(logToDelete.caseId, logToDelete.logId, logToDelete.index);
-          }
-          setLogToDelete(null);
-        }}
-        title="Delete Case Log Entry"
-        confirmText="Delete"
-        confirmVariant="danger"
-      >
-        <p>Are you sure you want to delete this log entry?</p>
-      </ConfirmationModal>
     </div>
   );
 }

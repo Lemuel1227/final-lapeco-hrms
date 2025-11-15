@@ -6,13 +6,26 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
   withCredentials: true,
 });
 
+// Configure XSRF token handling (Laravel Sanctum convention)
+api.defaults.xsrfCookieName = 'XSRF-TOKEN';
+api.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
+
+// Cookie util
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 // Request interceptor to add auth token and CSRF token
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -22,6 +35,28 @@ api.interceptors.request.use(
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
+
+    // Ensure CSRF cookie for state-changing requests when using cookies
+    const method = (config.method || 'get').toLowerCase();
+    const needsCsrf = ['post', 'put', 'patch', 'delete'].includes(method);
+    if (needsCsrf && typeof document !== 'undefined') {
+      const hasXsrf = document.cookie.split('; ').some(c => c.startsWith('XSRF-TOKEN='));
+      if (!hasXsrf) {
+        try {
+          await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+        } catch (e) {
+          // Fallback endpoint if Sanctum path differs
+          try { await axios.get('http://localhost:8000/csrf-cookie', { withCredentials: true }); } catch (_) {}
+        }
+      }
+      // Add both header names for compatibility
+      const xsrfCookie = getCookie('XSRF-TOKEN');
+      if (xsrfCookie) {
+        const decoded = decodeURIComponent(xsrfCookie);
+        config.headers['X-XSRF-TOKEN'] = decoded;
+        config.headers['X-CSRF-TOKEN'] = decoded;
+      }
+    }
     
     return config;
   },
@@ -30,15 +65,24 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle auth errors and sanitize error messages
+// Response interceptor to handle auth errors, CSRF refresh, and sanitize error messages
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // Handle authentication errors
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       window.location.href = '/login';
+    }
+
+    // Auto-refresh CSRF cookie on 419 and retry once
+    if (error.response?.status === 419 && !error.config?._csrfRetried) {
+      try {
+        await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+      } catch (_) {}
+      const retryConfig = { ...error.config, _csrfRetried: true };
+      return api.request(retryConfig);
     }
     
     // Sanitize error messages to prevent exposing technical details
@@ -305,6 +349,8 @@ export const disciplinaryCaseAPI = {
   getStatistics: () => api.get('/disciplinary-cases-statistics'),
   getGroupedByEmployee: () => api.get('/disciplinary-cases-grouped-by-employee'),
   deleteActionLog: (id) => api.delete(`/action-logs/${id}`),
+  // Action log operations
+  addActionLog: (caseId, logData) => api.post(`/disciplinary-cases/${caseId}/action-logs`, logData),
   // Attachment operations
   uploadAttachment: (caseId, file) => {
     const formData = new FormData();

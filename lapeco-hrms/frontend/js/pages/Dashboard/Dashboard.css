@@ -416,7 +416,7 @@
 
 .manager-hub-grid { 
     display: grid; 
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); 
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); 
     align-items: stretch; 
 }
 .team-roster-snapshot, .actionable-reminders { 
@@ -425,6 +425,7 @@
 .team-roster-snapshot { 
     border-right: 1px solid var(--border-color); 
 }
+/* submitted-reports-monitor removed per request */
 .dark-theme .team-roster-snapshot { 
     border-right-color: var(--border-color); 
 }
@@ -501,7 +502,9 @@
 @media (max-width: 768px) {
     .manager-hub-grid { grid-template-columns: 1fr; }
     .team-roster-snapshot { border-right: none; border-bottom: 1px solid var(--border-color); }
+    .submitted-reports-monitor { border-right: none; border-bottom: 1px solid var(--border-color); }
     .dark-theme .team-roster-snapshot { border-bottom-color: var(--border-color); }
+    .dark-theme .submitted-reports-monitor { border-bottom-color: var(--border-color); }
 }
 @media (max-width: 576px) {
     .dashboard-grid, .employee-dashboard-grid-top { grid-template-columns: 1fr; }
