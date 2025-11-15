@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatDate as formatMDY } from '../../utils/dateUtils';
+import placeholderAvatar from '../../assets/placeholder-profile.jpg';
 
-const EmployeeCaseDetailView = ({ caseInfo, onBack }) => {
+const EmployeeCaseDetailView = ({ caseInfo, currentUser, onBack, onSaveLog, canInteract = false }) => {
+    const [newLogEntry, setNewLogEntry] = useState('');
+    const handleSave = () => {
+        if (!newLogEntry.trim()) return;
+        const entry = {
+            date: new Date().toISOString().slice(0, 10),
+            action: newLogEntry,
+        };
+        onSaveLog && onSaveLog(caseInfo.caseId, entry);
+        setNewLogEntry('');
+    };
     return (
         <div className="container-fluid p-0 page-module-container">
             <div className="page-header mb-4">
@@ -40,14 +51,70 @@ const EmployeeCaseDetailView = ({ caseInfo, onBack }) => {
                     <div className="card">
                         <div className="card-header"><h5><i className="bi bi-clock-history me-2"></i>Action Log & Timeline</h5></div>
                         <div className="card-body">
-                            <ul className="action-log-timeline">
-                                {caseInfo.actionLog.sort((a, b) => new Date(b.date) - new Date(a.date)).map((log, index) => (
-                                    <li key={index} className="log-item">
-                                        <div className="log-icon"><i className="bi bi-dot"></i></div>
-                                        <div className="log-date">{formatMDY(new Date(log.date + 'T00:00:00'), 'long')}</div>
-                                        <div className="log-action">{log.action}</div>
-                                    </li>
-                                ))}
+                            {canInteract ? (
+                                <div className="mb-3">
+                                    <label className="form-label fw-semibold">Add to Log</label>
+                                    <textarea 
+                                        className="form-control" 
+                                        rows="2" 
+                                        placeholder="Share updates, ask questions, or provide additional information..." 
+                                        value={newLogEntry} 
+                                        onChange={e => setNewLogEntry(e.target.value)}
+                                    ></textarea>
+                                    <button className="btn btn-sm btn-success w-100 mt-2" onClick={handleSave} disabled={!newLogEntry.trim()}>
+                                        <i className="bi bi-plus-circle me-2"></i>Add to Log
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="alert alert-warning" role="alert">
+                                    Log interactions are available to HR and the original submitter once approved.
+                                </div>
+                            )}
+                            <ul className="action-log-timeline conversation-timeline">
+                                {caseInfo.actionLog.sort((a, b) => new Date(b.date) - new Date(a.date)).map((log, index) => {
+                                    const isCurrentUser = currentUser && log.user && 
+                                      (String(log.user.id) === String(currentUser.id) || 
+                                       String(log.user.id) === String(currentUser.employee_id));
+                                    
+                                    return (
+                                        <li key={index} className={`log-item conversation-item ${isCurrentUser ? 'sender' : 'receiver'}`}>
+                                            {!isCurrentUser && (
+                                                <div className="conversation-avatar">
+                                                    <img 
+                                                        src={log.user?.imageUrl || placeholderAvatar} 
+                                                        alt={log.user ? `${log.user.first_name} ${log.user.last_name}` : 'User'}
+                                                        className="avatar-sm"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="conversation-content">
+                                                <div className="conversation-header">
+                                                    <span className="conversation-name">
+                                                        {log.user ? ([log.user.first_name, log.user.middle_name, log.user.last_name].filter(Boolean).join(' ') || log.user.name || 'Unknown User') : 'Unknown User'}
+                                                    </span>
+                                                    <span className="conversation-position">
+                                                        {log.user?.position?.title || log.user?.position?.name || 'Staff'}
+                                                    </span>
+                                                    <span className="conversation-date">
+                                                        {formatMDY(new Date(log.date + 'T00:00:00'), 'long')}
+                                                    </span>
+                                                </div>
+                                                <div className="conversation-message">
+                                                    {log.action}
+                                                </div>
+                                            </div>
+                                            {isCurrentUser && (
+                                                <div className="conversation-avatar">
+                                                    <img 
+                                                        src={log.user?.imageUrl || placeholderAvatar} 
+                                                        alt={log.user ? `${log.user.first_name} ${log.user.last_name}` : 'User'}
+                                                        className="avatar-sm"
+                                                    />
+                                                </div>
+                                            )}
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         </div>
                     </div>

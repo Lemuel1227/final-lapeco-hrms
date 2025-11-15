@@ -63,12 +63,14 @@ const TeamLeaderDashboard = () => {
       }
     };
 
+
     fetchSummary();
+    // Submitted reports section removed
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentUser?.id]);
 
   const attendanceEntries = useMemo(() => summary.attendanceToday.map(item => ({
     id: item.id,
@@ -208,6 +210,7 @@ const TeamLeaderDashboard = () => {
                 <Link to="/dashboard/team-employees" className="btn btn-sm btn-outline-secondary w-100">Manage Full Roster</Link>
               </div>
             </div>
+            
             <div className="actionable-reminders">
               <h6><i className="bi bi-lightning-charge-fill me-2"></i>Your Actions</h6>
               <ul className="action-list">

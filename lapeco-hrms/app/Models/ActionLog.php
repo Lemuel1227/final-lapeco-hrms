@@ -11,6 +11,7 @@ class ActionLog extends Model
         'disciplinary_case_id',
         'date_created',
         'description',
+        'user_id',
     ];
 
     protected $casts = [
@@ -23,5 +24,13 @@ class ActionLog extends Model
     public function disciplinaryCase(): BelongsTo
     {
         return $this->belongsTo(DisciplinaryCase::class);
+    }
+
+    /**
+     * Get the user who created the action log.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

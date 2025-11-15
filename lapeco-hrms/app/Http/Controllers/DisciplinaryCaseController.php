@@ -28,9 +28,9 @@
       */
      public function index(): JsonResponse
      {
-         $cases = DisciplinaryCase::with(['employee:id,first_name,middle_name,last_name', 'actionLogs'])
-             ->orderBy('created_at', 'desc')
-             ->get();
+        $cases = DisciplinaryCase::with(['employee:id,first_name,middle_name,last_name', 'actionLogs.user.position'])
+            ->orderBy('created_at', 'desc')
+            ->get();
  
          return response()->json($cases);
      }
@@ -112,7 +112,7 @@
       */
      public function show(DisciplinaryCase $disciplinaryCase): JsonResponse
      {
-         $disciplinaryCase->load(['employee:id,first_name,middle_name,last_name', 'actionLogs']);
+        $disciplinaryCase->load(['employee:id,first_name,middle_name,last_name', 'actionLogs.user.position']);
          // Use LOCAL disk and PRIVATE directory to keep attachments non-public
          $dir = "private/disciplinary_cases/{$disciplinaryCase->id}";
          $files = Storage::disk('local')->exists($dir)
@@ -205,10 +205,10 @@
              return response()->json(['message' => 'Unauthorized'], 401);
          }
         
-         $cases = DisciplinaryCase::where('employee_id', $user->id)
-             ->with(['employee:id,first_name,middle_name,last_name', 'actionLogs'])
-             ->orderBy('created_at', 'desc')
-             ->get();
+        $cases = DisciplinaryCase::where('employee_id', $user->id)
+            ->with(['employee:id,first_name,middle_name,last_name', 'actionLogs.user.position'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
          return response()->json($cases);
      }
@@ -218,10 +218,10 @@
       */
      public function getByEmployee(User $employee): JsonResponse
      {
-         $cases = DisciplinaryCase::where('employee_id', $employee->id)
-             ->with('employee:id,first_name,middle_name,last_name')
-             ->orderBy('created_at', 'desc')
-             ->get();
+        $cases = DisciplinaryCase::where('employee_id', $employee->id)
+            ->with(['employee:id,first_name,middle_name,last_name', 'actionLogs.user.position'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
          return response()->json($cases);
      }
