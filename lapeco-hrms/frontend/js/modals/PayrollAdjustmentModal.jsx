@@ -186,14 +186,13 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
       return {
         vacation: backendBalances['Vacation Leave'] || { total: 0, used: 0, remaining: 0 },
         sick: backendBalances['Sick Leave'] || { total: 0, used: 0, remaining: 0 },
-        emergency: backendBalances['Emergency Leave'] || { total: 0, used: 0, remaining: 0 },
       };
     }
 
     // Fallback to client-side calculation if backend data not available
-    if (!employeeDetails) return { vacation: {}, sick: {}, emergency: {} };
+    if (!employeeDetails) return { vacation: {}, sick: {} };
     const currentYear = new Date().getFullYear();
-    const totalCredits = employeeDetails.leaveCredits || { 'Vacation Leave': 0, 'Sick Leave': 0, 'Emergency Leave': 0 };
+    const totalCredits = employeeDetails.leaveCredits || { 'Vacation Leave': 0, 'Sick Leave': 0 };
     const usedCredits = (allLeaveRequests || [])
       .filter(req => 
         req.empId === employeeDetails.id && 
@@ -204,13 +203,11 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
         const type = req.leaveType;
         if (type === 'Vacation Leave') acc.vacation += req.days;
         if (type === 'Sick Leave') acc.sick += req.days;
-        if (type === 'Emergency Leave') acc.emergency += req.days;
         return acc;
-      }, { vacation: 0, sick: 0, emergency: 0 });
+      }, { vacation: 0, sick: 0 });
     return {
       vacation: { total: totalCredits['Vacation Leave'] || 0, used: usedCredits.vacation, remaining: (totalCredits['Vacation Leave'] || 0) - usedCredits.vacation },
       sick: { total: totalCredits['Sick Leave'] || 0, used: usedCredits.sick, remaining: (totalCredits['Sick Leave'] || 0) - usedCredits.sick },
-      emergency: { total: totalCredits['Emergency Leave'] || 0, used: usedCredits.emergency, remaining: (totalCredits['Emergency Leave'] || 0) - usedCredits.emergency },
     };
   }, [payrollData, employeeDetails, allLeaveRequests]);
 
@@ -221,7 +218,6 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
       if (excusedAbsences === 0) return { breakdown: [], total: 0 };
       
       let tempVacation = leaveBalances.vacation.remaining;
-      let tempEmergency = leaveBalances.emergency.remaining;
       let tempSick = leaveBalances.sick.remaining;
       
       let breakdown = [];
@@ -240,7 +236,6 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
       };
       
       consumeLeave('vacation', tempVacation);
-      consumeLeave('emergency', tempEmergency);
       consumeLeave('sick', tempSick);
 
       const total = breakdown.reduce((sum, item) => sum + item.amount, 0);
@@ -345,7 +340,6 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
         leaveBalances: {
             vacation: leaveBalances.vacation?.total || 0,
             sick: leaveBalances.sick?.total || 0,
-            emergency: leaveBalances.emergency?.total || 0
         },
       };
       

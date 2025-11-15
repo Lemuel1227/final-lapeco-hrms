@@ -92,6 +92,10 @@ const LeaveManagementPage = () => {
   const handlers = {
     updateLeaveStatus: async (leaveId, newStatus) => {
       try {
+        // Optimistic UI update
+        setLeaveRequests(prev => prev.map(r => r.leaveId === leaveId ? { ...r, status: newStatus } : r));
+        showToast({ message: `Leave ${newStatus.toLowerCase()} successfully.`, type: newStatus === 'Approved' ? 'success' : 'info' });
+
         await leaveAPI.update(leaveId, { status: newStatus });
         
         // Refresh the data

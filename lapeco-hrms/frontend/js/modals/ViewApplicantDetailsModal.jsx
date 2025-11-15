@@ -159,6 +159,16 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                         <div className="col-md-6 detail-group"><p className="detail-label">Email</p><p className="detail-value">{displayData.email || 'N/A'}</p></div>
                         <div className="col-md-6 detail-group"><p className="detail-label">Phone</p><p className="detail-value">{displayData.phone || 'N/A'}</p></div>
                       </div>
+                      <div className="row g-4 mt-2">
+                        <div className="col-12">
+                          <div className="detail-group">
+                            <p className="detail-label">Address</p>
+                            <p className="detail-value">
+                              {displayData.address || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                   {activeTab === 'government' && (
@@ -169,6 +179,16 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                         <div className="col-md-6 detail-group"><p className="detail-label">TIN No.</p><p className="detail-value">{displayData.tin_no || 'N/A'}</p></div>
                         <div className="col-md-6 detail-group"><p className="detail-label">Pag-IBIG No.</p><p className="detail-value">{displayData.pag_ibig_no || 'N/A'}</p></div>
                         <div className="col-md-6 detail-group"><p className="detail-label">PhilHealth No.</p><p className="detail-value">{displayData.philhealth_no || 'N/A'}</p></div>
+                      </div>
+                      <div className="row g-4 mt-2">
+                        <div className="col-12">
+                          <div className="detail-group">
+                            <p className="detail-label">Remarks</p>
+                            <p className="detail-value">
+                              {displayData.remarks || 'No additional remarks.'}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

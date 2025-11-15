@@ -78,7 +78,7 @@ const EmployeeDashboard = () => {
   const currentUser = summary.currentUser || fallbackUser || { name: 'Employee', id: null, positionId: null };
   const firstName = currentUser?.name ? currentUser.name.split(' ')[0] : 'Employee';
   const myScheduleToday = summary.scheduleToday;
-  const leaveBalances = summary.leaveBalances || { vl: 0, sl: 0, el: 0 };
+  const leaveBalances = summary.leaveBalances || { vl: 0, sl: 0 };
   const leaderEvaluation = summary.leaderEvaluation || { leader: null, isDue: false };
 
   const myTeam = useMemo(() => summary.teamMembers || [], [summary.teamMembers]);
@@ -155,13 +155,7 @@ const EmployeeDashboard = () => {
                           <span className="action-value">{leaveBalances.sl}<span className="action-unit">days</span></span>
                       </Link>
                   </li>
-                  <li className="action-hub-item">
-                      <Link to="/dashboard/my-leave">
-                          <i className="action-icon bi bi-exclamation-triangle-fill"></i>
-                          <span className="action-label">Emergency Leaves</span>
-                          <span className="action-value">{leaveBalances.el}<span className="action-unit">days</span></span>
-                      </Link>
-                  </li>
+                  
               </ul>
           </div>
         </div>

@@ -376,8 +376,8 @@ const EvaluationHistory = ({
                           <img 
                             src={emp.profilePictureUrl || placeholderAvatar} 
                             alt={emp.name} 
-                            size='sm' 
                             className='avatar-table me-2' 
+                            style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '50%' }}
                             onError={(e) => {
                               e.target.src = placeholderAvatar;
                             }}

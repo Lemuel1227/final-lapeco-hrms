@@ -55,7 +55,10 @@ class ApplicantController extends Controller
         $isSummary = $request->has('summary') && $request->summary === 'true';
 
         if ($isSummary) {
-            // Return minimal data for recruitment page list/board view
+            $query->where(function ($q) {
+                $q->where('status', '!=', 'Hired')
+                  ->orWhere('updated_at', '>=', now()->subDays(3));
+            });
             $applicants = $query->select([
                 'id',
                 'first_name', 

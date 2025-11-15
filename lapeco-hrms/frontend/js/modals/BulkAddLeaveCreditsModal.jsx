@@ -4,7 +4,6 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
   const [creditsToAdd, setCreditsToAdd] = useState({
     vacation: 0,
     sick: 0,
-    emergency: 0,
   });
 
   const handleChange = (e) => {
@@ -21,7 +20,6 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
       const payload = {
         vacation: Number(creditsToAdd.vacation || 0),
         sick: Number(creditsToAdd.sick || 0),
-        emergency: Number(creditsToAdd.emergency || 0),
       };
       onConfirm(payload);
     }
@@ -52,10 +50,7 @@ const BulkAddLeaveCreditsModal = ({ show, onClose, onConfirm, activeEmployeeCoun
                 <label htmlFor="sick" className="form-label">Sick Leave Days to Add</label>
                 <input type="number" id="sick" name="sick" className="form-control" value={creditsToAdd.sick} onChange={handleChange} min="0" />
               </div>
-              <div className="mb-3">
-                <label htmlFor="emergency" className="form-label">Emergency Leave Days to Add</label>
-                <input type="number" id="emergency" name="emergency" className="form-control" value={creditsToAdd.emergency} onChange={handleChange} min="0" />
-              </div>
+              
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={isSubmitting}>Cancel</button>

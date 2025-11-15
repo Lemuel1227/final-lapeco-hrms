@@ -60,13 +60,13 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
           const type = credit.leave_type.toLowerCase().replace(' leave', '');
           acc[type] = credit.total_credits;
           return acc;
-        }, { vacation: 0, sick: 0, emergency: 0 });
+        }, { vacation: 0, sick: 0 });
         
         const usedCredits = Object.values(empCredits).reduce((acc, credit) => {
           const type = credit.leave_type.toLowerCase().replace(' leave', '');
           acc[type] = credit.used_credits;
           return acc;
-        }, { vacation: 0, sick: 0, emergency: 0, unpaid: 0 });
+        }, { vacation: 0, sick: 0, unpaid: 0 });
         
         // Add unpaid leave usage from leave requests (not tracked in credits)
         const unpaidUsage = leaveRequests
@@ -100,7 +100,6 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
             leaveCredits: {
               vacation: totalCredits.vacation || 0,
               sick: totalCredits.sick || 0,
-              emergency: totalCredits.emergency || 0,
             },
             totalCredits,
             usedCredits,
@@ -108,7 +107,6 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
             remainingBalance: {
               vacation: (totalCredits.vacation || 0) - (usedCredits.vacation || 0),
               sick: (totalCredits.sick || 0) - (usedCredits.sick || 0),
-              emergency: (totalCredits.emergency || 0) - (usedCredits.emergency || 0),
             },
             paternityEntitlement,
             paternityUsed,
@@ -119,7 +117,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
 
     return [...filteredData].sort((a, b) => {
       let valA, valB;
-      if (['vacation', 'sick', 'emergency', 'unpaid', 'paternity'].includes(sortConfig.key)) {
+      if (['vacation', 'sick', 'unpaid', 'paternity'].includes(sortConfig.key)) {
         valA = sortConfig.key === 'unpaid' ? a.usedCredits.unpaid : a.remainingBalance[sortConfig.key];
         valB = sortConfig.key === 'unpaid' ? b.usedCredits.unpaid : b.remainingBalance[sortConfig.key];
         // Special case for paternity: sort by entitlement (male=7, female=N/A as -1)
@@ -156,7 +154,6 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
       const creditPayloads = [
         { leave_type: 'Vacation Leave', total_credits: Number(newCredits.vacation ?? 0) },
         { leave_type: 'Sick Leave', total_credits: Number(newCredits.sick ?? 0) },
-        { leave_type: 'Emergency Leave', total_credits: Number(newCredits.emergency ?? 0) },
       ];
 
       for (const payload of creditPayloads) {
@@ -250,8 +247,8 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
   };
 
   const getSortIcon = (key) => {
-    if (sortConfig.key !== key) return <i className="bi bi-arrow-down-up sort-icon ms-1"></i>;
-    return sortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
+    if (sortConfig.key !== key) return <i className="bi bi-arrow-down-up sort-icon ms-2"></i>;
+    return sortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-2"></i> : <i className="bi bi-sort-down sort-icon active ms-2"></i>;
   };
   
   // Progress bars removed per request; keeping simple remaining badges
@@ -276,20 +273,19 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
         <div className="table-responsive">
           <table className="table data-table leave-credits-table mb-0 align-middle">
             <colgroup>
-              <col style={{ width: '20%' }} />
-              <col style={{ width: '13.3333%' }} />
-              <col style={{ width: '13.3333%' }} />
-              <col style={{ width: '13.3333%' }} />
-              <col style={{ width: '13.3333%' }} />
-              <col style={{ width: '13.3333%' }} />
-              <col style={{ width: '13.3333%' }} />
+              <col style={{ width: '25%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '15%' }} />
             </colgroup>
             <thead>
               <tr>
                 <th className="sortable" onClick={() => requestSort('name')}>Employee Name {getSortIcon('name')}</th>
                 <th className="sortable" onClick={() => requestSort('vacation')}>Vacation {getSortIcon('vacation')}</th>
                 <th className="sortable" onClick={() => requestSort('sick')}>Sick {getSortIcon('sick')}</th>
-                <th className="sortable" onClick={() => requestSort('emergency')}>Emergency {getSortIcon('emergency')}</th>
+                
                 <th className="sortable text-center" onClick={() => requestSort('paternity')}>Paternity {getSortIcon('paternity')}</th>
                 <th className="sortable text-center" onClick={() => requestSort('unpaid')}>Unpaid {getSortIcon('unpaid')}</th>
                 <th>Actions</th>
@@ -320,16 +316,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
                         );
                       })()}
                     </td>
-                    <td>
-                      <div className="balance-summary">{emp.usedCredits.emergency} of {emp.totalCredits.emergency} used</div>
-                      {(() => {
-                        const total = emp.totalCredits.emergency || 0;
-                        const remaining = Math.max(0, total - (emp.usedCredits.emergency || 0));
-                        return (
-                          <span className="remaining-badge">{remaining} left</span>
-                        );
-                      })()}
-                    </td>
+                    
                     <td className="text-center">
                       {typeof emp.paternityEntitlement === 'number' ? (
                         <>

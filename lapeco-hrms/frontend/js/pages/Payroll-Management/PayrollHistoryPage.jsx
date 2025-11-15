@@ -107,23 +107,38 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
 
   const processedPayrolls = useMemo(() => {
     return resolvedPayrolls.map(run => {
-      // Use backend-provided totals if available (new API)
+      // Use backend-provided totals if available (new API) and fill in missing totals from records when present
       if (run.totalNet !== undefined && run.isPaid !== undefined) {
+        if ((run.totalGross === undefined || run.totalDeductions === undefined) && run.records && Array.isArray(run.records)) {
+          const totals = run.records.reduce((acc, rec) => {
+              const totalEarnings = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+              const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
+              const totalOther = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+              acc.totalGross += totalEarnings;
+              acc.totalDeductions += totalStatutory + totalOther;
+              return acc;
+          }, { totalGross: 0, totalDeductions: 0 });
+          const employeeCount = run.records.length;
+          return { ...run, ...totals, employeeCount };
+        }
         return run;
       }
       
       // Fallback for old API format with records array
       if (run.records && Array.isArray(run.records)) {
-        const { totalNet } = run.records.reduce((acc, rec) => {
+        const totals = run.records.reduce((acc, rec) => {
             const totalEarnings = (rec.earnings || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-            const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + val, 0);
+            const totalStatutory = Object.values(rec.deductions || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
             const totalOther = (rec.otherDeductions || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            acc.totalGross += totalEarnings;
+            acc.totalDeductions += totalStatutory + totalOther;
             acc.totalNet += totalEarnings - totalStatutory - totalOther;
             return acc;
-        }, { totalNet: 0 });
+        }, { totalGross: 0, totalDeductions: 0, totalNet: 0 });
 
         const isPaid = run.records.every(r => r.status === 'Paid');
-        return { ...run, totalNet, isPaid };
+        const employeeCount = run.records.length;
+        return { ...run, ...totals, isPaid, employeeCount };
       }
       
       // Default fallback

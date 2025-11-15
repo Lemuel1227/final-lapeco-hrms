@@ -49,31 +49,36 @@ const ManagePeriods = ({
 
   const evaluationCountsByPeriod = useMemo(() => {
     const activeEmployees = employees.filter(isEmployeeActive);
-    const leaders = activeEmployees.filter(e => e.isTeamLeader);
-    const members = activeEmployees.filter(e => !e.isTeamLeader);
-
     const periodStats = {};
 
     for (const period of evaluationPeriods) {
-      const leaderEvalTasks = leaders.reduce((sum, leader) => {
-        const teamSize = members.filter(m => m.positionId === leader.positionId).length;
-        return sum + teamSize;
-      }, 0);
-      const memberEvalTasks = members.length;
-      const leadersOwnEvalTasks = leaders.length;
-      const totalTasks = leaderEvalTasks + memberEvalTasks + leadersOwnEvalTasks;
-      const start = startOfDay(parseISO(period.evaluationStart));
-      const end = endOfDay(parseISO(period.evaluationEnd));
-      
-      const completedCount = evaluations.filter(ev => {
-        const evalDate = parseISO(ev.periodEnd);
-        return evalDate >= start && evalDate <= end;
-      }).length;
-      
-      periodStats[period.id] = { completed: completedCount, total: totalTasks };
+      const periodEvals = Array.isArray(period.evaluations) ? period.evaluations : [];
+
+      const completedEmployees = new Set();
+      const allEmployeesFromPeriod = new Set();
+
+      periodEvals.forEach(ev => {
+        const empId = ev.employeeId ?? ev.employee_id ?? ev.employee?.id;
+        if (empId != null) allEmployeesFromPeriod.add(String(empId));
+        const hasResponses = Array.isArray(ev.responses) && ev.responses.length > 0;
+        const hasAverage = typeof (ev.averageScore ?? ev.average_score) === 'number';
+        if (hasResponses || hasAverage) {
+          if (empId != null) completedEmployees.add(String(empId));
+        }
+      });
+
+      const totalEmployees = allEmployeesFromPeriod.size > 0
+        ? allEmployeesFromPeriod.size
+        : activeEmployees.length;
+
+      periodStats[period.id] = {
+        completed: completedEmployees.size,
+        total: totalEmployees,
+      };
     }
+
     return periodStats;
-  }, [evaluationPeriods, evaluations, employees, isEmployeeActive]);
+  }, [evaluationPeriods, employees, isEmployeeActive]);
 
   const sortedEvaluationPeriods = useMemo(() => 
     [...evaluationPeriods].sort((a,b) => new Date(b.evaluationStart) - new Date(a.evaluationStart))

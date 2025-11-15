@@ -76,7 +76,6 @@ class EmployeeDashboardController extends Controller
         $leaveBalances = [
             'vl' => $this->formatRemainingCredits($leaveCredits->firstWhere('leave_type', 'Vacation Leave')),
             'sl' => $this->formatRemainingCredits($leaveCredits->firstWhere('leave_type', 'Sick Leave')),
-            'el' => $this->formatRemainingCredits($leaveCredits->firstWhere('leave_type', 'Emergency Leave')),
         ];
 
         $myScheduleToday = $scheduleAssignments

@@ -163,7 +163,8 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
   const requiresCredits = !(isMaternity || isPaternity || formData.leaveType === 'Unpaid Leave');
   const remainingSelected = useMemo(() => {
     if (!leaveCredits) return null;
-    const c = leaveCredits[formData.leaveType];
+    const creditType = formData.leaveType === 'Emergency Leave' ? 'Vacation Leave' : formData.leaveType;
+    const c = leaveCredits[creditType];
     if (!c) return null;
     const total = Number(c.total_credits || 0);
     const used = Number(c.used_credits || 0);
@@ -180,11 +181,12 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
     if (!requiresCredits || remainingSelected === null) return '';
     const requested = Number(formData.days || 0);
     if (requested <= 0) return '';
+    const creditType = formData.leaveType === 'Emergency Leave' ? 'Vacation Leave' : formData.leaveType;
     if (remainingSelected <= 0) {
-      return `You have 0 remaining ${formData.leaveType} credits.`;
+      return `You have 0 remaining ${creditType} credits.`;
     }
     if (requested > remainingSelected) {
-      return `Insufficient ${formData.leaveType} credits. Remaining: ${remainingSelected}, requested: ${requested}.`;
+      return `Insufficient ${creditType} credits. Remaining: ${remainingSelected}, requested: ${requested}.`;
     }
     return '';
   }, [requiresCredits, remainingSelected, formData.leaveType, formData.days]);
@@ -248,10 +250,11 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
     }
     // Client-side insufficient credits check (non-maternity/paternity and not unpaid)
     if (requiresCredits && remainingSelected !== null) {
+      const creditType = formData.leaveType === 'Emergency Leave' ? 'Vacation Leave' : formData.leaveType;
       if (remainingSelected <= 0) {
-        newErrors.days = `You have 0 remaining ${formData.leaveType} credits.`;
+        newErrors.days = `You have 0 remaining ${creditType} credits.`;
       } else if ((formData.days || 0) > remainingSelected) {
-        newErrors.days = `Insufficient ${formData.leaveType} credits. Remaining: ${remainingSelected}, requested: ${formData.days}.`;
+        newErrors.days = `Insufficient ${creditType} credits. Remaining: ${remainingSelected}, requested: ${formData.days}.`;
       }
     }
     setErrors(newErrors);

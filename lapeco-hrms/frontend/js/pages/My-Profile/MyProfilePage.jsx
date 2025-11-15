@@ -121,6 +121,9 @@ const MyProfilePage = () => {
 
     // Get position title from user data
     const positionTitle = currentUser?.position_name || 'Unassigned';
+    const statusRaw = currentUser?.employment_status ?? currentUser?.employmentStatus ?? currentUser?.status ?? currentUser?.account_status;
+    const displayStatus = statusRaw ? String(statusRaw) : 'Active';
+    const normalizedStatus = displayStatus ? `${displayStatus.slice(0,1).toUpperCase()}${displayStatus.slice(1).toLowerCase()}` : 'Active';
 
 
     if (loading || !currentUser) {
@@ -477,8 +480,7 @@ const MyProfilePage = () => {
                             <div className="info-grid">
                                 <InfoField label="Employee ID" value={currentUser.employee_id || currentUser.id} />
                                 <InfoField label="Joining Date" value={currentUser.joining_date} />
-                                <InfoField label="Status" value={currentUser.account_status || 'Active'} />
-                                <InfoField label="Employment Status" value={currentUser.employment_status || 'Active'} />
+                                <InfoField label="Status" value={normalizedStatus} />
                             </div>
                         )}
 

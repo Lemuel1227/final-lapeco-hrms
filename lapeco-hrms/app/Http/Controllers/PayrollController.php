@@ -1074,7 +1074,7 @@ class PayrollController extends Controller
             ->keyBy('leave_type');
 
         $leaveBalancesSummary = [];
-        foreach (['Vacation Leave', 'Sick Leave', 'Emergency Leave'] as $leaveType) {
+        foreach (['Vacation Leave', 'Sick Leave'] as $leaveType) {
             $credit = $leaveCredits->get($leaveType);
             $totalCredits = $credit ? $credit->total_credits : 0;
             $usedCredits = $credit ? $credit->used_credits : 0;

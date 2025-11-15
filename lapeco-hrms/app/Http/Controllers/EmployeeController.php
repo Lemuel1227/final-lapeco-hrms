@@ -144,7 +144,6 @@ class EmployeeController extends Controller
             $leaveCredits = [
                 'Vacation Leave' => $leaveCreditsRaw['Vacation Leave'] ?? ['total' => 0, 'used' => 0, 'remaining' => 0],
                 'Sick Leave' => $leaveCreditsRaw['Sick Leave'] ?? ['total' => 0, 'used' => 0, 'remaining' => 0],
-                'Emergency Leave' => $leaveCreditsRaw['Emergency Leave'] ?? ['total' => 0, 'used' => 0, 'remaining' => 0],
             ];
 
             $data = [

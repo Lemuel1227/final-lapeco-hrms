@@ -6,7 +6,6 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
   const [credits, setCredits] = useState({
     sick: 0,
     vacation: 0,
-    emergency: 0,
   });
 
   useEffect(() => {
@@ -14,7 +13,6 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
       setCredits({
         sick: employeeData.leaveCredits.sick || 0,
         vacation: employeeData.leaveCredits.vacation || 0,
-        emergency: employeeData.leaveCredits.emergency || 0,
       });
     }
   }, [employeeData]);
@@ -32,7 +30,6 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
     const payload = {
       sick: Number(credits.sick || 0),
       vacation: Number(credits.vacation || 0),
-      emergency: Number(credits.emergency || 0),
     };
     onSave(employeeData.id, payload);
   };
@@ -58,10 +55,7 @@ const EditLeaveCreditsModal = ({ show, onClose, onSave, employeeData }) => {
                 <label htmlFor="sick" className="form-label">Total Sick Leave Days</label>
                 <input type="number" id="sick" name="sick" className="form-control" value={credits.sick} onChange={handleChange} min="0" />
               </div>
-              <div className="mb-3">
-                <label htmlFor="emergency" className="form-label">Total Emergency Leave Days</label>
-                <input type="number" id="emergency" name="emergency" className="form-control" value={credits.emergency} onChange={handleChange} min="0" />
-              </div>
+              
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Cancel</button>
