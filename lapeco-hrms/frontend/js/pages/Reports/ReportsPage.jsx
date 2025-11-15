@@ -2,9 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import ReportCard from './ReportCard';
 import ReportConfigurationModal from '../../modals/ReportConfigurationModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
+import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI } from '../../services/api';
 import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
 
@@ -18,12 +19,14 @@ const ReportsPage = (props) => {
   const [positions, setPositions] = useState([]);
   const [resignations, setResignations] = useState([]);
   const [terminations, setTerminations] = useState([]);
+  const [offboardingData, setOffboardingData] = useState({ voluntary_resignations: [], involuntary_terminations: [] });
   const [trainingPrograms, setTrainingPrograms] = useState([]);
   const [trainingEnrollments, setTrainingEnrollments] = useState([]);
   const [evaluationPeriods, setEvaluationPeriods] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
 
@@ -361,13 +364,8 @@ const ReportsPage = (props) => {
       }
     }
 
-    // Validation for offboarding report
-    if (reportId === 'offboarding_summary') {
-      if (resignations.length === 0 && terminations.length === 0) {
-        alert('No resignation or termination data available to generate this report.');
-        return;
-      }
-    }
+    // Validation for offboarding report - removed since data is fetched dynamically
+    // and the report generator already handles empty data gracefully
 
     // Use allEmployees for offboarding report, otherwise use employees with fallback
     const employeesForReport =
@@ -587,6 +585,83 @@ const ReportsPage = (props) => {
         };
     }
     
+    // Add offboarding data for offboarding summary report
+    if (reportId === 'offboarding_summary') {
+      try {
+        setIsFetchingData(true);
+        const offboardingResponse = await offboardingAPI.getAll({
+          start_date: finalParams.startDate,
+          end_date: finalParams.endDate
+        });
+        const offboardingData = offboardingResponse.data || {};
+        dataSources = {
+          ...dataSources,
+          voluntary_resignations: offboardingData.voluntary_resignations || [],
+          involuntary_terminations: offboardingData.involuntary_terminations || []
+        };
+      } catch (error) {
+        console.error('Error fetching offboarding data:', error);
+        setToast({ show: true, message: 'Failed to fetch offboarding data. Please try again.', type: 'error' });
+        setIsFetchingData(false);
+        return;
+      }
+    }
+
+    // Recruitment activity report: fetch applicants and job openings via recruitment API
+    if (reportId === 'recruitment_activity') {
+      try {
+        setIsFetchingData(true);
+        const noDateRange = !finalParams.startDate && !finalParams.endDate;
+        if (noDateRange) {
+          const [appsRes, posRes] = await Promise.all([
+            applicantAPI.getAll(true),
+            positionAPI.getAllPublic()
+          ]);
+          const fallbackApplicants = Array.isArray(appsRes?.data) ? appsRes.data : [];
+          const fallbackJobs = Array.isArray(posRes?.data) ? posRes.data.map(p => ({ id: p.id, title: p.title || p.name })) : [];
+          dataSources = {
+            ...dataSources,
+            applicants: fallbackApplicants,
+            jobOpenings: fallbackJobs,
+          };
+        } else {
+          const resp = await recruitmentAPI.getActivities({
+            start_date: finalParams.startDate,
+            end_date: finalParams.endDate
+          });
+          const payload = resp?.data || {};
+          dataSources = {
+            ...dataSources,
+            applicants: Array.isArray(payload.applicants) ? payload.applicants : [],
+            jobOpenings: Array.isArray(payload.job_openings) ? payload.job_openings : [],
+          };
+        }
+      } catch (error) {
+        try {
+          const [appsRes, posRes] = await Promise.all([
+            applicantAPI.getAll(true),
+            positionAPI.getAllPublic()
+          ]);
+          const fallbackApplicants = Array.isArray(appsRes?.data) ? appsRes.data : [];
+          const fallbackJobs = Array.isArray(posRes?.data) ? posRes.data.map(p => ({ id: p.id, title: p.title || p.name })) : [];
+          dataSources = {
+            ...dataSources,
+            applicants: fallbackApplicants,
+            jobOpenings: fallbackJobs,
+          };
+          // no success toast on fallback
+        } catch (fallbackErr) {
+          console.error('Error fetching recruitment data:', error);
+          console.error('Fallback also failed:', fallbackErr);
+          setToast({ show: true, message: 'Failed to fetch recruitment data. Please try again.', type: 'error' });
+          setIsFetchingData(false);
+          return;
+        }
+      } finally {
+        setIsFetchingData(false);
+      }
+    }
+    
     generateReport(reportId, finalParams, dataSources);
     setConfigModalState({ show: false, config: null });
     setShowPreview(true);
@@ -687,6 +762,13 @@ const ReportsPage = (props) => {
         onClose={handleClosePreview}
         pdfDataUri={pdfDataUri}
         reportTitle={configModalState.config?.title || 'Report Preview'}
+      />
+
+      <ToastNotification
+        show={toast.show}
+        onClose={() => setToast({ ...toast, show: false })}
+        message={toast.message}
+        type={toast.type}
       />
     </div>
   );

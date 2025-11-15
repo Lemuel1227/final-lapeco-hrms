@@ -320,15 +320,45 @@ const RecruitmentPage = () => {
     }
   };
   
-  const handleRunReport = (reportId, params) => {
+  const handleRunReport = async (reportId, params) => {
     setShowReportConfigModal(false);
-    generateReport(
-      reportId, 
-      { startDate: params.startDate, endDate: params.endDate },
-      { applicants, jobOpenings }
-    );
-    setShowReportPreview(true);
-    setToast({ show: true, message: 'Recruitment report generated.', type: 'success' });
+    try {
+      const startDate = params.startDate || null;
+      const endDate = params.endDate || null;
+      let dataSources = { applicants, jobOpenings };
+      if (reportId === 'recruitment_activity') {
+        const resp = await recruitmentAPI.getActivities({ start_date: startDate, end_date: endDate });
+        const payload = resp?.data || {};
+        dataSources = {
+          applicants: Array.isArray(payload.applicants) ? payload.applicants : applicants,
+          jobOpenings: Array.isArray(payload.job_openings) ? payload.job_openings : jobOpenings,
+        };
+      }
+      generateReport(
+        reportId,
+        { startDate, endDate },
+        dataSources
+      );
+      setShowReportPreview(true);
+      setToast({ show: true, message: 'Recruitment report generated.', type: 'success' });
+    } catch (e) {
+      try {
+        const [appsRes, posRes] = await Promise.all([
+          applicantAPI.getAll(true),
+          positionAPI.getAllPublic()
+        ]);
+        const fallbackApplicants = Array.isArray(appsRes?.data) ? appsRes.data : [];
+        const fallbackJobs = Array.isArray(posRes?.data) ? posRes.data.map(p => ({ id: p.id, title: p.title || p.name })) : [];
+        generateReport(
+          reportId,
+          { startDate: params.startDate || null, endDate: params.endDate || null },
+          { applicants: fallbackApplicants, jobOpenings: fallbackJobs }
+        );
+        setShowReportPreview(true);
+      } catch (_) {
+        setToast({ show: true, message: 'Failed to fetch recruitment data. Please try again.', type: 'error' });
+      }
+    }
   };
   
   const handleClosePreview = () => {
