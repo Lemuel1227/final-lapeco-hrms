@@ -75,7 +75,7 @@ export const generateRecruitmentActivityReport = async (layoutManager, dataSourc
   const summaryText = `This report summarizes ${filteredApps.length} applicant activities recorded ${dateRangeText}. During this period, ${hiredCount} applicant(s) were successfully hired, and ${rejectedCount} were rejected. The chart above provides a visual breakdown of all applicants by their current status in the hiring pipeline.`;
 
   // --- 4. TABLE DATA ---
-  const jobOpeningsMap = new Map((jobOpenings || []).map(j => [j.id, j.title]));
+  const jobOpeningsMap = new Map((jobOpenings || []).map(j => [j.id, j.title || j.name]));
   const formatDisplayDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     try {
