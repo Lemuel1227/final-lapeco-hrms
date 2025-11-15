@@ -5,7 +5,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI, disciplinaryCaseAPI } from '../../services/api';
 import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
 
@@ -24,6 +24,8 @@ const ReportsPage = (props) => {
   const [trainingEnrollments, setTrainingEnrollments] = useState([]);
   const [evaluationPeriods, setEvaluationPeriods] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
+  const [disciplinaryCases, setDisciplinaryCases] = useState([]);
+  const [payrolls, setPayrolls] = useState([]);
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -78,7 +80,7 @@ const ReportsPage = (props) => {
     const fetchData = async () => {
       try {
         setIsInitialLoading(true);
-        const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes, periodsRes, leavesRes, attendanceEmployeesRes] = await Promise.all([
+        const [employeesRes, positionsRes, resignationsRes, terminationsRes, programsRes, enrollmentsRes, periodsRes, leavesRes, attendanceEmployeesRes, casesRes, payrollsRes] = await Promise.all([
           employeeAPI.getAll(),
           positionAPI.getAll(),
           resignationAPI.getAll(),
@@ -88,6 +90,8 @@ const ReportsPage = (props) => {
           performanceAPI.getEvaluationPeriods(),
           leaveAPI.getAll(),
           attendanceAPI.getEmployeeNameID(),
+          disciplinaryCaseAPI.getAll(),
+          payrollAPI.getAll(),
         ]);
         
         // Normalize the data similar to EmployeeDataPage
@@ -260,6 +264,51 @@ const ReportsPage = (props) => {
           reason: l.reason,
         }));
         setLeaveRequests(normalizedLeaves);
+
+        const casesData = Array.isArray(casesRes.data)
+          ? casesRes.data
+          : (casesRes.data?.data || []);
+        const normalizedCases = casesData.map(c => {
+          const incidentDate = c.incident_date || c.issue_date || c.issueDate || '';
+          const normalizedDate = incidentDate ? String(incidentDate).slice(0, 10) : '';
+          const attachments = Array.isArray(c.attachments)
+            ? c.attachments
+            : (c.attachment ? [c.attachment] : []);
+          const actionLogs = Array.isArray(c.action_logs)
+            ? c.action_logs.map(log => ({
+                id: log.id,
+                date: log.date_created
+                  ? String(log.date_created).slice(0, 10)
+                  : (log.date ? String(log.date).slice(0, 10) : ''),
+                action: log.description || log.action,
+              }))
+            : [];
+
+          return {
+            caseId: c.id,
+            employeeId: c.employee_id ?? c.employeeId,
+            actionType: c.action_type ?? c.actionType ?? '',
+            description: c.description ?? '',
+            issueDate: normalizedDate,
+            incidentDate: normalizedDate,
+            reason: c.reason ?? '',
+            status: c.status ?? '',
+            resolutionTaken: c.resolution_taken ?? '',
+            approvalStatus: c.approval_status ?? c.approvalStatus ?? '',
+            submittedBy: c.reported_by ?? c.submitted_by ?? c.submittedBy ?? '',
+            attachments,
+            actionLog: actionLogs,
+          };
+        });
+        setDisciplinaryCases(normalizedCases);
+
+        // Normalize payrolls data
+        console.log('Payrolls API response:', payrollsRes);
+        const payrollData = Array.isArray(payrollsRes.data?.payroll_runs) 
+          ? payrollsRes.data.payroll_runs 
+          : (Array.isArray(payrollsRes.data) ? payrollsRes.data : []);
+        console.log('Processed payroll data:', payrollData);
+        setPayrolls(payrollData);
       } catch (error) {
         console.error('Error fetching data for reports:', error);
       } finally {
@@ -310,7 +359,9 @@ const ReportsPage = (props) => {
   const handleRunReport = async (reportId, params) => {
     // Special handling for Payroll Run Summary: we need a single run with records
     if (reportId === 'payroll_run_summary') {
-      const { payrolls = [] } = props;
+      console.log('Payroll Run Summary - Available payrolls:', payrolls);
+      console.log('Payroll Run Summary - Params:', params);
+      
       const selectedRunId = params?.runId || null;
 
       if (!selectedRunId) {
@@ -319,6 +370,7 @@ const ReportsPage = (props) => {
       }
 
       const selectedRun = (payrolls || []).find(r => r.runId === selectedRunId);
+      console.log('Selected run:', selectedRun);
 
       try {
         let runDetails = null;
@@ -338,12 +390,13 @@ const ReportsPage = (props) => {
         }
 
         // Generate report using the single run as data source
-        await generateReport(reportId, { runId: selectedRunId }, runDetails);
+        await generateReport(reportId, params, runDetails);
         setConfigModalState({ show: false, config: null });
         setShowPreview(true);
         return; // Do not continue to generic flow
       } catch (error) {
         console.error('Error loading payroll run details:', error);
+        console.error('Error details:', error.response || error.message);
         alert('Failed to load the selected payroll run. Please try again.');
         return;
       }
@@ -375,8 +428,6 @@ const ReportsPage = (props) => {
           ? employees // strictly active employees
           : (employees.length ? employees : allEmployees);
     
-    const { payrolls = [] } = props;
-
     let dataSources = {
       employees: employeesForReport,
       allEmployees,
@@ -388,6 +439,7 @@ const ReportsPage = (props) => {
       evaluationPeriods,
       payrolls,
       leaveRequests,
+      cases: disciplinaryCases,
     };
     let finalParams = { ...params };
     if (reportId === 'attendance_summary') {
@@ -549,7 +601,6 @@ const ReportsPage = (props) => {
     }
     
     if (reportId === 'thirteenth_month_pay') {
-        const { payrolls = [] } = props;
         const year = params.year;
 
         // Compute based on actual earnings recorded within the selected year.
@@ -753,7 +804,7 @@ const ReportsPage = (props) => {
         onClose={() => setConfigModalState({ show: false, config: null })}
         onRunReport={handleRunReport}
         trainingPrograms={trainingPrograms}
-        payrolls={props.payrolls}
+        payrolls={payrolls}
         evaluationPeriods={evaluationPeriods}
       />
 
