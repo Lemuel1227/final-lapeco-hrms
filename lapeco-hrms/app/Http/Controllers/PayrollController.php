@@ -1048,6 +1048,10 @@ class PayrollController extends Controller
             $totalLateMinutes += $this->calculateLateMinutes($scheduleDate, $assignment->start_time, $attendance);
         }
 
+        if ($totalLateMinutes < 0) {
+            $totalLateMinutes = 0;
+        }
+
         if ($gross <= 0 && $totalLateMinutes <= 0) {
             return null;
         }
@@ -1106,7 +1110,8 @@ class PayrollController extends Controller
         }
 
         $lateRate = $position?->late_deduction_per_minute ?? 0;
-        $lateDeduction = round($totalLateMinutes * (float) $lateRate, 2);
+        $lateDeduction = round($totalLateMinutes * abs((float) $lateRate), 2);
+
         $totalDeductions = $lateDeduction;
 
         $employeePayroll = EmployeePayroll::create([
@@ -1247,7 +1252,9 @@ class PayrollController extends Controller
             }
         }
 
-        return round(max($minutes, 0) / 60, 2);
+        $nightMinutes = max(min($nightMinutes, $totalWorkMinutes), 0);
+
+        return round($nightMinutes / 60, 2);
     }
 
     protected function calculateLateMinutes(Carbon $scheduleDate, ?string $scheduledStart, $attendance): int
@@ -1259,11 +1266,13 @@ class PayrollController extends Controller
         $scheduledTime = Carbon::parse($scheduleDate->toDateString() . ' ' . $scheduledStart);
         $signInTime = $this->combineDateWithTime($attendance->sign_in, $scheduleDate) ?? $scheduledTime;
 
-        if ($signInTime->lessThanOrEqualTo($scheduledTime)) {
+        $diffMinutes = $scheduledTime->diffInMinutes($signInTime, false);
+
+        if ($diffMinutes <= 0) {
             return 0;
         }
 
-        return $signInTime->diffInMinutes($scheduledTime);
+        return $diffMinutes;
     }
 
     protected function addEarning(array &$earnings, string $type, float $hours, float $pay): void
