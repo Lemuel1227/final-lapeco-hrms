@@ -87,13 +87,7 @@ export const reportsConfig = [
     description: 'Generates a snapshot of the employee risk and potential analysis based on performance and attendance data as of a specific date.',
     icon: 'bi-lightbulb-fill',
     category: reportCategories.ANALYTICS,
-    parameters: [
-      { 
-        id: 'as_of_date_analytics', 
-        type: 'as-of-date', 
-        label: 'Analysis As-Of Date'
-      },
-    ],
+    parameters: [],
   },
 
   // --- Case Management ---
