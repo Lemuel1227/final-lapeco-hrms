@@ -26,6 +26,43 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [resumeBlobUrl, setResumeBlobUrl] = useState(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeError, setResumeError] = useState(null);
+
+  useEffect(() => {
+    if (!show) {
+      setActiveTab('personal');
+      setFullApplicantData(null);
+      setResumeLoading(false);
+      setResumeError(null);
+      setResumeBlobUrl(prev => {
+        if (prev) {
+          window.URL.revokeObjectURL(prev);
+        }
+        return null;
+      });
+    }
+  }, [show]);
+
+  useEffect(() => {
+    if (!show) return;
+
+    setActiveTab('personal');
+    setResumeLoading(false);
+    setResumeError(null);
+    setResumeBlobUrl(prev => {
+      if (prev) {
+        window.URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+  }, [applicant?.id, show]);
+
+  useEffect(() => () => {
+    if (resumeBlobUrl) {
+      window.URL.revokeObjectURL(resumeBlobUrl);
+    }
+  }, [resumeBlobUrl]);
 
   // Fetch full applicant details when modal opens
   useEffect(() => {
@@ -156,12 +193,30 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                   <li className="nav-item"><button type="button" className={`nav-link ${activeTab === 'resume' ? 'active' : ''}`} onClick={async () => {
                     setActiveTab('resume');
                     if (displayData.resume_file && !resumeBlobUrl) {
-                      // Prefer direct URL rendering via ResumeIframe; keep blob fallback
+                      setResumeError(null);
+                      setResumeLoading(true);
                       try {
                         const blob = await applicantAPI.viewResume(displayData.id);
                         const url = window.URL.createObjectURL(blob);
-                        setResumeBlobUrl(url);
-                      } catch (_) {}
+                        setResumeBlobUrl(prev => {
+                          if (prev) {
+                            window.URL.revokeObjectURL(prev);
+                          }
+                          return url;
+                        });
+                      } catch (resumeFetchError) {
+                        console.error('Error loading resume preview:', resumeFetchError);
+                        setResumeBlobUrl(prev => {
+                          if (prev) {
+                            window.URL.revokeObjectURL(prev);
+                          }
+                          return null;
+                        });
+                        const message = resumeFetchError?.response?.data?.message || 'Resume not available for this applicant.';
+                        setResumeError(message);
+                      } finally {
+                        setResumeLoading(false);
+                      }
                     }
                   }}>Resume</button></li>
                 </ul>
@@ -204,9 +259,22 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                     <div className="resume-tab-container">
                       {displayData.resume_file ? (
                         <div className="resume-viewer">
-                          {resumeBlobUrl ? (
-                            <iframe src={resumeBlobUrl} width="100%" height="600px" title="Resume Preview"></iframe>
-                          ) : (
+                          {resumeLoading && (
+                            <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: '400px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '0.375rem' }}>
+                              <div className="spinner-border text-success mb-3" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                              </div>
+                              <p className="text-muted">Loading resume...</p>
+                            </div>
+                          )}
+                          {resumeError && !resumeLoading && (
+                            <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: '400px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '0.375rem' }}>
+                              <i className="bi bi-exclamation-triangle-fill text-warning mb-3" style={{ fontSize: '3rem' }}></i>
+                              <h5 className="text-muted mb-2">Resume Not Available</h5>
+                              <p className="text-muted text-center mb-3">{resumeError}</p>
+                            </div>
+                          )}
+                          {!resumeLoading && !resumeError && (
                             <ResumeIframe resumeUrl={`http://localhost:8000/api/applicants/${displayData.id}/resume/view`} />
                           )}
                         </div>
