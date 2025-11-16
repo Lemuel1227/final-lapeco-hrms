@@ -1,7 +1,7 @@
 # --- python-ml-api (FastAPI service) ---
 python-ml-api/.env
 python-ml-api/.env.*
-python-ml-api/venv/
+python-ml-api/venv311/
 python-ml-api/__pycache__/
 python-ml-api/**/*.pyc
 python-ml-api/models/*.pkl
