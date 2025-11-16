@@ -142,20 +142,6 @@ const AttendancePage = () => {
 
           let totalMinutes = (signOutTime - signInTime) / (1000 * 60);
 
-          if (record.breakOut && record.breakIn) {
-            const breakOutTime = new Date(`1970-01-01T${record.breakOut}:00`);
-            const breakInTime = new Date(`1970-01-01T${record.breakIn}:00`);
-
-            if (breakInTime <= breakOutTime) {
-              breakInTime.setDate(breakInTime.getDate() + 1);
-            }
-
-            const breakMinutes = (breakInTime - breakOutTime) / (1000 * 60);
-            if (breakMinutes > 0) {
-              totalMinutes -= breakMinutes;
-            }
-          }
-
           if (totalMinutes < 0 || Number.isNaN(totalMinutes)) {
             totalMinutes = 0;
           }

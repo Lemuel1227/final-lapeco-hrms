@@ -13,15 +13,6 @@ const calculateHoursWorked = (signIn, signOut, breakOut, breakIn) => {
   
   let totalMillis = signOutTime - signInTime;
 
-  if (breakOut && breakIn) {
-    const breakOutTime = new Date(`1970-01-01T${breakOut}:00`);
-    const breakInTime = new Date(`1970-01-01T${breakIn}:00`);
-    const breakMillis = breakInTime - breakOutTime;
-    if (breakMillis > 0) {
-      totalMillis -= breakMillis;
-    }
-  }
-
   if (totalMillis < 0) totalMillis = 0;
   
   const hours = Math.floor(totalMillis / 3600000);

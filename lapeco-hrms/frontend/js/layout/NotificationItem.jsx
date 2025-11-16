@@ -49,6 +49,8 @@ const NotificationItem = ({ notification, onMarkAsRead, currentUser }) => {
       navigate('/dashboard/leave-management');
     } else if (notification.type === 'leave_status_update') {
       navigate('/dashboard/my-leave');
+    } else if (notification.type === 'recruitment') {
+      navigate('/dashboard/recruitment');
     } else if (notification.type === 'holiday_reminder') {
       // HR goes to Holiday Management, others go to My Attendance
       if (currentUser?.role === 'HR_PERSONNEL') {
