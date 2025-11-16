@@ -367,6 +367,16 @@
     align-items: flex-start;
 }
 
+/* === Scoped avatar size in Employee Matrix (Predictive Analytics only) === */
+.predictive-analytics-page .data-table-card .table .avatar-table,
+.predictive-analytics-page .data-table-card .avatar-table {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
 /* === Risk Breakdown Card === */
 .risk-breakdown-card {
     display: flex;

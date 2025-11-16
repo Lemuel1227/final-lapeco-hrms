@@ -662,7 +662,7 @@ const PredictiveAnalyticsPage = () => {
                               <tr className={`main-row ${isExpanded ? 'selected-row' : ''}`} onClick={() => handleToggleDetails(emp.id)}>
                                 <td>
                                   <div className="d-flex align-items-center">
-                                    <img src={emp.imageUrl || placeholderAvatar} alt={emp.name} className="avatar-table me-3" />
+                                    <img src={emp.imageUrl || placeholderAvatar} alt={emp.name} className="avatar-table me-3" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} loading="lazy" />
                                     <div>
                                       <div className="fw-bold">{emp.name}</div>
                                       <small className="text-muted">{emp.positionTitle}</small>
