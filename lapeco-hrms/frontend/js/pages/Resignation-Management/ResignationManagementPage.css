@@ -3,6 +3,16 @@
     margin-bottom: -1px;
     border-bottom: none;
 }
+.resignation-tabs-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+}
+.tabs-actions {
+    margin-bottom: -1px; /* align with tab baseline */
+}
 .resignation-tabs .nav-link {
     font-weight: 500;
     color: var(--text-secondary);

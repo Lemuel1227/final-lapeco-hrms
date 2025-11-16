@@ -437,16 +437,12 @@ const ResignationManagementPage = () => {
 
     return (
         <div className="container-fluid p-0 page-module-container">
-            <header className="page-header d-flex justify-content-between align-items-center mb-4">
+            <header className="page-header mb-3">
                 <h1 className="page-main-title">Resignation Management</h1>
-                <div className="d-flex gap-2">
-                    <button className="btn btn-outline-secondary" onClick={() => setShowReportConfigModal(true)}>
-                        <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
-                    </button>
-                </div>
             </header>
 
-            <ul className="nav nav-tabs resignation-tabs">
+            <div className="resignation-tabs-bar">
+              <ul className="nav nav-tabs resignation-tabs">
                 <li className="nav-item">
                     <button className={`nav-link ${activeTab === 'open' ? 'active' : ''}`} onClick={() => setActiveTab('open')}>Open Requests</button>
                 </li>
@@ -456,7 +452,13 @@ const ResignationManagementPage = () => {
                 <li className="nav-item">
                     <button className={`nav-link ${activeTab === 'terminated' ? 'active' : ''}`} onClick={() => setActiveTab('terminated')}>Terminated Employees</button>
                 </li>
-            </ul>
+              </ul>
+              <div className="tabs-actions">
+                <button className="btn btn-outline-secondary" onClick={() => setShowReportConfigModal(true)}>
+                    <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
+                </button>
+              </div>
+            </div>
 
             <div className="resignation-tab-content">
                 {activeTab === 'open' && (

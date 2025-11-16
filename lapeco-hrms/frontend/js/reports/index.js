@@ -12,7 +12,7 @@ const generatorLoaders = {
   positions_report: () => import('./positionsReport').then(m => m.generatePositionsReport),
   recruitment_activity: () => import('./recruitmentActivityReport').then(m => m.generateRecruitmentActivityReport),
   training_program_summary: () => import('./trainingProgramReport').then(m => m.generateTrainingProgramReport),
-  contributions_summary: () => import('./contributionsReport').then(m => m.generateContributionsReport),
+  contributions_summary: () => import('./contributionsMonthlyReport').then(m => m.generateContributionsMonthlyReport),
   contributions_monthly: () => import('./contributionsMonthlyReport').then(m => m.generateContributionsMonthlyReport),
   predictive_analytics_summary: () => import('./predictiveAnalyticsReport').then(m => m.generatePredictiveAnalyticsReport),
   offboarding_summary: () => import('./offboardingSummaryReport').then(m => m.generateOffboardingSummaryReport),

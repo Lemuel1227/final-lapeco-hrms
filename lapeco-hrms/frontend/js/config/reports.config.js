@@ -146,12 +146,13 @@ export const reportsConfig = [
 
   {
     id: 'contributions_summary',
-    title: 'Contributions Summary by Pay Period',
-    description: 'Generates a consolidated PDF of SSS, PhilHealth, and Pag-IBIG contributions for a selected payroll period.',
+    title: 'Contributions Summary by Month',
+    description: 'Consolidated SSS, PhilHealth, Pag-IBIG, and TIN summary for a selected month and year, aligned with Contributions Management.',
     icon: 'bi-file-earmark-ruled-fill',
     category: reportCategories.PAYROLL,
     parameters: [
-      { id: 'payroll_run_selector', type: 'payroll-run-selector', label: 'Select Payroll Run' }
+      { id: 'year_selector', type: 'year-selector', label: 'Select Year' },
+      { id: 'month_selector', type: 'month-selector', label: 'Select Month' }
     ],
   },
 
