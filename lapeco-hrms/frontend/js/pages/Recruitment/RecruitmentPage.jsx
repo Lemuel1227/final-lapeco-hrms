@@ -251,7 +251,8 @@ const RecruitmentPage = () => {
             const fullName = (app.full_name || [app.first_name, app.middle_name, app.last_name].filter(Boolean).join(' ')).toLowerCase();
             const email = (app.email || '').toLowerCase();
             const phone = (app.phone || '').toLowerCase();
-            return fullName.includes(normalizedSearch) || email.includes(normalizedSearch) || phone.includes(normalizedSearch);
+            const address = (app.address || '').toLowerCase();
+            return fullName.includes(normalizedSearch) || email.includes(normalizedSearch) || phone.includes(normalizedSearch) || address.includes(normalizedSearch);
         });
     }
     results.sort((a, b) => {
@@ -490,7 +491,10 @@ const RecruitmentPage = () => {
                   }</small>
                 </td>
                 <td>{applicant.gender}</td><td>{calculateAge(applicant.birthday)}</td>
-                <td>{applicant.phone}</td>
+                <td>
+                  <div>{applicant.phone}</div>
+                  {applicant.address && (<div><small className="text-muted">{applicant.address}</small></div>)}
+                </td>
                 <td>{formatDate(applicant.application_date || applicant.applicationDate)}</td>
                 <td>{formatDate(applicant.updated_at, true)}</td>
                 <td>

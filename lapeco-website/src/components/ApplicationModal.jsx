@@ -621,8 +621,8 @@ function ApplicationModal({ show, onHide }) {
               <Form.Group as={Col} md={6} controlId="validationApplyingFor">
                 <Form.Label>Applying For*</Form.Label>
                 <Form.Select name="job_opening_id" value={formData.job_opening_id} onChange={handleChange} required disabled={isLoadingPositions}>
-                  <option value="">{isLoadingPositions ? 'Loading positions...' : 'Select a job...'}</option>
-                  {positions.map(position => (
+                  <option value="">{isLoadingPositions ? 'Loading positions...' : (positions.length === 0 ? 'No positions available' : 'Select a job...')}</option>
+                  {positions && positions.length > 0 && positions.map(position => (
                     <option key={position.id} value={position.id}>
                       {position.name}
                     </option>

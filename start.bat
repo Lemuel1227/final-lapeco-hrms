@@ -16,6 +16,6 @@ echo.
 echo All services are starting...
 echo Backend will be available at: http://localhost:8000
 echo Frontend 1 (HRMS) will be available at: http://localhost:3000
-echo Frontend 2 (Recruitment) will be available at: http://localhost:5173
+echo Frontend 2 (Recruitment) will be available at: http://localhost:8000
 echo.
 pause

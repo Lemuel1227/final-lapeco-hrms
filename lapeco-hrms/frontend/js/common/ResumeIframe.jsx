@@ -14,7 +14,8 @@ const ResumeIframe = ({ resumeUrl }) => {
   };
 
   const token = localStorage.getItem('auth_token');
-  const urlWithToken = token ? `${resumeUrl}?token=${encodeURIComponent(token)}` : resumeUrl;
+  const isBlob = typeof resumeUrl === 'string' && resumeUrl.startsWith('blob:');
+  const urlWithToken = isBlob ? resumeUrl : (token ? `${resumeUrl}?token=${encodeURIComponent(token)}` : resumeUrl);
 
   if (error) {
     return (
