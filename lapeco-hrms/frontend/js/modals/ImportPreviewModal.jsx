@@ -321,8 +321,8 @@ const ImportPreviewModal = ({
                           disabled={row.excluded || isLoading}
                           style={{ fontSize: '0.875rem', fontWeight: '500' }}
                         >
-                          <option value="Sign In">Sign In</option>
-                          <option value="Sign Out">Sign Out</option>
+                          <option value="Sign In">Time-In</option>
+                          <option value="Sign Out">Time-Out</option>
                           <option value="Break In">Break In</option>
                           <option value="Break Out">Break Out</option>
                         </select>

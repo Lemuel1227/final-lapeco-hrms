@@ -7,6 +7,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
     lastName: '',
     email: '',
     phone: '',
+    address: '',
     jobOpeningId: '',
     resumeFile: null,
     profilePicture: null,
@@ -82,6 +83,15 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
         if (value && value.trim()) {
           if (!/^(\+63|0)?9\d{9}$/.test(value.replace(/[\s-]/g, ''))) {
             error = 'Invalid phone number. Use format: 09XXXXXXXXX';
+          }
+        }
+        break;
+      case 'address':
+        if (value && value.trim()) {
+          if (value.trim().length < 5) {
+            error = 'Address must be at least 5 characters.';
+          } else if (value.trim().length > 255) {
+            error = 'Address must not exceed 255 characters.';
           }
         }
         break;
@@ -248,6 +258,15 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
       newErrors.phone = 'Invalid phone number. Use format: 09XXXXXXXXX';
     }
     
+    // Address validation (optional)
+    if (formData.address) {
+      if (formData.address.trim().length < 5) {
+        newErrors.address = 'Address must be at least 5 characters.';
+      } else if (formData.address.trim().length > 255) {
+        newErrors.address = 'Address must not exceed 255 characters.';
+      }
+    }
+    
     // Birthday validation (must be 18+)
     if (!formData.birthday) {
       newErrors.birthday = 'Birthday is required.';
@@ -323,6 +342,7 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
         last_name: formData.lastName,
         email: formData.email,
         phone: formData.phone,
+        address: formData.address,
         job_opening_id: formData.jobOpeningId,
         birthday: formData.birthday,
         gender: formData.gender,
@@ -501,6 +521,25 @@ const AddApplicantModal = ({ show, onClose, onSave, positions = [] }) => {
                     placeholder="09XXXXXXXXX"
                   />
                   {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
+                </div>
+              </div>
+              <div className="row mb-3">
+                <div className="col-md-12">
+                  <label htmlFor="address" className="form-label">Address</label>
+                  <input
+                    type="text"
+                    className={`form-control ${errors.address ? 'is-invalid' : ''}`}
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z0-9\s,'\-.#\/()]/g, '');
+                    }}
+                    maxLength="255"
+                    placeholder="House No., Street, Barangay, City/Province, ZIP"
+                  />
+                  {errors.address && <div className="invalid-feedback">{errors.address}</div>}
                 </div>
               </div>
               <div className="row mb-3">

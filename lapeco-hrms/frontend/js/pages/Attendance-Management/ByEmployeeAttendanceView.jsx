@@ -99,8 +99,8 @@ const ByEmployeeAttendanceView = ({
                 <tr>
                   <th>Date</th>
                   <th>Schedule</th>
-                  <th>Sign In</th>
-                  <th>Sign Out</th>
+                  <th>Time-In</th>
+                  <th>Time-Out</th>
                   <th>Status</th>
                 </tr>
               </thead>
