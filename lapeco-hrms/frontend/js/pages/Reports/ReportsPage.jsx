@@ -5,7 +5,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI, disciplinaryCaseAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI, disciplinaryCaseAPI, contributionAPI } from '../../services/api';
 import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
 
@@ -805,6 +805,76 @@ const ReportsPage = (props) => {
       }
     }
     
+    // Monthly Contributions Summary (aligned with Contributions Management)
+    if (reportId === 'contributions_summary') {
+      try {
+        setIsFetchingData(true);
+        const year = Number(params?.year ?? new Date().getFullYear());
+        const month = Number(params?.month ?? new Date().getMonth());
+        const monthLabel = ['January','February','March','April','May','June','July','August','September','October','November','December'][month];
+        const payPeriod = `${monthLabel} ${year}`;
+
+        const types = ['sss', 'philhealth', 'pagibig', 'tin'];
+        const responses = await Promise.all(types.map(type => contributionAPI.getMonthlyContributions({ year, month, type })));
+
+        const makeColumns = (type) => {
+          if (type === 'tin') {
+            return [
+              { key: 'no', label: 'No.', editable: false, isPermanent: true },
+              { key: 'govtId', label: 'TIN', editable: false, isPermanent: true },
+              { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
+              { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
+              { key: 'middleName', label: 'MI', editable: false, isPermanent: true },
+              { key: 'grossCompensation', label: 'Gross Compensation', editable: false, isPermanent: true },
+              { key: 'taxWithheld', label: 'Tax Withheld', editable: false, isPermanent: true },
+            ];
+          }
+          const idLabel = type === 'sss' ? 'SSS Number' : type === 'philhealth' ? 'PhilHealth Number' : 'Pag-IBIG MID No.';
+          return [
+            { key: 'no', label: 'No.', editable: false, isPermanent: true },
+            { key: 'govtId', label: idLabel, editable: false, isPermanent: true },
+            { key: 'lastName', label: 'Last Name', editable: false, isPermanent: true },
+            { key: 'firstName', label: 'First Name', editable: false, isPermanent: true },
+            { key: 'middleName', label: 'Middle Name', editable: false, isPermanent: true },
+            { key: 'employeeContribution', label: 'EE Share', editable: false, isPermanent: true },
+            { key: 'employerContribution', label: 'ER Share', editable: false, isPermanent: true },
+            { key: 'totalContribution', label: 'Total', editable: false, isPermanent: true },
+          ];
+        };
+
+        const makeHeader = (type) => {
+          if (type === 'sss') {
+            return { 'Employer ID Number': '03-9-1234567-8', 'Employer Name': 'Lapeco Group of Companies', 'Contribution Month': payPeriod };
+          }
+          return { 'Employer Name': 'Lapeco Group of Companies', 'Contribution Month': payPeriod };
+        };
+
+        const typeTitles = { sss: 'SSS Contribution Report', philhealth: 'PhilHealth Contribution Report', pagibig: 'Pag-IBIG Contribution Report', tin: 'Withholding Tax (TIN) Report' };
+
+        const reports = responses.map((resp, idx) => {
+          const type = types[idx];
+          const payload = resp?.data || {};
+          const rows = Array.isArray(payload.data) ? payload.data : [];
+          const columns = makeColumns(type);
+          const headerData = makeHeader(type);
+          const typeUpper = type.toUpperCase();
+          return { type: typeTitles[type], header_data: headerData, columns, rows, year, month, monthName: payload?.period?.monthName };
+        });
+
+        const monthlyParams = { type: 'ALL', payPeriod, reportTitle: 'Finalized Contributions' };
+        await generateReport('contributions_summary', monthlyParams, { reports });
+        setConfigModalState({ show: false, config: null });
+        setShowPreview(true);
+        setIsFetchingData(false);
+        return;
+      } catch (error) {
+        console.error('Failed to load monthly contributions for report:', error);
+        setIsFetchingData(false);
+        alert('Unable to load monthly contributions for the selected month. Please try again.');
+        return;
+      }
+    }
+
     generateReport(reportId, finalParams, dataSources);
     setConfigModalState({ show: false, config: null });
     setShowPreview(true);

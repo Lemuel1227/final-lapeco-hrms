@@ -34,6 +34,7 @@ const ReportConfigurationModal = ({ show, onClose, onRunReport, reportConfig, tr
         if (param.type === 'program-selector') acc.programId = null;
         if (param.type === 'payroll-run-selector') acc.runId = null;
         if (param.type === 'year-selector') acc.year = new Date().getFullYear();
+        if (param.type === 'month-selector') acc.month = new Date().getMonth();
         if (param.type === 'performance-period-selector') acc.periodId = 'all';
         return acc;
       }, {});
@@ -57,6 +58,15 @@ const ReportConfigurationModal = ({ show, onClose, onRunReport, reportConfig, tr
   const programOptions = useMemo(() => 
     (trainingPrograms || []).map(p => ({ value: p.id, label: p.title }))
   , [trainingPrograms]);
+
+  const MONTHS = useMemo(() => (
+    [
+      { value: 0, label: 'January' }, { value: 1, label: 'February' }, { value: 2, label: 'March' },
+      { value: 3, label: 'April' }, { value: 4, label: 'May' }, { value: 5, label: 'June' },
+      { value: 6, label: 'July' }, { value: 7, label: 'August' }, { value: 8, label: 'September' },
+      { value: 9, label: 'October' }, { value: 10, label: 'November' }, { value: 11, label: 'December' },
+    ]
+  ), []);
 
   if (!show || !reportConfig) {
     return null;
@@ -209,6 +219,24 @@ const ReportConfigurationModal = ({ show, onClose, onRunReport, reportConfig, tr
               >
                 {availableYears.map(year => (
                   <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+          );
+
+        case 'month-selector':
+          return (
+            <div key={param.id} className="mb-3">
+              <label htmlFor="month" className="form-label">{param.label}</label>
+              <select
+                id="month"
+                className="form-select"
+                value={params.month ?? new Date().getMonth()}
+                onChange={(e) => handleParamChange('month', Number(e.target.value))}
+                required
+              >
+                {MONTHS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
             </div>
