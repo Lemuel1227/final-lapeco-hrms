@@ -218,16 +218,21 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
     // Use backend-provided leave balances if available
     if (payrollData?.leaveBalances) {
       const backendBalances = payrollData.leaveBalances;
+      const vac = backendBalances['Vacation Leave'] || { total: 0, used: 0 };
+      const eme = backendBalances['Emergency Leave'] || { total: 0, used: 0 };
+      const sick = backendBalances['Sick Leave'] || { total: 0, used: 0 };
+      const vacationTotal = Number(vac.total || 0) + Number(eme.total || 0);
+      const vacationUsed = Number(vac.used || 0) + Number(eme.used || 0);
       return {
-        vacation: backendBalances['Vacation Leave'] || { total: 0, used: 0, remaining: 0 },
-        sick: backendBalances['Sick Leave'] || { total: 0, used: 0, remaining: 0 },
+        vacation: { total: vacationTotal, used: vacationUsed, remaining: Math.max(0, vacationTotal - vacationUsed) },
+        sick: { total: Number(sick.total || 0), used: Number(sick.used || 0), remaining: Math.max(0, Number(sick.total || 0) - Number(sick.used || 0)) },
       };
     }
 
     // Fallback to client-side calculation if backend data not available
-    if (!employeeDetails) return { vacation: {}, sick: {} };
+    if (!employeeDetails) return { vacation: { total: 0, used: 0, remaining: 0 }, sick: { total: 0, used: 0, remaining: 0 } };
     const currentYear = new Date().getFullYear();
-    const totalCredits = employeeDetails.leaveCredits || { 'Vacation Leave': 0, 'Sick Leave': 0 };
+    const totalCredits = employeeDetails.leaveCredits || { 'Vacation Leave': 0, 'Sick Leave': 0, 'Emergency Leave': 0 };
     const usedCredits = (allLeaveRequests || [])
       .filter(req => 
         req.empId === employeeDetails.id && 
@@ -236,12 +241,13 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
       )
       .reduce((acc, req) => {
         const type = req.leaveType;
-        if (type === 'Vacation Leave') acc.vacation += req.days;
+        if (type === 'Vacation Leave' || type === 'Emergency Leave') acc.vacation += req.days;
         if (type === 'Sick Leave') acc.sick += req.days;
         return acc;
       }, { vacation: 0, sick: 0 });
+    const vacationTotal = Number(totalCredits['Vacation Leave'] || 0) + Number(totalCredits['Emergency Leave'] || 0);
     return {
-      vacation: { total: totalCredits['Vacation Leave'] || 0, used: usedCredits.vacation, remaining: (totalCredits['Vacation Leave'] || 0) - usedCredits.vacation },
+      vacation: { total: vacationTotal, used: usedCredits.vacation, remaining: Math.max(0, vacationTotal - usedCredits.vacation) },
       sick: { total: totalCredits['Sick Leave'] || 0, used: usedCredits.sick, remaining: (totalCredits['Sick Leave'] || 0) - usedCredits.sick },
     };
   }, [payrollData, employeeDetails, allLeaveRequests]);
@@ -591,7 +597,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
               <p className="text-muted small">This is the employee's total remaining leave for the year.</p>
               <LeaveBalanceDisplay label="Vacation Leave" balanceData={leaveBalances.vacation} />
               <LeaveBalanceDisplay label="Sick Leave" balanceData={leaveBalances.sick} />
-              <LeaveBalanceDisplay label="Emergency Leave" balanceData={leaveBalances.emergency} />
+              
           </div>
           <div className="leave-earnings-breakdown">
               <h6 className="form-grid-title">Leave Earnings Breakdown (This Pay Period)</h6>
