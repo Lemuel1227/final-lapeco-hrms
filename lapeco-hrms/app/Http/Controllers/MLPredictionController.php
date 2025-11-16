@@ -5,34 +5,29 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
+use Illuminate\Support\Facades\Http;
+use App\Services\MLDataService;
 
 /**
- * MLPredictionController
+ * MLPredictionController (Refactored)
  * 
- * Handles Machine Learning predictions for employee analytics.
- * This controller interfaces with Python ML scripts to generate predictions
- * for employee potential and resignation risk.
+ * Handles Machine Learning predictions by communicating with a standalone
+ * Python ML API service. This controller prepares employee data and sends
+ * HTTP requests to the Python API instead of executing scripts directly.
  * 
  * Features:
- * - Executes Python ML script with database credentials
- * - Retrieves predictions for all active employees
- * - Caches predictions to reduce computation overhead
+ * - Fetches employee data from Laravel database
+ * - Sends data to Python ML API via HTTP requests
+ * - Handles API responses and error scenarios
+ * - Caches predictions to reduce API calls
  * - Returns formatted predictions for frontend consumption
  */
 class MLPredictionController extends Controller
 {
     /**
-     * Path to the Python executable
-     * Adjust this based on your Python installation
+     * ML API service URL
      */
-    private $pythonPath = 'python';
-
-    /**
-     * Path to the ML prediction script
-     */
-    private $scriptPath;
+    private $mlApiUrl;
 
     /**
      * Cache duration for predictions (in seconds)
@@ -40,38 +35,22 @@ class MLPredictionController extends Controller
      */
     private $cacheDuration = 3600;
 
-    public function __construct()
+    /**
+     * ML Data Service for preparing employee data
+     */
+    private $mlDataService;
+
+    public function __construct(MLDataService $mlDataService)
     {
-        // Set the path to the ML script
-        $this->scriptPath = base_path('ml_scripts/employee_ml_predictor.py');
-        
-        // Adjust Python path based on environment
-        // For Windows with Anaconda/Python installed globally
-        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            // Try common Python installation paths
-            $possiblePaths = [
-                'python',  // If Python is in PATH
-                'C:\\Python311\\python.exe',
-                'C:\\Python310\\python.exe',
-                'C:\\Python39\\python.exe',
-                'C:\\ProgramData\\Anaconda3\\python.exe',
-                'C:\\Users\\' . get_current_user() . '\\Anaconda3\\python.exe',
-            ];
-            
-            foreach ($possiblePaths as $path) {
-                if (file_exists($path) || $path === 'python') {
-                    $this->pythonPath = $path;
-                    break;
-                }
-            }
-        }
+        $this->mlApiUrl = config('services.ml_api.url', 'http://localhost:8000');
+        $this->mlDataService = $mlDataService;
     }
 
     /**
      * Get ML predictions for all active employees
      * 
-     * This method executes the Python ML script and returns predictions
-     * including employee potential classification and resignation risk.
+     * This method prepares employee data and sends it to the Python ML API
+     * to generate predictions for employee potential and resignation risk.
      * 
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -96,8 +75,8 @@ class MLPredictionController extends Controller
                 ]);
             }
 
-            // Execute Python script to get predictions
-            $predictions = $this->executePythonScript();
+            // Call ML API to get predictions
+            $predictions = $this->callMLAPI();
 
             // Cache the predictions
             cache()->put($cacheKey, [
@@ -123,94 +102,49 @@ class MLPredictionController extends Controller
     }
 
     /**
-     * Execute the Python ML script
+     * Call the Python ML API to get predictions
      * 
-     * Runs the Python script with database credentials as arguments
-     * and parses the JSON output.
+     * Prepares employee data and sends HTTP request to the ML API service.
      * 
-     * @return array Parsed predictions from Python script
-     * @throws \Exception If script execution fails
+     * @return array Predictions from ML API
+     * @throws \Exception If API call fails
      */
-    private function executePythonScript()
+    private function callMLAPI()
     {
-        // Verify script exists
-        if (!file_exists($this->scriptPath)) {
-            throw new \Exception('ML prediction script not found at: ' . $this->scriptPath);
-        }
-
-        // Get database configuration
-        $dbHost = env('DB_HOST', '127.0.0.1');
-        $dbPort = env('DB_PORT', '3306');
-        $dbDatabase = env('DB_DATABASE', 'lapeco_hrms');
-        $dbUsername = env('DB_USERNAME', 'root');
-        $dbPassword = env('DB_PASSWORD', '');
-
-        // Prepare command arguments
-        $arguments = [
-            $this->pythonPath,
-            $this->scriptPath,
-            $dbHost,
-            $dbPort,
-            $dbDatabase,
-            $dbUsername
-        ];
-        
-        // Only add password if it's not empty
-        if (!empty($dbPassword)) {
-            $arguments[] = $dbPassword;
-        }
-
-        // Create process
-        $process = new Process($arguments);
-        
-        // Set timeout to 5 minutes (ML training can take time)
-        $process->setTimeout(300);
-        
-        // Set working directory
-        $process->setWorkingDirectory(base_path('ml_scripts'));
-        
-        // Set environment variables to help with Windows asyncio issues
-        $env = $_SERVER;  // Start with current environment
-        $env['PYTHONIOENCODING'] = 'utf-8';
-        $env['PYTHONUNBUFFERED'] = '1';
-        $env['PYTHONASYNCIODebug'] = '0';
-        // Critical: Force Python to not use overlapped I/O on Windows
-        $env['PYTHONASYNCIODEBUG'] = '0';
-        $env['SYSTEMROOT'] = env('SYSTEMROOT', 'C:\\Windows');
-        
-        $process->setEnv($env);
-
         try {
-            // Run the process
-            $process->run();
-
-            // Check if process was successful
-            if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
-            }
-
-            // Get output
-            $output = $process->getOutput();
+            // Prepare employee data for the API
+            $employeeData = $this->mlDataService->prepareEmployeeData();
             
-            // Parse JSON output
-            $result = json_decode($output, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \Exception('Invalid JSON output from Python script: ' . json_last_error_msg());
+            Log::info('Sending ML API request for ' . count($employeeData) . ' employees');
+            
+            // Send request to Python ML API
+            $response = Http::timeout(300) // 5 minute timeout for ML processing
+                ->retry(3, 1000) // Retry 3 times with 1 second delay
+                ->post($this->mlApiUrl . '/predict', [
+                    'employees' => $employeeData
+                ]);
+            
+            if (!$response->successful()) {
+                $errorMessage = 'ML API request failed with status: ' . $response->status();
+                if ($response->json('error')) {
+                    $errorMessage .= ' - ' . $response->json('error');
+                }
+                throw new \Exception($errorMessage);
             }
-
+            
+            $result = $response->json();
+            
             if (!isset($result['success']) || !$result['success']) {
-                throw new \Exception($result['error'] ?? 'Unknown error from Python script');
+                throw new \Exception($result['error'] ?? 'Unknown error from ML API');
             }
-
-            return $result['data'] ?? [];
-
-        } catch (ProcessFailedException $e) {
-            Log::error('Python Process Failed: ' . $e->getMessage());
-            Log::error('Output: ' . $process->getOutput());
-            Log::error('Error Output: ' . $process->getErrorOutput());
             
-            throw new \Exception('Python script execution failed: ' . $process->getErrorOutput());
+            Log::info('ML API request successful, received ' . count($result['data'] ?? []) . ' predictions');
+            
+            return $result['data'] ?? [];
+            
+        } catch (\Exception $e) {
+            Log::error('ML API call failed: ' . $e->getMessage());
+            throw $e;
         }
     }
 
@@ -347,7 +281,7 @@ class MLPredictionController extends Controller
     /**
      * Retrain the ML model
      * 
-     * Forces a retraining of the ML model with current data
+     * Sends training data to the ML API to retrain the model
      * This is useful when significant new data has been added
      * 
      * @return \Illuminate\Http\JsonResponse
@@ -355,22 +289,37 @@ class MLPredictionController extends Controller
     public function retrainModel()
     {
         try {
-            // Delete existing model file to force retraining
-            $modelPath = base_path('ml_scripts/employee_resignation_model.pkl');
+            // Prepare training data
+            $trainingData = $this->mlDataService->prepareEmployeeData();
             
-            if (file_exists($modelPath)) {
-                unlink($modelPath);
+            if (count($trainingData) < 10) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Minimum 10 employee records required for training'
+                ], 400);
             }
-
-            // Clear cache
+            
+            Log::info('Sending model training request with ' . count($trainingData) . ' records');
+            
+            // Send training request to ML API
+            $response = Http::timeout(600) // 10 minute timeout for training
+                ->post($this->mlApiUrl . '/train', [
+                    'employees' => $trainingData
+                ]);
+            
+            if (!$response->successful()) {
+                throw new \Exception('Training request failed with status: ' . $response->status());
+            }
+            
+            $result = $response->json();
+            
+            // Clear cache after training
             $this->clearCache();
-
-            // Execute script to retrain
-            $this->executePythonScript();
-
+            
             return response()->json([
                 'success' => true,
-                'message' => 'ML model retrained successfully'
+                'message' => $result['message'] ?? 'Model training initiated successfully',
+                'training_data_size' => count($trainingData)
             ]);
 
         } catch (\Exception $e) {
@@ -378,8 +327,42 @@ class MLPredictionController extends Controller
             
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to retrain model: ' . $e->getMessage()
+                'error' => 'Failed to initiate model training: ' . $e->getMessage()
             ], 500);
+        }
+    }
+    
+    /**
+     * Get ML API health status
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAPIHealth()
+    {
+        try {
+            $response = Http::timeout(10)
+                ->get($this->mlApiUrl . '/health');
+            
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'api_status' => 'healthy',
+                    'data' => $response->json()
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'api_status' => 'unhealthy',
+                    'error' => 'API returned status: ' . $response->status()
+                ], 503);
+            }
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'api_status' => 'unreachable',
+                'error' => 'Cannot reach ML API: ' . $e->getMessage()
+            ], 503);
         }
     }
 }
