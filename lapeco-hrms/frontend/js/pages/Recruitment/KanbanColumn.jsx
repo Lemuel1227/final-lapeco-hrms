@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import ApplicantCard from './ApplicantCard';
 
-const KanbanColumn = ({ id, title, applicants, jobOpeningsMap, onAction }) => {
+const KanbanColumn = ({ id, title, applicants, jobOpeningsMap, positionsMap, onAction }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: id,
   });
@@ -24,7 +24,10 @@ const KanbanColumn = ({ id, title, applicants, jobOpeningsMap, onAction }) => {
             <ApplicantCard
               key={applicant.id}
               applicant={applicant}
-              jobTitle={jobOpeningsMap.get(applicant.jobOpeningId)}
+              jobTitle={
+                jobOpeningsMap.get(applicant.jobOpeningId || applicant.job_opening_id) ||
+                positionsMap?.get(applicant.jobOpeningId || applicant.job_opening_id)
+              }
               onAction={onAction}
             />
           ))}
