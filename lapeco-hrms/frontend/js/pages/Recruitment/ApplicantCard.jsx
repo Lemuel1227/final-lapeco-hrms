@@ -85,7 +85,7 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
                 </div>
             </div>
 
-            <p className="applicant-job-title">{jobTitle}</p>
+            <p className="applicant-job-title">Applied for: {jobTitle || 'N/A'}</p>
             
             <div className="applicant-card-details">
                 {applicant.interview_schedule && (

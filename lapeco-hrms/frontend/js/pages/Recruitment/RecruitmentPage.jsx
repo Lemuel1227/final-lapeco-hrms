@@ -222,6 +222,10 @@ const RecruitmentPage = () => {
     if (!jobOpenings || !Array.isArray(jobOpenings)) return new Map();
     return new Map(jobOpenings.map(job => [job.id, job.title]));
   }, [jobOpenings]);
+  const positionsMap = useMemo(() => {
+    if (!positions || !Array.isArray(positions)) return new Map();
+    return new Map(positions.map(p => [p.id, p.title || p.name]));
+  }, [positions]);
   
   const recruitmentReportConfig = useMemo(() => reportsConfig.find(r => r.id === 'recruitment_activity'), []);
 
@@ -452,6 +456,7 @@ const RecruitmentPage = () => {
               title={stage}
               applicants={groupedApplicants[stage]}
               jobOpeningsMap={jobOpeningsMap}
+              positionsMap={positionsMap}
               onAction={handleAction}
             />
           ))}
@@ -478,7 +483,11 @@ const RecruitmentPage = () => {
               <tr key={applicant.id}>
                 <td>
                   <div>{applicant.full_name || applicant.name}</div>
-                  <small className="text-muted">{jobOpeningsMap.get(applicant.jobOpeningId || applicant.job_opening_id) || 'N/A'}</small>
+                  <small className="text-muted">{
+                    jobOpeningsMap.get(applicant.jobOpeningId || applicant.job_opening_id) ||
+                    positionsMap.get(applicant.jobOpeningId || applicant.job_opening_id) ||
+                    'N/A'
+                  }</small>
                 </td>
                 <td>{applicant.gender}</td><td>{calculateAge(applicant.birthday)}</td>
                 <td>{applicant.phone}</td>
@@ -614,7 +623,11 @@ const RecruitmentPage = () => {
           show={showViewModal} 
           onClose={() => setShowViewModal(false)} 
           applicant={selectedApplicant} 
-          jobTitle={jobOpeningsMap.get(selectedApplicant?.jobOpeningId)}
+          jobTitle={
+            jobOpeningsMap.get(selectedApplicant?.jobOpeningId ?? selectedApplicant?.job_opening_id) ||
+            positionsMap.get(selectedApplicant?.jobOpeningId ?? selectedApplicant?.job_opening_id) ||
+            ''
+          }
           onToast={setToast}
         />
       )}

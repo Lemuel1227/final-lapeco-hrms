@@ -168,47 +168,35 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                 <div className="tab-content">
                   {activeTab === 'personal' && (
                     <div>
-                      <h5 className="form-section-title">Personal Information</h5>
-                      <div className="row g-4">
-                        <div className="col-md-4 detail-group"><p className="detail-label">First Name</p><p className="detail-value">{displayData.first_name || 'N/A'}</p></div>
-                        <div className="col-md-4 detail-group"><p className="detail-label">Middle Name</p><p className="detail-value">{displayData.middle_name || 'N/A'}</p></div>
-                        <div className="col-md-4 detail-group"><p className="detail-label">Last Name</p><p className="detail-value">{displayData.last_name || 'N/A'}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">Gender</p><p className="detail-value">{displayData.gender || 'N/A'}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">Age</p><p className="detail-value">{age}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">Birthday</p><p className="detail-value">{formatDate(displayData.birthday)}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">Email</p><p className="detail-value">{displayData.email || 'N/A'}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">Phone</p><p className="detail-value">{displayData.phone || 'N/A'}</p></div>
-                      </div>
-                      <div className="row g-4 mt-2">
-                        <div className="col-12">
-                          <div className="detail-group">
-                            <p className="detail-label">Address</p>
-                            <p className="detail-value">
-                              {displayData.address || 'N/A'}
-                            </p>
-                          </div>
+                      <div className="info-card">
+                        <div className="details-grid">
+                          <div className="detail-group details-span-2"><p className="detail-label">Applied For</p><p className="detail-value">{jobTitle || displayData.applied_for || displayData.applied_position || 'N/A'}</p></div>
+                        </div>
+                        <div className="details-grid-3">
+                          <div className="detail-group"><p className="detail-label">First Name</p><p className="detail-value">{displayData.first_name || 'N/A'}</p></div>
+                          <div className="detail-group"><p className="detail-label">Middle Name</p><p className="detail-value">{displayData.middle_name || 'N/A'}</p></div>
+                          <div className="detail-group"><p className="detail-label">Last Name</p><p className="detail-value">{displayData.last_name || 'N/A'}</p></div>
+                        </div>
+                        <div className="details-grid mt-3">
+                          <div className="detail-group"><p className="detail-label">Gender</p><p className="detail-value">{displayData.gender || 'N/A'}</p></div>
+                          <div className="detail-group"><p className="detail-label">Age</p><p className="detail-value">{age}</p></div>
+                          <div className="detail-group"><p className="detail-label">Birthday</p><p className="detail-value">{formatDate(displayData.birthday)}</p></div>
+                          <div className="detail-group"><p className="detail-label">Email</p><p className="detail-value">{displayData.email || 'N/A'}</p></div>
+                        </div>
+                        <div className="details-grid mt-3">
+                          <div className="detail-group"><p className="detail-label">Phone</p><p className="detail-value">{displayData.phone || 'N/A'}</p></div>
+                          <div className="detail-group details-span-2"><p className="detail-label">Address</p><p className="detail-value">{displayData.address || 'N/A'}</p></div>
                         </div>
                       </div>
                     </div>
                   )}
                   {activeTab === 'government' && (
                     <div>
-                      <h5 className="form-section-title">Government Requirements</h5>
                       <div className="row g-4">
                         <div className="col-md-6 detail-group"><p className="detail-label">SSS No.</p><p className="detail-value">{displayData.sss_no || 'N/A'}</p></div>
                         <div className="col-md-6 detail-group"><p className="detail-label">TIN No.</p><p className="detail-value">{displayData.tin_no || 'N/A'}</p></div>
                         <div className="col-md-6 detail-group"><p className="detail-label">Pag-IBIG No.</p><p className="detail-value">{displayData.pag_ibig_no || 'N/A'}</p></div>
                         <div className="col-md-6 detail-group"><p className="detail-label">PhilHealth No.</p><p className="detail-value">{displayData.philhealth_no || 'N/A'}</p></div>
-                      </div>
-                      <div className="row g-4 mt-2">
-                        <div className="col-12">
-                          <div className="detail-group">
-                            <p className="detail-label">Remarks</p>
-                            <p className="detail-value">
-                              {displayData.remarks || 'No additional remarks.'}
-                            </p>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   )}
