@@ -203,10 +203,10 @@ const HistoryAttendanceView = ({
                     <th className="sortable" onClick={() => handleRequestSort('name')}>Employee Name {getSortIcon('name')}</th>
                     <th>Position</th>
                     <th className="sortable" onClick={() => handleRequestSort('shift')}>Shift {getSortIcon('shift')}</th>
-                    <th className="sortable" onClick={() => handleRequestSort('signIn')}>Sign In {getSortIcon('signIn')}</th>
+                    <th className="sortable" onClick={() => handleRequestSort('signIn')}>Time-In {getSortIcon('signIn')}</th>
                     <th className="sortable" onClick={() => handleRequestSort('breakOut')}>Break Out {getSortIcon('breakOut')}</th>
                     <th className="sortable" onClick={() => handleRequestSort('breakIn')}>Break In {getSortIcon('breakIn')}</th>
-                    <th className="sortable" onClick={() => handleRequestSort('signOut')}>Sign Out {getSortIcon('signOut')}</th>
+                    <th className="sortable" onClick={() => handleRequestSort('signOut')}>Time-Out {getSortIcon('signOut')}</th>
                     <th className="sortable" onClick={() => handleRequestSort('workingHours')}>Hours {getSortIcon('workingHours')}</th>
                     <th className="sortable" onClick={() => handleRequestSort('otHours')}>OT (hrs) {getSortIcon('otHours')}</th>
                     <th>Status</th>

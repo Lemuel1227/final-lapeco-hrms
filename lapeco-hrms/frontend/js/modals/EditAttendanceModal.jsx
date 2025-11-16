@@ -62,11 +62,11 @@ const EditAttendanceModal = ({ show, onClose, onSave, attendanceRecord }) => {
               <p className="text-muted">Editing attendance for {formatMDY(new Date(attendanceRecord.date + 'T00:00:00'), 'long')}.</p>
               <div className="row g-3">
                 <div className="col-md-6 mb-3">
-                  <label htmlFor="signIn" className="form-label">Sign In</label>
+                  <label htmlFor="signIn" className="form-label">Time-In</label>
                   <input type="time" id="signIn" name="signIn" className="form-control" value={formData.signIn} onChange={handleChange} />
                 </div>
                 <div className="col-md-6 mb-3">
-                  <label htmlFor="signOut" className="form-label">Sign Out</label>
+                  <label htmlFor="signOut" className="form-label">Time-Out</label>
                   <input type="time" id="signOut" name="signOut" className="form-control" value={formData.signOut} onChange={handleChange} />
                 </div>
                 <div className="col-md-6 mb-3">

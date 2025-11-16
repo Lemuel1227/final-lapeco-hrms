@@ -50,7 +50,7 @@ export const generateAttendanceSummaryReport = async (layoutManager, dataSources
 
   // --- 4. TABLE DATA ---
   const employeeMap = new Map(employees.map(e => [e.id, e]));
-  const tableHead = ['ID', 'Name', 'Start Time', 'End Time', 'Sign In', 'Break Out', 'Break In', 'Sign Out', 'OT (hrs)', 'Status'];
+  const tableHead = ['ID', 'Name', 'Start Time', 'End Time', 'Time-In', 'Break Out', 'Break In', 'Time-Out', 'OT (hrs)', 'Status'];
   const tableBody = schedulesForDate.map(sch => {
     const log = attendanceForDate.find(l => l.empId === sch.empId);
     const emp = employeeMap.get(sch.empId);

@@ -649,8 +649,8 @@ const AttendancePage = () => {
     try {
       const dataToExport = sortedAndFilteredList.map(emp => ({
         'Employee ID': emp.id, 'Name': emp.name, 'Position': emp.position, 'Shift': emp.shift,
-        'Sign In': emp.signIn || '', 'Break Out': emp.breakOut || '', 'Break In': emp.breakIn || '',
-        'Sign Out': emp.signOut || '', 'Status': emp.status, 'Working Hours': emp.workingHours,
+        'Time-In': emp.signIn || '', 'Break Out': emp.breakOut || '', 'Break In': emp.breakIn || '',
+        'Time-Out': emp.signOut || '', 'Status': emp.status, 'Working Hours': emp.workingHours,
         'OT Hours': emp.otHours
       }));
       

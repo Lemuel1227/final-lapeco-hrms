@@ -157,7 +157,7 @@ const MyAttendancePage = () => {
                   <th>Date</th>
                   <th>Status</th>
                   <th>Schedule</th>
-                  <th>Sign In/Out</th>
+                  <th>Time-In/Out</th>
                   <th>Hours</th>
                 </tr>
               </thead>
