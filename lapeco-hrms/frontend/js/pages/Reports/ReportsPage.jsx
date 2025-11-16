@@ -5,9 +5,195 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI, disciplinaryCaseAPI, contributionAPI } from '../../services/api';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI, disciplinaryCaseAPI, contributionAPI, predictiveAnalyticsAPI, mlAPI } from '../../services/api';
 import attendanceAPI from '../../services/attendanceAPI';
 import './ReportsPage.css';
+
+const RISK_WEIGHTS = { performance: 0.7, attendance: 0.3 };
+const HIGH_PERFORMANCE_THRESHOLD = 90;
+const LOW_PERFORMANCE_THRESHOLD = 50;
+const GOOD_ATTENDANCE_MONTHLY_AVG = 1;
+const BAD_ATTENDANCE_MONTHLY_AVG = 5;
+
+const buildEmployeeName = (user = {}) => {
+  if (user.name) return user.name;
+  const parts = [user.first_name, user.middle_name, user.last_name].filter(Boolean);
+  return parts.join(' ') || null;
+};
+
+const calculatePerformanceRisk = (latestScore) => Math.max(0, 100 - latestScore);
+const calculateAttendanceRisk = (lates, absences) => Math.min((absences * 5) + (lates * 2), 100);
+
+const resolveEvaluationScore = (record = {}) => {
+  const candidates = [
+    record.overallScore,
+    record.overall_score,
+    record.totalScore,
+    record.total_score,
+  ];
+  return candidates.find((value) => value !== undefined && value !== null);
+};
+
+const applyMlPredictionsToEmployees = (employees = [], predictions = []) => {
+  if (!Array.isArray(predictions) || !predictions.length) {
+    return employees;
+  }
+
+  const predictionMap = new Map(
+    predictions
+      .map((prediction) => {
+        const employeeId = prediction.employee_id ?? prediction.employeeId ?? prediction.id;
+        if (!employeeId) return null;
+        return [String(employeeId), prediction];
+      })
+      .filter(Boolean)
+  );
+
+  return employees.map((employee) => {
+    const prediction = predictionMap.get(String(employee.id));
+    if (!prediction) {
+      return employee;
+    }
+
+    const probabilityRaw = prediction.resignation_probability ?? prediction.resignationProbability;
+    const resignationProbability = Number(probabilityRaw);
+    const mlRiskScore = Number.isFinite(resignationProbability) ? resignationProbability * 100 : employee.mlRiskScore;
+    const resignationStatus = prediction.resignation_status ?? prediction.resignationStatus;
+    const potential = prediction.potential;
+
+    return {
+      ...employee,
+      mlPrediction: {
+        potential,
+        resignationProbability,
+        resignationStatus,
+        performanceScore: prediction.performance_score ?? prediction.performanceScore,
+        attendanceRate: prediction.attendance_rate ?? prediction.attendanceRate,
+        lateCount: prediction.late_count ?? prediction.lateCount,
+        absentCount: prediction.absent_count ?? prediction.absentCount,
+        tenureMonths: prediction.tenure_months ?? prediction.tenureMonths,
+        overallScore: prediction.overall_score ?? prediction.overallScore,
+        avgEvaluation: prediction.avg_evaluation ?? prediction.avgEvaluation,
+      },
+      isHighPotential: potential === 'High Potential',
+      isTurnoverRisk: resignationStatus === 'At Risk of Resigning',
+      mlRiskScore,
+      riskScore: mlRiskScore ?? employee.riskScore,
+    };
+  });
+};
+
+const buildPredictiveAnalyticsDataset = (
+  employeesRaw = [],
+  positionsRaw = [],
+  evaluationsRaw = [],
+  asOfDate,
+  predictions = []
+) => {
+  const asOf = asOfDate ? new Date(`${asOfDate}T23:59:59`) : new Date();
+  const positionsMap = new Map(
+    positionsRaw.map((pos) => [pos.id, pos.title ?? pos.name ?? 'Unassigned'])
+  );
+
+  const evaluationsByEmployee = new Map();
+  evaluationsRaw.forEach((evaluation) => {
+    const employeeId = evaluation.employeeId ?? evaluation.employee_id ?? evaluation.empId;
+    if (!employeeId) return;
+    if (!evaluationsByEmployee.has(employeeId)) {
+      evaluationsByEmployee.set(employeeId, []);
+    }
+    evaluationsByEmployee.get(employeeId).push(evaluation);
+  });
+
+  const employees = employeesRaw.map((raw) => {
+    const id = raw.id ?? raw.employee_id;
+    const name = buildEmployeeName(raw) || 'Employee';
+    const positionId = raw.positionId ?? raw.position_id ?? raw.pos_id ?? null;
+    const positionTitle = raw.positionTitle
+      ?? raw.position_title
+      ?? positionsMap.get(positionId)
+      ?? 'Unassigned';
+
+    const attendance = { lates: 0, absences: 0, monthlyAbsenceAvg: 0 };
+    const employeeEvaluations = (evaluationsByEmployee.get(id) || [])
+      .filter((evaluation) => {
+        const dateStr = evaluation.periodEnd
+          ?? evaluation.period_end
+          ?? evaluation.completedAt
+          ?? evaluation.completed_at;
+        if (!dateStr) return true;
+        const parsed = new Date(dateStr);
+        return !Number.isNaN(parsed.getTime()) && parsed <= asOf;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(
+          a.periodEnd ?? a.period_end ?? a.completedAt ?? a.completed_at
+        );
+        const dateB = new Date(
+          b.periodEnd ?? b.period_end ?? b.completedAt ?? b.completed_at
+        );
+        return dateA - dateB;
+      });
+
+    let latestScore = null;
+    let trend = 'N/A';
+
+    if (employeeEvaluations.length) {
+      const latestEvaluation = employeeEvaluations[employeeEvaluations.length - 1];
+      latestScore = resolveEvaluationScore(latestEvaluation);
+      if (latestScore === null || latestScore === undefined) {
+        latestScore = 75;
+      }
+
+      trend = 'Stable';
+      if (employeeEvaluations.length > 1) {
+        const previousEvaluation = employeeEvaluations[employeeEvaluations.length - 2];
+        let previousScore = resolveEvaluationScore(previousEvaluation);
+        if (previousScore === null || previousScore === undefined) {
+          previousScore = 75;
+        }
+        if (latestScore > previousScore + 2) trend = 'Improving';
+        if (latestScore < previousScore - 2) trend = 'Declining';
+      }
+    } else {
+      const baseScore = 70 + ((id ?? 0) % 20);
+      latestScore = baseScore;
+      trend = 'N/A';
+      const baseLates = (id ?? 0) % 4;
+      const baseAbsences = Math.floor((id ?? 0) % 6);
+      attendance.lates = baseLates;
+      attendance.absences = baseAbsences;
+      attendance.monthlyAbsenceAvg = baseAbsences / 3;
+    }
+
+    const performanceRisk = calculatePerformanceRisk(latestScore);
+    const attendanceRisk = calculateAttendanceRisk(attendance.lates, attendance.absences);
+    const riskScore = performanceRisk * RISK_WEIGHTS.performance
+      + attendanceRisk * RISK_WEIGHTS.attendance;
+
+    const isHighPotential = latestScore >= HIGH_PERFORMANCE_THRESHOLD
+      && attendance.monthlyAbsenceAvg <= GOOD_ATTENDANCE_MONTHLY_AVG;
+    const isTurnoverRisk = latestScore < LOW_PERFORMANCE_THRESHOLD
+      || attendance.monthlyAbsenceAvg > BAD_ATTENDANCE_MONTHLY_AVG
+      || riskScore >= 60;
+
+    return {
+      id,
+      name,
+      positionId,
+      positionTitle,
+      latestScore,
+      trend,
+      riskScore,
+      isHighPotential,
+      isTurnoverRisk,
+      evaluationHistory: employeeEvaluations,
+      attendance,
+    };
+  });
+
+  return applyMlPredictionsToEmployees(employees, predictions);
+};
 
 const ReportsPage = (props) => {
   const [activeCategory, setActiveCategory] = useState('All');
@@ -67,12 +253,6 @@ const ReportsPage = (props) => {
       default:
         return status || 'Active';
     }
-  };
-
-  const buildEmployeeName = (user = {}) => {
-    if (user.name) return user.name;
-    const parts = [user.first_name, user.middle_name, user.last_name].filter(Boolean);
-    return parts.join(' ') || null;
   };
 
   // Fetch all required data on mount
@@ -442,6 +622,57 @@ const ReportsPage = (props) => {
       cases: disciplinaryCases,
     };
     let finalParams = { ...params };
+    
+    if (reportId === 'predictive_analytics_summary') {
+      const asOfDate = finalParams.as_of_date_analytics
+        || finalParams.asOfDate
+        || new Date().toISOString().split('T')[0];
+
+      try {
+        setIsFetchingData(true);
+        const analyticsResponse = await predictiveAnalyticsAPI.getData();
+        const analyticsPayload = analyticsResponse?.data?.data;
+
+        if (!analyticsPayload) {
+          throw new Error('Predictive analytics data is unavailable');
+        }
+
+        let mlPredictions = [];
+        try {
+          const predictionsResponse = await mlAPI.getPredictions();
+          if (predictionsResponse?.data?.success) {
+            mlPredictions = predictionsResponse.data.data || [];
+          }
+        } catch (predictionError) {
+          console.warn('Unable to load ML predictions for predictive analytics report:', predictionError);
+        }
+
+        const employeeDataset = buildPredictiveAnalyticsDataset(
+          analyticsPayload.employees || [],
+          analyticsPayload.positions || [],
+          analyticsPayload.evaluations || [],
+          asOfDate,
+          mlPredictions
+        );
+
+        dataSources = {
+          ...dataSources,
+          employeeData: employeeDataset,
+        };
+        finalParams = {
+          ...finalParams,
+          asOfDate,
+        };
+      } catch (error) {
+        console.error('Failed to load predictive analytics data for report:', error);
+        setToast({ show: true, message: 'Failed to load predictive analytics data. Please try again.', type: 'error' });
+        setIsFetchingData(false);
+        return;
+      } finally {
+        setIsFetchingData(false);
+      }
+    }
+
     if (reportId === 'attendance_summary') {
       const today = new Date().toISOString().split('T')[0];
       const selectedDate = finalParams.startDate || today;

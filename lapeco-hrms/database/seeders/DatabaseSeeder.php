@@ -246,6 +246,17 @@ class DatabaseSeeder extends Seeder
         $employees = User::limit(5)->get();
         
         if ($employees->count() > 0) {
+            $hrReporter = User::where('email', 'hr@example.com')->first()
+                ?? User::where('role', 'HR_PERSONNEL')->first();
+            $reporterPool = collect([
+                $hrReporter,
+                User::where('email', 'packer.leader@example.com')->first(),
+                User::where('email', 'lifter.leader@example.com')->first(),
+                User::where('email', 'picker.leader@example.com')->first(),
+                User::where('email', 'mover.leader@example.com')->first(),
+            ])->filter()->values();
+            $defaultReporter = $reporterPool->first() ?? $employees->first();
+
             // Create sample disciplinary case for David Green (EMP004)
             $davidGreen = $employees->where('employee_id', 'EMP004')->first() ?? $employees->first();
             
@@ -258,6 +269,8 @@ class DatabaseSeeder extends Seeder
                 'status' => 'Ongoing',
                 'resolution_taken' => 'Monitor attendance for the next 30 days.',
                 'attachment' => null,
+                'approval_status' => 'approved',
+                'reported_by' => optional($defaultReporter)->id,
             ]);
 
             // Create action logs for the disciplinary case
@@ -265,20 +278,27 @@ class DatabaseSeeder extends Seeder
                 'disciplinary_case_id' => $disciplinaryCase->id,
                 'date_created' => '2025-06-15',
                 'description' => 'Case Created. Verbal warning issued by HR Manager Grace Field.',
+                'user_id' => optional($defaultReporter)->id,
             ]);
 
             \App\Models\ActionLog::create([
                 'disciplinary_case_id' => $disciplinaryCase->id,
                 'date_created' => '2025-06-16',
                 'description' => 'Follow-up discussion held with employee and their team leader, Carol White.',
+                'user_id' => optional($defaultReporter)->id,
             ]);
 
             // Create additional sample cases for other employees
             $actionTypes = ['Verbal Warning', 'Written Warning', 'Final Warning', 'Suspension'];
             $reasons = ['Tardiness', 'Unauthorized Absence', 'Insubordination', 'Policy Violation', 'Safety Violation'];
             $statuses = ['Ongoing', 'Under Investigation', 'Resolved', 'Closed'];
+            $approvalStatuses = ['pending', 'approved', 'pending', 'approved'];
+            $reporterPoolCount = $reporterPool->count();
 
             foreach ($employees->skip(1)->take(4) as $index => $employee) {
+                $reporter = $reporterPoolCount > 0
+                    ? $reporterPool->get($index % $reporterPoolCount)
+                    : $defaultReporter;
                 $case = \App\Models\DisciplinaryCase::create([
                     'employee_id' => $employee->id,
                     'action_type' => $actionTypes[array_rand($actionTypes)],
@@ -288,6 +308,8 @@ class DatabaseSeeder extends Seeder
                     'status' => $statuses[array_rand($statuses)],
                     'resolution_taken' => 'Appropriate disciplinary action taken according to company policy.',
                     'attachment' => null,
+                    'approval_status' => $approvalStatuses[$index % count($approvalStatuses)] ?? 'pending',
+                    'reported_by' => optional($reporter)->id,
                 ]);
 
                 // Create initial action log for each case
@@ -295,6 +317,7 @@ class DatabaseSeeder extends Seeder
                     'disciplinary_case_id' => $case->id,
                     'date_created' => $case->incident_date,
                     'description' => 'Case created. Initial investigation started by HR department.',
+                    'user_id' => optional($reporter)->id,
                 ]);
             }
         }

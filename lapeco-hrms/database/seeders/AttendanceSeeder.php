@@ -92,6 +92,15 @@ class AttendanceSeeder extends Seeder
             $shiftStart = Carbon::parse($assignment->start_time);
             $shiftEnd = Carbon::parse($assignment->end_time);
             
+            // Determine overtime (20% chance of 1 hour, 8% chance of 2 hours, otherwise none)
+            $overtimeHours = 0;
+            $overtimeRoll = rand(1, 100);
+            if ($overtimeRoll <= 8) {
+                $overtimeHours = 2;
+            } elseif ($overtimeRoll <= 28) {
+                $overtimeHours = 1;
+            }
+
             // Generate sign in time (85% on time, 15% with various delays)
             $lateChance = rand(1, 100);
             if ($lateChance <= 85) {
@@ -106,8 +115,9 @@ class AttendanceSeeder extends Seeder
             $breakOutTime = $shiftStart->copy()->addHours(4)->addMinutes(rand(-30, 30));
             $breakInTime = $breakOutTime->copy()->addHour()->addMinutes(rand(-15, 15));
             
-            // Sign out time (usually on time or slightly late)
-            $signOutTime = $shiftEnd->copy()->addMinutes(rand(-10, 20));
+            // Sign out time aligns with scheduled end plus overtime, allowing small variance
+            $signOutVariance = rand(-5, 10);
+            $signOutTime = $shiftEnd->copy()->addHours($overtimeHours)->addMinutes($signOutVariance);
             
             // Determine status based on actual times
             $status = 'present';
@@ -123,7 +133,8 @@ class AttendanceSeeder extends Seeder
                 'break_out' => $breakOutTime->format('H:i'),
                 'break_in' => $breakInTime->format('H:i'),
                 'sign_out' => $signOutTime->format('H:i'),
-                'status' => $status
+                'status' => $status,
+                'ot_hours' => $overtimeHours,
             ]);
         }
 

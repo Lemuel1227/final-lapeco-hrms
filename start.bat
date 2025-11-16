@@ -10,6 +10,9 @@ echo.
 echo Starting React Frontend 2 (Recruitment)...
 start "React Frontend 2 (Recruitment)" cmd /k "cd lapeco-website && npm run dev"
 echo.
+echo Starting Python ML API...
+start "Python ML API" cmd /k "cd python-ml-api && python start.py"
+echo.
 echo All services are starting...
 echo Backend will be available at: http://localhost:8000
 echo Frontend 1 (HRMS) will be available at: http://localhost:3000
