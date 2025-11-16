@@ -87,12 +87,47 @@ class PayrollSeeder extends Seeder
                     'earning_pay' => $estimatedGross,
                 ]);
 
-                // Statutory requirements (sample amounts)
+                $monthlyEquivalent = $monthlySalary > 0 ? $monthlySalary : ($baseRate * 22 * 8);
+                $sssSemi = 0.0;
+                if ($monthlyEquivalent >= 5000) {
+                    $msc = min($monthlyEquivalent, 30000);
+                    if ($msc < 30000) {
+                        $remainder = $msc % 500;
+                        $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
+                    }
+                    $sssSemi = ($msc * 0.05) / 2;
+                }
+
+                $philSemi = 0.0;
+                if ($monthlyEquivalent >= 10000) {
+                    $base = min($monthlyEquivalent, 100000);
+                    $totalPremium = $base * 0.05;
+                    $philSemi = ($totalPremium / 2) / 2;
+                }
+
+                $pagibigSemi = $monthlyEquivalent >= 1500 ? 100.0 / 2 : 0.0;
+
+                $taxableSemi = max(0, $estimatedGross - ($sssSemi + $philSemi + $pagibigSemi));
+                $taxSemi = 0.0;
+                if ($taxableSemi <= 10417) {
+                    $taxSemi = 0.0;
+                } elseif ($taxableSemi <= 16666) {
+                    $taxSemi = ($taxableSemi - 10417) * 0.15;
+                } elseif ($taxableSemi <= 33332) {
+                    $taxSemi = 937.50 + ($taxableSemi - 16667) * 0.20;
+                } elseif ($taxableSemi <= 83332) {
+                    $taxSemi = 4270.70 + ($taxableSemi - 33333) * 0.25;
+                } elseif ($taxableSemi <= 333332) {
+                    $taxSemi = 16770.70 + ($taxableSemi - 83333) * 0.30;
+                } else {
+                    $taxSemi = 91770.70 + ($taxableSemi - 333333) * 0.35;
+                }
+
                 $statutory = [
-                    'SSS' => 500.00,
-                    'PhilHealth' => 300.00,
-                    'Pag-IBIG' => 200.00,
-                    'Tax' => 800.00,
+                    'SSS' => round($sssSemi, 2),
+                    'PhilHealth' => round($philSemi, 2),
+                    'Pag-IBIG' => round($pagibigSemi, 2),
+                    'Tax' => round(max(0, $taxSemi), 2),
                 ];
                 $totalStatutory = 0;
                 foreach ($statutory as $type => $amount) {

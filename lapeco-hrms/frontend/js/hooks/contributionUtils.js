@@ -14,32 +14,18 @@ const MOCK_COMPANY_INFO = {
  * Maximum Employee Share: ₱1,350/month (4.5% of ₱30,000)
  */
 export const calculateSssContribution = (salary, isProvisional = false) => {
-    // Convert semi-monthly to monthly if provisional
     const monthlyEquivalent = isProvisional ? salary * 2 : salary;
-    
-    // Cap at maximum MSC of ₱30,000
+    if (monthlyEquivalent < 5000) {
+        return { employeeShare: 0, employerShare: 0, total: 0 };
+    }
     let msc = Math.min(monthlyEquivalent, 30000);
-    
-    // Minimum MSC is ₱4,000 (updated from ₱3,000)
-    if (msc < 3000) msc = 3000;
-
-    // Round MSC to nearest ₱500 bracket
     if (msc < 30000) {
         const remainder = msc % 500;
-        if (remainder < 250) {
-            msc = msc - remainder;
-        } else {
-            msc = msc - remainder + 500;
-        }
+        msc = remainder < 250 ? msc - remainder : msc - remainder + 500;
     }
-    
-    // Calculate shares: Employee 4.5%, Employer 9.5%
-    const monthlyEmployeeShare = msc * 0.045; // Max: ₱1,350
-    const monthlyEmployerShare = msc * 0.095;
-
-    // Divide by 2 if semi-monthly payroll
+    const monthlyEmployeeShare = msc * 0.05;
+    const monthlyEmployerShare = msc * 0.10;
     const divisor = isProvisional ? 2 : 1;
-
     return {
         employeeShare: monthlyEmployeeShare / divisor,
         employerShare: monthlyEmployerShare / divisor,
@@ -56,26 +42,18 @@ export const calculateSssContribution = (salary, isProvisional = false) => {
  * Employee Share Range: ₱250/month (min) to ₱2,500/month (max)
  */
 export const calculatePhilhealthContribution = (salary, isProvisional = false) => {
-    // Convert semi-monthly to monthly if provisional
     const monthlyEquivalent = isProvisional ? salary * 2 : salary;
-    
-    const rate = 0.05; // 5% total premium
-    const incomeFloor = 10000; // Minimum ₱10,000
-    const incomeCeiling = 100000; // Maximum ₱100,000
-
-    // Apply floor and ceiling
-    let baseSalary = Math.max(monthlyEquivalent, incomeFloor);
-    baseSalary = Math.min(baseSalary, incomeCeiling);
-
-    // Total premium is 5% of base salary
+    if (monthlyEquivalent < 10000) {
+        return { employeeShare: 0, employerShare: 0, total: 0 };
+    }
+    const rate = 0.05;
+    const incomeCeiling = 100000;
+    const baseSalary = Math.min(monthlyEquivalent, incomeCeiling);
     const totalPremium = baseSalary * rate;
-    
-    // Divide by 2 if semi-monthly payroll
     const divisor = isProvisional ? 2 : 1;
-
     return {
-        employeeShare: (totalPremium / 2) / divisor, // 2.5% (₱250 to ₱2,500)
-        employerShare: (totalPremium / 2) / divisor, // 2.5%
+        employeeShare: (totalPremium / 2) / divisor,
+        employerShare: (totalPremium / 2) / divisor,
         total: totalPremium / divisor,
     };
 };
@@ -90,25 +68,16 @@ export const calculatePhilhealthContribution = (salary, isProvisional = false) =
  */
 export const calculatePagibigContribution = (salary, isProvisional = false) => {
     const monthlyEquivalent = isProvisional ? salary * 2 : salary;
-    
-    // Per Pag-IBIG rules, the maximum monthly compensation for calculation is ₱5,000.
-    const maxCompensation = 5000;
-    const calculationBase = Math.min(monthlyEquivalent, maxCompensation);
-
-    // The rate is determined by the actual monthly salary, not the capped base.
-    const employeeRate = monthlyEquivalent <= 1500 ? 0.01 : 0.02;
-
-    // Calculate shares based on the capped compensation base.
-    const employeeShare = calculationBase * employeeRate;
-    const employerShare = calculationBase * 0.02;
-    
-    // Divide by 2 for semi-monthly payroll.
+    if (monthlyEquivalent < 1500) {
+        return { employeeShare: 0, employerShare: 0, total: 0 };
+    }
+    const monthlyEmployeeShare = 100;
+    const monthlyEmployerShare = 200;
     const divisor = isProvisional ? 2 : 1;
-
     return {
-        employeeShare: employeeShare / divisor,
-        employerShare: employerShare / divisor,
-        total: (employeeShare + employerShare) / divisor,
+        employeeShare: monthlyEmployeeShare / divisor,
+        employerShare: monthlyEmployerShare / divisor,
+        total: (monthlyEmployeeShare + monthlyEmployerShare) / divisor,
     };
 };
 

@@ -63,10 +63,18 @@ const FinalizedPeriodCard = ({ period, onDownload, onView, onDelete }) => {
           </button>
           <ul className="dropdown-menu dropdown-menu-end">
             <li><h6 className="dropdown-header">Download Excel</h6></li>
-            <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'sss')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>SSS Report</a></li>
-            <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'philhealth')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>PhilHealth Report</a></li>
-            <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'pagibig')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>Pag-IBIG Report</a></li>
-            <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'tin')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>TIN Report</a></li>
+            {period.reports.some(r => r.type.toLowerCase().includes('sss')) && (
+              <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'sss')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>SSS Report</a></li>
+            )}
+            {period.reports.some(r => r.type.toLowerCase().includes('philhealth')) && (
+              <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'philhealth')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>PhilHealth Report</a></li>
+            )}
+            {period.reports.some(r => r.type.toLowerCase().includes('pag')) && (
+              <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'pagibig')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>Pag-IBIG Report</a></li>
+            )}
+            {period.reports.some(r => r.type.toLowerCase().includes('tin')) && (
+              <li><a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'tin')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>TIN Report</a></li>
+            )}
             <li><hr className="dropdown-divider" /></li>
             <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleActionClick(e, onDelete)}><i className="bi bi-trash-fill me-2"></i>Delete Period</a></li>
           </ul>

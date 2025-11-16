@@ -233,8 +233,19 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
   const stats = totalsByType;
   
   const handleExportPdf = () => {
-    // TODO: Implement PDF export
-    setToast({ show: true, message: 'PDF export coming soon!', type: 'info' });
+    const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label;
+    const payPeriod = `${monthLabel} ${selectedYear}`;
+
+    if (!rows || rows.length === 0) {
+      setToast({ show: true, message: 'No data to export for the selected month.', type: 'warning' });
+      return;
+    }
+
+    const typeUpper = activeReport.toUpperCase();
+    const params = { type: typeUpper, payPeriod, reportTitle };
+    const dataSources = { headerData, columns, rows };
+    generateReport('contributions_monthly', params, dataSources);
+    setShowReportPreview(true);
   };
   
   const handleArchivePeriod = async () => {
@@ -328,9 +339,17 @@ const ContributionsManagementPage = ({ employees, positions, payrolls, theme }) 
     }
   };
   
-  const handleViewHistoryPdf = () => {
-    // TODO: Implement PDF viewing
-    setToast({ show: true, message: 'PDF viewing coming soon!', type: 'info' });
+  const handleViewHistoryPdf = (period) => {
+    const periodLabel = period?.payPeriod || '';
+    const reports = Array.isArray(period?.reports) ? period.reports : [];
+    if (!reports.length) {
+      setToast({ show: true, message: 'No finalized reports found for this period.', type: 'warning' });
+      return;
+    }
+    const params = { type: 'ALL', payPeriod: periodLabel, reportTitle: 'Finalized Contributions' };
+    const dataSources = { reports };
+    generateReport('contributions_monthly', params, dataSources);
+    setShowReportPreview(true);
   };
 
   const commonTableProps = {

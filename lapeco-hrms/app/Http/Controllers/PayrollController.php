@@ -524,6 +524,120 @@ class PayrollController extends Controller
         ]);
     }
 
+    public function backfillStatutoryForPeriod($periodId)
+    {
+        $period = PayrollPeriod::findOrFail($periodId);
+
+        $payrolls = EmployeePayroll::where('period_id', $periodId)
+            ->with(['employee.position', 'deductions', 'statutoryRequirements'])
+            ->get();
+
+        $updated = [];
+        foreach ($payrolls as $payroll) {
+            $position = $payroll->employee?->position;
+            $monthlySalary = 0.0;
+            if ($position) {
+                if (!is_null($position->monthly_salary)) {
+                    $monthlySalary = (float) $position->monthly_salary;
+                } elseif (!is_null($position->base_rate_per_hour)) {
+                    $monthlySalary = (float) $position->base_rate_per_hour * 22 * 8;
+                }
+            }
+
+            if ($monthlySalary <= 0) {
+                $updated[] = [
+                    'payrollId' => $payroll->id,
+                    'status' => 'skipped',
+                    'reason' => 'missing_monthly_salary',
+                ];
+                continue;
+            }
+
+            $sssEe = 0.0;
+            if ($monthlySalary >= 5000) {
+                $msc = min($monthlySalary, 30000);
+                if ($msc < 30000) {
+                    $remainder = $msc % 500;
+                    $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
+                }
+                $sssEe = ($msc * 0.05) / 2;
+            }
+
+            $philEe = 0.0;
+            if ($monthlySalary >= 10000) {
+                $philBase = min($monthlySalary, 100000);
+                $philTotal = $philBase * 0.05;
+                $philEe = ($philTotal / 2) / 2;
+            }
+
+            $pagEe = 0.0;
+            if ($monthlySalary >= 1500) {
+                $pagEe = 100.0 / 2;
+            }
+
+            $taxableSemi = max(0, (float) $payroll->gross_earning - ($sssEe + $philEe + $pagEe));
+            $tax = 0.0;
+            if ($taxableSemi <= 10417) {
+                $tax = 0.0;
+            } elseif ($taxableSemi <= 16666) {
+                $tax = ($taxableSemi - 10417) * 0.15;
+            } elseif ($taxableSemi <= 33332) {
+                $tax = 937.50 + ($taxableSemi - 16667) * 0.20;
+            } elseif ($taxableSemi <= 83332) {
+                $tax = 4270.70 + ($taxableSemi - 33333) * 0.25;
+            } elseif ($taxableSemi <= 333332) {
+                $tax = 16770.70 + ($taxableSemi - 83333) * 0.30;
+            } else {
+                $tax = 91770.70 + ($taxableSemi - 333333) * 0.35;
+            }
+
+            $payroll->statutoryRequirements()->updateOrCreate(
+                ['requirement_type' => 'SSS'],
+                ['requirement_amount' => round($sssEe, 2)]
+            );
+            $payroll->statutoryRequirements()->updateOrCreate(
+                ['requirement_type' => 'PhilHealth'],
+                ['requirement_amount' => round($philEe, 2)]
+            );
+            $payroll->statutoryRequirements()->updateOrCreate(
+                ['requirement_type' => 'Pag-IBIG'],
+                ['requirement_amount' => round($pagEe, 2)]
+            );
+            $payroll->statutoryRequirements()->updateOrCreate(
+                ['requirement_type' => 'Tax'],
+                ['requirement_amount' => round(max(0, $tax), 2)]
+            );
+
+            $other = $payroll->deductions()->get()->sum(function ($d) {
+                return (float) $d->deduction_pay;
+            });
+            $statutory = $payroll->statutoryRequirements()->get()->sum(function ($s) {
+                return (float) $s->requirement_amount;
+            });
+            $payroll->total_deductions = round($other + $statutory, 2);
+            $payroll->save();
+
+            $updated[] = [
+                'payrollId' => $payroll->id,
+                'status' => 'updated',
+                'sss' => round($sssEe, 2),
+                'philhealth' => round($philEe, 2),
+                'pagibig' => round($pagEe, 2),
+                'tax' => round(max(0, $tax), 2),
+                'totalDeductions' => $payroll->total_deductions,
+            ];
+        }
+
+        return response()->json([
+            'message' => 'Backfill complete',
+            'period' => [
+                'id' => $period->id,
+                'period_start' => $period->period_start->toDateString(),
+                'period_end' => $period->period_end->toDateString(),
+            ],
+            'results' => $updated,
+        ]);
+    }
     public function deletePeriod($periodId)
     {
         $period = PayrollPeriod::findOrFail($periodId);
@@ -1145,6 +1259,63 @@ class PayrollController extends Controller
                 'deduction_type' => 'Late',
                 'deduction_pay' => $lateDeduction,
             ]);
+        }
+
+        $monthlySalary = (float) ($position?->monthly_salary ?? 0);
+        if ($monthlySalary > 0) {
+            $sssEe = 0.0;
+            if ($monthlySalary >= 5000) {
+                $msc = min($monthlySalary, 30000);
+                if ($msc < 30000) {
+                    $remainder = $msc % 500;
+                    $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
+                }
+                $sssEe = ($msc * 0.05) / 2;
+            }
+            $philEe = 0.0;
+            if ($monthlySalary >= 10000) {
+                $philBase = min($monthlySalary, 100000);
+                $philTotal = $philBase * 0.05;
+                $philEe = ($philTotal / 2) / 2;
+            }
+            $pagEe = 0.0;
+            if ($monthlySalary >= 1500) {
+                $pagEe = 100.0 / 2;
+            }
+            $taxableSemi = max(0, $gross - ($sssEe + $philEe + $pagEe));
+            $tax = 0.0;
+            if ($taxableSemi <= 10417) {
+                $tax = 0.0;
+            } elseif ($taxableSemi <= 16666) {
+                $tax = ($taxableSemi - 10417) * 0.15;
+            } elseif ($taxableSemi <= 33332) {
+                $tax = 937.50 + ($taxableSemi - 16667) * 0.20;
+            } elseif ($taxableSemi <= 83332) {
+                $tax = 4270.70 + ($taxableSemi - 33333) * 0.25;
+            } elseif ($taxableSemi <= 333332) {
+                $tax = 16770.70 + ($taxableSemi - 83333) * 0.30;
+            } else {
+                $tax = 91770.70 + ($taxableSemi - 333333) * 0.35;
+            }
+            PayrollStatutoryRequirement::updateOrCreate(
+                ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'SSS'],
+                ['requirement_amount' => round($sssEe, 2)]
+            );
+            PayrollStatutoryRequirement::updateOrCreate(
+                ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'PhilHealth'],
+                ['requirement_amount' => round($philEe, 2)]
+            );
+            PayrollStatutoryRequirement::updateOrCreate(
+                ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'Pag-IBIG'],
+                ['requirement_amount' => round($pagEe, 2)]
+            );
+            PayrollStatutoryRequirement::updateOrCreate(
+                ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'Tax'],
+                ['requirement_amount' => round(max(0, $tax), 2)]
+            );
+            $totalDeductions += round($sssEe + $philEe + $pagEe + max(0, $tax), 2);
+            $employeePayroll->total_deductions = round($totalDeductions, 2);
+            $employeePayroll->save();
         }
 
         // Create notification for the employee

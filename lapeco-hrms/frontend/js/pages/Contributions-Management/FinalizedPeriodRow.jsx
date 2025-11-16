@@ -45,10 +45,18 @@ const FinalizedPeriodRow = ({ period, onDownload, onView, onDelete }) => {
           <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); onView(); }}><i className="bi bi-eye-fill me-2"></i>View Consolidated</a>
           <div className="dropdown-divider"></div>
           <h6 className="dropdown-header">Download Individual (Excel)</h6>
-          <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'sss')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>SSS Report</a>
-          <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'philhealth')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>PhilHealth Report</a>
-          <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'pagibig')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>Pag-IBIG Report</a>
-          <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'tin')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>TIN Report</a>
+          {period.reports.some(r => r.type.toLowerCase().includes('sss')) && (
+            <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'sss')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>SSS Report</a>
+          )}
+          {period.reports.some(r => r.type.toLowerCase().includes('philhealth')) && (
+            <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'philhealth')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>PhilHealth Report</a>
+          )}
+          {period.reports.some(r => r.type.toLowerCase().includes('pag')) && (
+            <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'pagibig')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>Pag-IBIG Report</a>
+          )}
+          {period.reports.some(r => r.type.toLowerCase().includes('tin')) && (
+            <a className="dropdown-item" href="#" onClick={(e) => handleDownloadClick(e, 'tin')}><i className="bi bi-file-earmark-spreadsheet-fill me-2"></i>TIN Report</a>
+          )}
           <div className="dropdown-divider"></div>
           <a className="dropdown-item text-danger" href="#" onClick={(e) => handleActionClick(e, onDelete)}><i className="bi bi-trash-fill me-2"></i>Delete Period</a>
         </ActionsDropdown>
