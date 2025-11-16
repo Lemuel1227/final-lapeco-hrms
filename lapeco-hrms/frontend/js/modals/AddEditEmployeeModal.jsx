@@ -679,7 +679,7 @@ const AddEditEmployeeModal = ({ show, onClose, onSave, employeeId, employeeData,
                           <div className="resume-viewer">
                             {formData.resumeUrl.startsWith('blob:') ? (
                               <iframe src={formData.resumeUrl} width="100%" height="600px" title="Resume Preview"></iframe>
-                            ) : formData.resumeUrl.startsWith('https://api.lapeco.org/api/') ? (
+                            ) : formData.resumeUrl.startsWith('http://localhost:8000/api/') ? (
                               <ResumeIframe resumeUrl={formData.resumeUrl} />
                             ) : (
                               <div className="d-flex flex-column align-items-center">

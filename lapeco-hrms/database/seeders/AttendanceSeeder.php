@@ -85,6 +85,7 @@ class AttendanceSeeder extends Seeder
                     'break_in' => null,
                     'sign_out' => null
                 ]);
+                $assignment->update(['ot_hours' => 0]);
                 continue;
             }
 
@@ -134,8 +135,9 @@ class AttendanceSeeder extends Seeder
                 'break_in' => $breakInTime->format('H:i'),
                 'sign_out' => $signOutTime->format('H:i'),
                 'status' => $status,
-                'ot_hours' => $overtimeHours,
             ]);
+
+            $assignment->update(['ot_hours' => $overtimeHours]);
         }
 
         // Create some additional attendance records for today
