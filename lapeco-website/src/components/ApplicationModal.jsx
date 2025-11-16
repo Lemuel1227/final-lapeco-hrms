@@ -13,6 +13,7 @@ const INITIAL_FORM_DATA = {
   last_name: '',
   email: '',
   phone: '',
+  address: '',
   birthday: '',
   gender: '',
   job_opening_id: '',
@@ -89,6 +90,15 @@ function ApplicationModal({ show, onHide }) {
           } else if (value.trim().length > 50) {
             error = 'First name must not exceed 50 characters';
           }
+        }
+        break;
+      case 'address':
+        if (!value || !value.trim()) {
+          error = 'Address is required';
+        } else if (value.trim().length < 5) {
+          error = 'Address must be at least 5 characters';
+        } else if (value.trim().length > 255) {
+          error = 'Address must not exceed 255 characters';
         }
         break;
       case 'middle_name':
@@ -291,7 +301,7 @@ function ApplicationModal({ show, onHide }) {
     if (formData.middle_name && formData.middle_name.trim().length > 50) {
       newErrors.middle_name = 'Middle name must not exceed 50 characters';
     }
-    
+
     // Email validation
     if (!formData.email) {
       newErrors.email = 'Email is required';
@@ -299,6 +309,15 @@ function ApplicationModal({ show, onHide }) {
       newErrors.email = 'Invalid email format';
     } else if (formData.email.trim().length > 255) {
       newErrors.email = 'Email must not exceed 255 characters';
+    }
+    
+    // Address validation
+    if (!formData.address || !formData.address.trim()) {
+      newErrors.address = 'Address is required';
+    } else if (formData.address.trim().length < 5) {
+      newErrors.address = 'Address must be at least 5 characters';
+    } else if (formData.address.trim().length > 255) {
+      newErrors.address = 'Address must not exceed 255 characters';
     }
     
     // Phone validation (Philippine format)
@@ -359,7 +378,7 @@ function ApplicationModal({ show, onHide }) {
 
   const handleAttemptSubmit = () => {
     setValidated(true);
-    const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'birthday', 'gender', 'job_opening_id', 'resume'];
+    const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'address', 'birthday', 'gender', 'job_opening_id', 'resume'];
     const hasMissing = requiredFields.some(field => !formData[field]);
     if (hasMissing) {
       toast.error('Please fill in all required fields before submitting.');
@@ -523,6 +542,27 @@ function ApplicationModal({ show, onHide }) {
                 />
                 <Form.Control.Feedback type="invalid">
                   {errors.phone || 'Please provide a valid phone number.'}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Row>
+            <Row className="mb-3">
+              <Form.Group as={Col} md={12} controlId="validationAddress">
+                <Form.Label>Address*</Form.Label>
+                <Form.Control
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  onInput={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z0-9\s,'\-.#\/()]/g, '');
+                  }}
+                  maxLength={255}
+                  placeholder="House No., Street, Barangay, City/Province, ZIP"
+                  isInvalid={!!errors.address}
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.address || 'Please provide your address.'}
                 </Form.Control.Feedback>
               </Form.Group>
             </Row>
