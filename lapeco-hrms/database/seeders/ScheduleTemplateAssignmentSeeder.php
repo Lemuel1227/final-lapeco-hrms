@@ -182,39 +182,57 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
     {
         $assignments = [
             [
-                'user_id' => 1,
+                'user_id' => 13,
                 'start_time' => '07:00',
-                'end_time' => '18:00',
-                'break_start' => '12:10',
+                'end_time' => '15:00',
+                'break_start' => '12:00',
                 'break_end' => '12:30',
-                'ot_hours' => 0,
+                'ot_hours' => 3,
                 'notes' => 'HR Personnel core coverage'
             ],
             [
-                'user_id' => 2,
+                'user_id' => 18,
                 'start_time' => '07:00',
-                'end_time' => '17:00',
+                'end_time' => '15:00',
+                'break_start' => '12:00',
+                'break_end' => '12:30',
+                'ot_hours' => 2,
+                'notes' => 'Mover extended coverage'
+            ],
+            [
+                'user_id' => 21,
+                'start_time' => '06:00',
+                'end_time' => '14:00',
                 'break_start' => null,
                 'break_end' => null,
                 'ot_hours' => 0,
                 'notes' => 'Packer leader standard shift'
             ],
             [
-                'user_id' => 18,
-                'start_time' => '07:00',
-                'end_time' => '19:00',
-                'break_start' => '12:10',
-                'break_end' => '12:00',
-                'ot_hours' => 0,
-                'notes' => 'Mover extended coverage'
-            ],
-            [
                 'user_id' => 27,
+                'start_time' => '08:00',
+                'end_time' => '12:00',
+                'break_start' => null,
+                'break_end' => null,
+                'ot_hours' => 0,
+                'notes' => 'Mover partial shift'
+            ],
+                        [
+                'user_id' => 48,
                 'start_time' => '08:00',
                 'end_time' => '11:00',
                 'break_start' => null,
                 'break_end' => null,
                 'ot_hours' => 0,
+                'notes' => 'Mover partial shift'
+            ],
+                        [
+                'user_id' => 60,
+                'start_time' => '06:00',
+                'end_time' => '13:00',
+                'break_start' => null,
+                'break_end' => null,
+                'ot_hours' => 1,
                 'notes' => 'Mover partial shift'
             ],
         ];
