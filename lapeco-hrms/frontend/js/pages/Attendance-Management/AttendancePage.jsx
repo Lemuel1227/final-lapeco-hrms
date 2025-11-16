@@ -649,8 +649,8 @@ const AttendancePage = () => {
     try {
       const dataToExport = sortedAndFilteredList.map(emp => ({
         'Employee ID': emp.id, 'Name': emp.name, 'Position': emp.position, 'Shift': emp.shift,
-        'Sign In': emp.signIn || '', 'Break Out': emp.breakOut || '', 'Break In': emp.breakIn || '',
-        'Sign Out': emp.signOut || '', 'Status': emp.status, 'Working Hours': emp.workingHours,
+        'Time-In': emp.signIn || '', 'Break Out': emp.breakOut || '', 'Break In': emp.breakIn || '',
+        'Time-Out': emp.signOut || '', 'Status': emp.status, 'Working Hours': emp.workingHours,
         'OT Hours': emp.otHours
       }));
       
@@ -772,14 +772,14 @@ const AttendancePage = () => {
             let logType = 'Unknown';
             if (status) {
               const statusLower = status.toLowerCase();
-              if (statusLower.includes('c/in') || statusLower.includes('sign in')) {
+              if (statusLower.includes('b/in') || statusLower.includes('break in')) {
+                logType = 'Break In';
+              } else if (statusLower.includes('b/out') || statusLower.includes('break out')) {
+                logType = 'Break Out';
+              } else if (statusLower.includes('c/in') || statusLower.includes('sign in')) {
                 logType = 'Sign In';
               } else if (statusLower.includes('c/out') || statusLower.includes('sign out')) {
                 logType = 'Sign Out';
-              } else if (statusLower.includes('break in')) {
-                logType = 'Break In';
-              } else if (statusLower.includes('break out')) {
-                logType = 'Break Out';
               }
             }
             
