@@ -114,6 +114,10 @@ class ApplicantController extends Controller
                 'philhealth_no' => 'nullable|string|regex:/^[0-9\-]+$/|size:14',
                 'resume' => 'nullable|file|mimes:pdf,doc,docx|max:5120', // 5MB max
                 'profile_picture' => 'nullable|file|mimes:jpeg,jpg,png,gif|max:2048', // 2MB max
+                'sss_document' => 'required_with:sss_no|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
+                'tin_document' => 'required_with:tin_no|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
+                'pagibig_document' => 'required_with:pag_ibig_no|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
+                'philhealth_document' => 'required_with:philhealth_no|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
             ]);
 
             if ($validator->fails()) {
@@ -140,6 +144,22 @@ class ApplicantController extends Controller
                 $filename = time() . '_profile_' . preg_replace('/[^A-Za-z0-9_\-.]/', '_', $file->getClientOriginalName());
                 $path = $file->storeAs('profile_pictures', $filename, 'public');
                 $applicant->update(['profile_picture' => $path]);
+            }
+
+            $docFields = [
+                'sss_document' => 'sss',
+                'tin_document' => 'tin',
+                'pagibig_document' => 'pagibig',
+                'philhealth_document' => 'philhealth',
+            ];
+            foreach ($docFields as $field => $prefix) {
+                if ($request->hasFile($field) && $request->file($field)->isValid()) {
+                    $file = $request->file($field);
+                    $safeName = preg_replace('/[^A-Za-z0-9_\-.]/', '_', $file->getClientOriginalName());
+                    $filename = time() . "_{$prefix}_" . $safeName;
+                    $storedPath = $file->storeAs('applicant_documents/' . $applicant->id, $filename, 'local');
+                    Log::info('Stored applicant document', ['applicant_id' => $applicant->id, 'field' => $field, 'path' => $storedPath]);
+                }
             }
 
             $applicant->refresh();
@@ -494,6 +514,64 @@ class ApplicantController extends Controller
 
         $filename = basename($applicant->resume_file);
         return response()->download(Storage::disk('local')->path($applicant->resume_file), $filename);
+    }
+
+    public function listDocuments(Request $request, Applicant $applicant)
+    {
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $basePath = 'applicant_documents/' . $applicant->id;
+        $files = Storage::disk('local')->exists($basePath) ? Storage::disk('local')->files($basePath) : [];
+
+        $documents = array_map(function ($path) {
+            $fullPath = Storage::disk('local')->path($path);
+            return [
+                'name' => basename($path),
+                'path' => $path,
+                'size' => Storage::disk('local')->size($path),
+                'mime' => is_file($fullPath) ? mime_content_type($fullPath) : null,
+            ];
+        }, $files);
+
+        return response()->json($documents);
+    }
+
+    public function viewDocument(Request $request, Applicant $applicant, string $filename)
+    {
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $safe = basename($filename);
+        $path = 'applicant_documents/' . $applicant->id . '/' . $safe;
+        if (!Storage::disk('local')->exists($path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        $fullPath = Storage::disk('local')->path($path);
+        $mimeType = mime_content_type($fullPath);
+        return response()->file($fullPath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $safe . '"',
+        ]);
+    }
+
+    public function downloadDocument(Request $request, Applicant $applicant, string $filename)
+    {
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $safe = basename($filename);
+        $path = 'applicant_documents/' . $applicant->id . '/' . $safe;
+        if (!Storage::disk('local')->exists($path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        $fullPath = Storage::disk('local')->path($path);
+        return response()->download($fullPath, $safe);
     }
 
     /**
