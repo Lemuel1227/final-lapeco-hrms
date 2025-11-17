@@ -1,4 +1,4 @@
-﻿.modal-90w {
+.modal-90w {
   max-width: 900px !important;
 }
 .application-modal-layout {
@@ -7,17 +7,17 @@
   max-height: 85vh;
 }
 .modal-sidebar {
-  flex-basis: 280px;
+  flex-basis: 240px;
   flex-shrink: 0;
   background-color: #f8f9fa;
-  padding: 2rem;
+  padding: 1.25rem;
   border-right: 1px solid #dee2e6;
   display: flex;
   flex-direction: column;
 }
 .modal-logo {
-  max-width: 150px;
-  margin-bottom: 3rem;
+  max-width: 120px;
+  margin-bottom: 2rem;
 }
 .step-indicator {
   list-style: none;
@@ -34,16 +34,16 @@
 .step-item:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: 19px;
-  top: 45px;
-  height: calc(100% - 30px);
+  left: 15px;
+  top: 38px;
+  height: calc(100% - 24px);
   width: 2px;
   background-color: #dee2e6;
   transition: background-color 0.3s ease;
 }
 .step-number {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background-color: #fff;
   border: 2px solid #dee2e6;
@@ -51,7 +51,7 @@
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  margin-right: 1rem;
+  margin-right: 0.75rem;
   transition: all 0.3s ease;
   z-index: 1;
 }
@@ -78,7 +78,7 @@
 }
 .modal-main-content {
   flex-grow: 1;
-  padding: 2rem 2.5rem;
+  padding: 1.5rem 2rem;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -93,7 +93,7 @@
   flex-shrink: 0;
 }
 .modal-form-title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
 }
@@ -128,7 +128,7 @@
 .review-item {
   display: flex;
   justify-content: space-between;
-  padding: 0.75rem 0;
+  padding: 0.5rem 0;
   border-bottom: 1px solid #e9ecef;
 }
 .review-item:last-child {
@@ -147,7 +147,7 @@
 .modal-navigation {
   display: flex;
   justify-content: space-between;
-  padding-top: 1.5rem;
+  padding-top: 1rem;
   border-top: 1px solid #dee2e6;
   margin-top: auto;
   flex-shrink: 0;
@@ -183,4 +183,20 @@
   .modal-main-content {
     padding: 1.5rem;
   }
+}
+
+.gov-compact .form-label {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+.gov-compact .form-control {
+  font-size: 0.9rem;
+  padding: 0.375rem 0.5rem;
+  height: 2.2rem;
+}
+.gov-compact .form-text {
+  font-size: 0.8rem;
+}
+.gov-compact .row {
+  margin-bottom: 0.5rem;
 }

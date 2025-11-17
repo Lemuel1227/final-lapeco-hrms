@@ -22,7 +22,11 @@ const INITIAL_FORM_DATA = {
   sss: '',
   tin: '',
   pagibig: '',
-  philhealth: ''
+  philhealth: '',
+  sss_document: null,
+  tin_document: null,
+  pagibig_document: null,
+  philhealth_document: null
 };
 function ApplicationModal({ show, onHide }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -211,6 +215,14 @@ function ApplicationModal({ show, onHide }) {
         if (file.size > maxSize) {
           error = 'Photo must be less than 2MB';
         }
+      } else if (['sss_document','tin_document','pagibig_document','philhealth_document'].includes(name)) {
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        const allowedTypes = ['application/pdf','image/jpeg','image/jpg','image/png','image/gif'];
+        if (file.size > maxSize) {
+          error = 'Attachment must be less than 5MB';
+        } else if (!allowedTypes.includes(file.type)) {
+          error = 'Only PDF or image (JPG/PNG/GIF) files are allowed';
+        }
       }
       setErrors(prev => ({ ...prev, [name]: error }));
     } else {
@@ -372,6 +384,34 @@ function ApplicationModal({ show, onHide }) {
         newErrors.profile_picture = 'Photo must be less than 2MB';
       }
     }
+
+    // Statutory attachments required if corresponding ID is provided
+    const attachmentMax = 5 * 1024 * 1024;
+    const isAllowedType = (f) => ['application/pdf','image/jpeg','image/jpg','image/png','image/gif'].includes(f.type);
+    if (formData.sss && !formData.sss_document) {
+      newErrors.sss_document = 'Please attach supporting document for SSS';
+    } else if (formData.sss_document) {
+      if (formData.sss_document.size > attachmentMax) newErrors.sss_document = 'Attachment must be less than 5MB';
+      else if (!isAllowedType(formData.sss_document)) newErrors.sss_document = 'Only PDF or image files are allowed';
+    }
+    if (formData.tin && !formData.tin_document) {
+      newErrors.tin_document = 'Please attach supporting document for TIN';
+    } else if (formData.tin_document) {
+      if (formData.tin_document.size > attachmentMax) newErrors.tin_document = 'Attachment must be less than 5MB';
+      else if (!isAllowedType(formData.tin_document)) newErrors.tin_document = 'Only PDF or image files are allowed';
+    }
+    if (formData.pagibig && !formData.pagibig_document) {
+      newErrors.pagibig_document = 'Please attach supporting document for Pag-IBIG';
+    } else if (formData.pagibig_document) {
+      if (formData.pagibig_document.size > attachmentMax) newErrors.pagibig_document = 'Attachment must be less than 5MB';
+      else if (!isAllowedType(formData.pagibig_document)) newErrors.pagibig_document = 'Only PDF or image files are allowed';
+    }
+    if (formData.philhealth && !formData.philhealth_document) {
+      newErrors.philhealth_document = 'Please attach supporting document for PhilHealth';
+    } else if (formData.philhealth_document) {
+      if (formData.philhealth_document.size > attachmentMax) newErrors.philhealth_document = 'Attachment must be less than 5MB';
+      else if (!isAllowedType(formData.philhealth_document)) newErrors.philhealth_document = 'Only PDF or image files are allowed';
+    }
     
     return newErrors;
   };
@@ -396,7 +436,7 @@ function ApplicationModal({ show, onHide }) {
         setCurrentStep(1);
       } else if (validationErrors.resume || validationErrors.profile_picture) {
         setCurrentStep(2);
-      } else if (validationErrors.sss || validationErrors.tin || validationErrors.pagibig || validationErrors.philhealth) {
+      } else if (validationErrors.sss || validationErrors.tin || validationErrors.pagibig || validationErrors.philhealth || validationErrors.sss_document || validationErrors.tin_document || validationErrors.pagibig_document || validationErrors.philhealth_document) {
         setCurrentStep(3);
       }
       return;
@@ -650,100 +690,168 @@ function ApplicationModal({ show, onHide }) {
         );
       case 3:
         return (
-          <>
-            <Row className="mb-3">
-              <Form.Group as={Col} md={6} controlId="validationSSS">
-                <Form.Label>SSS No.</Form.Label>
-                <Form.Control 
-                  type="text" 
-                  name="sss" 
-                  value={formData.sss} 
-                  onChange={handleChange}
-                  onInput={(e) => {
-                    let value = e.target.value.replace(/[^0-9-]/g, '');
-                    const digitCount = value.replace(/[^0-9]/g, '').length;
-                    if (digitCount > 10) {
-                      const digits = value.replace(/[^0-9]/g, '').slice(0, 10);
-                      value = digits;
-                    }
-                    e.target.value = value;
-                  }}
-                  maxLength={12}
-                  placeholder="XX-XXXXXXX-X"
-                  isInvalid={!!errors.sss}
-                />
-                <Form.Control.Feedback type="invalid">{errors.sss}</Form.Control.Feedback>
-              </Form.Group>
-              <Form.Group as={Col} md={6} controlId="validationTIN">
-                <Form.Label>TIN No.</Form.Label>
-                <Form.Control 
-                  type="text" 
-                  name="tin" 
-                  value={formData.tin} 
-                  onChange={handleChange}
-                  onInput={(e) => {
-                    let value = e.target.value.replace(/[^0-9-]/g, '');
-                    const digitCount = value.replace(/[^0-9]/g, '').length;
-                    if (digitCount > 12) {
-                      const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
-                      value = digits;
-                    }
-                    e.target.value = value;
-                  }}
-                  maxLength={15}
-                  placeholder="XXX-XXX-XXX-XXX"
-                  isInvalid={!!errors.tin}
-                />
-                <Form.Control.Feedback type="invalid">{errors.tin}</Form.Control.Feedback>
-              </Form.Group>
+          <div className="gov-compact">
+            <Row className="mb-3 align-items-end">
+              <Col md={6}>
+                <Form.Group controlId="validationSSS">
+                  <Form.Label>SSS No.</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    name="sss" 
+                    value={formData.sss} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      let value = e.target.value.replace(/[^0-9-]/g, '');
+                      const digitCount = value.replace(/[^0-9]/g, '').length;
+                      if (digitCount > 10) {
+                        const digits = value.replace(/[^0-9]/g, '').slice(0, 10);
+                        value = digits;
+                      }
+                      e.target.value = value;
+                    }}
+                    maxLength={12}
+                    placeholder="XX-XXXXXXX-X"
+                    isInvalid={!!errors.sss}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.sss}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="validationSSSAttachment">
+                  <Form.Label>SSS ID/Registration (PDF/JPG/PNG){formData.sss ? '*' : ''}</Form.Label>
+                  <Form.Control 
+                    type="file" 
+                    name="sss_document" 
+                    onChange={handleFileChange} 
+                    accept=".pdf,.jpeg,.jpg,.png,.gif" 
+                    isInvalid={!!errors.sss_document}
+                    required={!!formData.sss}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.sss_document || 'Please upload SSS ID/Registration.'}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
             </Row>
-            <Row className="mb-4">
-              <Form.Group as={Col} md={6} controlId="validationPagibig">
-                <Form.Label>Pag-IBIG No.</Form.Label>
-                <Form.Control 
-                  type="text" 
-                  name="pagibig" 
-                  value={formData.pagibig} 
-                  onChange={handleChange}
-                  onInput={(e) => {
-                    let value = e.target.value.replace(/[^0-9-]/g, '');
-                    const digitCount = value.replace(/[^0-9]/g, '').length;
-                    if (digitCount > 12) {
-                      const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
-                      value = digits;
-                    }
-                    e.target.value = value;
-                  }}
-                  maxLength={14}
-                  placeholder="XXXX-XXXX-XXXX"
-                  isInvalid={!!errors.pagibig}
-                />
-                <Form.Control.Feedback type="invalid">{errors.pagibig}</Form.Control.Feedback>
-              </Form.Group>
-              <Form.Group as={Col} md={6} controlId="validationPhilhealth">
-                <Form.Label>PhilHealth No.</Form.Label>
-                <Form.Control 
-                  type="text" 
-                  name="philhealth" 
-                  value={formData.philhealth} 
-                  onChange={handleChange}
-                  onInput={(e) => {
-                    let value = e.target.value.replace(/[^0-9-]/g, '');
-                    const digitCount = value.replace(/[^0-9]/g, '').length;
-                    if (digitCount > 12) {
-                      const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
-                      value = digits;
-                    }
-                    e.target.value = value;
-                  }}
-                  maxLength={14}
-                  placeholder="XX-XXXXXXXXX-X"
-                  isInvalid={!!errors.philhealth}
-                />
-                <Form.Control.Feedback type="invalid">{errors.philhealth}</Form.Control.Feedback>
-              </Form.Group>
+            <Row className="mb-3 align-items-end">
+              <Col md={6}>
+                <Form.Group controlId="validationTIN">
+                  <Form.Label>TIN No.</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    name="tin" 
+                    value={formData.tin} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      let value = e.target.value.replace(/[^0-9-]/g, '');
+                      const digitCount = value.replace(/[^0-9]/g, '').length;
+                      if (digitCount > 12) {
+                        const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                        value = digits;
+                      }
+                      e.target.value = value;
+                    }}
+                    maxLength={15}
+                    placeholder="XXX-XXX-XXX-XXX"
+                    isInvalid={!!errors.tin}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.tin}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="validationTINAttachment">
+                  <Form.Label>TIN ID/Certificate (PDF/JPG/PNG){formData.tin ? '*' : ''}</Form.Label>
+                  <Form.Control 
+                    type="file" 
+                    name="tin_document" 
+                    onChange={handleFileChange} 
+                    accept=".pdf,.jpeg,.jpg,.png,.gif" 
+                    isInvalid={!!errors.tin_document}
+                    required={!!formData.tin}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.tin_document || 'Please upload TIN ID/Certificate.'}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
             </Row>
-          </>
+            <Row className="mb-3 align-items-end">
+              <Col md={6}>
+                <Form.Group controlId="validationPagibig">
+                  <Form.Label>Pag-IBIG No.</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    name="pagibig" 
+                    value={formData.pagibig} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      let value = e.target.value.replace(/[^0-9-]/g, '');
+                      const digitCount = value.replace(/[^0-9]/g, '').length;
+                      if (digitCount > 12) {
+                        const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                        value = digits;
+                      }
+                      e.target.value = value;
+                    }}
+                    maxLength={14}
+                    placeholder="XXXX-XXXX-XXXX"
+                    isInvalid={!!errors.pagibig}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.pagibig}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="validationPagibigAttachment">
+                  <Form.Label>Pag-IBIG ID/Registration (PDF/JPG/PNG){formData.pagibig ? '*' : ''}</Form.Label>
+                  <Form.Control 
+                    type="file" 
+                    name="pagibig_document" 
+                    onChange={handleFileChange} 
+                    accept=".pdf,.jpeg,.jpg,.png,.gif" 
+                    isInvalid={!!errors.pagibig_document}
+                    required={!!formData.pagibig}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.pagibig_document || 'Please upload Pag-IBIG ID/Registration.'}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row className="mb-3 align-items-end">
+              <Col md={6}>
+                <Form.Group controlId="validationPhilhealth">
+                  <Form.Label>PhilHealth No.</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    name="philhealth" 
+                    value={formData.philhealth} 
+                    onChange={handleChange}
+                    onInput={(e) => {
+                      let value = e.target.value.replace(/[^0-9-]/g, '');
+                      const digitCount = value.replace(/[^0-9]/g, '').length;
+                      if (digitCount > 12) {
+                        const digits = value.replace(/[^0-9]/g, '').slice(0, 12);
+                        value = digits;
+                      }
+                      e.target.value = value;
+                    }}
+                    maxLength={14}
+                    placeholder="XX-XXXXXXXXX-X"
+                    isInvalid={!!errors.philhealth}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.philhealth}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="validationPhilhealthAttachment">
+                  <Form.Label>PhilHealth ID/Registration (PDF/JPG/PNG){formData.philhealth ? '*' : ''}</Form.Label>
+                  <Form.Control 
+                    type="file" 
+                    name="philhealth_document" 
+                    onChange={handleFileChange} 
+                    accept=".pdf,.jpeg,.jpg,.png,.gif" 
+                    isInvalid={!!errors.philhealth_document}
+                    required={!!formData.philhealth}
+                  />
+                  <Form.Control.Feedback type="invalid">{errors.philhealth_document || 'Please upload PhilHealth ID/Registration.'}</Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+            </Row>
+          </div>
         );
       case 4:
         return (

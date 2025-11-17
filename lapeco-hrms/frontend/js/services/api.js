@@ -291,6 +291,22 @@ export const applicantAPI = {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   },
+  listDocuments: (id) => api.get(`/applicants/${id}/documents`),
+  viewDocument: async (id, filename) => {
+    const response = await api.get(`/applicants/${id}/documents/view/${encodeURIComponent(filename)}`, { responseType: 'blob' });
+    return response.data;
+  },
+  downloadDocument: async (id, filename) => {
+    const response = await api.get(`/applicants/${id}/documents/download/${encodeURIComponent(filename)}`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 // Recruitment API calls

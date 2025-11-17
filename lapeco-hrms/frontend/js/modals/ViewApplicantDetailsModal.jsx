@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './ViewApplicantDetailsModal.css';
 import './AddEditEmployeeModal.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -28,6 +28,14 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
   const [resumeBlobUrl, setResumeBlobUrl] = useState(null);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeError, setResumeError] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docsError, setDocsError] = useState(null);
+  const [docPreviewUrl, setDocPreviewUrl] = useState(null);
+  const [docPreviewLoading, setDocPreviewLoading] = useState(false);
+  const [docPreviewError, setDocPreviewError] = useState(null);
+  const [docPreviewName, setDocPreviewName] = useState('');
+  const [docPreviewMime, setDocPreviewMime] = useState('');
 
   useEffect(() => {
     if (!show) {
@@ -86,6 +94,61 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
 
     fetchFullApplicantData();
   }, [show, applicant?.id]);
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      const id = applicant?.id || fullApplicantData?.id;
+      if (!show || !id || activeTab !== 'government') return;
+      setDocsLoading(true);
+      setDocsError(null);
+      try {
+        const res = await applicantAPI.listDocuments(id);
+        setDocuments(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error('Error loading applicant documents:', err);
+        setDocsError('Failed to load attachments');
+      } finally {
+        setDocsLoading(false);
+      }
+    };
+    fetchDocuments();
+  }, [show, applicant?.id, fullApplicantData?.id, activeTab]);
+
+  const typeDocs = useMemo(() => {
+    const byPrefix = (p) => documents.filter(d => typeof d?.name === 'string' && d.name.includes(`${p}_`));
+    return {
+      sss: byPrefix('sss'),
+      tin: byPrefix('tin'),
+      pagibig: byPrefix('pagibig'),
+      philhealth: byPrefix('philhealth'),
+    };
+  }, [documents]);
+
+  useEffect(() => () => {
+    if (docPreviewUrl) {
+      window.URL.revokeObjectURL(docPreviewUrl);
+    }
+  }, [docPreviewUrl]);
+
+  const handlePreviewDoc = async (name) => {
+    setDocPreviewLoading(true);
+    setDocPreviewError(null);
+    setDocPreviewName(name);
+    try {
+      const blob = await applicantAPI.viewDocument((fullApplicantData?.id || applicant?.id), name);
+      const url = window.URL.createObjectURL(blob);
+      setDocPreviewUrl(prev => {
+        if (prev) window.URL.revokeObjectURL(prev);
+        return url;
+      });
+      setDocPreviewMime(blob.type || 'application/octet-stream');
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to preview document';
+      setDocPreviewError(msg);
+    } finally {
+      setDocPreviewLoading(false);
+    }
+  };
 
   if (!show || !applicant) {
     return null;
@@ -247,12 +310,163 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                   )}
                   {activeTab === 'government' && (
                     <div>
-                      <div className="row g-4">
-                        <div className="col-md-6 detail-group"><p className="detail-label">SSS No.</p><p className="detail-value">{displayData.sss_no || 'N/A'}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">TIN No.</p><p className="detail-value">{displayData.tin_no || 'N/A'}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">Pag-IBIG No.</p><p className="detail-value">{displayData.pag_ibig_no || 'N/A'}</p></div>
-                        <div className="col-md-6 detail-group"><p className="detail-label">PhilHealth No.</p><p className="detail-value">{displayData.philhealth_no || 'N/A'}</p></div>
+                      <div className="info-card">
+                        <div className="details-grid">
+                          <div className="detail-group"><p className="detail-label">SSS No.</p><p className="detail-value">{displayData.sss_no || 'N/A'}</p></div>
+                          <div>
+                            <p className="detail-label">SSS ID/Registration</p>
+                            {docsLoading ? (
+                              <div className="text-muted">Loading...</div>
+                            ) : (typeDocs.sss && typeDocs.sss.length > 0 ? (
+                              <div className="d-flex flex-column gap-2">
+                                {typeDocs.sss.map(doc => (
+                                  <div key={doc.name} className="d-flex justify-content-between align-items-center border rounded px-2 py-1">
+                                    <div className="d-flex align-items-center gap-2 overflow-hidden">
+                                      <i className="bi bi-file-earmark-text"></i>
+                                      <span className="text-truncate" title={doc.name}>{doc.name}</span>
+                                    </div>
+                                    <div className="d-flex gap-2">
+                                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => handlePreviewDoc(doc.name)}><i className="bi bi-eye"></i></button>
+                                      <button type="button" className="btn btn-sm btn-outline-primary" onClick={async () => {
+                                        try { await applicantAPI.downloadDocument(displayData.id, doc.name); }
+                                        catch (error) { const msg = error.response?.data?.message || 'Failed to download document'; onToast && onToast({ show: true, message: msg, type: 'error' }); }
+                                      }}><i className="bi bi-download"></i></button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-muted mb-0">No attachment</p>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="details-grid">
+                          <div className="detail-group"><p className="detail-label">TIN No.</p><p className="detail-value">{displayData.tin_no || 'N/A'}</p></div>
+                          <div>
+                            <p className="detail-label">TIN ID/Certificate</p>
+                            {docsLoading ? (
+                              <div className="text-muted">Loading...</div>
+                            ) : (typeDocs.tin && typeDocs.tin.length > 0 ? (
+                              <div className="d-flex flex-column gap-2">
+                                {typeDocs.tin.map(doc => (
+                                  <div key={doc.name} className="d-flex justify-content-between align-items-center border rounded px-2 py-1">
+                                    <div className="d-flex align-items-center gap-2 overflow-hidden">
+                                      <i className="bi bi-file-earmark-text"></i>
+                                      <span className="text-truncate" title={doc.name}>{doc.name}</span>
+                                    </div>
+                                    <div className="d-flex gap-2">
+                                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => handlePreviewDoc(doc.name)}><i className="bi bi-eye"></i></button>
+                                      <button type="button" className="btn btn-sm btn-outline-primary" onClick={async () => {
+                                        try { await applicantAPI.downloadDocument(displayData.id, doc.name); }
+                                        catch (error) { const msg = error.response?.data?.message || 'Failed to download document'; onToast && onToast({ show: true, message: msg, type: 'error' }); }
+                                      }}><i className="bi bi-download"></i></button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-muted mb-0">No attachment</p>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="details-grid">
+                          <div className="detail-group"><p className="detail-label">Pag-IBIG No.</p><p className="detail-value">{displayData.pag_ibig_no || 'N/A'}</p></div>
+                          <div>
+                            <p className="detail-label">Pag-IBIG ID/Registration</p>
+                            {docsLoading ? (
+                              <div className="text-muted">Loading...</div>
+                            ) : (typeDocs.pagibig && typeDocs.pagibig.length > 0 ? (
+                              <div className="d-flex flex-column gap-2">
+                                {typeDocs.pagibig.map(doc => (
+                                  <div key={doc.name} className="d-flex justify-content-between align-items-center border rounded px-2 py-1">
+                                    <div className="d-flex align-items-center gap-2 overflow-hidden">
+                                      <i className="bi bi-file-earmark-text"></i>
+                                      <span className="text-truncate" title={doc.name}>{doc.name}</span>
+                                    </div>
+                                    <div className="d-flex gap-2">
+                                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => handlePreviewDoc(doc.name)}><i className="bi bi-eye"></i></button>
+                                      <button type="button" className="btn btn-sm btn-outline-primary" onClick={async () => {
+                                        try { await applicantAPI.downloadDocument(displayData.id, doc.name); }
+                                        catch (error) { const msg = error.response?.data?.message || 'Failed to download document'; onToast && onToast({ show: true, message: msg, type: 'error' }); }
+                                      }}><i className="bi bi-download"></i></button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-muted mb-0">No attachment</p>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="details-grid">
+                          <div className="detail-group"><p className="detail-label">PhilHealth No.</p><p className="detail-value">{displayData.philhealth_no || 'N/A'}</p></div>
+                          <div>
+                            <p className="detail-label">PhilHealth ID/Registration</p>
+                            {docsLoading ? (
+                              <div className="text-muted">Loading...</div>
+                            ) : (typeDocs.philhealth && typeDocs.philhealth.length > 0 ? (
+                              <div className="d-flex flex-column gap-2">
+                                {typeDocs.philhealth.map(doc => (
+                                  <div key={doc.name} className="d-flex justify-content-between align-items-center border rounded px-2 py-1">
+                                    <div className="d-flex align-items-center gap-2 overflow-hidden">
+                                      <i className="bi bi-file-earmark-text"></i>
+                                      <span className="text-truncate" title={doc.name}>{doc.name}</span>
+                                    </div>
+                                    <div className="d-flex gap-2">
+                                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => handlePreviewDoc(doc.name)}><i className="bi bi-eye"></i></button>
+                                      <button type="button" className="btn btn-sm btn-outline-primary" onClick={async () => {
+                                        try { await applicantAPI.downloadDocument(displayData.id, doc.name); }
+                                        catch (error) { const msg = error.response?.data?.message || 'Failed to download document'; onToast && onToast({ show: true, message: msg, type: 'error' }); }
+                                      }}><i className="bi bi-download"></i></button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-muted mb-0">No attachment</p>
+                            ))}
+                          </div>
+                        </div>
                       </div>
+                      {(docPreviewLoading || docPreviewUrl || docPreviewError) && (
+                        <div className="info-card mt-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="d-flex align-items-center gap-2">
+                              <i className="bi bi-eye"></i>
+                              <span className="fw-semibold">Attachment Preview</span>
+                              {docPreviewName && <span className="text-muted">{docPreviewName}</span>}
+                            </div>
+                            <div>
+                              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => {
+                                if (docPreviewUrl) window.URL.revokeObjectURL(docPreviewUrl);
+                                setDocPreviewUrl(null);
+                                setDocPreviewError(null);
+                                setDocPreviewName('');
+                                setDocPreviewMime('');
+                              }}>Close</button>
+                            </div>
+                          </div>
+                          {docPreviewLoading && (
+                            <div className="text-center p-3">
+                              <div className="spinner-border text-success" role="status"><span className="visually-hidden">Loading...</span></div>
+                            </div>
+                          )}
+                          {docPreviewError && !docPreviewLoading && (
+                            <div className="alert alert-warning" role="alert">
+                              {docPreviewError}
+                            </div>
+                          )}
+                          {docPreviewUrl && !docPreviewLoading && !docPreviewError && (
+                            <div style={{height: '420px'}}>
+                              {docPreviewMime.startsWith('image/') ? (
+                                <img src={docPreviewUrl} alt={docPreviewName} style={{maxHeight: '100%', maxWidth: '100%'}} />
+                              ) : (
+                                <iframe src={docPreviewUrl} title={docPreviewName} style={{width: '100%', height: '100%', border: '1px solid var(--border-color)', borderRadius: '0.375rem'}} />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                   {activeTab === 'resume' && (

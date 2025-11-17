@@ -59,6 +59,10 @@ Route::get('/positions', [PositionController::class, 'publicIndex']);
 Route::get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
 Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/view', [ApplicantController::class, 'viewResume']);
 Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/download', [ApplicantController::class, 'downloadResume']);
+// Applicant statutory documents (authenticated)
+Route::middleware('auth:sanctum')->get('/applicants/{applicant}/documents', [ApplicantController::class, 'listDocuments']);
+Route::middleware('auth:sanctum')->get('/applicants/{applicant}/documents/view/{filename}', [ApplicantController::class, 'viewDocument']);
+Route::middleware('auth:sanctum')->get('/applicants/{applicant}/documents/download/{filename}', [ApplicantController::class, 'downloadDocument']);
 
 Route::get('/email/verify/{id}/{hash}', [ProfileController::class, 'verifyEmail'])
     ->middleware(['signed', 'throttle:1,1'])
