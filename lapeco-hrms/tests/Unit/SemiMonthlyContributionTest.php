@@ -10,10 +10,10 @@ class SemiMonthlyContributionTest extends TestCase
     {
         $monthlySalary = 30000.00;
         $msc = 30000.00;
-        $monthlyEe = $msc * 0.05;
+        $monthlyEe = $msc * 0.045;
         $semiMonthlyEe = $monthlyEe / 2;
-        $this->assertSame(1500.0, $monthlyEe);
-        $this->assertSame(750.0, $semiMonthlyEe);
+        $this->assertSame(1350.0, $monthlyEe);
+        $this->assertSame(675.0, $semiMonthlyEe);
     }
 
     public function test_philhealth_employee_share_is_halved_per_period()

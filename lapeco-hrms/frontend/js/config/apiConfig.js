@@ -1,4 +1,4 @@
-const DEFAULT_API_ORIGIN = 'http://localhost:8000';
+const DEFAULT_API_ORIGIN = 'https://api.lapeco.org';
 
 const deriveBaseUrl = () => {
   const browserDefinedApi = typeof window !== 'undefined' ? window.APP_API_BASE_URL : undefined;

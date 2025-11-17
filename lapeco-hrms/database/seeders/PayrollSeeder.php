@@ -95,7 +95,7 @@ class PayrollSeeder extends Seeder
                         $remainder = $msc % 500;
                         $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
                     }
-                    $sssSemi = ($msc * 0.05) / 2;
+                    $sssSemi = ($msc * 0.045) / 2;
                 }
 
                 $philSemi = 0.0;

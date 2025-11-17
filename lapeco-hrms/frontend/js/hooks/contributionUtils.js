@@ -23,8 +23,8 @@ export const calculateSssContribution = (salary, isProvisional = false) => {
         const remainder = msc % 500;
         msc = remainder < 250 ? msc - remainder : msc - remainder + 500;
     }
-    const monthlyEmployeeShare = msc * 0.05;
-    const monthlyEmployerShare = msc * 0.10;
+    const monthlyEmployeeShare = msc * 0.045;
+    const monthlyEmployerShare = msc * 0.095;
     const divisor = isProvisional ? 2 : 1;
     return {
         employeeShare: monthlyEmployeeShare / divisor,

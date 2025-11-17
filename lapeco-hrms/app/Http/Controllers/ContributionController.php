@@ -25,8 +25,8 @@ class ContributionController extends Controller
             $remainder = $msc % 500;
             $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
         }
-        $employeeShare = $msc * 0.05;
-        $employerShare = $msc * 0.10;
+        $employeeShare = $msc * 0.045;
+        $employerShare = $msc * 0.095;
         return [
             'employeeShare' => round($employeeShare, 2),
             'employerShare' => round($employerShare, 2),
@@ -203,12 +203,13 @@ class ContributionController extends Controller
 
             switch ($validated['type']) {
                 case 'sss':
-                    // Reflect actual employee deductions from payroll; derive employer share via rule (10% vs 5%).
+                    // Reflect actual employee deductions from payroll; derive employer share via rule (9.5% vs 4.5%).
                     $ee = round($data['sssEe'], 2);
+                    $employerShare = round($ee * (9.5 / 4.5), 2);
                     $contribution = [
                         'employeeShare' => $ee,
-                        'employerShare' => round($ee * 2, 2),
-                        'total' => round($ee * 3, 2),
+                        'employerShare' => $employerShare,
+                        'total' => round($ee + $employerShare, 2),
                     ];
                     $govtId = $employee->sss_no ?? '';
                     break;

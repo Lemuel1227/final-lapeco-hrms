@@ -560,7 +560,7 @@ class PayrollController extends Controller
                     $remainder = $msc % 500;
                     $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
                 }
-                $sssEe = ($msc * 0.05) / 2;
+                $sssEe = ($msc * 0.045) / 2;
             }
 
             $philEe = 0.0;
@@ -1270,7 +1270,7 @@ class PayrollController extends Controller
                     $remainder = $msc % 500;
                     $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
                 }
-                $sssEe = ($msc * 0.05) / 2;
+                $sssEe = ($msc * 0.045) / 2;
             }
             $philEe = 0.0;
             if ($monthlySalary >= 10000) {

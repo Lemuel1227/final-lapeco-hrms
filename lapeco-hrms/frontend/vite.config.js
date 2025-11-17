@@ -16,7 +16,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'https://api.lapeco.org',
         changeOrigin: true,
         secure: false,
       }
