@@ -1124,6 +1124,7 @@ class PayrollController extends Controller
             }
 
             $attendance = $assignment->attendance;
+            $attendanceStatus = $attendance ? strtolower((string) $attendance->status) : null;
             $scheduledHours = $this->calculateScheduledHours($assignment->start_time, $assignment->end_time);
             $attendedHours = $this->calculateAttendanceHours($attendance);
             $overtimeHours = $this->calculateOvertimeHours($assignment->ot_hours, $attendedHours, $scheduledHours);
@@ -1133,12 +1134,14 @@ class PayrollController extends Controller
 
             // Track absences
             if ($regularHours <= 0 && $overtimeHours <= 0) {
-                $absencesSummary[] = [
-                    'description' => 'Unexcused',
-                    'startDate' => $scheduleDate->toDateString(),
-                    'endDate' => $scheduleDate->toDateString(),
-                    'totalDays' => 1,
-                ];
+                if ($attendanceStatus === 'absent') {
+                    $absencesSummary[] = [
+                        'description' => 'Unexcused',
+                        'startDate' => $scheduleDate->toDateString(),
+                        'endDate' => $scheduleDate->toDateString(),
+                        'totalDays' => 1,
+                    ];
+                }
                 continue;
             }
 
