@@ -178,6 +178,9 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:leave,destroy'])->delete('/leaves/{leave}', [LeaveController::class, 'destroy']);
     // Secure download/preview of attached document for a leave request
     Route::middleware(['role.access:leave,view'])->get('/leaves/{leave}/attachment', [LeaveController::class, 'downloadAttachment']);
+    // Leave settings: notice days (HR/Team Leader or leave_management module)
+    Route::middleware(['role.access:leave,index'])->get('/leave-settings/notice-days', [LeaveController::class, 'getNoticeDays']);
+    Route::middleware(['role.access:leave,update'])->put('/leave-settings/notice-days', [LeaveController::class, 'updateNoticeDays']);
     
     // Leave Credits Management
     Route::middleware(['role.access:leave,index'])->get('/leave-credits/all', [LeaveController::class, 'getAllLeaveCredits']);

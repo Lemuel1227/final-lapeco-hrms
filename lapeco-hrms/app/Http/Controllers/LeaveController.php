@@ -6,6 +6,8 @@
     use App\Models\Leave;
     use App\Models\User;
     use App\Models\LeaveCredit;
+    use App\Models\SystemSetting;
+    use Carbon\Carbon;
     use App\Models\Notification;
     use Illuminate\Validation\ValidationException;
     use Illuminate\Support\Facades\Storage;
@@ -140,6 +142,24 @@
                     }
                 }
                 
+                $policy = SystemSetting::getJson('leave_notice_days_map', []);
+                $types = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Unpaid Leave', 'Maternity Leave', 'Paternity Leave'];
+                foreach ($types as $t) { if (!isset($policy[$t])) $policy[$t] = 0; }
+                $noticeDays = (int) ($policy[$data['type']] ?? 0);
+                if ($noticeDays > 0) {
+                    $from = Carbon::parse($data['date_from'])->startOfDay();
+                    $today = Carbon::now()->startOfDay();
+                    $diff = $today->diffInDays($from, false);
+                    if ($diff < $noticeDays) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Minimum notice for {$data['type']}: {$noticeDays} day(s) before start date.",
+                            'hint' => 'Submit earlier or adjust the start date.',
+                            'error' => 'Insufficient notice',
+                        ], 422);
+                    }
+                }
+
                 // Check leave credits for applicable leave types (skip Unpaid Leave and Paternity Leave)
                 if (!in_array($data['type'], ['Unpaid Leave', 'Paternity Leave'])) {
                     $creditType = $data['type'] === 'Emergency Leave' ? 'Vacation Leave' : $data['type'];
@@ -579,5 +599,43 @@
                     fclose($stream);
                 }
             }, 200, $headers);
+        }
+    
+        /**
+         * Get leave notice days setting.
+         */
+        public function getNoticeDays(Request $request)
+        {
+            $user = $request->user();
+            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+            $policy = SystemSetting::getJson('leave_notice_days_map', []);
+            $types = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Unpaid Leave', 'Maternity Leave', 'Paternity Leave'];
+            foreach ($types as $t) { if (!isset($policy[$t])) $policy[$t] = 0; }
+            return response()->json(['policy' => $policy]);
+        }
+
+        /**
+         * Update leave notice days setting.
+         */
+        public function updateNoticeDays(Request $request)
+        {
+            $user = $request->user();
+            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+            $types = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Unpaid Leave', 'Maternity Leave', 'Paternity Leave'];
+            $incoming = $request->input('policy', []);
+            $policy = [];
+            foreach ($types as $t) {
+                $v = $incoming[$t] ?? 0;
+                $v = is_numeric($v) ? (int) $v : 0;
+                if ($v < 0) $v = 0;
+                if ($v > 365) $v = 365;
+                $policy[$t] = $v;
+            }
+            SystemSetting::setJson('leave_notice_days_map', $policy);
+            return response()->json(['success' => true, 'message' => 'Leave notice policy updated.', 'policy' => $policy]);
         }
     }

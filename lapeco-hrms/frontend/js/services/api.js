@@ -225,6 +225,9 @@ export const leaveAPI = {
   updateLeaveCredits: (userId, data) => api.put(`/leave-credits/${userId}`, data),
   bulkAddCredits: (data) => api.post('/leave-credits/bulk-add', data),
   resetUsedCredits: (data) => api.post('/leave-credits/reset', data),
+  // Leave settings
+  getNoticeDays: () => api.get('/leave-settings/notice-days'),
+  updateNoticeDays: (policy) => api.put('/leave-settings/notice-days', { policy }),
 };
 
 // Payroll API calls

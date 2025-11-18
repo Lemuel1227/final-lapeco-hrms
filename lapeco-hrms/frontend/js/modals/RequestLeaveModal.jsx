@@ -41,6 +41,7 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = !!editingRequest;
   const REASON_MAX = 500;
+  const [noticePolicy, setNoticePolicy] = useState({});
 
   // Leave credits state
   const [leaveCredits, setLeaveCredits] = useState(null);
@@ -71,6 +72,15 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
         setFormData(initialFormState);
       }
       setErrors({});
+      (async () => {
+        try {
+          const res = await leaveAPI.getNoticeDays();
+          const p = res.data?.policy || {};
+          setNoticePolicy(p);
+        } catch (_) {
+          setNoticePolicy({});
+        }
+      })();
     }
   }, [show, editingRequest]);
 
@@ -206,6 +216,18 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
       if (to < startOfToday) newErrors.dateTo = 'End date cannot be in the past.';
     }
     if (!isMaternity && !isPaternity && formData.dateTo < formData.dateFrom) newErrors.dateTo = 'End date cannot be before start date.';
+    if (formData.dateFrom) {
+      try {
+        const from = new Date(formData.dateFrom + 'T00:00:00');
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const diff = Math.ceil((from - today) / (1000 * 60 * 60 * 24));
+        const required = Number(noticePolicy[formData.leaveType] || 0);
+        if (required > 0 && diff < required) {
+          newErrors.dateFrom = `Minimum notice for ${formData.leaveType}: ${required} day(s) before start date.`;
+        }
+      } catch (_) {}
+    }
     if (!formData.reason.trim()) newErrors.reason = 'A reason for the leave is required.';
     if (isMaternity) {
       if (!formData.deliveryDate) newErrors.deliveryDate = `An ${formData.maternityType === 'prenatal' ? 'expected' : 'actual'} date is required.`;
@@ -524,6 +546,7 @@ const attachmentHint = useMemo(() => {
                   <input type="date" id="dateFrom" name="dateFrom" className={`form-control ${errors.dateFrom ? 'is-invalid' : ''}`} value={formData.dateFrom} onChange={(e) => setFormData({...formData, dateFrom: e.target.value})} min={todayStr} />
                   {isMaternity && <div className="form-text">Per law, at least 60 days of your leave must be after your delivery date.</div>}
                   {isPaternity && <div className="form-text">Must be availed within 60 days from the date of delivery/miscarriage.</div>}
+                  {Number(noticePolicy[formData.leaveType] || 0) > 0 && <div className="form-text">Minimum notice for {formData.leaveType}: {noticePolicy[formData.leaveType]} day(s).</div>}
                   {errors.dateFrom && <div className="invalid-feedback">{errors.dateFrom}</div>}
                   {!errors.dateFrom && isPastFrom && <div className="text-danger small">Selected start date is in the past.</div>}
                 </div>

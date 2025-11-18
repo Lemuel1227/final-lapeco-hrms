@@ -16,6 +16,15 @@ const LeaveManagementPage = () => {
   const [employees, setEmployees] = useState([]);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [noticePolicy, setNoticePolicy] = useState({
+    'Vacation Leave': 0,
+    'Sick Leave': 0,
+    'Emergency Leave': 0,
+    'Unpaid Leave': 0,
+    'Maternity Leave': 0,
+    'Paternity Leave': 0,
+  });
+  const [savingPolicy, setSavingPolicy] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -76,6 +85,18 @@ const LeaveManagementPage = () => {
         setLeaveRequests(mappedLeaves);
         setEmployees(empData);
         setError(null);
+        try {
+          const noticeRes = await leaveAPI.getNoticeDays();
+          const p = noticeRes.data?.policy || {};
+          setNoticePolicy(prev => ({
+            'Vacation Leave': Number.isFinite(Number(p['Vacation Leave'])) ? Number(p['Vacation Leave']) : 0,
+            'Sick Leave': Number.isFinite(Number(p['Sick Leave'])) ? Number(p['Sick Leave']) : 0,
+            'Emergency Leave': Number.isFinite(Number(p['Emergency Leave'])) ? Number(p['Emergency Leave']) : 0,
+            'Unpaid Leave': Number.isFinite(Number(p['Unpaid Leave'])) ? Number(p['Unpaid Leave']) : 0,
+            'Maternity Leave': Number.isFinite(Number(p['Maternity Leave'])) ? Number(p['Maternity Leave']) : 0,
+            'Paternity Leave': Number.isFinite(Number(p['Paternity Leave'])) ? Number(p['Paternity Leave']) : 0,
+          }));
+        } catch (_) {}
       } catch (err) {
         setLeaveRequests([]);
         setEmployees([]);
@@ -160,6 +181,22 @@ const LeaveManagementPage = () => {
     }
   };
 
+  const saveNoticePolicy = async () => {
+    try {
+      setSavingPolicy(true);
+      const sanitized = Object.fromEntries(Object.entries(noticePolicy).map(([k,v]) => {
+        const n = Math.max(0, Math.min(365, parseInt(v || 0, 10)));
+        return [k, n];
+      }));
+      await leaveAPI.updateNoticeDays(sanitized);
+      showToast({ message: 'Leave notice policy updated.', type: 'success' });
+    } catch (e) {
+      showToast({ message: 'Failed to update leave notice policy.', type: 'danger' });
+    } finally {
+      setSavingPolicy(false);
+    }
+  };
+
   const showToast = (toastData = {}) => {
     setToast({
       show: true,
@@ -232,6 +269,14 @@ const LeaveManagementPage = () => {
                     <i className="bi bi-coin me-2"></i>Leave Credits
                   </button>
                 </li>
+                <li className="nav-item">
+                  <button 
+                    className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('settings')}
+                  >
+                    <i className="bi bi-gear me-2"></i>Settings
+                  </button>
+                </li>
               </ul>
               <button className="btn btn-outline-secondary me-2" onClick={() => setShowReportModal(true)}>
                 <i className="bi bi-file-earmark-pdf-fill me-2"></i>Generate Report
@@ -252,6 +297,30 @@ const LeaveManagementPage = () => {
                   handlers={handlers}
                   onShowToast={showToast}
                 />
+              )}
+              {activeTab === 'settings' && (
+                <div className="p-3">
+                  <div className="card">
+                    <div className="card-header"><i className="bi bi-gear me-2"></i>Leave Notice Policy</div>
+                    <div className="card-body">
+                      <p className="text-muted">Set minimum notice (days) per leave type. Requests must be submitted at least N days before the start date.</p>
+                      <div className="row g-3">
+                        {Object.keys(noticePolicy).map((type) => (
+                          <div className="col-md-4" key={type}>
+                            <label className="form-label">{type}</label>
+                            <input type="number" className="form-control" min="0" max="365" value={noticePolicy[type]} onChange={(e) => setNoticePolicy(prev => ({ ...prev, [type]: e.target.value === '' ? '' : Math.max(0, Math.min(365, parseInt(e.target.value, 10) || 0)) }))} />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3">
+                        <button className="btn btn-primary" onClick={saveNoticePolicy} disabled={savingPolicy}>
+                          {savingPolicy ? (<><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>) : (<>Save</>)}
+                        </button>
+                      </div>
+                      <div className="form-text mt-2">Example: If vacation is 5 days and the leave starts on the 16th, submit on or before the 11th.</div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </>
