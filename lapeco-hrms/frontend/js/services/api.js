@@ -282,6 +282,7 @@ export const applicantAPI = {
   update: (id, data) => api.put(`/applicants/${id}`, data),
   delete: (id) => api.delete(`/applicants/${id}`),
   updateStatus: (id, data) => api.put(`/applicants/${id}/status`, data),
+  reject: (id, data) => api.post(`/applicants/${id}/reject`, data),
   scheduleInterview: (id, data) => {
     return api.post(`/applicants/${id}/interview`, data);
   },

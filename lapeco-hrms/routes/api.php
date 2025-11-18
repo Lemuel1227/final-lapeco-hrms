@@ -224,6 +224,7 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:recruitment,update'])->put('/applicants/{applicant}', [ApplicantController::class, 'update']);
     Route::middleware(['role.access:recruitment,destroy'])->delete('/applicants/{applicant}', [ApplicantController::class, 'destroy']);
     Route::middleware(['role.access:recruitment,update'])->put('/applicants/{applicant}/status', [ApplicantController::class, 'updateStatus']);
+    Route::middleware(['role.access:recruitment,update'])->post('/applicants/{applicant}/reject', [ApplicantController::class, 'reject']);
     Route::middleware(['role.access:recruitment,update'])->post('/applicants/{applicant}/interview', [ApplicantController::class, 'scheduleInterview']);
     Route::middleware(['role.access:recruitment,update'])->post('/applicants/{applicant}/hire', [ApplicantController::class, 'hire']);
     // Resume routes moved to public section with auth:sanctum middleware

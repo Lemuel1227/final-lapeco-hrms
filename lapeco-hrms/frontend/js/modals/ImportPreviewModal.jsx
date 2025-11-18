@@ -12,7 +12,6 @@ const ImportPreviewModal = ({
   onEmployeeAdd
 }) => {
   const [editedData, setEditedData] = useState(importData || []);
-  const [selectedRows, setSelectedRows] = useState(new Set());
   const [searchingEmployee, setSearchingEmployee] = useState(null);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
 
@@ -47,12 +46,6 @@ const ImportPreviewModal = ({
   const handleRemoveRow = (index) => {
     const updated = [...editedData];
     updated[index].excluded = !updated[index].excluded;
-    setEditedData(updated);
-  };
-
-  const handleEditField = (index, field, value) => {
-    const updated = [...editedData];
-    updated[index][field] = value;
     setEditedData(updated);
   };
 
@@ -250,7 +243,7 @@ const ImportPreviewModal = ({
                     <th style={{ width: '150px' }}>Matched Name</th>
                     <th style={{ width: '80px' }}>Matched ID</th>
                     <th style={{ width: '150px' }}>Date/Time</th>
-                    <th style={{ width: '100px' }}>Log Type</th>
+                    <th style={{ width: '120px' }}>Log Type</th>
                     <th style={{ width: '80px' }}>Actions</th>
                   </tr>
                 </thead>
@@ -314,18 +307,9 @@ const ImportPreviewModal = ({
                         <small>{new Date(row.dateTime).toLocaleString()}</small>
                       </td>
                       <td>
-                        <select
-                          className="form-select form-select-sm"
-                          value={row.logType}
-                          onChange={(e) => handleEditField(index, 'logType', e.target.value)}
-                          disabled={row.excluded || isLoading}
-                          style={{ fontSize: '0.875rem', fontWeight: '500' }}
-                        >
-                          <option value="Sign In">Time-In</option>
-                          <option value="Sign Out">Time-Out</option>
-                          <option value="Break In">Break In</option>
-                          <option value="Break Out">Break Out</option>
-                        </select>
+                        <span className="badge rounded-pill bg-secondary fw-semibold">
+                          {row.logType}
+                        </span>
                       </td>
                       <td>
                         <button
