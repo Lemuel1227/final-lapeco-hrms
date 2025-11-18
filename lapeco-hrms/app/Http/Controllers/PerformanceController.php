@@ -732,7 +732,7 @@ class PerformanceController extends Controller
             ], 403);
         }
 
-        if ($response->evaluator_id !== $user->id && $user->role !== 'HR_PERSONNEL') {
+        if ($response->evaluator_id !== $user->id && $user->role !== 'HR_MANAGER') {
             return response()->json([
                 'message' => 'You are not authorized to modify this evaluation response.',
                 'error_type' => 'authorization_error',
@@ -829,14 +829,7 @@ class PerformanceController extends Controller
     public function getTeamMembersToEvaluate(Request $request)
     {
         $user = $request->user();
-
-        // Check if user is a team leader
-        if ($user->role !== 'TEAM_LEADER') {
-            return response()->json([
-                'message' => 'Only team leaders can access this endpoint.',
-                'error_type' => 'authorization_error',
-            ], 403);
-        }
+        // Allow both Team Leaders and Regular Employees
 
         // Get active evaluation period (current date must be within date range)
         // No longer checking 'status' column - only dates matter
@@ -859,18 +852,27 @@ class PerformanceController extends Controller
             ]);
         }
 
-        // Get team members (same position, not team leader)
-        $teamMembers = User::query()
+        // Get evaluation candidates based on role
+        $query = User::query()
             ->where('position_id', $user->position_id)
-            ->where('role', 'REGULAR_EMPLOYEE')
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
             ->with(['position:id,name'])
-            ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'image_url', 'role')
-            ->get();
+            ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'image_url', 'role');
+
+        if ($user->role === 'TEAM_LEADER') {
+            // Leaders evaluate regular employees
+            $query->where('role', 'REGULAR_EMPLOYEE');
+        } else {
+            // Regular employees evaluate peers in same position (exclude self, exclude leaders)
+            $query->where('role', 'REGULAR_EMPLOYEE')->where('id', '!=', $user->id);
+        }
+
+        $teamMembers = $query->get();
 
         // Get ALL evaluations for team members to find last evaluation
+        $targetEmployeeIds = $teamMembers->pluck('id');
         $allEvaluations = PerformanceEvaluation::query()
-            ->whereIn('employee_id', $teamMembers->pluck('id'))
+            ->whereIn('employee_id', $targetEmployeeIds)
             ->with(['period:id,evaluation_start,evaluation_end', 'responses' => function ($query) use ($user) {
                 $query->where('evaluator_id', $user->id);
             }])
@@ -1053,20 +1055,23 @@ class PerformanceController extends Controller
 
     private function canEvaluate(User $evaluator, User $employee): bool
     {
-        if ($evaluator->role === 'HR_PERSONNEL') {
+        if ($evaluator->role === 'HR_MANAGER') {
             return true;
         }
 
-        if ($employee->role === 'TEAM_LEADER') {
-            return $evaluator->role === 'REGULAR_EMPLOYEE'
-                && $evaluator->position_id
-                && $evaluator->position_id === $employee->position_id;
-        }
-
-        if ($employee->role === 'REGULAR_EMPLOYEE') {
-            return $evaluator->role === 'TEAM_LEADER'
-                && $evaluator->position_id
-                && $evaluator->position_id === $employee->position_id;
+        if ($evaluator->position_id && $evaluator->position_id === $employee->position_id) {
+            // Team Leader can evaluate Regular Employee (existing)
+            if ($evaluator->role === 'TEAM_LEADER' && $employee->role === 'REGULAR_EMPLOYEE') {
+                return true;
+            }
+            // Regular Employee can evaluate Team Leader (existing)
+            if ($evaluator->role === 'REGULAR_EMPLOYEE' && $employee->role === 'TEAM_LEADER') {
+                return true;
+            }
+            // Regular Employee can evaluate peers in same position
+            if ($evaluator->role === 'REGULAR_EMPLOYEE' && $employee->role === 'REGULAR_EMPLOYEE' && $evaluator->id !== $employee->id) {
+                return true;
+            }
         }
 
         return false;

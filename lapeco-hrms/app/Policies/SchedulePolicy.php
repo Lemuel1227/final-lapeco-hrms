@@ -32,7 +32,7 @@ class SchedulePolicy
     public function create(User $user): bool
     {
         // Only HR and team leaders can create schedules
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -41,7 +41,7 @@ class SchedulePolicy
     public function update(User $user, Schedule $schedule): bool
     {
         // Only HR and team leaders can update schedules
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -50,7 +50,7 @@ class SchedulePolicy
     public function delete(User $user, Schedule $schedule): bool
     {
         // Only HR and team leaders can delete schedules
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -59,7 +59,7 @@ class SchedulePolicy
     public function assignEmployees(User $user): bool
     {
         // Only HR and team leaders can assign employees to schedules
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -68,7 +68,7 @@ class SchedulePolicy
     public function manageTemplates(User $user): bool
     {
         // Only HR and team leaders can manage schedule templates
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -77,7 +77,7 @@ class SchedulePolicy
     public function viewAnalytics(User $user): bool
     {
         // HR can view all analytics, team leaders can view their team's analytics
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -86,7 +86,7 @@ class SchedulePolicy
     public function export(User $user): bool
     {
         // Only HR can export schedule data
-        return $user->role === 'HR_PERSONNEL';
+        return $user->role === 'HR_MANAGER';
     }
 
     /**
@@ -95,6 +95,6 @@ class SchedulePolicy
     public function publish(User $user, Schedule $schedule): bool
     {
         // Only HR and team leaders can publish schedules
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 }

@@ -21,7 +21,7 @@ const Header = ({ currentUser, notifications, appLevelHandlers, theme, isMobileV
 
   const formatRole = (role) => {
     const roleMap = {
-      'HR_PERSONNEL': 'HR Personnel',
+      'HR_MANAGER': 'HR Manager',
       'TEAM_LEADER': 'Team Leader',
       'REGULAR_EMPLOYEE': 'Employee'
     };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import { ROLE_ALLOWED_ROUTES, USER_ROLES } from '../constants/roles';
+import { ROLE_ALLOWED_ROUTES, USER_ROLES, MODULE_ROUTES } from '../constants/roles';
 
 const ProtectedRoute = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = loading, true/false = result
@@ -76,12 +76,47 @@ const ProtectedRoute = ({ children }) => {
     const rawRole = user.role || user.user_role || user.userRole;
     if (!rawRole || typeof rawRole !== 'string') return null;
     const normalized = rawRole.toUpperCase();
-    return USER_ROLES[normalized] ? normalized : normalized;
+    const aliases = {
+      HR_PERSONNEL: 'HR_MANAGER',
+      EMPLOYEE: 'REGULAR_EMPLOYEE',
+    };
+    const resolved = aliases[normalized] || normalized;
+    return resolved;
+  };
+
+  const buildAllowedRoutesFromModules = (modules = []) => {
+    const aliases = {
+      employee: 'employee_data',
+      leave: 'leave_management',
+      schedule: 'schedules',
+      attendance: 'attendance_management',
+      positions: 'department_management',
+      departments: 'department_management',
+      payroll: 'payroll_management',
+      training: 'training_and_development',
+      disciplinary: 'case_management',
+      resignation: 'resignation_management',
+      performance: 'performance_management',
+    };
+    const routes = [];
+    modules.forEach((m) => {
+      const normalized = aliases[m] || m;
+      const r = MODULE_ROUTES[normalized];
+      if (Array.isArray(r)) routes.push(...r);
+    });
+    return Array.from(new Set(routes));
   };
 
   const isRouteAllowedForRole = (role, path) => {
-    if (!role || !path) return false;
-    const allowedRoutes = ROLE_ALLOWED_ROUTES[role] || [];
+    if (!path) return false;
+    let allowedRoutes = [];
+    if (role === USER_ROLES.HR_MANAGER) {
+      allowedRoutes = ROLE_ALLOWED_ROUTES[role] || [];
+    } else {
+      const user = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
+      const modules = user?.position_allowed_modules || [];
+      allowedRoutes = buildAllowedRoutesFromModules(modules);
+    }
     return allowedRoutes.some((route) => {
       if (!route) return false;
       if (route === '/dashboard') {
@@ -101,7 +136,10 @@ const ProtectedRoute = ({ children }) => {
   };
 
   const getDefaultRouteForRole = (role) => {
-    const allowedRoutes = ROLE_ALLOWED_ROUTES[role];
+    const user = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
+    const allowedRoutes = role === USER_ROLES.HR_MANAGER
+      ? ROLE_ALLOWED_ROUTES[role]
+      : buildAllowedRoutesFromModules(user?.position_allowed_modules || []);
     if (Array.isArray(allowedRoutes) && allowedRoutes.length > 0) {
       // Prefer dashboard when available, otherwise first allowed route
       const dashboardRoute = allowedRoutes.find((r) => r === '/dashboard');

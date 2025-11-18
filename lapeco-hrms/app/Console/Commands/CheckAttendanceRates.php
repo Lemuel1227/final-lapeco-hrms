@@ -32,7 +32,7 @@ class CheckAttendanceRates extends Command
         
         // Get all active employees
         $employees = User::where('employment_status', 'Active')
-                        ->where('role', '!=', 'HR_PERSONNEL') // Exclude HR personnel from attendance checks
+                        ->where('role', '!=', 'HR_MANAGER') // Exclude HR managers from attendance checks
                         ->get();
         
         $activeCount = 0;

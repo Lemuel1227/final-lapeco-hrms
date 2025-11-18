@@ -1,5 +1,5 @@
 // Account Settings API Service
-const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL || window?.APP_API_BASE_URL || 'https://api.lapeco.org/api').replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL || window?.APP_API_BASE_URL || 'http://localhost:8000/api').replace(/\/$/, '');
 
 // Get authentication token from localStorage or wherever it's stored
 const getAuthToken = () => {

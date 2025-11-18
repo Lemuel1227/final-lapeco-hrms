@@ -31,6 +31,7 @@ const ResetPassword = lazy(() => import('./pages/Authentication/ResetPassword'))
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const EmployeeDataPage = lazy(() => import('./pages/Employee-Data/EmployeeDataPage'));
 const PositionsPage = lazy(() => import('./pages/Positions/PositionsPage'));
+const DepartmentsPage = lazy(() => import('./pages/Departments/DepartmentsPage'));
 const AttendancePage = lazy(() => import('./pages/Attendance-Management/AttendancePage'));
 const ScheduleManagementPage = lazy(() => import('./pages/Schedule-Management/ScheduleManagementPage'));
 const ScheduleBuilderPage = lazy(() => import('./pages/Schedule-Management/ScheduleBuilderPage'));
@@ -119,6 +120,7 @@ function App() {
             <Route path="dashboard/employee-data" element={<EmployeeDataPage />} />
             <Route path="dashboard/leaderboards" element={<LeaderboardsPage />} />
             <Route path="dashboard/positions" element={<PositionsPage />} />
+            <Route path="dashboard/departments" element={<DepartmentsPage />} />
             <Route path="dashboard/attendance-management" element={<AttendancePage />} />
             <Route path="dashboard/schedule-management" element={<ScheduleManagementPage />} />
             <Route path="dashboard/schedule-management/create" element={<ScheduleBuilderPage />} />

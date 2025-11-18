@@ -14,7 +14,7 @@ class AttendancePolicy
     public function viewAny(User $user): bool
     {
         // All authenticated users can view attendance (with restrictions applied in controller)
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
     }
 
     /**
@@ -23,7 +23,7 @@ class AttendancePolicy
     public function view(User $user, Attendance $attendance): bool
     {
         // HR can view any attendance record
-        if ($user->role === 'HR_PERSONNEL') {
+        if ($user->role === 'HR_MANAGER') {
             return true;
         }
 
@@ -56,7 +56,7 @@ class AttendancePolicy
         }
 
         // HR can update any attendance record
-        if ($user->role === 'HR_PERSONNEL') {
+        if ($user->role === 'HR_MANAGER') {
             return true;
         }
 
@@ -74,7 +74,7 @@ class AttendancePolicy
     public function delete(User $user, Attendance $attendance): bool
     {
         // Only HR can delete attendance records
-        return $user->role === 'HR_PERSONNEL';
+        return $user->role === 'HR_MANAGER';
     }
 
     /**
@@ -92,7 +92,7 @@ class AttendancePolicy
     public function viewReports(User $user): bool
     {
         // HR can view all reports, team leaders can view their team's reports
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -101,7 +101,7 @@ class AttendancePolicy
     public function export(User $user): bool
     {
         // Only HR can export attendance data
-        return $user->role === 'HR_PERSONNEL';
+        return $user->role === 'HR_MANAGER';
     }
 
     /**
@@ -110,7 +110,7 @@ class AttendancePolicy
     public function approveCorrections(User $user, Attendance $attendance): bool
     {
         // Only HR and team leaders can approve corrections
-        if (!in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+        if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER'])) {
             return false;
         }
 
@@ -129,6 +129,6 @@ class AttendancePolicy
     public function viewAnalytics(User $user): bool
     {
         // HR can view all analytics, team leaders can view their team's analytics
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 }

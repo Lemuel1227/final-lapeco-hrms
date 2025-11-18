@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3010,
+    port: 3000,
     strictPort: true,
     host: true,
     proxy: {
@@ -21,6 +21,11 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  preview: {
+    port: 3000,
+    strictPort: true,
+    host: true
   },
   build: {
     outDir: 'dist',

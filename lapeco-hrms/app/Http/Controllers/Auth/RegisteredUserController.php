@@ -10,17 +10,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Http\Response;
 
 class RegisteredUserController extends Controller
 {
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create()
     {
-        return Inertia::render('Auth/Register');
+        return response()->json(['message' => 'Registration view not available'], 404);
     }
 
     /**
@@ -31,19 +30,23 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:'.User::class.'|regex:/^[a-zA-Z0-9_]+$/',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|regex:/^[a-zA-Z0-9_]+$/|unique:users,username',
+            'email' => 'required|string|lowercase|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role' => ['sometimes', 'string', 'in:HR_PERSONNEL,TEAM_LEADER,REGULAR_EMPLOYEE'],
+            'role' => ['sometimes', 'string', 'in:HR_MANAGER,TEAM_LEADER,REGULAR_EMPLOYEE'],
         ]);
 
         $user = User::create([
-            'name' => $request->name,
+            'first_name' => $request->first_name,
+            'middle_name' => $request->middle_name,
+            'last_name' => $request->last_name,
             'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->input('role', 'HR_PERSONNEL'),
+            'role' => $request->input('role', 'HR_MANAGER'),
         ]);
 
         event(new Registered($user));

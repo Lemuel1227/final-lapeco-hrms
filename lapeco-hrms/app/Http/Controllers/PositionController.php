@@ -28,6 +28,7 @@ class PositionController extends Controller
                 'overtime_rate_per_hour' => $pos->overtime_rate_per_hour,
                 'night_diff_rate_per_hour' => $pos->night_diff_rate_per_hour,
                 'late_deduction_per_minute' => $pos->late_deduction_per_minute,
+                'allowed_modules' => $pos->allowed_modules ?? [],
                 'employeeCount' => $employeeCount,
             ];
         });
@@ -56,6 +57,12 @@ class PositionController extends Controller
             'overtime_rate_per_hour' => 'nullable|numeric|min:0',
             'night_diff_rate_per_hour' => 'nullable|numeric|min:0',
             'late_deduction_per_minute' => 'nullable|numeric|min:0',
+            'regular_day_ot_rate' => 'nullable|numeric|min:0',
+            'special_ot_rate' => 'nullable|numeric|min:0',
+            'regular_holiday_ot_rate' => 'nullable|numeric|min:0',
+            'department_id' => 'nullable|exists:departments,id',
+            'allowed_modules' => 'nullable|array',
+            'allowed_modules.*' => 'string',
         ]);
 
         $position = Position::create($validated);
@@ -76,6 +83,12 @@ class PositionController extends Controller
             'overtime_rate_per_hour' => 'sometimes|nullable|numeric|min:0',
             'night_diff_rate_per_hour' => 'sometimes|nullable|numeric|min:0',
             'late_deduction_per_minute' => 'sometimes|nullable|numeric|min:0',
+            'regular_day_ot_rate' => 'sometimes|nullable|numeric|min:0',
+            'special_ot_rate' => 'sometimes|nullable|numeric|min:0',
+            'regular_holiday_ot_rate' => 'sometimes|nullable|numeric|min:0',
+            'department_id' => 'sometimes|nullable|exists:departments,id',
+            'allowed_modules' => 'sometimes|array',
+            'allowed_modules.*' => 'string',
         ]);
 
         $position->update($validated);

@@ -170,6 +170,17 @@ export const positionAPI = {
   removeEmployee: (positionId, employeeId) => api.post(`/positions/${positionId}/employees/${employeeId}/remove`),
 };
 
+// Department API calls
+export const departmentAPI = {
+  getAll: () => api.get('/departments/authenticated'),
+  getAllPublic: () => api.get('/departments'),
+  getById: (id) => api.get(`/departments/${id}`),
+  create: (data) => api.post('/departments', data),
+  update: (id, data) => api.put(`/departments/${id}`, data),
+  delete: (id) => api.delete(`/departments/${id}`),
+  getPositions: (id) => api.get(`/departments/${id}/positions`),
+};
+
 // Schedule API calls
 export const scheduleAPI = {
   getAll: () => api.get('/schedules'),

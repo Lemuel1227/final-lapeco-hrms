@@ -90,7 +90,7 @@ class HolidayController extends Controller
         }
         
         // Get all employees and team leaders
-        $users = User::whereIn('role', ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'])->get();
+        $users = User::whereIn('role', ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'])->get();
         $notificationsSent = 0;
         
         foreach ($upcomingHolidays as $holiday) {
@@ -115,7 +115,7 @@ class HolidayController extends Controller
             // Send notification to each user
             foreach ($users as $user) {
                 // Set different action URLs based on user role
-                $actionUrl = $user->role === 'HR_PERSONNEL' 
+                $actionUrl = $user->role === 'HR_MANAGER' 
                     ? '/dashboard/holiday-management' 
                     : '/dashboard/my-attendance';
                 

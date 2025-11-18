@@ -73,7 +73,7 @@ const ForgotPasswordModal = ({ show, onClose }) => {
           <div className="modal-footer justify-content-center text-center bg-light">
             <p className="text-muted small mb-0">
               Having trouble? <br />
-              <strong>Please contact an HR Personnel for assistance.</strong>
+              <strong>Please contact an HR Manager for assistance.</strong>
             </p>
           </div>
         </div>
