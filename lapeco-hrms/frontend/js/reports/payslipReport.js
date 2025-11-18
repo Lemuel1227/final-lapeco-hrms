@@ -5,16 +5,16 @@ import logo from '../assets/logo.png';
 
 // --- HELPERS & CONFIG ---
 const FONT_REGULAR = 'Helvetica';
-const COLOR_PRIMARY = '#212529';
-const COLOR_SECONDARY = '#6c757d';
-const COLOR_BORDER = '#dee2e6';
-const COLOR_HEADER_BG = [248, 249, 250];
-const PAGE_MARGIN = 40;
-const SECTION_HEADER_HEIGHT = 18;
-const LINE_HEIGHT = 13;
+const COLOR_PRIMARY = '#0f172a';
+const COLOR_SECONDARY = '#475569';
+const COLOR_BORDER = '#cbd5e1';
+const COLOR_HEADER_BG = [245, 247, 250];
+const PAGE_MARGIN = 44;
+const SECTION_HEADER_HEIGHT = 22;
+const LINE_HEIGHT = 14;
 const FOOTER_HEIGHT = 180; 
 
-const COLOR_BRAND = [25, 135, 84];
+const COLOR_BRAND = [12, 95, 70];
 const COLOR_WHITE = [255, 255, 255];
 
 const formatCurrency = (val) => (val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -151,7 +151,7 @@ export const generatePayslipReport = async (layoutManager, dataSources) => {
 
   const addSectionHeader = (doc, x, currentY, width, title) => {
     doc.setFillColor(...COLOR_BRAND);
-    doc.rect(x, currentY, width, SECTION_HEADER_HEIGHT, 'F');
+    doc.roundedRect(x, currentY, width, SECTION_HEADER_HEIGHT, 3, 3, 'F');
     doc.setFont(FONT_REGULAR, 'bold'); doc.setFontSize(9); doc.setTextColor(...COLOR_WHITE);
     doc.text(title, x + 5, currentY + SECTION_HEADER_HEIGHT / 2, { verticalAlign: 'middle' });
   };
@@ -174,9 +174,9 @@ export const generatePayslipReport = async (layoutManager, dataSources) => {
   addInfoSection('Employee Details', employeeData);
   y += 5;
   const periodData = [
-      { label: 'Payroll Type', value: payslipData.payrollType || 'Semi-monthly' }, { label: 'Payment Date', value: formatDateString(payslipData.paymentDate) },
-      { label: 'Pay End Date', value: formatDateString(payslipData.payEndDate) }, { label: 'Period', value: payslipData.period || 'N/A' },
-      { label: 'Pay Start Date', value: formatDateString(payslipData.payStartDate) },
+      { label: 'Pay Start Date', value: formatDateString(payslipData.payStartDate) }, { label: 'Payroll Type', value: payslipData.payrollType || 'Semi-monthly' },
+      { label: 'Payment Date', value: formatDateString(payslipData.paymentDate) }, { label: 'Pay End Date', value: formatDateString(payslipData.payEndDate) },
+      { label: 'Period', value: payslipData.period || 'N/A' }, { label: 'Payroll No.', value: payslipData.payrollId || 'N/A' },
   ];
   addInfoSection('Payroll Period', periodData);
   y += 10;
@@ -192,11 +192,13 @@ export const generatePayslipReport = async (layoutManager, dataSources) => {
   const netPay = totalGross - totalStatutory - totalOther;
   
   autoTable(doc, {
-      startY: y, theme: 'grid', styles: { fontSize: 8, cellPadding: 3, lineColor: COLOR_BORDER, lineWidth: 0.5 },
+      startY: y, theme: 'grid', styles: { fontSize: 9, cellPadding: 4, lineColor: COLOR_BORDER, lineWidth: 0.6 },
       headStyles: { fillColor: COLOR_BRAND, textColor: COLOR_WHITE, fontStyle: 'bold', lineColor: COLOR_BORDER },
       head: [['Category', 'Gross', 'Statutory Deductions', 'Taxes', 'Other Deductions', 'Net Pay']],
       body: [[ 'Current', formatCurrency(totalGross), formatCurrency(totalStatutory), formatCurrency(payslipData.deductions?.tax || 0), formatCurrency(totalOther), formatCurrency(netPay) ]],
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold' } },
+      bodyStyles: { textColor: COLOR_PRIMARY },
+      alternateRowStyles: { fillColor: [252, 253, 255] },
       didDrawCell: (data) => { if (data.section === 'body' && data.column.index === 5) { doc.setTextColor(...COLOR_BRAND); } },
       didDrawPage: pageBreakCheck,
   });
@@ -210,15 +212,15 @@ export const generatePayslipReport = async (layoutManager, dataSources) => {
 
   autoTable(doc, {
       startY: tableStartY, head: [['Description', 'Hours', 'Amount']], body: (payslipData.earnings || []).map(e => [e.description, e.hours, formatCurrency(e.amount)]),
-      theme: 'grid', tableWidth: tableWidth, margin: { left: PAGE_MARGIN }, styles: { fontSize: 8, cellPadding: 3, lineColor: COLOR_BORDER, lineWidth: 0.5 },
-      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_SECONDARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, didDrawPage: pageBreakCheck,
+      theme: 'grid', tableWidth: tableWidth, margin: { left: PAGE_MARGIN }, styles: { fontSize: 9, cellPadding: 4, lineColor: COLOR_BORDER, lineWidth: 0.6 },
+      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_PRIMARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, bodyStyles: { textColor: COLOR_PRIMARY }, alternateRowStyles: { fillColor: [252, 253, 255] }, didDrawPage: pageBreakCheck,
   });
   const leftTableY1 = doc.lastAutoTable.finalY;
 
   autoTable(doc, {
       startY: tableStartY, head: [['Description', 'Amount']], body: [['SSS', formatCurrency(payslipData.deductions?.sss)], ['PHIC', formatCurrency(payslipData.deductions?.philhealth)], ['HDMF', formatCurrency(payslipData.deductions?.hdmf)]],
-      theme: 'grid', tableWidth: tableWidth, margin: { left: midPoint + 2.5 }, styles: { fontSize: 8, cellPadding: 3, lineColor: COLOR_BORDER, lineWidth: 0.5 },
-      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_SECONDARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, didDrawPage: pageBreakCheck,
+      theme: 'grid', tableWidth: tableWidth, margin: { left: midPoint + 2.5 }, styles: { fontSize: 9, cellPadding: 4, lineColor: COLOR_BORDER, lineWidth: 0.6 },
+      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_PRIMARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, bodyStyles: { textColor: COLOR_PRIMARY }, alternateRowStyles: { fillColor: [252, 253, 255] }, didDrawPage: pageBreakCheck,
   });
   y = Math.max(leftTableY1, doc.lastAutoTable.finalY) + 8;
 
@@ -228,15 +230,15 @@ export const generatePayslipReport = async (layoutManager, dataSources) => {
   
   autoTable(doc, {
       startY: tableStartY, head: [['Description', 'Unused Leave (hrs)', 'Claimed (hrs)']], body: [['Vacation', formatCurrency((payslipData.leaveBalances?.vacation || 0) * 8), '0.00'], ['Sick', formatCurrency((payslipData.leaveBalances?.sick || 0) * 8), '0.00']],
-      theme: 'grid', tableWidth: tableWidth, margin: { left: PAGE_MARGIN }, styles: { fontSize: 8, cellPadding: 3, lineColor: COLOR_BORDER, lineWidth: 0.5 },
-      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_SECONDARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, didDrawPage: pageBreakCheck,
+      theme: 'grid', tableWidth: tableWidth, margin: { left: PAGE_MARGIN }, styles: { fontSize: 9, cellPadding: 4, lineColor: COLOR_BORDER, lineWidth: 0.6 },
+      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_PRIMARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, bodyStyles: { textColor: COLOR_PRIMARY }, alternateRowStyles: { fillColor: [252, 253, 255] }, didDrawPage: pageBreakCheck,
   });
   const leftTableY2 = doc.lastAutoTable.finalY;
 
   autoTable(doc, {
       startY: tableStartY, head: [['Description', 'Start Date', 'End Date', 'Total Day/s']], body: (payslipData.absences || []).length > 0 ? payslipData.absences.map(a => [a.description, a.startDate, a.endDate, a.totalDays]) : [['-', '-', '-', '0.00']],
-      theme: 'grid', tableWidth: tableWidth, margin: { left: midPoint + 2.5 }, styles: { fontSize: 8, cellPadding: 3, lineColor: COLOR_BORDER, lineWidth: 0.5 },
-      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_SECONDARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, didDrawPage: pageBreakCheck,
+      theme: 'grid', tableWidth: tableWidth, margin: { left: midPoint + 2.5 }, styles: { fontSize: 9, cellPadding: 4, lineColor: COLOR_BORDER, lineWidth: 0.6 },
+      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_PRIMARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, bodyStyles: { textColor: COLOR_PRIMARY }, alternateRowStyles: { fillColor: [252, 253, 255] }, didDrawPage: pageBreakCheck,
   });
   y = Math.max(leftTableY2, doc.lastAutoTable.finalY) + 8;
   
@@ -246,8 +248,8 @@ export const generatePayslipReport = async (layoutManager, dataSources) => {
   autoTable(doc, {
       startY: tableStartY, head: [['Description', 'Loan Amount', 'Amount Deduction', 'Outstanding Balance']],
       body: (payslipData.otherDeductions || []).map(d => [d.description, formatCurrency(d.loanAmount), formatCurrency(d.amount), formatCurrency(d.outstandingBalance)]),
-      theme: 'grid', margin: { left: PAGE_MARGIN }, styles: { fontSize: 8, cellPadding: 3, lineColor: COLOR_BORDER, lineWidth: 0.5 },
-      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_SECONDARY, fontStyle: 'bold', lineColor: COLOR_BORDER },
+      theme: 'grid', margin: { left: PAGE_MARGIN }, styles: { fontSize: 9, cellPadding: 4, lineColor: COLOR_BORDER, lineWidth: 0.6 },
+      headStyles: { fillColor: COLOR_HEADER_BG, textColor: COLOR_PRIMARY, fontStyle: 'bold', lineColor: COLOR_BORDER }, bodyStyles: { textColor: COLOR_PRIMARY }, alternateRowStyles: { fillColor: [252, 253, 255] },
       didDrawPage: pageBreakCheck,
   });
   
