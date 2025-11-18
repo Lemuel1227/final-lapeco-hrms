@@ -9,6 +9,8 @@ use App\Models\Notification;
 use App\Mail\ApplicantApplicationReceived;
 use App\Mail\ApplicantStatusUpdated;
 use App\Mail\ApplicantHired;
+use App\Mail\ApplicantInterviewScheduled;
+use App\Mail\ApplicantRejected;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -275,7 +277,12 @@ class ApplicantController extends Controller
         ]);
 
         $applicant->refresh();
-        $this->sendApplicantStatusUpdatedEmail($applicant);
+
+        if ($applicant->status === 'Rejected') {
+            $this->sendApplicantRejectedEmail($applicant);
+        } else {
+            $this->sendApplicantStatusUpdatedEmail($applicant);
+        }
         
         // Log activity
         $this->logCustomActivity('update_status', "Updated applicant status to {$request->status}", 'applicant', $applicant->id);
@@ -283,6 +290,43 @@ class ApplicantController extends Controller
         return response()->json([
             'message' => 'Applicant status updated successfully',
             'applicant' => $applicant
+        ]);
+    }
+
+    /**
+     * Reject applicant using dedicated endpoint.
+     */
+    public function reject(Request $request, $id)
+    {
+        $applicant = Applicant::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $notes = $request->notes ?? $applicant->notes;
+
+        $applicant->update([
+            'status' => 'Rejected',
+            'notes' => $notes,
+        ]);
+
+        $applicant->refresh();
+
+        $this->sendApplicantRejectedEmail($applicant);
+
+        $this->logCustomActivity('reject', 'Rejected applicant', 'applicant', $applicant->id);
+
+        return response()->json([
+            'message' => 'Applicant rejected successfully',
+            'applicant' => $applicant,
         ]);
     }
 
@@ -321,6 +365,9 @@ class ApplicantController extends Controller
             'status' => 'Interview',
             'interview_schedule' => $interviewSchedule,
         ]);
+
+        $applicant->refresh();
+        $this->sendApplicantInterviewScheduledEmail($applicant, $interviewSchedule);
 
         return response()->json([
             'message' => 'Interview scheduled successfully',
@@ -644,6 +691,19 @@ class ApplicantController extends Controller
         }
     }
 
+    protected function sendApplicantRejectedEmail(Applicant $applicant): void
+    {
+        try {
+            Mail::to($applicant->email)->send(new ApplicantRejected($applicant));
+        } catch (\Throwable $exception) {
+            Log::error('Failed to send applicant rejected email', [
+                'applicant_id' => $applicant->id,
+                'email' => $applicant->email,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     protected function sendApplicantHiredEmail(Applicant $applicant, array $accountDetails): void
     {
         try {
@@ -654,6 +714,19 @@ class ApplicantController extends Controller
             ]);
         } catch (\Throwable $exception) {
             Log::error('Failed to send applicant hired email', [
+                'applicant_id' => $applicant->id,
+                'email' => $applicant->email,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    protected function sendApplicantInterviewScheduledEmail(Applicant $applicant, array $interviewSchedule): void
+    {
+        try {
+            Mail::to($applicant->email)->send(new ApplicantInterviewScheduled($applicant, $interviewSchedule));
+        } catch (\Throwable $exception) {
+            Log::error('Failed to send applicant interview scheduled email', [
                 'applicant_id' => $applicant->id,
                 'email' => $applicant->email,
                 'error' => $exception->getMessage(),

@@ -318,9 +318,30 @@ const RecruitmentPage = () => {
     }
   };
 
-  const handleConfirmReject = () => {
-    if (applicantToReject) {
-      handleUpdateApplicantStatus(applicantToReject.id, 'Rejected');
+  const handleConfirmReject = async () => {
+    if (!applicantToReject) return;
+
+    try {
+      const response = await applicantAPI.reject(applicantToReject.id, {});
+
+      setApplicants(prev =>
+        prev.map(app =>
+          app.id === applicantToReject.id
+            ? { ...app, status: 'Rejected', notes: response.data.applicant?.notes ?? app.notes }
+            : app
+        )
+      );
+
+      const applicantName = applicantToReject?.name || applicantToReject?.full_name || 'Applicant';
+      setToast({
+        show: true,
+        message: `${applicantName} has been moved to Rejected`,
+        type: 'success'
+      });
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Failed to reject applicant. Please try again.';
+      setToast({ show: true, message: errorMessage, type: 'error' });
+    } finally {
       setApplicantToReject(null);
     }
   };
