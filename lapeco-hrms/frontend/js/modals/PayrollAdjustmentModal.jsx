@@ -31,9 +31,9 @@ const ADDITIONAL_EARNING_TYPES = [
 ];
 
 const InfoField = ({ label, children }) => (
-    <div className="form-group">
-        <label className="info-label">{label}</label>
-        {children}
+    <div className="info-field">
+        <span className="info-field__label">{label}</span>
+        <div className="info-field__value">{children}</div>
     </div>
 );
 
@@ -60,7 +60,7 @@ const StatutoryField = ({ label, fieldKey, value, originalValue, onChange, onFoc
 );
 
 
-const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, payrollData, employeeDetails, positions, allLeaveRequests, employees, theme }) => {
+const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDetails, positions, allLeaveRequests, employees, theme }) => {
   const [activeTab, setActiveTab] = useState('summary');
   const [status, setStatus] = useState('');
   const [earnings, setEarnings] = useState([]);
@@ -309,11 +309,6 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
     setter(prev => prev.filter((_, i) => i !== index));
   };
   
-  const handleEmployeeInfoChange = (e) => {
-    const { name, value } = e.target;
-    setEditableEmployeeData(prev => ({ ...prev, [name]: value }));
-  };
-  
   const handleStatutoryChange = (e) => {
       const { name, value } = e.target;
       setStatutoryDeductions(prev => ({ ...prev, [name]: value }));
@@ -321,30 +316,31 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
 
   const handleSaveClick = () => {
     if (activeTab === 'info') {
-      onSaveEmployeeInfo(editableEmployeeData.id, editableEmployeeData);
-    } else {
-      const leavePayTotal = leaveEarningsBreakdown.total;
-      const leavePayHours = leaveEarningsBreakdown.breakdown.reduce((sum, item) => sum + (item.days * 8), 0);
-
-      const updatedEarningsWithLeave = earnings.map(e => {
-        if (e.description === 'Leave Pay') {
-          return { ...e, amount: leavePayTotal, hours: leavePayHours > 0 ? leavePayHours : '--' };
-        }
-        return e;
-      });
-
-      const finalEarnings = updatedEarningsWithLeave.filter(e => e.amount !== 0 || e.isDefault);
-      const finalDeductions = otherDeductions.filter(d => d.description.trim() !== '' || Number(d.amount) !== 0);
-      
-      onSave(payrollData.payrollId, { 
-          status, 
-          earnings: finalEarnings.map(({isDefault, isNew, tempId, ...rest}) => ({ ...rest, amount: parseFloat(Number(rest.amount).toFixed(2)) })), 
-          otherDeductions: finalDeductions.map(d => ({...d, amount: parseFloat(Number(d.amount).toFixed(2)) })),
-          absences: absences, 
-          deductions: Object.fromEntries(Object.entries(statutoryDeductions).map(([key, value]) => [key === 'hdmf' ? 'pagibig' : key, parseFloat(Number(value).toFixed(2))])),
-          netPay: totals.netPay 
-      });
+      onClose();
+      return;
     }
+
+    const leavePayTotal = leaveEarningsBreakdown.total;
+    const leavePayHours = leaveEarningsBreakdown.breakdown.reduce((sum, item) => sum + (item.days * 8), 0);
+
+    const updatedEarningsWithLeave = earnings.map(e => {
+      if (e.description === 'Leave Pay') {
+        return { ...e, amount: leavePayTotal, hours: leavePayHours > 0 ? leavePayHours : '--' };
+      }
+      return e;
+    });
+
+    const finalEarnings = updatedEarningsWithLeave.filter(e => e.amount !== 0 || e.isDefault);
+    const finalDeductions = otherDeductions.filter(d => d.description.trim() !== '' || Number(d.amount) !== 0);
+    
+    onSave(payrollData.payrollId, { 
+        status, 
+        earnings: finalEarnings.map(({isDefault, isNew, tempId, ...rest}) => ({ ...rest, amount: parseFloat(Number(rest.amount).toFixed(2)) })), 
+        otherDeductions: finalDeductions.map(d => ({...d, amount: parseFloat(Number(d.amount).toFixed(2)) })),
+        absences: absences, 
+        deductions: Object.fromEntries(Object.entries(statutoryDeductions).map(([key, value]) => [key === 'hdmf' ? 'pagibig' : key, parseFloat(Number(value).toFixed(2))])),
+        netPay: totals.netPay 
+    });
     onClose();
   };
   
@@ -631,21 +627,16 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
 
   {activeTab === 'info' && (
     <div className="p-3">
-      <p className="text-muted small mb-3">Changes made here will update the employee's master record permanently upon saving.</p>
-      <div className="form-grid">
-          <InfoField label="Employee Full Name"><input type="text" name="name" className="form-control" value={editableEmployeeData.name} onChange={handleEmployeeInfoChange} /></InfoField>
-          <InfoField label="Employee Number"><input type="text" className="form-control" value={editableEmployeeData.id} readOnly disabled /></InfoField>
-          <InfoField label="Tax Identification Number"><input type="text" name="tinNo" className="form-control" value={editableEmployeeData.tinNo} onChange={handleEmployeeInfoChange} /></InfoField>
-          <InfoField label="SSS Number"><input type="text" name="sssNo" className="form-control" value={editableEmployeeData.sssNo} onChange={handleEmployeeInfoChange} /></InfoField>
-          <InfoField label="PhilHealth Number"><input type="text" name="philhealthNo" className="form-control" value={editableEmployeeData.philhealthNo} onChange={handleEmployeeInfoChange} /></InfoField>
-          <InfoField label="HDMF (Pag-IBIG) Number"><input type="text" name="pagIbigNo" className="form-control" value={editableEmployeeData.pagIbigNo} onChange={handleEmployeeInfoChange} /></InfoField>
-          <InfoField label="Position">
-            <select name="positionId" className="form-control" value={editableEmployeeData?.positionId || ''} onChange={handleEmployeeInfoChange}>
-              <option value="">Select Position</option>
-              {(positions || []).map(p => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
-            </select>
-          </InfoField>
-          <InfoField label="Status"><select name="status" className="form-select" value={editableEmployeeData.status} onChange={handleEmployeeInfoChange}><option value="Active">Active</option><option value="Inactive">Inactive</option></select></InfoField>
+      <p className="text-muted small mb-3">Employee details are read-only in payroll adjustments. Please update records from the employee management module.</p>
+      <div className="employee-info-grid">
+          <InfoField label="Employee Full Name"><span className="info-field__text">{editableEmployeeData.name || '—'}</span></InfoField>
+          <InfoField label="Employee Number"><span className="info-field__text">{editableEmployeeData.id || '—'}</span></InfoField>
+          <InfoField label="Tax Identification Number"><span className="info-field__text">{editableEmployeeData.tinNo || '—'}</span></InfoField>
+          <InfoField label="SSS Number"><span className="info-field__text">{editableEmployeeData.sssNo || '—'}</span></InfoField>
+          <InfoField label="PhilHealth Number"><span className="info-field__text">{editableEmployeeData.philhealthNo || '—'}</span></InfoField>
+          <InfoField label="HDMF (Pag-IBIG) Number"><span className="info-field__text">{editableEmployeeData.pagIbigNo || '—'}</span></InfoField>
+          <InfoField label="Position"><span className="info-field__text">{(positions || []).find(p => p.id === editableEmployeeData?.positionId)?.title || (positions || []).find(p => p.id === editableEmployeeData?.positionId)?.name || '—'}</span></InfoField>
+          <InfoField label="Status"><span className="info-field__text">{editableEmployeeData.status || 'Inactive'}</span></InfoField>
       </div>
     </div>
   )}
@@ -659,7 +650,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, onSaveEmployeeInfo, pay
               </div>
               <div className="footer-actions-right">
                 {activeTab !== 'info' && <div className="status-selector"><label htmlFor="payrollStatus" className="form-label mb-0">Status:</label><select id="payrollStatus" className="form-select form-select-sm" value={status} onChange={(e) => setStatus(e.target.value)}><option value="Pending">Pending</option><option value="Paid">Paid</option></select></div>}
-                <button type="button" className="btn btn-success" onClick={handleSaveClick}><i className="bi bi-save-fill me-2"></i>{activeTab === 'info' ? 'Save Employee Info' : 'Save Payroll Changes'}</button>
+                <button type="button" className="btn btn-success" onClick={handleSaveClick} disabled={activeTab === 'info'}><i className="bi bi-save-fill me-2"></i>Save Payroll Changes</button>
               </div>
             </div>
           </div>

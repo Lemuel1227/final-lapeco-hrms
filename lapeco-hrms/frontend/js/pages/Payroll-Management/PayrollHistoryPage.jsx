@@ -248,10 +248,6 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
     }
   };
   
-  const handleSaveEmployeeInfo = (employeeId, updatedData) => {
-      resolvedHandlers.saveEmployee(updatedData, employeeId);
-  };
-  
   // --- MODIFIED: Opens the confirmation modal instead of using window.confirm ---
   const handleMarkRunAsPaid = (run) => {
     setRunToMarkAsPaid(run);
@@ -421,7 +417,6 @@ const PayrollHistoryPage = ({ payrolls=[], employees=[], positions=[], handlers,
           show={showAdjustmentModal} 
           onClose={handleCloseAllModals} 
           onSave={handleSaveAdjustments}
-          onSaveEmployeeInfo={handleSaveEmployeeInfo}
           payrollData={selectedRecord}
           employeeDetails={selectedEmployee}
           positions={resolvedPositions}
