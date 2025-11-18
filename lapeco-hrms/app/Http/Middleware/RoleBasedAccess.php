@@ -41,41 +41,169 @@ class RoleBasedAccess
     private function hasPermission($user, string $resource, string $action, Request $request): bool
     {
         $role = $user->role;
+        $roleAliases = [
+            'EMPLOYEE' => 'REGULAR_EMPLOYEE',
+            'HR_PERSONNEL' => 'HR_MANAGER',
+        ];
+        $role = $roleAliases[$role] ?? $role;
+        $modules = $this->getPositionModules($user);
+        $isHr = $role === 'HR_MANAGER';
         
         switch ($resource) {
             case 'employee':
-                return $this->checkEmployeePermission($user, $action, $request);
+                if ($isHr) return true;
+                if (in_array($action, ['view', 'index', 'show'])) {
+                    return $this->checkEmployeePermission($user, $action, $request);
+                }
+                return $this->checkModulePermission($modules, 'employee_data', $action, $request, $user);
             
             case 'leave':
-                return $this->checkLeavePermission($user, $action, $request);
+                if ($isHr) return true;
+                return $this->checkModulePermission($modules, 'leave_management', $action, $request, $user);
             
             case 'schedule':
-                return $this->checkSchedulePermission($user, $action, $request);
+                if ($isHr) return true;
+                if (in_array($action, ['view', 'index', 'show'])) {
+                    return $this->checkSchedulePermission($user, $action, $request);
+                }
+                return $this->checkModulePermission($modules, 'schedules', $action, $request, $user);
             
             case 'attendance':
-                return $this->checkAttendancePermission($user, $action, $request);
+                if ($isHr) return true;
+                if (in_array($action, ['view', 'index', 'show'])) {
+                    return $this->checkAttendancePermission($user, $action, $request);
+                }
+                return $this->checkModulePermission($modules, 'attendance_management', $action, $request, $user);
             
             case 'position':
-                return $this->checkPositionPermission($user, $action, $request);
+                if ($isHr) return true;
+                if (in_array($action, ['view', 'index', 'show'])) {
+                    return $this->checkPositionPermission($user, $action, $request);
+                }
+                return $this->checkModulePermission($modules, 'department_management', $action, $request, $user);
             
             case 'payroll':
-                return $this->checkPayrollPermission($user, $action, $request);
+                if ($isHr) return true;
+                return $this->checkModulePermission($modules, 'payroll_management', $action, $request, $user);
             
             case 'training':
-                return $this->checkTrainingPermission($user, $action, $request);
+                if ($isHr) return true;
+                return $this->checkModulePermission($modules, 'training_and_development', $action, $request, $user);
             
             case 'disciplinary':
-                return $this->checkDisciplinaryPermission($user, $action, $request);
+                if ($isHr) return true;
+                return $this->checkModulePermission($modules, 'case_management', $action, $request, $user);
             
             case 'recruitment':
-                return $this->checkRecruitmentPermission($user, $action, $request);
+                if ($isHr) return true;
+                return $this->checkModulePermission($modules, 'recruitment', $action, $request, $user);
             
             case 'resignation':
-                return $this->checkResignationPermission($user, $action, $request);
+                if ($isHr) return true;
+                return $this->checkModulePermission($modules, 'resignation_management', $action, $request, $user);
             
             case 'performance':
-                return $this->checkPerformancePermission($user, $action, $request);
+                if ($isHr) return true;
+                return $this->checkModulePermission($modules, 'performance_management', $action, $request, $user);
             
+            default:
+                return false;
+        }
+    }
+
+    private function getPositionModules($user): array
+    {
+        try {
+            $position = $user->position;
+            return is_array($position?->allowed_modules) ? $position->allowed_modules : [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    private function checkModulePermission(array $modules, string $moduleKey, string $action, Request $request, $user): bool
+    {
+        $aliases = [
+            'employee' => 'employee_data',
+            'leave' => 'leave_management',
+            'schedule' => 'schedules',
+            'attendance' => 'attendance_management',
+            'positions' => 'department_management',
+            'departments' => 'department_management',
+            'payroll' => 'payroll_management',
+            'training' => 'training_and_development',
+            'disciplinary' => 'case_management',
+            'resignation' => 'resignation_management',
+            'performance' => 'performance_management',
+        ];
+        $normalizedKey = $aliases[$moduleKey] ?? $moduleKey;
+        $hasMyAccess = function(string $key) use ($modules) {
+            switch ($key) {
+                case 'attendance_management':
+                    return in_array('my_attendance', $modules);
+                case 'leave_management':
+                    return in_array('my_leave', $modules);
+                case 'payroll_management':
+                    return in_array('my_payroll', $modules);
+                case 'case_management':
+                    return in_array('my_cases', $modules) || in_array('submit_incident_report', $modules);
+                case 'resignation_management':
+                    return in_array('my_resignation', $modules);
+                case 'performance_management':
+                    return in_array('submit_evaluation', $modules) || in_array('my_team', $modules);
+                default:
+                    return false;
+            }
+        };
+
+        if (!in_array($normalizedKey, $modules) && !$hasMyAccess($normalizedKey)) {
+            return false;
+        }
+        // For view/index/show, having module is enough
+        if (in_array($action, ['view', 'index', 'show'])) {
+            return true;
+        }
+        // For create/store/update/delete/destroy require module; add simple ownership checks where applicable
+        switch ($normalizedKey) {
+            case 'employee_data':
+                return in_array($action, ['create','store','update','delete','destroy','view','index','show']);
+            case 'department_management':
+            case 'attendance_management':
+            case 'schedules':
+            case 'leave_management':
+            case 'payroll_management':
+            case 'training_and_development':
+            case 'case_management':
+            case 'recruitment':
+            case 'resignation_management':
+            case 'performance_management':
+                $isMyAccess = $hasMyAccess($normalizedKey);
+                if ($isMyAccess) {
+                    switch ($normalizedKey) {
+                        case 'attendance_management':
+                            return in_array($action, ['store','update','view','index','show']);
+                        case 'leave_management':
+                            return in_array($action, ['store','update','view','index','show']);
+                        case 'payroll_management':
+                            return in_array($action, ['view','index','show']);
+                        case 'case_management':
+                            if (in_array('submit_incident_report', $modules)) {
+                                if (in_array($action, ['store','view','index','show'])) return true;
+                            }
+                            if (in_array('my_cases', $modules)) {
+                                return in_array($action, ['view','index','show']);
+                            }
+                            return false;
+                        case 'resignation_management':
+                            return in_array($action, ['store','update','view','index','show']);
+                        case 'performance_management':
+                            if ($action === 'evaluate') return true;
+                            return in_array($action, ['view','index','show']);
+                        default:
+                            return false;
+                    }
+                }
+                return true;
             default:
                 return false;
         }
@@ -92,12 +220,12 @@ class RoleBasedAccess
             case 'view':
             case 'index':
                 // HR can view all, Team Leaders and Regular employees can view same position
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['HR_MANAGER', 'HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'show':
                 // Check if user can view specific employee
                 $targetEmployee = $request->route('employee');
-                if ($role === 'HR_PERSONNEL') {
+                if (in_array($role, ['HR_MANAGER', 'HR_PERSONNEL'])) {
                     return true;
                 }
                 // Team leaders and regular employees can only view same position
@@ -106,12 +234,12 @@ class RoleBasedAccess
             case 'create':
             case 'store':
                 // Only HR can create employees
-                return $role === 'HR_PERSONNEL';
+                return in_array($role, ['HR_MANAGER', 'HR_PERSONNEL']);
             
             case 'update':
                 // HR can update any employee, others can only update themselves
                 $targetEmployee = $request->route('employee');
-                if ($role === 'HR_PERSONNEL') {
+                if (in_array($role, ['HR_MANAGER', 'HR_PERSONNEL'])) {
                     return true;
                 }
                 return $targetEmployee && $targetEmployee->id === $user->id;
@@ -119,7 +247,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can delete employees
-                return $role === 'HR_PERSONNEL';
+                return in_array($role, ['HR_MANAGER', 'HR_PERSONNEL']);
             
             default:
                 return false;
@@ -137,7 +265,7 @@ class RoleBasedAccess
             case 'view':
             case 'index':
                 // HR can view all, Team Leaders can view team, Regular employees can view own
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'create':
             case 'store':
@@ -145,7 +273,7 @@ class RoleBasedAccess
                 return true;
             
             case 'update':
-                if (in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                if (in_array($role, ['HR_MANAGER', 'TEAM_LEADER'])) {
                     return true;
                 }
 
@@ -162,7 +290,7 @@ class RoleBasedAccess
 
             case 'approve':
                 // HR can approve all, Team Leaders can approve team leaves
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
             
             case 'delete':
             case 'destroy':
@@ -193,7 +321,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR and Team Leaders can manage schedules
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
             
             default:
                 return false;
@@ -211,7 +339,7 @@ class RoleBasedAccess
             case 'view':
             case 'index':
                 // HR can view all, Team Leaders can view team, Regular employees can view own
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'create':
             case 'store':
@@ -222,7 +350,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can delete attendance records
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             default:
                 return false;
@@ -248,7 +376,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage positions
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             default:
                 return false;
@@ -274,7 +402,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage payroll
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             default:
                 return false;
@@ -300,7 +428,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage training programs
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             case 'enroll':
                 // All can enroll in training
@@ -321,14 +449,14 @@ class RoleBasedAccess
         switch ($action) {
             case 'view':
             case 'index':
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
             case 'create':
             case 'store':
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             case 'update':
             case 'delete':
             case 'destroy':
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             default:
                 return false;
@@ -351,7 +479,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage recruitment
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             default:
                 return false;
@@ -369,7 +497,7 @@ class RoleBasedAccess
             case 'view':
             case 'index':
                 // All authenticated users can view performance data
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'evaluate':
                 // Team leaders can evaluate their team members
@@ -379,16 +507,16 @@ class RoleBasedAccess
             case 'create':
             case 'store':
                 // Only HR can create evaluation periods and evaluations
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             case 'update':
                 // Only HR can update evaluation periods and evaluations
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             case 'delete':
             case 'destroy':
                 // Only HR can delete evaluation periods
-                return $role === 'HR_PERSONNEL';
+                return $role === 'HR_MANAGER';
             
             default:
                 return false;
@@ -401,31 +529,29 @@ class RoleBasedAccess
     private function getAccessDeniedMessage(string $role, string $resource, string $action): string
     {
         $messages = [
-            'HR_PERSONNEL' => 'Access denied. This action is not available for your role.',
-            'TEAM_LEADER' => 'Access denied. Team leaders can only manage their team members and related resources.',
-            'REGULAR_EMPLOYEE' => 'Access denied. Regular employees have limited access to system resources.'
+            'HR_MANAGER' => 'Access denied. This action is not available for your role.',
         ];
 
         $specificMessages = [
             'employee' => [
-                'create' => 'Only HR personnel can create new employee accounts.',
-                'update' => 'You can only update your own profile or contact HR for assistance.',
-                'delete' => 'Only HR personnel can delete employee accounts.',
+                'create' => 'Only HR managers can create new employee accounts.',
+                'update' => 'You can only update your own profile or contact an HR Manager for assistance.',
+                'delete' => 'Only HR managers can delete employee accounts.',
             ],
             'leave' => [
-                'approve' => 'Only HR personnel and team leaders can approve leave requests.',
+                'approve' => 'Only HR managers and team leaders can approve leave requests.',
                 'delete' => 'You can only delete your own pending leave requests.',
             ],
             'schedule' => [
-                'create' => 'Only HR personnel and team leaders can create schedules.',
-                'update' => 'Only HR personnel and team leaders can modify schedules.',
-                'delete' => 'Only HR personnel and team leaders can delete schedules.',
+                'create' => 'Only HR managers and team leaders can create schedules.',
+                'update' => 'Only HR managers and team leaders can modify schedules.',
+                'delete' => 'Only HR managers and team leaders can delete schedules.',
             ],
             'payroll' => [
                 'view' => 'You can only view your own payroll information.',
-                'create' => 'Only HR personnel can manage payroll.',
-                'update' => 'Only HR personnel can modify payroll.',
-                'delete' => 'Only HR personnel can delete payroll records.',
+                'create' => 'Only HR managers can manage payroll.',
+                'update' => 'Only HR managers can modify payroll.',
+                'delete' => 'Only HR managers can delete payroll records.',
             ]
         ];
 
@@ -449,7 +575,7 @@ class RoleBasedAccess
             case 'view':
             case 'index':
                 // HR can view all, Team Leaders can view team, Regular employees can view own
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'create':
             case 'store':
@@ -459,7 +585,7 @@ class RoleBasedAccess
             case 'update':
             case 'approve':
                 // HR can approve all, Team Leaders can approve team resignations
-                return in_array($role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
             
             case 'delete':
             case 'destroy':

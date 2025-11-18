@@ -14,7 +14,7 @@ class LeavePolicy
     public function viewAny(User $user): bool
     {
         // All authenticated users can view leaves (with restrictions applied in controller)
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
     }
 
     /**
@@ -23,7 +23,7 @@ class LeavePolicy
     public function view(User $user, Leave $leave): bool
     {
         // HR can view any leave
-        if ($user->role === 'HR_PERSONNEL') {
+        if ($user->role === 'HR_MANAGER') {
             return true;
         }
 
@@ -56,7 +56,7 @@ class LeavePolicy
         }
 
         // HR and team leaders can update leave requests for approval/rejection
-        if (in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+        if (in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER'])) {
             // Team leaders can only manage their team's leaves
             if ($user->role === 'TEAM_LEADER') {
                 return $leave->user->position_id === $user->position_id;
@@ -73,7 +73,7 @@ class LeavePolicy
     public function delete(User $user, Leave $leave): bool
     {
         // HR can delete any leave
-        if ($user->role === 'HR_PERSONNEL') {
+        if ($user->role === 'HR_MANAGER') {
             return true;
         }
 
@@ -87,7 +87,7 @@ class LeavePolicy
     public function approve(User $user, Leave $leave): bool
     {
         // Only HR and team leaders can approve leaves
-        if (!in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+        if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER'])) {
             return false;
         }
 
@@ -106,7 +106,7 @@ class LeavePolicy
     public function viewStatistics(User $user): bool
     {
         // HR can view all statistics, team leaders can view their team's statistics
-        return in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER']);
+        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
     }
 
     /**
@@ -115,6 +115,6 @@ class LeavePolicy
     public function export(User $user): bool
     {
         // Only HR can export leave data
-        return $user->role === 'HR_PERSONNEL';
+        return $user->role === 'HR_MANAGER';
     }
 }

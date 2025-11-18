@@ -13,15 +13,18 @@ const Dashboard = (props) => {
   const storedUser = (() => {
     try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   })();
-  const userRole = props?.userRole || storedUser?.role || USER_ROLES.HR_PERSONNEL;
+  const rawRole = props?.userRole || storedUser?.role || USER_ROLES.HR_MANAGER;
+  const normalizedRole = String(rawRole || '').toUpperCase();
+  const roleAliases = { HR_PERSONNEL: USER_ROLES.HR_MANAGER };
+  const userRole = roleAliases[normalizedRole] || normalizedRole;
 
   const renderDashboardByRole = () => {
     switch (userRole) {
-      case USER_ROLES.HR_PERSONNEL:
+      case USER_ROLES.HR_MANAGER:
         return <HRDashboard {...props} userRole={userRole} />;
-      case USER_ROLES.TEAM_LEADER:
+      case 'TEAM_LEADER':
         return <TeamLeaderDashboard {...props} userRole={userRole} />;
-      case USER_ROLES.REGULAR_EMPLOYEE:
+      case 'REGULAR_EMPLOYEE':
         return <EmployeeDashboard {...props} userRole={userRole} />;
       default:
         return <div className="p-5 text-center">Welcome! Your dashboard is being configured.</div>;

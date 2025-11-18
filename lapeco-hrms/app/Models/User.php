@@ -171,7 +171,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'last_name' => $applicantData['last_name'],
             'email' => $applicantData['email'],
             'password' => bcrypt('temporary'), // Temporary password, will be updated after creation
-            'role' => 'Employee',
+            'role' => 'REGULAR_EMPLOYEE',
             'position_id' => $positionId,
             'joining_date' => now()->toDateString(),
             'birthday' => isset($applicantData['birthday']) ? date('Y-m-d', strtotime($applicantData['birthday'])) : null,

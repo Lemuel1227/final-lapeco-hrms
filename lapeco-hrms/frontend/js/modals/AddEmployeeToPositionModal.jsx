@@ -20,7 +20,7 @@ const AddEmployeeToPositionModal = ({ show, onClose, onSave, onConfirmReassignme
       let isDisabled = false;
 
       if (emp.positionId === currentPosition.id) {
-        subLabel = `Already in this position`;
+        subLabel = `Already in this department`;
         isDisabled = true;
       } else if (emp.positionId) {
         subLabel = `Current: ${positionsMap[emp.positionId] || 'Other'}`;
@@ -88,7 +88,7 @@ const AddEmployeeToPositionModal = ({ show, onClose, onSave, onConfirmReassignme
               <button type="button" className="btn-close" onClick={handleClose} aria-label="Close"></button>
             </div>
             <div className="modal-body">
-              <p className="text-muted">Select an employee to assign to this position. If an employee is already assigned elsewhere, they will be re-assigned.</p>
+              <p className="text-muted">Select an employee to assign to this department. If an employee is already assigned elsewhere, they will be re-assigned.</p>
               <div className="mb-3">
                 <label htmlFor="employeeToAssign" className="form-label fw-bold">Employee*</label>
                 <Select

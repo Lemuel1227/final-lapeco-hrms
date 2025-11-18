@@ -59,9 +59,9 @@
              $reportedById = $user->id;
          }
  
-         $approvalStatus = $validated['approval_status'] ?? (($user && $user->role === 'HR_PERSONNEL') ? 'approved' : 'pending');
+         $approvalStatus = $validated['approval_status'] ?? (($user && $user->role === 'HR_MANAGER') ? 'approved' : 'pending');
          $status = $validated['status'] ?? null;
-         if ($user && $user->role !== 'HR_PERSONNEL') {
+         if ($user && $user->role !== 'HR_MANAGER') {
              $status = 'Ongoing';
          } else {
              $status = $status ?? 'Ongoing';

@@ -35,9 +35,9 @@ const AccountSettingsPage = () => {
     }
   });
   
-  const userRole = currentUser?.role || 'HR_PERSONNEL';
+  const userRole = currentUser?.role || 'HR_MANAGER';
 
-  const isHrUser = userRole === USER_ROLES.HR_PERSONNEL;
+  const isHrUser = userRole === USER_ROLES.HR_MANAGER;
 
   const sections = {
     personal: [

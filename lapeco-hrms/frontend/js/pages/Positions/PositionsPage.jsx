@@ -155,6 +155,7 @@ const PositionsPage = (props) => {
         night_diff_rate_per_hour: Number(formData.night_diff_rate_per_hour ?? 0),
         late_deduction_per_minute: Number(formData.late_deduction_per_minute ?? 0),
         monthly_salary: Number(formData.monthly_salary ?? 0),
+        allowed_modules: Array.isArray(formData.allowed_modules) ? formData.allowed_modules : [],
       };
       if (positionId) {
         await positionAPI.update(positionId, payload);
@@ -291,10 +292,10 @@ const PositionsPage = (props) => {
       if (roleChangeData.newRole === 'TEAM_LEADER' || roleChangeData.newRole === 'REGULAR_EMPLOYEE') {
         // Toggle between TEAM_LEADER and REGULAR_EMPLOYEE
         response = await employeeAPI.toggleTeamLeader(roleChangeData.employee.id);
-      } else if (roleChangeData.newRole === 'HR_PERSONNEL') {
-        // Set as HR_PERSONNEL
+      } else if (roleChangeData.newRole === 'HR_MANAGER') {
+        // Set as HR_MANAGER
         response = await employeeAPI.update(roleChangeData.employee.id, { 
-          role: 'HR_PERSONNEL' 
+          role: 'HR_MANAGER' 
         });
       }
       
@@ -405,7 +406,7 @@ const PositionsPage = (props) => {
       <div className="container-fluid p-0 page-module-container">
         <header className="page-header detail-view-header">
           <button className="btn btn-light me-3 back-button" onClick={handleBackToPositionsList}>
-            <i className="bi bi-arrow-left"></i> Back to Positions List
+            <i className="bi bi-arrow-left"></i> Back to Departments List
           </button>
         </header>
 
@@ -420,7 +421,7 @@ const PositionsPage = (props) => {
         >
           Are you sure you want to change {roleChangeData.employee?.name}'s role from 
           {roleChangeData.currentRole === 'TEAM_LEADER' ? ' Team Leader ' : 
-           roleChangeData.currentRole === 'HR_PERSONNEL' ? ' HR Personnel ' : ' Regular Employee '}
+           roleChangeData.currentRole === 'HR_MANAGER' ? ' HR Manager ' : ' Regular Employee '}
           to {roleChangeData.roleName}?
         </ConfirmationModal>
 
@@ -437,7 +438,7 @@ const PositionsPage = (props) => {
         <div className="controls-bar d-flex justify-content-start mb-4">
             <div className="input-group detail-view-search">
                 <span className="input-group-text"><i className="bi bi-search"></i></span>
-                <input type="text" className="form-control" placeholder="Search employees in this position..." value={positionEmployeeSearchTerm} onChange={(e) => setPositionEmployeeSearchTerm(e.target.value)} />
+                <input type="text" className="form-control" placeholder="Search employees in this department..." value={positionEmployeeSearchTerm} onChange={(e) => setPositionEmployeeSearchTerm(e.target.value)} />
             </div>
         </div>
 
@@ -451,7 +452,7 @@ const PositionsPage = (props) => {
                 <tbody>
                   {displayedEmployeesInPosition.map(emp => {
                     const isTeamLeader = emp.role === 'TEAM_LEADER';
-                    const isHR = emp.role === 'HR_PERSONNEL';
+                    const isHR = emp.role === 'HR_MANAGER';
                     
                     return (
                       <tr key={emp.id}>
@@ -459,7 +460,7 @@ const PositionsPage = (props) => {
                         <td>{emp.name}</td>
                         <td>
                           {isHR ? (
-                            <span className="badge bg-primary">HR Personnel</span>
+                            <span className="badge bg-primary">HR Manager</span>
                           ) : isTeamLeader ? (
                             <span className="badge bg-success">Team Leader</span>
                           ) : (
@@ -501,10 +502,10 @@ const PositionsPage = (props) => {
                                     href="#" 
                                     onClick={(e) => { 
                                       e.preventDefault();
-                                      handleRoleChange(emp, 'HR_PERSONNEL', 'HR Personnel');
-                                    }}
-                                  >
-                                    Set as HR Personnel
+                                      handleRoleChange(emp, 'HR_MANAGER', 'HR Manager');
+                                  }}
+                                >
+                                    Set as HR Manager
                                   </a>
                                 </li>
                               )}
@@ -520,7 +521,7 @@ const PositionsPage = (props) => {
                                     handleRemoveFromPosition(emp); 
                                   }}
                                 >
-                                  Remove from Position
+                                  Remove from Department
                                 </a>
                               </li>
                             </ul>
@@ -530,7 +531,7 @@ const PositionsPage = (props) => {
                     );
                   })}
                   {displayedEmployeesInPosition.length === 0 && (
-                    <tr><td colSpan="4" className="text-center p-5">No employees match your search in this position.</td></tr>
+                    <tr><td colSpan="4" className="text-center p-5">No employees match your search in this department.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -568,26 +569,26 @@ const PositionsPage = (props) => {
         {/* Add Employee Confirmation Modal */}
         <ConfirmationModal
           show={showAddEmployeeConfirmModal}
-          title="Add Employee to Position"
+          title="Add Employee to Department"
           onClose={cancelAddEmployee}
           onConfirm={confirmAddEmployee}
           confirmText="Add Employee"
           confirmVariant="success"
         >
-          Are you sure you want to add this employee to the selected position?
+          Are you sure you want to add this employee to the selected department?
         </ConfirmationModal>
 
         {/* Remove Employee Confirmation Modal */}
         <ConfirmationModal
           show={showRemoveEmployeeModal}
-          title="Remove Employee from Position"
+          title="Remove Employee from Department"
           onClose={cancelRemoveEmployee}
           onConfirm={confirmRemoveEmployee}
           confirmText={isRemovingEmployee ? 'Removing...' : 'Remove'}
           confirmVariant="danger"
           disabled={isRemovingEmployee}
         >
-          Are you sure you want to remove "{employeeToRemove?.name}" from their current position?
+          Are you sure you want to remove "{employeeToRemove?.name}" from their current department?
         </ConfirmationModal>
 
         {/* Toast Notification */}
@@ -607,17 +608,17 @@ const PositionsPage = (props) => {
     <div className="container-fluid p-0 page-module-container">
       <header className="page-header d-flex justify-content-between align-items-center mb-4">
         <div className="d-flex align-items-center">
-            <h1 className="page-main-title me-3">Positions</h1>
+            <h1 className="page-main-title me-3">Department Management</h1>
             <span className="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
-                {positions.length} total positions
+                {positions.length} total departments
             </span>
         </div>
         <div className="header-actions d-flex align-items-center gap-2">
             <button className="btn btn-outline-secondary" onClick={handleGenerateReport} disabled={!positions || positions.length === 0}>
-                <i className="bi bi-file-earmark-text-fill"></i> Generate Report
+                <i className="bi bi-file-earmark-text-fill"></i> Generate Departments Report
             </button>
             <button className="btn btn-success" onClick={handleOpenAddPositionModal}>
-                <i className="bi bi-plus-circle-fill me-2"></i> Add New Position
+                <i className="bi bi-plus-circle-fill me-2"></i> Add New Department
             </button>
         </div>
       </header>
@@ -625,7 +626,7 @@ const PositionsPage = (props) => {
       <div className="controls-bar d-flex justify-content-start mb-4">
         <div className="input-group">
             <span className="input-group-text"><i className="bi bi-search"></i></span>
-            <input type="text" className="form-control" placeholder="Search positions by title or description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" className="form-control" placeholder="Search departments by title or description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
       </div>
 
@@ -634,7 +635,7 @@ const PositionsPage = (props) => {
           <div className="spinner-border text-success" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-          <p className="mt-3 mb-0">Loading positions...</p>
+          <p className="mt-3 mb-0">Loading departments...</p>
         </div>
       ) : (
         <div className="positions-grid-container">
@@ -670,7 +671,7 @@ const PositionsPage = (props) => {
           ) : (
               <div className="w-100 text-center p-5 bg-light rounded">
                   <i className="bi bi-diagram-3-fill fs-1 text-muted mb-3 d-block"></i>
-                  <h4 className="text-muted">{positions.length > 0 ? "No positions match your search." : "No positions have been created yet."}</h4>
+                  <h4 className="text-muted">{positions.length > 0 ? "No departments match your search." : "No departments have been created yet."}</h4>
               </div>
           )}
         </div>
@@ -685,34 +686,34 @@ const PositionsPage = (props) => {
             show={showReportPreview}
             onClose={handleCloseReportPreview}
             pdfDataUri={pdfDataUri}
-            reportTitle="Company Positions Report"
+            reportTitle="Company Departments Report"
         />
       )}
 
-      {/* Delete Position Confirmation Modal */}
+      {/* Delete Department Confirmation Modal */}
       <ConfirmationModal
         show={showDeletePositionModal}
-        title="Delete Position"
+        title="Delete Department"
         onClose={cancelDeletePosition}
         onConfirm={confirmDeletePosition}
         confirmText={isDeletingPosition ? 'Deleting...' : 'Delete'}
         confirmVariant="danger"
         disabled={isDeletingPosition}
       >
-        Are you sure you want to delete the position "{positionToDelete?.title}"? This will unassign all employees from this position.
+        Are you sure you want to delete the department "{positionToDelete?.title}"? This will unassign all employees from this department.
       </ConfirmationModal>
 
       {/* Remove Employee Confirmation Modal */}
       <ConfirmationModal
         show={showRemoveEmployeeModal}
-        title="Remove Employee from Position"
+        title="Remove Employee from Department"
         onClose={cancelRemoveEmployee}
         onConfirm={confirmRemoveEmployee}
         confirmText={isRemovingEmployee ? 'Removing...' : 'Remove'}
         confirmVariant="danger"
         disabled={isRemovingEmployee}
       >
-        Are you sure you want to remove "{employeeToRemove?.name}" from their current position?
+        Are you sure you want to remove "{employeeToRemove?.name}" from their current department?
       </ConfirmationModal>
 
       {/* Toast Notification */}

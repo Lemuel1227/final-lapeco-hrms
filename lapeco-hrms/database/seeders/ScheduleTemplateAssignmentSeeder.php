@@ -17,7 +17,7 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
     public function run(): void
     {
         $templates = ScheduleTemplate::all();
-        $users = User::where('role', '!=', 'HR_PERSONNEL')->get(); // Exclude HR from schedule assignments
+        $users = User::where('role', '!=', 'HR_MANAGER')->get();
 
         if ($templates->isEmpty() || $users->isEmpty()) {
             $this->command->warn('No templates or users found. Please run ScheduleTemplateSeeder and ensure users exist.');
@@ -188,7 +188,7 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
                 'break_start' => '12:00',
                 'break_end' => '12:30',
                 'ot_hours' => 3,
-                'notes' => 'HR Personnel core coverage'
+                'notes' => 'HR Manager core coverage'
             ],
             [
                 'user_id' => 18,

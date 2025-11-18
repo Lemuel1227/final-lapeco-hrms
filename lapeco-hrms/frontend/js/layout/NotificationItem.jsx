@@ -53,7 +53,7 @@ const NotificationItem = ({ notification, onMarkAsRead, currentUser }) => {
       navigate('/dashboard/recruitment');
     } else if (notification.type === 'holiday_reminder') {
       // HR goes to Holiday Management, others go to My Attendance
-      if (currentUser?.role === 'HR_PERSONNEL') {
+      if (currentUser?.role === 'HR_MANAGER') {
         navigate('/dashboard/holiday-management');
       } else {
         navigate('/dashboard/my-attendance');

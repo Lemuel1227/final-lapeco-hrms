@@ -34,7 +34,7 @@ class AuthenticatedSessionController extends Controller
             // Check if account is deactivated
             if ($user->account_status === 'Deactivated') {
                 throw ValidationException::withMessages([
-                    'login' => ['Your account has been deactivated. Please contact HR personnel for assistance.'],
+                    'login' => ['Your account has been deactivated. Please contact an HR Manager for assistance.'],
                 ]);
             }
 

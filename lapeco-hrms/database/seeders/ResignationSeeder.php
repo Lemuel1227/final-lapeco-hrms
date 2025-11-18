@@ -15,15 +15,15 @@ class ResignationSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get employees with IDs above 30 (excluding HR personnel)
-        $employees = User::where('role', '!=', 'HR_PERSONNEL')
+        // Get employees with IDs above 30 (excluding HR managers)
+        $employees = User::where('role', '!=', 'HR_MANAGER')
                         ->where('id', '>', 30)
                         ->take(20)
                         ->get();
-        $hrUsers = User::where('role', 'HR_PERSONNEL')->get();
+        $hrUsers = User::where('role', 'HR_MANAGER')->get();
         
         if ($employees->isEmpty() || $hrUsers->isEmpty()) {
-            $this->command->info('No employees or HR personnel found. Please seed users first.');
+            $this->command->info('No employees or HR managers found. Please seed users first.');
             return;
         }
 

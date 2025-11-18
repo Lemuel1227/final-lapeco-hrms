@@ -29,11 +29,25 @@
             ])));
         }
 
+        private function hasModule($user, string $moduleKey): bool
+        {
+            try {
+                $aliases = [
+                    'leave' => 'leave_management',
+                ];
+                $normalized = $aliases[$moduleKey] ?? $moduleKey;
+                $mods = is_array($user?->position?->allowed_modules) ? $user->position->allowed_modules : [];
+                return in_array($normalized, $mods);
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
         // HR/Admin: list all; Team Leader: list team (same position); Regular: own only
         public function index(Request $request)
         {
             $user = $request->user();
-            if ($user->role === 'HR_PERSONNEL') {
+            if ($user->role === 'HR_MANAGER') {
                 $leaves = Leave::with('user.position')->latest()->get();
             } elseif ($user->role === 'TEAM_LEADER') {
                 $leaves = Leave::with('user.position')->whereHas('user', function ($q) use ($user) {
@@ -172,7 +186,7 @@
                 $userName = $this->computeFullName($user);
                 
                 // Create notification for all HR personnel
-                $hrPersonnel = User::where('role', 'HR_PERSONNEL')->get();
+                $hrPersonnel = User::where('role', 'HR_MANAGER')->get();
                 foreach ($hrPersonnel as $hrUser) {
                     Notification::createForUser(
                         $hrUser->id,
@@ -234,14 +248,14 @@
                 $requestedStatus = $validated['status'];
 
                 if (in_array($requestedStatus, ['Approved', 'Declined', 'Pending'])) {
-                    if (!in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                    if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
                         return response()->json([
-                            'message' => 'Access denied. Only HR personnel or team leaders can modify this leave status.',
+                            'message' => 'Access denied. Only HR managers or team leaders can modify this leave status.',
                             'error_type' => 'authorization_error',
                         ], 403);
                     }
                 } elseif ($requestedStatus === 'Canceled') {
-                    if ($leave->user_id !== $user->id && !in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                    if ($leave->user_id !== $user->id && !in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
                         return response()->json([
                             'message' => 'Access denied. You can only cancel your own leave requests.',
                             'error_type' => 'authorization_error',
@@ -249,7 +263,7 @@
                     }
 
                     // Regular employees can only change the status when cancelling
-                    if ($leave->user_id === $user->id && !in_array($user->role, ['HR_PERSONNEL', 'TEAM_LEADER'])) {
+                    if ($leave->user_id === $user->id && !in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
                         $validated = ['status' => 'Canceled'];
                     }
                 } else {
@@ -259,7 +273,7 @@
                     ], 403);
                 }
             } else {
-                if ($leave->user_id !== $user->id) {
+                if ($leave->user_id !== $user->id && !$this->hasModule($user, 'leave_management')) {
                     return response()->json([
                         'message' => 'Access denied. You can only modify your own leave details.',
                         'error_type' => 'authorization_error',
@@ -317,7 +331,7 @@
         public function destroy(Request $request, Leave $leave)
         {
             $user = $request->user();
-            if ($user->role !== 'HR_PERSONNEL' && $leave->user_id !== $user->id) {
+            if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management') && $leave->user_id !== $user->id) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -342,7 +356,7 @@
             }
             
             // Check permissions - only HR can view other users' credits
-            if ($userId != $user->id && $user->role !== 'HR_PERSONNEL') {
+            if ($userId != $user->id && $user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -372,7 +386,7 @@
             $user = $request->user();
             
             // Only HR can access all users' leave credits
-            if ($user->role !== 'HR_PERSONNEL') {
+            if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -420,7 +434,7 @@
         {
             $user = $request->user();
             
-            if ($user->role !== 'HR_PERSONNEL') {
+            if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -444,7 +458,7 @@
         {
             $user = $request->user();
             
-            if ($user->role !== 'HR_PERSONNEL') {
+            if ($user->role !== 'HR_MANAGER') {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -454,7 +468,7 @@
             ]);
             
             $updatedRecords = 0;
-            $users = User::whereIn('role', ['HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'])->get();
+            $users = User::whereIn('role', ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'])->get();
             
             foreach ($users as $targetUser) {
                 if ($validated['vacation'] > 0) {
@@ -485,7 +499,7 @@
         {
             $user = $request->user();
             
-            if ($user->role !== 'HR_PERSONNEL') {
+            if ($user->role !== 'HR_MANAGER') {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -537,7 +551,7 @@
             $user = $request->user();
 
             // Permission: HR can view any; otherwise only the owner
-            if ($user->role !== 'HR_PERSONNEL' && $leave->user_id !== $user->id) {
+            if ($user->role !== 'HR_MANAGER' && $leave->user_id !== $user->id) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
 

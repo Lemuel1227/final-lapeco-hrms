@@ -21,7 +21,7 @@ class EmployeeController extends Controller
         $role = $user->role;
         
         // Role-based filtering is now handled by middleware, but we still need to filter data based on role
-        if ($role === 'HR_PERSONNEL') {
+        if ($role === 'HR_MANAGER') {
             // HR can see all employees except terminated/resigned ones
             $employees = User::with('leaveCredits')
                 ->whereNotIn('employment_status', ['terminated', 'resigned'])
@@ -52,7 +52,7 @@ class EmployeeController extends Controller
         $role = $user->role;
         
         // Role-based filtering
-        if ($role === 'HR_PERSONNEL') {
+        if ($role === 'HR_MANAGER') {
             // HR can see all employees except terminated/resigned ones
             $employees = User::whereNotIn('employment_status', ['terminated', 'resigned'])
                         ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'joining_date', 'attendance_status', 'image_url', 'account_status')
@@ -110,7 +110,7 @@ class EmployeeController extends Controller
         $role = $user->role;
         
         // Only HR personnel can access all employees including terminated/resigned
-        if ($role !== 'HR_PERSONNEL') {
+        if ($role !== 'HR_MANAGER') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         
@@ -167,7 +167,7 @@ class EmployeeController extends Controller
             ];
             
             // Only include sensitive data for HR personnel or if it's the user's own data
-            if ($role === 'HR_PERSONNEL' || $employee->id === $user->id) {
+            if ($role === 'HR_MANAGER' || $employee->id === $user->id) {
                 $data['sss_no'] = $employee->sss_no;
                 $data['tin_no'] = $employee->tin_no;
                 $data['pag_ibig_no'] = $employee->pag_ibig_no;
@@ -286,7 +286,7 @@ class EmployeeController extends Controller
                 'last_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
                 'name' => 'sometimes|string|max:255',
                 'email' => 'required|email|max:255|unique:users,email',
-                'role' => 'required|string|in:HR_PERSONNEL,TEAM_LEADER,REGULAR_EMPLOYEE',
+                'role' => 'required|string|in:HR_MANAGER,TEAM_LEADER,REGULAR_EMPLOYEE',
                 'position_id' => 'nullable|exists:positions,id',
                 'joining_date' => 'required|date',
                 'birthday' => 'required|date|before:today|after:' . now()->subYears(100)->format('Y-m-d'),
@@ -595,7 +595,7 @@ class EmployeeController extends Controller
                 'last_name' => 'sometimes|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
                 'name' => 'sometimes|string|max:255',
                 'email' => 'sometimes|email|max:255|unique:users,email,' . $employee->id,
-                'role' => 'sometimes|string|in:HR_PERSONNEL,TEAM_LEADER,REGULAR_EMPLOYEE',
+                'role' => 'sometimes|string|in:HR_MANAGER,TEAM_LEADER,REGULAR_EMPLOYEE',
                 'position_id' => 'sometimes|nullable|exists:positions,id',
                 'birthday' => 'sometimes|required|date|before:today|after:' . now()->subYears(100)->format('Y-m-d'),
                 'gender' => 'sometimes|required|string|in:Male,Female',
@@ -1004,7 +1004,7 @@ class EmployeeController extends Controller
         }
         
         // Only HR personnel or the employee themselves can access the resume
-        if ($user->role !== 'HR_PERSONNEL' && $user->id !== $employee->id) {
+        if ($user->role !== 'HR_MANAGER' && $user->id !== $employee->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         
@@ -1053,7 +1053,7 @@ class EmployeeController extends Controller
         $user = $request->user();
         
         // Only HR personnel can rehire employees
-        if ($user->role !== 'HR_PERSONNEL') {
+        if ($user->role !== 'HR_MANAGER') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         
@@ -1079,9 +1079,9 @@ class EmployeeController extends Controller
         $user = $request->user();
         
         // Only HR personnel can toggle team leader status
-        if ($user->role !== 'HR_PERSONNEL') {
+        if ($user->role !== 'HR_MANAGER') {
             return response()->json([
-                'message' => 'Access denied. Only HR personnel can change team leader status.',
+                'message' => 'Access denied. Only HR managers can change team leader status.',
                 'error_type' => 'authorization_error'
             ], 403);
         }
@@ -1128,9 +1128,9 @@ class EmployeeController extends Controller
         $user = $request->user();
         
         // Only HR personnel can delete employees
-        if ($user->role !== 'HR_PERSONNEL') {
+        if ($user->role !== 'HR_MANAGER') {
             return response()->json([
-                'message' => 'Access denied. Only HR personnel can delete employee records.',
+                'message' => 'Access denied. Only HR managers can delete employee records.',
                 'error_type' => 'authorization_error'
             ], 403);
         }
@@ -1138,7 +1138,7 @@ class EmployeeController extends Controller
         // Prevent HR from deleting their own account
         if ($user->id === $employee->id) {
             return response()->json([
-                'message' => 'You cannot delete your own account. Please contact another HR personnel for assistance.',
+                'message' => 'You cannot delete your own account. Please contact another HR Manager for assistance.',
                 'error_type' => 'self_deletion_error'
             ], 400);
         }

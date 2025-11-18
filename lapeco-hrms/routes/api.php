@@ -10,6 +10,7 @@ use App\Http\Controllers\SessionController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PositionController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PayrollController;
@@ -55,6 +56,7 @@ Route::get('/applicants/statistics', [ApplicantController::class, 'getStats']);
 Route::get('/applicants', [ApplicantController::class, 'index']);
 Route::post('/applicants', [ApplicantController::class, 'store']); 
 Route::get('/positions', [PositionController::class, 'publicIndex']);
+Route::get('/departments', [DepartmentController::class, 'publicIndex']);
 
 Route::get('/employees/{employee}/resume', [EmployeeController::class, 'serveResume'])->name('employee.resume');
 Route::middleware('auth:sanctum')->get('/applicants/{applicant}/resume/view', [ApplicantController::class, 'viewResume']);
@@ -122,6 +124,14 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:position,destroy'])->delete('/positions/{position}', [PositionController::class, 'destroy']);
     Route::middleware(['role.access:position,view'])->get('/positions/{position}/employees', [PositionController::class, 'employees']);
     Route::middleware(['role.access:position,update'])->post('/positions/{position}/employees/{employee}/remove', [PositionController::class, 'removeEmployee']);
+
+    // Departments (authenticated routes)
+    Route::middleware(['role.access:position,index'])->get('/departments/authenticated', [DepartmentController::class, 'index']);
+    Route::middleware(['role.access:position,view'])->get('/departments/{department}', [DepartmentController::class, 'show']);
+    Route::middleware(['role.access:position,store'])->post('/departments', [DepartmentController::class, 'store']);
+    Route::middleware(['role.access:position,update'])->put('/departments/{department}', [DepartmentController::class, 'update']);
+    Route::middleware(['role.access:position,destroy'])->delete('/departments/{department}', [DepartmentController::class, 'destroy']);
+    Route::middleware(['role.access:position,view'])->get('/departments/{department}/positions', [DepartmentController::class, 'positions']);
 
     // Attendance Management - with role-based access control
     Route::middleware(['role.access:attendance,index'])->get('/attendance', [AttendanceController::class, 'index']);

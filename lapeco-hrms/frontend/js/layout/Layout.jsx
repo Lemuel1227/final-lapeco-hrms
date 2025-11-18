@@ -15,7 +15,7 @@ const Layout = ({ onLogout = () => {}, userRole: userRoleProp, currentUser: curr
   const { theme, toggleTheme } = useTheme();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [currentUser, setCurrentUser] = useState(currentUserProp || null);
-  const [userRole, setUserRole] = useState(userRoleProp || 'HR_PERSONNEL');
+  const [userRole, setUserRole] = useState(userRoleProp || 'HR_MANAGER');
   const [notifications, setNotifications] = useState(notificationsProp);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
@@ -26,7 +26,11 @@ const Layout = ({ onLogout = () => {}, userRole: userRoleProp, currentUser: curr
       if (stored) {
         const parsed = JSON.parse(stored);
         setCurrentUser(parsed);
-        if (parsed?.role) setUserRole(parsed.role);
+        if (parsed?.role) {
+          const r = String(parsed.role).toUpperCase();
+          const aliases = { HR_PERSONNEL: 'HR_MANAGER', EMPLOYEE: 'REGULAR_EMPLOYEE' };
+          setUserRole(aliases[r] || r);
+        }
       }
     } catch {}
   }, []);
@@ -153,7 +157,8 @@ const Layout = ({ onLogout = () => {}, userRole: userRoleProp, currentUser: curr
   return (
     <div className={`app-layout ${isMobileSidebarVisible ? 'mobile-sidebar-active' : ''}`}>
       <SideBar 
-        userRole={userRole} 
+        userRole={userRole}
+        currentUser={currentUser || {}}
         isCollapsed={isSidebarCollapsed && !isMobileView} 
         isMobileVisible={isMobileSidebarVisible}
         onMobileNavItemClick={handleToggleMobileSidebar}

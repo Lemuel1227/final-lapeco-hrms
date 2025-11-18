@@ -22,16 +22,16 @@ class CheckAccountStatus
             
             // Check if account is deactivated
             if ($user->account_status === 'Deactivated') {
-                // Revoke all tokens for this user
-                $user->tokens()->delete();
-                
-                // Clear the session
+                try {
+                    $user->tokens()->delete();
+                } catch (\Throwable $e) {}
+
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
-                
+
                 return response()->json([
-                    'error' => 'Your account has been deactivated. Please contact HR personnel for assistance.',
+                    'error' => 'Your account has been deactivated. Please contact an HR Manager for assistance.',
                     'logout' => true
                 ], 401);
             }
