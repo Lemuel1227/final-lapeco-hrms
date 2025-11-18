@@ -6,7 +6,7 @@ import ConfirmationModal from '../../modals/ConfirmationModal';
 import ViewReasonModal from '../../modals/ViewReasonModal';
 import MaternityInfo from './MaternityInfo';
 import PaternityInfo from './PaternityInfo';
-import { formatDateRange } from '../../utils/dateUtils';
+import { formatDateRange, formatDate } from '../../utils/dateUtils';
 import EditMaternityDetailsModal from '../../modals/EditMaternityDetailsModal';
 import EditPaternityDetailsModal from '../../modals/EditPaternityDetailsModal';
 import ViewAttachmentsModal from '../../modals/ViewAttachmentsModal';
@@ -143,6 +143,7 @@ const LeaveRequestTable = ({ leaveRequests, handlers }) => {
                 <th>Leave Type</th>
                 <th className="sortable" onClick={() => requestSort('dateFrom')}>Date Range {getSortIcon('dateFrom')}</th>
                 <th className="text-center sortable" onClick={() => requestSort('days')}>Days {getSortIcon('days')}</th>
+                <th className="text-center sortable" onClick={() => requestSort('requestedAt')}>Requested {getSortIcon('requestedAt')}</th>
                 <th className="text-center">Status</th>
                 <th className="text-center">Action</th>
               </tr>
@@ -159,8 +160,16 @@ const LeaveRequestTable = ({ leaveRequests, handlers }) => {
                     <td>{req.empId}</td><td>{req.name}</td><td>{req.position}</td>
                     <td><div className="d-flex align-items-center"><span>{req.leaveType}</span>{req.maternityDetails && <MaternityInfo details={req.maternityDetails} />}{req.paternityDetails && <PaternityInfo details={req.paternityDetails} />}</div></td>
                     <td>{formatDateRange(req.dateFrom, req.dateTo)}</td>
+                    <td className="text-center"><span>{req.days}</span></td>
                     <td className="text-center">
-                      <span>{req.days}</span>
+                      <div className="d-flex flex-column align-items-center">
+                        <span>{formatDate(req.requestedAt, 'short')}</span>
+                        {req.status === 'Pending' ? (
+                          <small className="text-muted">{Math.max(0, Math.floor((Date.now() - new Date(req.requestedAt).getTime()) / (1000 * 60 * 60 * 24)))} day(s)</small>
+                        ) : (
+                          <small className="text-muted">—</small>
+                        )}
+                      </div>
                     </td>
                     <td className="text-center">
                       <div className="status-badge-group">

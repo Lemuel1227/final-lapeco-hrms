@@ -228,6 +228,8 @@ export const leaveAPI = {
   // Leave settings
   getNoticeDays: () => api.get('/leave-settings/notice-days'),
   updateNoticeDays: (policy) => api.put('/leave-settings/notice-days', { policy }),
+  getAutoDeclineDays: () => api.get('/leave-settings/auto-decline-days'),
+  updateAutoDeclineDays: (days) => api.put('/leave-settings/auto-decline-days', { days }),
 };
 
 // Payroll API calls

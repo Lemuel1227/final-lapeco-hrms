@@ -24,6 +24,8 @@ const LeaveManagementPage = () => {
     'Maternity Leave': 0,
     'Paternity Leave': 0,
   });
+  const [autoDeclineDays, setAutoDeclineDays] = useState(0);
+  const [savingAutoDecline, setSavingAutoDecline] = useState(false);
   const [savingPolicy, setSavingPolicy] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
@@ -76,6 +78,7 @@ const LeaveManagementPage = () => {
           extensionStatus: l.extensionStatus ?? l.extension_status ?? undefined,
           maternityDetails: normalizeMaternity(l.maternityDetails ?? l.maternity_details),
           paternityDetails: normalizePaternity(l.paternityDetails ?? l.paternity_details),
+          requestedAt: l.created_at,
         }));
         
         // Fetch employees
@@ -96,6 +99,11 @@ const LeaveManagementPage = () => {
             'Maternity Leave': Number.isFinite(Number(p['Maternity Leave'])) ? Number(p['Maternity Leave']) : 0,
             'Paternity Leave': Number.isFinite(Number(p['Paternity Leave'])) ? Number(p['Paternity Leave']) : 0,
           }));
+          try {
+            const autoRes = await leaveAPI.getAutoDeclineDays();
+            const d = Number(autoRes.data?.days ?? 0);
+            setAutoDeclineDays(Number.isFinite(d) ? Math.max(0, Math.min(365, d)) : 0);
+          } catch (_) {}
         } catch (_) {}
       } catch (err) {
         setLeaveRequests([]);
@@ -138,6 +146,7 @@ const LeaveManagementPage = () => {
           extensionStatus: l.extensionStatus ?? l.extension_status ?? undefined,
           maternityDetails: (typeof l.maternityDetails !== 'undefined' || typeof l.maternity_details !== 'undefined') ? normalizeMaternity(l.maternityDetails ?? l.maternity_details) : undefined,
           paternityDetails: (typeof l.paternityDetails !== 'undefined' || typeof l.paternity_details !== 'undefined') ? normalizePaternity(l.paternityDetails ?? l.paternity_details) : undefined,
+          requestedAt: l.created_at,
         }));
         setLeaveRequests(mapped);
       } catch (err) {
@@ -168,6 +177,7 @@ const LeaveManagementPage = () => {
           extensionStatus: l.extensionStatus ?? l.extension_status ?? undefined,
           maternityDetails: (typeof l.maternityDetails !== 'undefined' || typeof l.maternity_details !== 'undefined') ? normalizeMaternity(l.maternityDetails ?? l.maternity_details) : undefined,
           paternityDetails: (typeof l.paternityDetails !== 'undefined' || typeof l.paternity_details !== 'undefined') ? normalizePaternity(l.paternityDetails ?? l.paternity_details) : undefined,
+          requestedAt: l.created_at,
         }));
         setLeaveRequests(mapped);
       } catch (err) {
@@ -194,6 +204,20 @@ const LeaveManagementPage = () => {
       showToast({ message: 'Failed to update leave notice policy.', type: 'danger' });
     } finally {
       setSavingPolicy(false);
+    }
+  };
+
+  const saveAutoDeclineDays = async () => {
+    try {
+      setSavingAutoDecline(true);
+      const n = Math.max(0, Math.min(365, parseInt(autoDeclineDays || 0, 10)));
+      await leaveAPI.updateAutoDeclineDays(n);
+      setAutoDeclineDays(n);
+      showToast({ message: 'Auto-decline policy updated.', type: 'success' });
+    } catch (e) {
+      showToast({ message: 'Failed to update auto-decline policy.', type: 'danger' });
+    } finally {
+      setSavingAutoDecline(false);
     }
   };
 
@@ -318,6 +342,24 @@ const LeaveManagementPage = () => {
                         </button>
                       </div>
                       <div className="form-text mt-2">Example: If vacation is 5 days and the leave starts on the 16th, submit on or before the 11th.</div>
+                    </div>
+                  </div>
+                  <div className="card mt-3">
+                    <div className="card-header"><i className="bi bi-hourglass-split me-2"></i>Auto-Decline Pending Requests</div>
+                    <div className="card-body">
+                      <p className="text-muted">Automatically decline pending leave requests after N days with no response.</p>
+                      <div className="row g-3">
+                        <div className="col-md-4">
+                          <label className="form-label">Days before auto-decline</label>
+                          <input type="number" className="form-control" min="0" max="365" value={autoDeclineDays} onChange={(e) => setAutoDeclineDays(e.target.value === '' ? '' : Math.max(0, Math.min(365, parseInt(e.target.value, 10) || 0)))} />
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <button className="btn btn-primary" onClick={saveAutoDeclineDays} disabled={savingAutoDecline}>
+                          {savingAutoDecline ? (<><span className="spinner-border spinner-border-sm me-2"></span>Saving...</>) : (<>Save</>)}
+                        </button>
+                      </div>
+                      <div className="form-text mt-2">Set to 0 to disable auto-decline.</div>
                     </div>
                   </div>
                 </div>

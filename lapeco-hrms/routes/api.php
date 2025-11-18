@@ -181,6 +181,9 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // Leave settings: notice days (HR/Team Leader or leave_management module)
     Route::middleware(['role.access:leave,index'])->get('/leave-settings/notice-days', [LeaveController::class, 'getNoticeDays']);
     Route::middleware(['role.access:leave,update'])->put('/leave-settings/notice-days', [LeaveController::class, 'updateNoticeDays']);
+    // Leave settings: auto-decline pending requests after N days
+    Route::middleware(['role.access:leave,index'])->get('/leave-settings/auto-decline-days', [LeaveController::class, 'getAutoDeclineDays']);
+    Route::middleware(['role.access:leave,update'])->put('/leave-settings/auto-decline-days', [LeaveController::class, 'updateAutoDeclineDays']);
     
     // Leave Credits Management
     Route::middleware(['role.access:leave,index'])->get('/leave-credits/all', [LeaveController::class, 'getAllLeaveCredits']);

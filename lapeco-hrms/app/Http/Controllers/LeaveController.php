@@ -638,4 +638,36 @@
             SystemSetting::setJson('leave_notice_days_map', $policy);
             return response()->json(['success' => true, 'message' => 'Leave notice policy updated.', 'policy' => $policy]);
         }
+
+        /**
+         * Get auto-decline days setting for pending leave requests.
+         */
+        public function getAutoDeclineDays(Request $request)
+        {
+            $user = $request->user();
+            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+            $days = (int) (SystemSetting::getValue('leave_auto_decline_days', 0) ?? 0);
+            if ($days < 0) { $days = 0; }
+            if ($days > 365) { $days = 365; }
+            return response()->json(['days' => $days]);
+        }
+
+        /**
+         * Update auto-decline days setting for pending leave requests.
+         */
+        public function updateAutoDeclineDays(Request $request)
+        {
+            $user = $request->user();
+            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+            $incoming = $request->input('days');
+            $v = is_numeric($incoming) ? (int) $incoming : 0;
+            if ($v < 0) { $v = 0; }
+            if ($v > 365) { $v = 365; }
+            SystemSetting::setValue('leave_auto_decline_days', $v);
+            return response()->json(['success' => true, 'message' => 'Auto-decline policy updated.', 'days' => $v]);
+        }
     }

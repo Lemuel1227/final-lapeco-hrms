@@ -27,3 +27,9 @@ Schedule::command('training:update-progress')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Auto-decline pending leave requests after configured days
+Schedule::command('leave:auto-decline-pending')
+    ->dailyAt('00:15')
+    ->withoutOverlapping()
+    ->runInBackground();
+
