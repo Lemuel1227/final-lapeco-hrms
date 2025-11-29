@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import './RecruitmentPage.css';
+import ChatbotManagementTab from './ChatbotManagementTab';
 import KanbanColumn from './KanbanColumn';
 import AddApplicantModal from '../../modals/AddApplicantModal';
 import ViewApplicantDetailsModal from '../../modals/ViewApplicantDetailsModal';
@@ -618,11 +619,12 @@ const RecruitmentPage = () => {
             <div className="view-toggle-buttons btn-group">
                 <button className={`btn btn-sm ${viewMode === 'board' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('board')} title="Board View"><i className="bi bi-kanban-fill"></i></button>
                 <button className={`btn btn-sm ${viewMode === 'list' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('list')} title="List View"><i className="bi bi-list-task"></i></button>
+                <button className={`btn btn-sm ${viewMode === 'chatbot' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('chatbot')} title="Chatbot Management"><i className="bi bi-robot"></i></button>
             </div>
         </div>
       </div>
           
-          {viewMode === 'board' ? renderBoardView() : renderListView()}
+          {viewMode === 'board' ? renderBoardView() : (viewMode === 'list' ? renderListView() : <ChatbotManagementTab />)}
         </>
       )}
       

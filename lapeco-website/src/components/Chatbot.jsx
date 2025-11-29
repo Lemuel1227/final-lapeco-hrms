@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { chatbotData } from '../data/chatbotData';
 import { faqData } from '../data/faqData';
 import './Chatbot.css';
@@ -15,6 +15,32 @@ export default function Chatbot({ onClose }) {
   // Ref to the message area for auto-scrolling
   const messageAreaRef = useRef(null);
 
+  // Dynamic Q&A loaded from HRMS backend (with static fallback)
+  const [recruitmentItems, setRecruitmentItems] = useState([]);
+  const [faqItems, setFaqItems] = useState([]);
+
+  const refreshQAs = async () => {
+    try {
+      const base = 'http://localhost:8000/api/chatbot-qas/public';
+      const [recRes, faqRes] = await Promise.all([
+        fetch(base + '?type=recruitment', { cache: 'no-store' }),
+        fetch(base + '?type=faq', { cache: 'no-store' })
+      ]);
+      const recJson = await recRes.json().catch(() => ({}));
+      const faqJson = await faqRes.json().catch(() => ({}));
+      const recData = Array.isArray(recJson.data) ? recJson.data.filter(i => i.active) : [];
+      const faqDataArr = Array.isArray(faqJson.data) ? faqJson.data.filter(i => i.active) : [];
+      setRecruitmentItems(recData);
+      setFaqItems(faqDataArr);
+    } catch (_) {
+      // Silent fallback to static data
+      setRecruitmentItems([]);
+      setFaqItems([]);
+    }
+  };
+
+  useEffect(() => { refreshQAs(); }, []);
+
   // Initializes or resets the chatbot to its starting state
   const setInitialState = () => {
     setIsTyping(true);
@@ -26,11 +52,17 @@ export default function Chatbot({ onClose }) {
           text: "Hello! Welcome to LAPECO's recruitment portal. How can I help you today? Please choose from the options below:",
         },
       ]);
-      const initialOpts = chatbotData.slice(0, 8);
+      const source = recruitmentItems && recruitmentItems.length ? recruitmentItems : chatbotData;
+      const initialOpts = source.slice(0, 8).map((qa, idx) => ({
+        id: qa.id ?? idx,
+        question: qa.question,
+        answer: qa.answer
+      }));
       setCurrentOptions(initialOpts);
       setChatMode('recruitment');
       setIsTyping(false);
     }, 800);
+    refreshQAs();
   };
 
   // Run initial setup when the component mounts
@@ -67,11 +99,32 @@ export default function Chatbot({ onClose }) {
         ...prev,
         { sender: 'bot', text: 'Of course! Here are some frequently asked questions about our company:' }
       ]);
-      setCurrentOptions(faqData);
+      const source = faqItems && faqItems.length ? faqItems : faqData;
+      const opts = source.map((qa, idx) => ({ id: qa.id ?? idx, question: qa.question, answer: qa.answer }));
+      setCurrentOptions(opts);
       setChatMode('faq');
       setIsTyping(false);
     }, 800);
+    refreshQAs();
   };
+
+  useEffect(() => {
+    if (chatMode === 'recruitment' && recruitmentItems && recruitmentItems.length) {
+      const initialOpts = recruitmentItems.slice(0, 8).map((qa, idx) => ({
+        id: qa.id ?? idx,
+        question: qa.question,
+        answer: qa.answer
+      }));
+      setCurrentOptions(initialOpts);
+    }
+  }, [recruitmentItems, chatMode]);
+
+  useEffect(() => {
+    if (chatMode === 'faq' && faqItems && faqItems.length) {
+      const opts = faqItems.map((qa, idx) => ({ id: qa.id ?? idx, question: qa.question, answer: qa.answer }));
+      setCurrentOptions(opts);
+    }
+  }, [faqItems, chatMode]);
 
   return (
     <div className="chatbot-container">

@@ -33,6 +33,7 @@ use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\MLPredictionController;
 use App\Http\Controllers\PredictiveAnalyticsController;
+use App\Http\Controllers\ChatbotQAController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,6 +51,9 @@ Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 Route::post('/register', [RegisteredUserController::class, 'store']);
 Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [PasswordResetController::class, 'reset']);
+
+// Public chatbot Q&A (for website/chatbot consumption)
+Route::get('/chatbot-qas/public', [ChatbotQAController::class, 'publicIndex']);
 
 // Public recruitment routes for testing
 Route::get('/applicants/statistics', [ApplicantController::class, 'getStats']);
@@ -223,6 +227,12 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:recruitment,update'])->put('/recruitment/applicants/{applicant}', [RecruitmentController::class, 'updateApplicant']);
     Route::middleware(['role.access:recruitment,destroy'])->delete('/recruitment/applicants/{applicant}', [RecruitmentController::class, 'destroyApplicant']);
 
+    // Chatbot Q&A Management
+    Route::middleware(['role.access:recruitment,index'])->get('/chatbot-qas', [ChatbotQAController::class, 'index']);
+    Route::middleware(['role.access:recruitment,store'])->post('/chatbot-qas', [ChatbotQAController::class, 'store']);
+    Route::middleware(['role.access:recruitment,update'])->put('/chatbot-qas/{qa}', [ChatbotQAController::class, 'update']);
+    Route::middleware(['role.access:recruitment,destroy'])->delete('/chatbot-qas/{qa}', [ChatbotQAController::class, 'destroy']);
+
     // Applicant Management - with role-based access control
     
     // Route::post('/applicants', [ApplicantController::class, 'store']); // Commented out to avoid conflict with public route
@@ -345,3 +355,5 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     // Logout
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
 });
+// Public chatbot QAs (active only)
+Route::get('/chatbot-qas/public', [ChatbotQAController::class, 'publicIndex']);

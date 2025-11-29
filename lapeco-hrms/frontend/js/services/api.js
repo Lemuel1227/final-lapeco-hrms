@@ -342,6 +342,15 @@ export const recruitmentAPI = {
   deleteApplicant: (id) => api.delete(`/recruitment/applicants/${id}`),
 };
 
+// Chatbot Q&A API calls
+export const chatbotAPI = {
+  getAll: (params = {}) => api.get('/chatbot-qas', { params }),
+  getPublic: (params = {}) => api.get('/chatbot-qas/public', { params }),
+  create: (data) => api.post('/chatbot-qas', data),
+  update: (id, data) => api.put(`/chatbot-qas/${id}`, data),
+  delete: (id) => api.delete(`/chatbot-qas/${id}`),
+};
+
 // Performance API calls
 export const performanceAPI = {
   getOverview: () => api.get('/performance/overview'),

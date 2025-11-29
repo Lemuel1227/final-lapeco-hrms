@@ -323,6 +323,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(PerformanceEvaluationSeeder::class);
+        $this->call(ChatbotQASeeder::class);
 
 
 
