@@ -293,3 +293,47 @@
 .applicant-status-badge.status-interview { background-color: var(--info-color); color: var(--text-primary) !important; }
 .applicant-status-badge.status-hired { background-color: var(--app-success-color); color: var(--text-on-success) !important; }
 .applicant-status-badge.status-rejected { background-color: var(--danger-color); }
+
+/* === Chatbot Manager (Toolbar & Add Form) === */
+.chatbot-manager .qa-toolbar {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--card-shadow);
+}
+.chatbot-manager .qa-toolbar .form-select,
+.chatbot-manager .qa-toolbar .form-control,
+.chatbot-manager .qa-toolbar .btn {
+  height: 38px;
+}
+.chatbot-manager .qa-toolbar .input-group {
+  flex: 1 1 720px;
+  max-width: 720px;
+}
+.chatbot-manager .qa-toolbar .input-group .input-group-text {
+  background-color: var(--bg-primary);
+}
+.chatbot-manager .qa-summary {
+  font-weight: 600;
+}
+
+.chatbot-manager .qa-add-form {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+}
+.chatbot-manager .qa-add-form .form-select,
+.chatbot-manager .qa-add-form .form-control {
+  height: 38px;
+}
+.chatbot-manager .qa-add-form .btn {
+  height: 38px;
+}
+
+@media (max-width: 992px) {
+  .chatbot-manager .qa-toolbar {
+    padding: 0.75rem;
+  }
+}
