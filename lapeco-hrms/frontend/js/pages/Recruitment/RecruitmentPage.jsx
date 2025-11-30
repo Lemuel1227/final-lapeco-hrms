@@ -1,8 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import './RecruitmentPage.css';
 import ChatbotManagementTab from './ChatbotManagementTab';
-import KanbanColumn from './KanbanColumn';
 import AddApplicantModal from '../../modals/AddApplicantModal';
 import ViewApplicantDetailsModal from '../../modals/ViewApplicantDetailsModal';
 import ScheduleInterviewModal from '../../modals/ScheduleInterviewModal';
@@ -37,7 +35,8 @@ const formatDate = (dateString, includeTime = false) => {
 };
 
 const RecruitmentPage = () => {
-  const [viewMode, setViewMode] = useState('board');
+  const [activeTab, setActiveTab] = useState('recruitment');
+  const [viewMode, setViewMode] = useState('dashboard');
   const [showApplicantModal, setShowApplicantModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showInterviewModal, setShowInterviewModal] = useState(false);
@@ -54,6 +53,7 @@ const RecruitmentPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   
   // State for positions data
   const [positions, setPositions] = useState([]);
@@ -286,8 +286,6 @@ const RecruitmentPage = () => {
     return 'All Time';
   }, [startDate, endDate]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
@@ -464,29 +462,144 @@ const RecruitmentPage = () => {
     }
   };
 
-  const renderBoardView = () => {
-    const groupedApplicants = PIPELINE_STAGES.reduce((acc, stage) => {
+  const renderDashboardView = () => {
+    const groupedByStatus = PIPELINE_STAGES.reduce((acc, stage) => {
       acc[stage] = filteredApplicants.filter(app => app.status === stage);
       return acc;
     }, {});
+
+    const conversionRate = stats.totalApplicants > 0 
+      ? ((stats.newlyHired / stats.totalApplicants) * 100).toFixed(1)
+      : 0;
+
     return (
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="kanban-board-container">
-          {PIPELINE_STAGES.map(stage => (
-            <KanbanColumn
-              key={stage}
-              id={stage}
-              title={stage}
-              applicants={groupedApplicants[stage]}
-              jobOpeningsMap={jobOpeningsMap}
-              positionsMap={positionsMap}
-              onAction={handleAction}
-            />
-          ))}
+      <div className="recruitment-dashboard">
+        {/* Pipeline Funnel Overview - Clickable for Filtering */}
+        <div className="pipeline-funnel-section mb-4">
+          <h3 className="section-title">Recruitment Pipeline</h3>
+          <div className="pipeline-funnel-container">
+            {/* All Filter Card */}
+            <div 
+              className={`pipeline-stage stage-all ${statusFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              <div className="stage-card clickable">
+                <div className="stage-header">
+                  <h5 className="stage-title">All</h5>
+                  <span className="stage-count">{filteredApplicants.length}</span>
+                </div>
+                <div className="stage-progress">
+                  <div className="progress-bar" style={{ width: '100%' }}></div>
+                </div>
+                <div className="stage-footer">
+                  <small className="stage-percentage">100% of total</small>
+                </div>
+              </div>
+            </div>
+
+            {/* Stage Filter Cards */}
+            {PIPELINE_STAGES.map((stage, index) => {
+              const count = groupedByStatus[stage]?.length || 0;
+              const percentage = stats.totalApplicants > 0 
+                ? ((count / stats.totalApplicants) * 100).toFixed(1)
+                : 0;
+              return (
+                <div 
+                  key={stage} 
+                  className={`pipeline-stage stage-${stage.replace(/\s+/g, '-').toLowerCase()} ${statusFilter === stage ? 'active' : ''}`}
+                  onClick={() => setStatusFilter(stage)}
+                >
+                  <div className="stage-card clickable">
+                    <div className="stage-header">
+                      <h5 className="stage-title">{stage}</h5>
+                      <span className="stage-count">{count}</span>
+                    </div>
+                    <div className="stage-progress">
+                      <div className="progress-bar" style={{ width: `${percentage}%` }}></div>
+                    </div>
+                    <div className="stage-footer">
+                      <small className="stage-percentage">{percentage}% of total</small>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </DndContext>
+
+        {/* Applicants Grid View */}
+        <div className="applicants-section">
+          <div className="section-header d-flex justify-content-between align-items-center mb-3">
+            <h3 className="section-title mb-0">Applicants</h3>
+          </div>
+
+          <div className="applicants-grid">
+            {(statusFilter === 'all' ? filteredApplicants : groupedByStatus[statusFilter] || [])
+              .slice(0, 12)
+              .map(applicant => (
+                <div key={applicant.id} className="applicant-grid-card">
+                  <div className="card-header-section">
+                    <div className="applicant-avatar">
+                      <i className="bi bi-person-circle"></i>
+                    </div>
+                    <div className="applicant-header-info">
+                      <h5 className="applicant-name">{applicant.full_name || applicant.name}</h5>
+                      <small className="applicant-position">
+                        {jobOpeningsMap.get(applicant.jobOpeningId || applicant.job_opening_id) ||
+                         positionsMap.get(applicant.jobOpeningId || applicant.job_opening_id) ||
+                         'Position TBD'}
+                      </small>
+                    </div>
+                  </div>
+                  
+                  <div className="card-details">
+                    <div className="detail-row">
+                      <span className="detail-label">Email:</span>
+                      <span className="detail-value text-truncate">{applicant.email || 'N/A'}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Applied:</span>
+                      <span className="detail-value">{formatDate(applicant.application_date || applicant.applicationDate)}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Status:</span>
+                      <span className={`status-badge status-${(applicant.status || 'New Applicant').replace(/\s+/g, '-').toLowerCase()}`}>
+                        {applicant.status || 'New Applicant'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button 
+                      className="btn btn-sm btn-primary"
+                      onClick={() => { setSelectedApplicant(applicant); setShowViewModal(true); }}
+                    >
+                      <i className="bi bi-eye"></i> View
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={() => { setSelectedApplicant(applicant); setShowInterviewModal(true); }}
+                    >
+                      <i className="bi bi-calendar"></i>
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {(statusFilter === 'all' ? filteredApplicants : groupedByStatus[statusFilter] || []).length === 0 && (
+            <div className="empty-state-box">
+              <i className="bi bi-inbox"></i>
+              <p>No applicants found</p>
+              <small>Try adjusting your filters or search terms</small>
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
+
+
 
   const renderListView = () => (
     <div className="card data-table-card shadow-sm">
@@ -566,21 +679,6 @@ const RecruitmentPage = () => {
         </div>
       </header>
 
-      <div className="recruitment-stats-bar">
-        <div className="recruitment-stat-card">
-            <div className="stat-main"><div className="stat-icon icon-total-applicants"><i className="bi bi-people-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.totalApplicants}</span><span className="stat-label"> Applicants in View</span></div></div>
-            <div className="stat-period">{dateRangeText}</div>
-        </div>
-        <div className="recruitment-stat-card">
-            <div className="stat-main"><div className="stat-icon icon-hired"><i className="bi bi-person-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.newlyHired}</span><span className="stat-label"> Hired in View</span></div></div>
-            <div className="stat-period">{dateRangeText}</div>
-        </div>
-        <div className="recruitment-stat-card">
-            <div className="stat-main"><div className="stat-icon icon-interviews-set"><i className="bi bi-calendar2-check-fill"></i></div><div className="stat-info"><span className="stat-value">{stats.interviewsSet}</span><span className="stat-label"> Interviews in View</span></div></div>
-            <div className="stat-period">{dateRangeText}</div>
-        </div>
-      </div>
-
       {/* Loading State */}
       {loadingApplicants && (
         <div className="container-fluid p-0 page-module-container">
@@ -606,25 +704,40 @@ const RecruitmentPage = () => {
         </div>
       )}
 
+      {/* Tab Navigation */}
+      <ul className="nav nav-tabs recruitment-tabs mb-4">
+        <li className="nav-item">
+          <button className={`nav-link ${activeTab === 'recruitment' ? 'active' : ''}`} onClick={() => setActiveTab('recruitment')}>Recruitment</button>
+        </li>
+        <li className="nav-item">
+          <button className={`nav-link ${activeTab === 'chatbot' ? 'active' : ''}`} onClick={() => setActiveTab('chatbot')}>Chatbot Management</button>
+        </li>
+      </ul>
+
       {/* Main Content */}
       {!loadingApplicants && !errorApplicants && (
         <>
-          <div className="recruitment-controls-bar">
-        <div className="filters-group">
-            <div className="input-group"><span className="input-group-text"><i className="bi bi-search"></i></span><input type="text" className="form-control" placeholder="Search by name or email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/></div>
-            <div className="input-group"><span className="input-group-text">From</span><input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-            <div className="input-group"><span className="input-group-text">To</span><input type="date" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
-        </div>
-        <div className="actions-group">
-            <div className="view-toggle-buttons btn-group">
-                <button className={`btn btn-sm ${viewMode === 'board' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('board')} title="Board View"><i className="bi bi-kanban-fill"></i></button>
-                <button className={`btn btn-sm ${viewMode === 'list' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('list')} title="List View"><i className="bi bi-list-task"></i></button>
-                <button className={`btn btn-sm ${viewMode === 'chatbot' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('chatbot')} title="Chatbot Management"><i className="bi bi-robot"></i></button>
-            </div>
-        </div>
-      </div>
+          {activeTab === 'recruitment' && (
+            <>
+              <div className="recruitment-controls-bar">
+                <div className="filters-group">
+                  <div className="input-group"><span className="input-group-text"><i className="bi bi-search"></i></span><input type="text" className="form-control" placeholder="Search by name or email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/></div>
+                  <div className="input-group"><span className="input-group-text">From</span><input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
+                  <div className="input-group"><span className="input-group-text">To</span><input type="date" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+                </div>
+                <div className="actions-group">
+                  <div className="view-toggle-buttons btn-group">
+                    <button className={`btn btn-sm ${viewMode === 'dashboard' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('dashboard')} title="Dashboard View"><i className="bi bi-speedometer2"></i></button>
+                    <button className={`btn btn-sm ${viewMode === 'list' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('list')} title="List View"><i className="bi bi-list-task"></i></button>
+                  </div>
+                </div>
+              </div>
+              
+              {viewMode === 'dashboard' ? renderDashboardView() : renderListView()}
+            </>
+          )}
           
-          {viewMode === 'board' ? renderBoardView() : (viewMode === 'list' ? renderListView() : <ChatbotManagementTab />)}
+          {activeTab === 'chatbot' && <ChatbotManagementTab />}
         </>
       )}
       

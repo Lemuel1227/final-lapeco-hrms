@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import './ChatbotManagementTab.css';
 import ConfirmationModal from '../../modals/ConfirmationModal';
 import ToastNotification from '../../common/ToastNotification';
 import { chatbotAPI } from '../../services/api';
@@ -16,6 +17,8 @@ const ChatbotManagementTab = () => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState({ key: 'question', dir: 'asc' });
   const [tagInputs, setTagInputs] = useState({});
+  const [expandedId, setExpandedId] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const [newItem, setNewItem] = useState({ type: DEFAULT_TYPE, question: '', answer: '' });
 
@@ -127,68 +130,105 @@ const ChatbotManagementTab = () => {
   };
 
   return (
-    <div className="mt-3 chatbot-manager">
-      <div className="card shadow-sm">
-        <div className="card-body">
-          <div className="qa-toolbar d-flex justify-content-between align-items-center mb-3">
-            <div className="d-flex align-items-center gap-2">
-              <label className="form-label fw-bold mb-0">Type</label>
-              <select className="form-select form-select-sm" value={filterType} onChange={e => setFilterType(e.target.value)}>
-                <option value="all">All</option>
-                <option value="recruitment">Recruitment</option>
-                <option value="faq">FAQ</option>
-              </select>
-              <div className="input-group input-group-sm ms-2" style={{maxWidth:'720px', flex:'1 1 720px'}}>
-                <span className="input-group-text"><i className="bi bi-search"></i></span>
-                <input type="text" className="form-control" placeholder="Search question or answer" value={search} onChange={e => setSearch(e.target.value)} />
-                <button className="btn btn-outline-secondary" onClick={loadData} title="Refresh"><i className="bi bi-arrow-clockwise"></i></button>
-              </div>
-            </div>
-            <div className="qa-summary text-muted">
-              <span className="me-3">Total: {counts.total}</span>
-              <span className="me-3">Active: {counts.active}</span>
-              <span>Inactive: {counts.inactive}</span>
+    <div className="chatbot-management-container">
+      {/* Stats Cards */}
+      <div className="chatbot-stats-row mb-4">
+        <div className="chatbot-stat-card">
+          <div className="stat-icon icon-total">
+            <i className="bi bi-chat-dots"></i>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{counts.total}</div>
+            <div className="stat-label">Total Q&A</div>
+          </div>
+        </div>
+        <div className="chatbot-stat-card">
+          <div className="stat-icon icon-active">
+            <i className="bi bi-check-circle"></i>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{counts.active}</div>
+            <div className="stat-label">Active</div>
+          </div>
+        </div>
+        <div className="chatbot-stat-card">
+          <div className="stat-icon icon-inactive">
+            <i className="bi bi-dash-circle"></i>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{counts.inactive}</div>
+            <div className="stat-label">Inactive</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add New Q&A Button & Search Section */}
+      <div className="qa-controls-section mb-4">
+        <div className="row g-2 align-items-center">
+          <div className="col-auto">
+            <select className="form-select form-select-sm" value={filterType} onChange={e => setFilterType(e.target.value)}>
+              <option value="all">All Types</option>
+              <option value="recruitment">Recruitment</option>
+              <option value="faq">FAQ</option>
+            </select>
+          </div>
+          <div className="col-12 col-md">
+            <div className="input-group input-group-sm">
+              <span className="input-group-text"><i className="bi bi-search"></i></span>
+              <input type="text" className="form-control" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+              <button className="btn btn-outline-secondary btn-sm" onClick={loadData} title="Refresh"><i className="bi bi-arrow-clockwise"></i></button>
             </div>
           </div>
-
-          <div className="qa-add-form border rounded p-3 mb-3 bg-light">
-            <div className="row g-2 align-items-center">
-              <div className="col-12 col-md-2">
-                <select className="form-select" value={newItem.type} onChange={e => setNewItem({ ...newItem, type: e.target.value })}>
-                  <option value="recruitment">Recruitment</option>
-                  <option value="faq">FAQ</option>
-                </select>
-              </div>
-              <div className="col-12 col-md-4">
-                <input type="text" className="form-control" placeholder="Question" value={newItem.question} onChange={e => setNewItem({ ...newItem, question: e.target.value })} />
-              </div>
-              <div className="col-12 col-md-5">
-                <input type="text" className="form-control" placeholder="Answer" value={newItem.answer} onChange={e => setNewItem({ ...newItem, answer: e.target.value })} />
-              </div>
-              <div className="col-12 col-md-1 d-grid">
-                <button className="btn btn-success" style={{height:'38px'}} onClick={addItem}><i className="bi bi-plus-lg"></i> Add</button>
-              </div>
-            </div>
+          <div className="col-auto">
+            <button className="btn btn-success btn-sm" onClick={() => setShowAddModal(true)}>
+              <i className="bi bi-plus-circle me-1"></i>Add Q&A
+            </button>
           </div>
+        </div>
+      </div>
 
-          {loading && (<div className="text-center p-4"><div className="spinner-border text-success" role="status"><span className="visually-hidden">Loading...</span></div></div>)}
-          {error && !loading && (<div className="alert alert-danger">{error}</div>)}
+      {/* Q&A Table */}
+      <div className="qa-table-section">
+        {loading && (
+          <div className="loading-container">
+            <div className="spinner-border text-success" role="status"><span className="visually-hidden">Loading...</span></div>
+            <p className="mt-3 text-muted">Loading Q&A data...</p>
+          </div>
+        )}
+        
+        {error && !loading && (<div className="alert alert-danger alert-dismissible fade show" role="alert">{error}<button type="button" className="btn-close" onClick={() => setError('')}></button></div>)}
 
-          {!loading && !error && (
-            <div className="table-responsive qa-table">
-              <table className="table table-sm table-bordered align-middle">
-                <thead>
-                  <tr>
-                    <th style={{width:'140px'}}>Type</th>
-                    <th style={{width:'35%'}}>Question</th>
-                    <th>Answer</th>
-                    <th style={{width:'120px'}} className="text-center">Status</th>
-                    <th style={{width:'200px'}} className="text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {normalized.map(item => (
-                    <tr key={item.id}>
+        {!loading && !error && (
+          <div className="table-responsive qa-table">
+            <table className="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th style={{width:'30px'}}></th>
+                  <th style={{width:'100px'}}>
+                    <span className="cursor-pointer d-inline-flex align-items-center gap-1" onClick={() => setSortKey('type')} title="Click to sort">
+                      Type {sort.key === 'type' && <i className={`bi bi-arrow-${sort.dir === 'asc' ? 'up' : 'down'}`}></i>}
+                    </span>
+                  </th>
+                  <th>
+                    <span className="cursor-pointer d-inline-flex align-items-center gap-1" onClick={() => setSortKey('question')} title="Click to sort">
+                      Question {sort.key === 'question' && <i className={`bi bi-arrow-${sort.dir === 'asc' ? 'up' : 'down'}`}></i>}
+                    </span>
+                  </th>
+                  <th style={{width:'100px'}} className="text-center">Status</th>
+                  <th style={{width:'150px'}} className="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {normalized.map(item => (
+                  <React.Fragment key={item.id}>
+                    <tr className={editingId === item.id ? 'editing' : ''}>
+                      <td className="expand-cell">
+                        {editingId !== item.id && (
+                          <button className="btn btn-sm btn-link expand-btn" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)} title="View answer">
+                            <i className={`bi bi-chevron-${expandedId === item.id ? 'up' : 'down'}`}></i>
+                          </button>
+                        )}
+                      </td>
                       <td>
                         {editingId === item.id ? (
                           <select className="form-select form-select-sm" value={item.type} onChange={e => updateField(item.id, 'type', e.target.value)}>
@@ -196,55 +236,71 @@ const ChatbotManagementTab = () => {
                             <option value="faq">FAQ</option>
                           </select>
                         ) : (
-                          <span className="badge bg-secondary">{item.type}</span>
+                          <span className={`badge bg-type-${item.type}`}>{item.type}</span>
                         )}
                       </td>
-                      <td>
+                      <td className="question-cell">
                         {editingId === item.id ? (
                           <input type="text" className="form-control form-control-sm" value={item.question || ''} onChange={e => updateField(item.id, 'question', e.target.value)} />
                         ) : (
-                          <div>{item.question}</div>
-                        )}
-                      </td>
-                      <td>
-                        {editingId === item.id ? (
-                          <textarea className="form-control form-control-sm" rows={2} value={item.answer || ''} onChange={e => updateField(item.id, 'answer', e.target.value)} />
-                        ) : (
-                          <div className="text-muted" style={{maxWidth:'520px'}}>{item.answer}</div>
+                          <span className="qa-text question-text">{item.question}</span>
                         )}
                       </td>
                       <td className="text-center">
                         {editingId === item.id ? (
-                          <div className="form-check form-switch">
+                          <div className="form-check form-switch d-flex justify-content-center">
                             <input className="form-check-input" type="checkbox" checked={!!item.active} onChange={e => updateField(item.id, 'active', e.target.checked)} />
                           </div>
                         ) : (
-                          <button type="button" className={`btn btn-sm ${item.active ? 'btn-success' : 'btn-outline-secondary'}`} onClick={() => quickToggleActive(item)}>{item.active ? 'Active' : 'Inactive'}</button>
+                          <span className={`status-badge status-${item.active ? 'active' : 'inactive'}`}>
+                            <i className={`bi bi-${item.active ? 'check-circle-fill' : 'circle'}`}></i>
+                            {item.active ? 'Active' : 'Inactive'}
+                          </span>
                         )}
                       </td>
                       <td className="text-center">
                         {editingId === item.id ? (
-                          <div className="d-inline-flex gap-2 justify-content-center">
-                            <button className="btn btn-sm btn-success" onClick={() => saveEdit(item.id)}><i className="bi bi-check-lg"></i> Save</button>
-                            <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit}><i className="bi bi-x-lg"></i> Cancel</button>
+                          <div className="action-buttons">
+                            <button className="btn btn-sm btn-success" onClick={() => saveEdit(item.id)} title="Save changes"><i className="bi bi-check-lg"></i></button>
+                            <button className="btn btn-sm btn-outline-secondary" onClick={cancelEdit} title="Cancel"><i className="bi bi-x-lg"></i></button>
                           </div>
                         ) : (
-                          <div className="d-inline-flex gap-2 justify-content-center">
-                            <button className="btn btn-sm btn-outline-primary" onClick={() => startEdit(item.id)}><i className="bi bi-pencil"></i> Edit</button>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => confirmDelete(item)}><i className="bi bi-trash"></i> Delete</button>
+                          <div className="action-buttons">
+                            <button className="btn btn-sm btn-outline-primary" onClick={() => startEdit(item.id)} title="Edit"><i className="bi bi-pencil"></i></button>
+                            <button className="btn btn-sm btn-outline-danger" onClick={() => confirmDelete(item)} title="Delete"><i className="bi bi-trash"></i></button>
                           </div>
                         )}
                       </td>
                     </tr>
-                  ))}
-                  {normalized.length === 0 && (
-                    <tr><td colSpan="5" className="text-center p-4">No items found.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                    {expandedId === item.id && editingId !== item.id && (
+                      <tr className="expand-row">
+                        <td colSpan="5">
+                          <div className="answer-expanded">
+                            <div className="answer-label">Answer:</div>
+                            <div className="answer-content">{item.answer}</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {editingId === item.id && (
+                      <tr className="expand-row editing-row">
+                        <td colSpan="5">
+                          <div className="answer-expanded">
+                            <div className="answer-label">Answer:</div>
+                            <textarea className="form-control form-control-sm" rows={3} value={item.answer || ''} onChange={e => updateField(item.id, 'answer', e.target.value)} />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+                {normalized.length === 0 && (
+                  <tr><td colSpan="5" className="text-center p-5"><div className="empty-state"><i className="bi bi-inbox"></i><p>No Q&A items found</p></div></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <ConfirmationModal
@@ -256,6 +312,40 @@ const ChatbotManagementTab = () => {
         confirmText="Delete"
         confirmVariant="danger"
       />
+
+      {/* Add New Q&A Modal */}
+      <div className={`modal fade ${showAddModal ? 'show' : ''}`} style={{display: showAddModal ? 'block' : 'none'}} tabIndex="-1">
+        <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-content">
+            <div className="modal-header border-0">
+              <h5 className="modal-title fw-bold">Add New Q&A</h5>
+              <button type="button" className="btn-close" onClick={() => { setShowAddModal(false); setNewItem({ type: DEFAULT_TYPE, question: '', answer: '' }); }}></button>
+            </div>
+            <div className="modal-body">
+              <div className="mb-3">
+                <label className="form-label fw-600">Type</label>
+                <select className="form-select" value={newItem.type} onChange={e => setNewItem({ ...newItem, type: e.target.value })}>
+                  <option value="recruitment">Recruitment</option>
+                  <option value="faq">FAQ</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="form-label fw-600">Question</label>
+                <input type="text" className="form-control" placeholder="Enter your question..." value={newItem.question} onChange={e => setNewItem({ ...newItem, question: e.target.value })} />
+              </div>
+              <div className="mb-3">
+                <label className="form-label fw-600">Answer</label>
+                <textarea className="form-control" rows="5" placeholder="Enter your answer..." value={newItem.answer} onChange={e => setNewItem({ ...newItem, answer: e.target.value })}></textarea>
+              </div>
+            </div>
+            <div className="modal-footer border-0">
+              <button type="button" className="btn btn-outline-secondary" onClick={() => { setShowAddModal(false); setNewItem({ type: DEFAULT_TYPE, question: '', answer: '' }); }}>Cancel</button>
+              <button type="button" className="btn btn-success" onClick={() => { addItem(); setShowAddModal(false); setNewItem({ type: DEFAULT_TYPE, question: '', answer: '' }); }}>Add Q&A</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {showAddModal && <div className="modal-backdrop fade show"></div>}
 
       {toast.show && (
         <ToastNotification
