@@ -1,11 +1,26 @@
 .applicant-details-modal .modal-body {
     padding: 0;
-    max-height: 75vh;
+    max-height: 85vh;
     overflow-y: hidden;
     background-color: var(--bg-secondary); 
     border-radius: 0.5rem;
   }
-  .applicant-details-container {
+  
+  .applicant-details-modal .employee-form-container {
+    height: 85vh;
+  }
+
+  .applicant-details-modal .employee-form-left-column {
+    overflow-y: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  
+  .applicant-details-modal .employee-form-left-column::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+ 
+   .applicant-details-container {
     display: flex;
     height: 100%;
     gap: 1.5rem;

@@ -161,7 +161,7 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
   return (
     <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
       <div className="modal-dialog modal-dialog-centered modal-xl">
-        <div className="modal-content">
+        <div className="modal-content applicant-details-modal">
           <div className="modal-header">
             <h5 className="modal-title">View Applicant Details</h5>
             <button type="button" className="btn-close" onClick={onClose} aria-label="Close"></button>
@@ -203,7 +203,7 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                     <div className="info-item"><i className="bi bi-calendar-check-fill"></i><span>Interview: {displayData.interview_schedule ? `${formatDate(displayData.interview_schedule.date)} at ${displayData.interview_schedule.time}` : 'Not Scheduled'}</span></div>
                 </div>
                 {displayData.resume_file && (
-                  <div className="d-flex flex-column gap-2">
+                  <div className="d-flex flex-column gap-2 mb-5 pb-3">
                     <button
                       type="button"
                       className="btn btn-primary btn-resume"
@@ -285,25 +285,65 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                 </ul>
                 <div className="tab-content">
                   {activeTab === 'personal' && (
-                    <div>
-                      <div className="info-card">
-                        <div className="details-grid">
-                          <div className="detail-group details-span-2"><p className="detail-label">Applied For</p><p className="detail-value">{jobTitle || displayData.applied_for || displayData.applied_position || 'N/A'}</p></div>
+                    <div className="p-3">
+                      <div className="mb-4">
+                        <h6 className="text-uppercase text-muted mb-3 fw-bold small border-bottom pb-2">Application Info</h6>
+                        <div className="row">
+                          <div className="col-12">
+                            <label className="form-label text-secondary small mb-1 d-block">Applied For</label>
+                            <span className="fw-bold fs-5 text-primary">{jobTitle || displayData.applied_for || displayData.applied_position || 'N/A'}</span>
+                          </div>
                         </div>
-                        <div className="details-grid-3">
-                          <div className="detail-group"><p className="detail-label">First Name</p><p className="detail-value">{displayData.first_name || 'N/A'}</p></div>
-                          <div className="detail-group"><p className="detail-label">Middle Name</p><p className="detail-value">{displayData.middle_name || 'N/A'}</p></div>
-                          <div className="detail-group"><p className="detail-label">Last Name</p><p className="detail-value">{displayData.last_name || 'N/A'}</p></div>
+                      </div>
+
+                      <div className="mb-4">
+                        <h6 className="text-uppercase text-muted mb-3 fw-bold small border-bottom pb-2">Personal Information</h6>
+                        <div className="row g-3">
+                          <div className="col-md-4">
+                            <label className="form-label text-secondary small mb-1 d-block">First Name</label>
+                            <span className="fw-semibold">{displayData.first_name || 'N/A'}</span>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label text-secondary small mb-1 d-block">Middle Name</label>
+                            <span className="fw-semibold">{displayData.middle_name || 'N/A'}</span>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label text-secondary small mb-1 d-block">Last Name</label>
+                            <span className="fw-semibold">{displayData.last_name || 'N/A'}</span>
+                          </div>
+                          
+                          <div className="col-md-4">
+                            <label className="form-label text-secondary small mb-1 d-block">Gender</label>
+                            <span>{displayData.gender || 'N/A'}</span>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label text-secondary small mb-1 d-block">Birthday</label>
+                            <span>{formatDate(displayData.birthday)}</span>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label text-secondary small mb-1 d-block">Age</label>
+                            <span>{age}</span>
+                          </div>
                         </div>
-                        <div className="details-grid mt-3">
-                          <div className="detail-group"><p className="detail-label">Gender</p><p className="detail-value">{displayData.gender || 'N/A'}</p></div>
-                          <div className="detail-group"><p className="detail-label">Age</p><p className="detail-value">{age}</p></div>
-                          <div className="detail-group"><p className="detail-label">Birthday</p><p className="detail-value">{formatDate(displayData.birthday)}</p></div>
-                          <div className="detail-group"><p className="detail-label">Email</p><p className="detail-value">{displayData.email || 'N/A'}</p></div>
-                        </div>
-                        <div className="details-grid mt-3">
-                          <div className="detail-group"><p className="detail-label">Phone</p><p className="detail-value">{displayData.phone || 'N/A'}</p></div>
-                          <div className="detail-group details-span-2"><p className="detail-label">Address</p><p className="detail-value">{displayData.address || 'N/A'}</p></div>
+                      </div>
+
+                      <div>
+                        <h6 className="text-uppercase text-muted mb-3 fw-bold small border-bottom pb-2">Contact Details</h6>
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <label className="form-label text-secondary small mb-1 d-block">Email Address</label>
+                            <a href={`mailto:${displayData.email}`} className="text-decoration-none">
+                              {displayData.email || 'N/A'}
+                            </a>
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label text-secondary small mb-1 d-block">Phone Number</label>
+                            <span>{displayData.phone || 'N/A'}</span>
+                          </div>
+                          <div className="col-12">
+                            <label className="form-label text-secondary small mb-1 d-block">Address</label>
+                            <span>{displayData.address || 'N/A'}</span>
+                          </div>
                         </div>
                       </div>
                     </div>

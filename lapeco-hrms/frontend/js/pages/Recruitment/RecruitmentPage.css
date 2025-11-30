@@ -78,23 +78,39 @@
   flex-shrink: 0;
 }
 
-.recruitment-controls-bar .view-toggle-buttons {
-  background-color: var(--bg-tertiary);
-  border-radius: 8px;
-  padding: 0.35rem;
-}
-
-.recruitment-controls-bar .view-toggle-buttons .btn {
+.recruitment-controls-bar .view-toggle-container {
+  background-color: #f1f3f5;
   border-radius: 6px;
-  font-size: 0.85rem;
-  padding: 0.4rem 0.75rem;
-  transition: all 0.2s ease;
+  padding: 4px;
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--border-color);
 }
 
-.recruitment-controls-bar .view-toggle-buttons .btn.active {
-  background-color: var(--app-success-color);
-  color: var(--text-on-success);
-  box-shadow: 0 2px 8px rgba(var(--app-success-rgb), 0.3);
+.view-toggle-btn {
+  border: none;
+  background: transparent;
+  color: #adb5bd;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.view-toggle-btn:hover {
+  color: #495057;
+}
+
+.view-toggle-btn.active {
+  background-color: white;
+  color: var(--app-success-color);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 @media (max-width: 1024px) {
@@ -193,13 +209,13 @@
 }
 
 .stage-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+  transform: translateY(-4px);
+  box-shadow: 0 14px 28px rgba(0,0,0,0.06), 0 10px 10px rgba(0,0,0,0.04);
   border-color: var(--app-success-color);
 }
 
 .pipeline-stage.active .stage-card {
-  box-shadow: 0 8px 24px rgba(var(--app-success-rgb), 0.3);
+  box-shadow: 0 12px 24px -4px rgba(var(--app-success-rgb), 0.15), 0 8px 16px -4px rgba(var(--app-success-rgb), 0.1);
   border-color: var(--app-success-color);
   transform: translateY(-4px);
 }
@@ -517,16 +533,18 @@
 }
 
 .data-table thead {
-  background-color: var(--bg-tertiary);
+  background-color: #f1f3f5;
   border-bottom: 2px solid var(--border-color);
 }
 
 .data-table thead th {
-  color: var(--text-primary);
-  font-weight: 700;
+  color: #6c757d;
+  font-weight: 600;
   padding: 1rem;
   border: none;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .data-table tbody td {

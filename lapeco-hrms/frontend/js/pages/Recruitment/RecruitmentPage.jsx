@@ -476,7 +476,6 @@ const RecruitmentPage = () => {
       <div className="recruitment-dashboard">
         {/* Pipeline Funnel Overview - Clickable for Filtering */}
         <div className="pipeline-funnel-section mb-4">
-          <h3 className="section-title">Recruitment Pipeline</h3>
           <div className="pipeline-funnel-container">
             {/* All Filter Card */}
             <div 
@@ -576,12 +575,22 @@ const RecruitmentPage = () => {
                     >
                       <i className="bi bi-eye"></i> View
                     </button>
-                    <button 
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => { setSelectedApplicant(applicant); setShowInterviewModal(true); }}
-                    >
-                      <i className="bi bi-calendar"></i>
-                    </button>
+                    <ActionsDropdown>
+                      {!['Interview', 'Hired', 'Rejected'].includes(applicant.status) && (
+                        <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setSelectedApplicant(applicant); setShowInterviewModal(true); }}>Schedule Interview</a>
+                      )}
+                      
+                      {!['Hired', 'Rejected'].includes(applicant.status) && (
+                        <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); setSelectedApplicant(applicant); setShowHireModal(true); }}>Hire</a>
+                      )}
+
+                      {!['Hired', 'Rejected'].includes(applicant.status) && (
+                        <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); setApplicantToReject(applicant); }}>Reject</a>
+                      )}
+
+                      <div className="dropdown-divider"></div>
+                      <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); setApplicantToDelete(applicant); }}>Delete</a>
+                    </ActionsDropdown>
                   </div>
                 </div>
               ))}
@@ -628,7 +637,6 @@ const RecruitmentPage = () => {
                 <td>{applicant.gender}</td><td>{calculateAge(applicant.birthday)}</td>
                 <td>
                   <div>{applicant.phone}</div>
-                  {applicant.address && (<div><small className="text-muted">{applicant.address}</small></div>)}
                 </td>
                 <td>{formatDate(applicant.application_date || applicant.applicationDate)}</td>
                 <td>{formatDate(applicant.updated_at, true)}</td>
@@ -726,9 +734,21 @@ const RecruitmentPage = () => {
                   <div className="input-group"><span className="input-group-text">To</span><input type="date" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
                 </div>
                 <div className="actions-group">
-                  <div className="view-toggle-buttons btn-group">
-                    <button className={`btn btn-sm ${viewMode === 'dashboard' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('dashboard')} title="Dashboard View"><i className="bi bi-speedometer2"></i></button>
-                    <button className={`btn btn-sm ${viewMode === 'list' ? 'active' : 'btn-outline-secondary'}`} onClick={() => setViewMode('list')} title="List View"><i className="bi bi-list-task"></i></button>
+                  <div className="view-toggle-container">
+                    <button 
+                      className={`view-toggle-btn ${viewMode === 'dashboard' ? 'active' : ''}`} 
+                      onClick={() => setViewMode('dashboard')} 
+                      title="Dashboard View"
+                    >
+                      <i className="bi bi-speedometer2"></i>
+                    </button>
+                    <button 
+                      className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`} 
+                      onClick={() => setViewMode('list')} 
+                      title="List View"
+                    >
+                      <i className="bi bi-list-ul"></i>
+                    </button>
                   </div>
                 </div>
               </div>
