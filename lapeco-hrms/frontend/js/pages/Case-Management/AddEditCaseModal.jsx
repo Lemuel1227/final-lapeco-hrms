@@ -8,6 +8,7 @@ const INCIDENT_TYPES = [
   'Company Policy Violation',
   'Poor Performance',
   'Misconduct',
+  'Damaged Equipment / Products',
   'Other',
 ];
 
@@ -20,6 +21,7 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees, onDelete
     description: '',
     nextSteps: '',
     status: 'Ongoing',
+    chargeFee: '',
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -116,6 +118,25 @@ const AddEditCaseModal = ({ show, onClose, onSave, caseData, employees, onDelete
                     ))}
                   </select>
                 </div>
+                {formData.reason === 'Damaged Equipment / Products' && (
+                  <div className="col-12">
+                    <label htmlFor="chargeFee" className="form-label">Charge Fee (Amount)</label>
+                    <div className="input-group">
+                      <span className="input-group-text">₱</span>
+                      <input 
+                        type="number" 
+                        id="chargeFee" 
+                        name="chargeFee" 
+                        className="form-control" 
+                        value={formData.chargeFee} 
+                        onChange={handleChange} 
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="col-12">
                   <label htmlFor="description" className="form-label">Description of Incident</label>
                   <textarea id="description" name="description" className="form-control" rows="4" value={formData.description} onChange={handleChange} placeholder="Provide specific details about the incident..."></textarea>

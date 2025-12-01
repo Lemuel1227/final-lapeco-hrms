@@ -19,7 +19,10 @@ class DisciplinaryCase extends Model
         'approval_status', // pending or approved
         'reported_by', // user id who reported/created the case
         'resolution_taken', // Resolution / Next Steps in frontend
-        'attachment' // PDF attachment only
+        'attachment', // PDF attachment only
+        'charge_fee',
+        'is_deducted',
+        'payroll_period_id'
     ];
 
     protected $casts = [

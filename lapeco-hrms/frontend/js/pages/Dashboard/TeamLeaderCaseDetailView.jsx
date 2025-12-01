@@ -104,6 +104,14 @@ export default function TeamLeaderCaseDetailView({
                       {format(new Date(caseInfo.issueDate), 'MMM dd, yyyy')}
                   </div>
               </div>
+              {caseInfo.chargeFee && (
+                  <div className="meta-item">
+                      <span className="meta-label">Charge Fee</span>
+                      <div className="meta-value text-danger fw-bold">
+                          ₱{parseFloat(caseInfo.chargeFee).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </div>
+                  </div>
+              )}
               {caseInfo.approvalStatus && (
                   <div className="meta-item">
                       <span className="meta-label">Approval Status</span>

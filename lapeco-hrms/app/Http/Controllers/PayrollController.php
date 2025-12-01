@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DisciplinaryCase;
 use App\Models\EmployeePayroll;
 use App\Models\Holiday;
 use App\Models\Leave;
@@ -667,6 +668,13 @@ class PayrollController extends Controller
     {
         $period = PayrollPeriod::findOrFail($periodId);
         
+        // Reset linked disciplinary cases
+        DisciplinaryCase::where('payroll_period_id', $periodId)
+            ->update([
+                'is_deducted' => false,
+                'payroll_period_id' => null
+            ]);
+
         // Delete all related payroll records first
         $employeePayrolls = EmployeePayroll::where('period_id', $periodId)->get();
         
@@ -1207,6 +1215,15 @@ class PayrollController extends Controller
             ->where('status', 'Approved')
             ->whereBetween('date_from', [$period->period_start, $period->period_end])
             ->get();
+        
+        // Fetch approved disciplinary cases with charge fee not yet deducted
+        $disciplinaryCases = DisciplinaryCase::where('employee_id', $user->id)
+            ->whereNotNull('charge_fee')
+            ->where('charge_fee', '>', 0)
+            ->where('is_deducted', false)
+            // Ensure case is approved (HR approval)
+            ->where('approval_status', 'approved')
+            ->get();
 
         // Fetch leave credits for the current year
         $currentYear = $period->period_start->year;
@@ -1258,7 +1275,12 @@ class PayrollController extends Controller
         $lateRate = $position?->late_deduction_per_minute ?? 0;
         $lateDeduction = round($totalLateMinutes * abs((float) $lateRate), 2);
 
-        $totalDeductions = $lateDeduction;
+        $chargeFeeDeduction = 0;
+        foreach ($disciplinaryCases as $case) {
+            $chargeFeeDeduction += (float) $case->charge_fee;
+        }
+
+        $totalDeductions = $lateDeduction + $chargeFeeDeduction;
 
         $employeePayroll = EmployeePayroll::create([
             'period_id' => $period->id,
@@ -1286,6 +1308,19 @@ class PayrollController extends Controller
                 'employees_payroll_id' => $employeePayroll->id,
                 'deduction_type' => 'Late',
                 'deduction_pay' => $lateDeduction,
+            ]);
+        }
+
+        foreach ($disciplinaryCases as $case) {
+            PayrollDeduction::create([
+                'employees_payroll_id' => $employeePayroll->id,
+                'deduction_type' => 'Damaged Equipment / Products', // Matches incident type
+                'deduction_pay' => $case->charge_fee,
+            ]);
+
+            $case->update([
+                'is_deducted' => true,
+                'payroll_period_id' => $period->id,
             ]);
         }
 

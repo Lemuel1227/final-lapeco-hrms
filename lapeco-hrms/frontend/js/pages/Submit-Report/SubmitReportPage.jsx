@@ -16,6 +16,7 @@ const INCIDENT_TYPES = [
   'Company Policy Violation',
   'Poor Performance',
   'Misconduct',
+  'Damaged Equipment / Products',
   'Other',
 ];
 
@@ -41,6 +42,7 @@ const SubmitReportPage = () => {
     reason: INCIDENT_TYPES[0],
     description: '',
     attachment: null,
+    chargeFee: '',
   });
   const [errors, setErrors] = useState({});
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -266,6 +268,10 @@ const SubmitReportPage = () => {
       payload.append('incident_date', formData.issueDate);
       payload.append('reason', formData.reason);
 
+      if (formData.reason === 'Damaged Equipment / Products' && formData.chargeFee) {
+        payload.append('charge_fee', formData.chargeFee);
+      }
+
       if (formData.attachment) {
         payload.append('attachment', formData.attachment);
       }
@@ -352,6 +358,26 @@ const SubmitReportPage = () => {
                           ))}
                         </select>
                       </div>
+                      {formData.reason === 'Damaged Equipment / Products' && (
+                        <div className="col-12">
+                          <label htmlFor="chargeFee" className="form-label fw-bold">Charge Fee (Amount to be deducted)</label>
+                          <div className="input-group">
+                            <span className="input-group-text">₱</span>
+                            <input 
+                              type="number" 
+                              id="chargeFee" 
+                              name="chargeFee" 
+                              className="form-control" 
+                              value={formData.chargeFee} 
+                              onChange={handleChange} 
+                              placeholder="0.00"
+                              step="0.01"
+                              min="0"
+                            />
+                          </div>
+                          <div className="form-text text-muted">This amount will appear as a deduction in payroll.</div>
+                        </div>
+                      )}
                       <div className="col-12">
                         <label htmlFor="description" className="form-label fw-bold">Detailed Description*</label>
                         <textarea 

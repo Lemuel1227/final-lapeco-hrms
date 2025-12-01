@@ -58,6 +58,7 @@ const mapCaseFromApi = (caseData, fallbackActionLogs = []) => {
     actionLog: normalizeActionLogs(actionLogsSource),
     attachments: caseData.attachment ? [caseData.attachment] : [],
     nextSteps: caseData.resolution_taken,
+    chargeFee: caseData.charge_fee || '',
   };
 };
 
@@ -142,6 +143,7 @@ const CaseManagementPage = () => {
           })),
           attachments: c.attachment ? [c.attachment] : [], // Convert single attachment to array
           nextSteps: c.resolution_taken, // Map resolution_taken to nextSteps
+          chargeFee: c.charge_fee || '',
         }));
         
         // Split approved vs pending for UI rules
@@ -376,6 +378,7 @@ const CaseManagementPage = () => {
         status: newCase.status,
         resolution_taken: newCase.nextSteps,
         attachment: newCase.attachment || null,
+        charge_fee: newCase.chargeFee || null,
       };
 
       const response = await disciplinaryCaseAPI.create(transformedCase);
@@ -398,6 +401,7 @@ const CaseManagementPage = () => {
         actionLog: [], // New cases won't have action logs initially
         attachments: response.data.attachment ? [response.data.attachment] : [], // Convert single attachment to array
         nextSteps: response.data.resolution_taken, // Map resolution_taken to nextSteps
+        chargeFee: response.data.charge_fee || '',
       };
       
       // Add to appropriate list based on approval_status
@@ -424,6 +428,7 @@ const CaseManagementPage = () => {
         status: updatedCase.status,
         resolution_taken: updatedCase.nextSteps,
         attachment: updatedCase.attachment || null,
+        charge_fee: updatedCase.chargeFee || null,
       };
 
       const response = await disciplinaryCaseAPI.update(editingCase.caseId, transformedCase);
@@ -452,6 +457,7 @@ const CaseManagementPage = () => {
         })),
         attachments: response.data.attachment ? [response.data.attachment] : [], // Convert single attachment to array
         nextSteps: response.data.resolution_taken, // Map resolution_taken to nextSteps
+        chargeFee: response.data.charge_fee || '',
       };
       
       setCases(prev => prev.map(c => c.caseId === editingCase.caseId ? editedCase : c));

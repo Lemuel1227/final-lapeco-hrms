@@ -18,10 +18,11 @@
          'Safety Violation',
          'Insubordination',
          'Company Policy Violation',
-         'Poor Performance',
-         'Misconduct',
-         'Other',
-     ];
+        'Poor Performance',
+        'Misconduct',
+        'Damaged Equipment / Products',
+        'Other',
+    ];
  
      /**
       * Display a listing of disciplinary cases.
@@ -48,10 +49,11 @@
              'reason' => ['required', 'string', 'max:255', Rule::in(self::ALLOWED_REASONS)],
              'status' => 'nullable|string|max:255',
              'resolution_taken' => 'nullable|string',
-             'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,txt|max:5120',
-             'reported_by' => 'nullable|exists:users,id',
-             'approval_status' => 'nullable|in:pending,approved'
-         ]);
+            'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,txt|max:5120',
+            'reported_by' => 'nullable|exists:users,id',
+            'approval_status' => 'nullable|in:pending,approved',
+            'charge_fee' => 'nullable|numeric|min:0',
+        ]);
  
          $user = $request->user();
          $reportedById = $validated['reported_by'] ?? ($user ? $user->id : null);
@@ -136,10 +138,11 @@
              'reason' => ['sometimes', 'string', 'max:255', Rule::in(self::ALLOWED_REASONS)],
              'status' => 'sometimes|string|max:255',
              'resolution_taken' => 'nullable|string',
-             'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,txt|max:5120',
-             'reported_by' => 'sometimes|nullable|exists:users,id',
-             'approval_status' => 'sometimes|in:pending,approved,declined'
-         ]);
+            'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,txt|max:5120',
+            'reported_by' => 'sometimes|nullable|exists:users,id',
+            'approval_status' => 'sometimes|in:pending,approved,declined',
+            'charge_fee' => 'nullable|numeric|min:0',
+        ]);
  
          $updateData = $validated;
          unset($updateData['attachment']);
