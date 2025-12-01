@@ -41,8 +41,8 @@ class ResignationSeeder extends Seeder
         $statuses = ['pending', 'approved'];
 
         foreach ($employees as $index => $employee) {
-            $submissionDate = Carbon::now()->subDays(rand(1, 60));
-            $effectiveDate = $submissionDate->copy()->addDays(rand(15, 45));
+            $submissionDate = Carbon::now()->subDays(rand(30, 365 * 3));
+            $effectiveDate = $submissionDate->copy()->addDays(rand(30, 90));
             $status = $statuses[array_rand($statuses)];
             
             $resignationData = [

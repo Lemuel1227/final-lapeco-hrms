@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import EditLeaveCreditsModal from '../../modals/EditLeaveCreditsModal';
 import LeaveHistoryModal from '../../modals/LeaveHistoryModal';
 import BulkAddLeaveCreditsModal from '../../modals/BulkAddLeaveCreditsModal';
@@ -17,39 +17,46 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
   const [isSavingIndividual, setIsSavingIndividual] = useState(false);
   const [isBulkAdding, setIsBulkAdding] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    return Array.from({ length: 4 }, (_, index) => current - index);
+  }, []);
+
+  const fetchLeaveCreditsForYear = useCallback(async (year) => {
+    setLoading(true);
+    try {
+      const response = await leaveAPI.getAllLeaveCredits({ year });
+      const payload = response?.data;
+      const records = Array.isArray(payload) ? payload : (payload?.data ?? []);
+      const creditsMap = {};
+
+      records.forEach(({ user, leave_credits }) => {
+        creditsMap[user.id] = leave_credits;
+      });
+
+      setLeaveCreditsData(creditsMap);
+    } catch (error) {
+      console.error('Failed to fetch leave credits:', error);
+      setLeaveCreditsData({});
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Show all employees regardless of status
   const allEmployees = useMemo(() => employees, [employees]);
 
   // Fetch leave credits for all employees
   useEffect(() => {
-    const fetchLeaveCredits = async () => {
-      setLoading(true);
-      try {
-        // Use bulk API endpoint to fetch all users' leave credits in one request
-        const response = await leaveAPI.getAllLeaveCredits();
-        const creditsMap = {};
-        
-        // Transform the bulk response to match the expected format
-        response.data.forEach(({ user, leave_credits }) => {
-          creditsMap[user.id] = leave_credits;
-        });
-        
-        setLeaveCreditsData(creditsMap);
-      } catch (error) {
-        console.error('Failed to fetch leave credits:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (allEmployees.length > 0) {
-      fetchLeaveCredits();
+      fetchLeaveCreditsForYear(selectedYear);
     }
-  }, [allEmployees]);
+  }, [allEmployees, selectedYear, fetchLeaveCreditsForYear]);
 
   const employeeLeaveData = useMemo(() => {
-    const currentYear = new Date().getFullYear();
+    const currentYear = selectedYear;
     
     const calculatedData = allEmployees.map(emp => {
         // Get leave credits from API data
@@ -157,13 +164,14 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
       ];
 
       for (const payload of creditPayloads) {
-        await leaveAPI.updateLeaveCredits(employeeId, payload);
+        await leaveAPI.updateLeaveCredits(employeeId, payload, { year: selectedYear });
       }
       // Refresh leave credits data
-      const response = await leaveAPI.getLeaveCredits(employeeId);
+      const response = await leaveAPI.getLeaveCredits(employeeId, { year: selectedYear });
+      const refreshed = response?.data?.data ?? response?.data ?? {};
       setLeaveCreditsData(prev => ({
         ...prev,
-        [employeeId]: response.data
+        [employeeId]: refreshed
       }));
       setShowEditModal(false);
       if (onShowToast) {
@@ -188,12 +196,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
       // Use the new bulk API endpoint - much faster!
       const response = await leaveAPI.bulkAddCredits(creditsToAdd);
       
-      const creditsResponse = await leaveAPI.getAllLeaveCredits();
-      const creditsMap = {};
-      creditsResponse.data.forEach(({ user, leave_credits }) => {
-        creditsMap[user.id] = leave_credits;
-      });
-      setLeaveCreditsData(creditsMap);
+      await fetchLeaveCreditsForYear(selectedYear);
       
       setShowBulkAddModal(false);
       
@@ -217,15 +220,7 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
     try {
       await leaveAPI.resetUsedCredits(resetData);
       // Refresh all leave credits data using bulk endpoint for better performance
-      const response = await leaveAPI.getAllLeaveCredits();
-      const creditsMap = {};
-      
-      // Transform the bulk response to match the expected format
-      response.data.forEach(({ user, leave_credits }) => {
-        creditsMap[user.id] = leave_credits;
-      });
-      
-      setLeaveCreditsData(creditsMap);
+      await fetchLeaveCreditsForYear(selectedYear);
       setShowResetModal(false);
       if (onShowToast) {
         onShowToast({ message: 'Leave credits reset successfully.', type: 'success' });
@@ -260,7 +255,19 @@ const LeaveCreditsTab = ({ employees, leaveRequests, handlers, onShowToast }) =>
           <span className="input-group-text"><i className="bi bi-search"></i></span>
           <input type="text" className="form-control" placeholder="Search by employee name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 align-items-center">
+          <div className="d-flex align-items-center gap-2">
+            <label className="form-label mb-0 text-muted" style={{ fontSize: '0.85rem' }}>Year:</label>
+            <select
+              className="form-select form-select-sm"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+            >
+              {yearOptions.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
           <button className="btn btn-warning" onClick={() => setShowResetModal(true)}>
             <i className="bi bi-arrow-clockwise me-2"></i>Reset Credits
           </button>

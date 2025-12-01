@@ -4,7 +4,7 @@ import LeaveCreditsTab from './LeaveCreditsTab';
 import LeaveReportModal from '../../modals/LeaveReportModal';
 import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
-import { leaveAPI, employeeAPI } from '../../services/api';
+import { leaveAPI, employeeAPI, leaveCashConversionAPI } from '../../services/api';
 import './LeaveManagementPage.css';
 import NotificationToast from '../../common/ToastNotification';
 
@@ -27,6 +27,14 @@ const LeaveManagementPage = () => {
   const [autoDeclineDays, setAutoDeclineDays] = useState(0);
   const [savingAutoDecline, setSavingAutoDecline] = useState(false);
   const [savingPolicy, setSavingPolicy] = useState(false);
+  const [cashYear, setCashYear] = useState(new Date().getFullYear());
+  const [cashSummary, setCashSummary] = useState({ totalPayout: 0 });
+  const [cashRecords, setCashRecords] = useState([]);
+  const [cashSearchTerm, setCashSearchTerm] = useState('');
+  const [cashSortConfig, setCashSortConfig] = useState({ key: 'name', direction: 'ascending' });
+  const [loadingCash, setLoadingCash] = useState(false);
+  const [generatingCash, setGeneratingCash] = useState(false);
+  const [markingCash, setMarkingCash] = useState(false);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -229,6 +237,115 @@ const LeaveManagementPage = () => {
     });
   };
 
+  const loadCashConversion = async (year) => {
+    try {
+      setLoadingCash(true);
+      const res = await leaveCashConversionAPI.getSummary({ year });
+      const data = res?.data || {};
+      setCashSummary({
+        totalPayout: Number(data.summary?.totalPayout || 0),
+      });
+      setCashRecords(Array.isArray(data.records) ? data.records : []);
+    } catch (err) {
+      showToast({ message: 'Failed to load leave cash conversions.', type: 'danger' });
+      setCashSummary({ totalPayout: 0 });
+      setCashRecords([]);
+    } finally {
+      setLoadingCash(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'cash-conversion') {
+      loadCashConversion(cashYear);
+    }
+  }, [activeTab, cashYear]);
+
+  const handleGenerateCash = async () => {
+    try {
+      setGeneratingCash(true);
+      await leaveCashConversionAPI.generate({ year: cashYear });
+      showToast({ message: `Leave cash conversion generated for ${cashYear}.`, type: 'success' });
+      await loadCashConversion(cashYear);
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Failed to generate leave cash conversion.';
+      showToast({ message, type: 'danger' });
+    } finally {
+      setGeneratingCash(false);
+    }
+  };
+
+  const handleMarkCashStatus = async (status, id = null) => {
+    try {
+      if (id) {
+        const response = await leaveCashConversionAPI.updateStatus(id, status);
+        const payload = response?.data || {};
+        setCashRecords(prev => prev.map(record => {
+          if (record.id !== id) return record;
+          return {
+            ...record,
+            status: payload.status || status,
+            processedAt: payload.processedAt,
+            paidAt: payload.paidAt,
+          };
+        }));
+        showToast({ message: 'Status updated.', type: 'success' });
+      } else {
+        setMarkingCash(true);
+        await leaveCashConversionAPI.markAll({ year: cashYear, status });
+        setCashRecords(prev => prev.map(record => record.id ? { ...record, status } : record));
+        const bulkMessage = status === 'Pending' ? 'Statuses reset to Pending.' : 'All records marked as Paid.';
+        showToast({ message: bulkMessage, type: 'success' });
+      }
+      await loadCashConversion(cashYear);
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Failed to update status.';
+      showToast({ message, type: 'danger' });
+    } finally {
+      if (!id) {
+        setMarkingCash(false);
+      }
+    }
+  };
+
+  const filteredCashRecords = useMemo(() => {
+    const term = cashSearchTerm.toLowerCase();
+    const filtered = cashRecords.filter(record => {
+      return (
+        (record.name || '').toLowerCase().includes(term) ||
+        String(record.employeeId || '').toLowerCase().includes(term)
+      );
+    });
+
+    return [...filtered].sort((a, b) => {
+      const key = cashSortConfig.key;
+      const direction = cashSortConfig.direction === 'ascending' ? 1 : -1;
+      const valA = a[key];
+      const valB = b[key];
+
+      if (typeof valA === 'string') {
+        return valA.localeCompare(valB) * direction;
+      }
+      return (Number(valA) - Number(valB)) * direction;
+    });
+  }, [cashRecords, cashSearchTerm, cashSortConfig]);
+
+  const hasPersistedRecords = useMemo(() => cashRecords.some(record => record.id), [cashRecords]);
+
+  const requestCashSort = (key) => {
+    setCashSortConfig(prev => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'ascending' ? 'descending' : 'ascending' };
+      }
+      return { key, direction: 'ascending' };
+    });
+  };
+
+  const cashSortIcon = (key) => {
+    if (cashSortConfig.key !== key) return <i className="bi bi-arrow-down-up sort-icon ms-1"></i>;
+    return cashSortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
+  };
+
   const handleGenerateReport = (params) => {
     setShowReportModal(false);
     generateReport(
@@ -295,6 +412,14 @@ const LeaveManagementPage = () => {
                 </li>
                 <li className="nav-item">
                   <button 
+                    className={`nav-link ${activeTab === 'cash-conversion' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('cash-conversion')}
+                  >
+                    <i className="bi bi-cash-coin me-2"></i>Leave Cash Conversion
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button 
                     className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`}
                     onClick={() => setActiveTab('settings')}
                   >
@@ -321,6 +446,116 @@ const LeaveManagementPage = () => {
                   handlers={handlers}
                   onShowToast={showToast}
                 />
+              )}
+              {activeTab === 'cash-conversion' && (
+                <div className="cash-conversion-container">
+                  <div className="cash-summary-grid">
+                    <div className="summary-card-cash">
+                      <div className="summary-label"><i className="bi bi-cash-stack me-2"></i>Total Cash Out</div>
+                      <div className="summary-value text-success">₱{cashSummary.totalPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                  </div>
+
+                  <div className="card data-table-card shadow-sm">
+                    <div className="card-header cash-controls">
+                      <div className="controls-left">
+                        <div className="input-group">
+                          <span className="input-group-text"><i className="bi bi-search"></i></span>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Search employees..."
+                            value={cashSearchTerm}
+                            onChange={(e) => setCashSearchTerm(e.target.value)}
+                            disabled={loadingCash || generatingCash || markingCash}
+                          />
+                        </div>
+                        <div className="year-selector-group">
+                          <label htmlFor="cash-year-select" className="form-label">Year:</label>
+                          <select
+                            id="cash-year-select"
+                            className="form-select form-select-sm"
+                            value={cashYear}
+                            onChange={(e) => setCashYear(Number(e.target.value))}
+                            disabled={loadingCash || generatingCash || markingCash}
+                          >
+                            {[0,1,2,3,4].map(offset => {
+                              const yearOption = new Date().getFullYear() - offset;
+                              return <option key={yearOption} value={yearOption}>{yearOption}</option>;
+                            })}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="controls-right d-flex gap-2">
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => handleMarkCashStatus('Pending')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
+                          <i className="bi bi-arrow-counterclockwise me-2"></i>Reset Status
+                        </button>
+                        <button className="btn btn-sm btn-success" onClick={() => handleMarkCashStatus('Paid')} disabled={!hasPersistedRecords || loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
+                          <i className="bi bi-cash-coin me-2"></i>Mark All as Paid
+                        </button>
+                        <button className="btn btn-sm btn-outline-success" onClick={handleGenerateCash} disabled={loadingCash || generatingCash || markingCash}>
+                          {generatingCash ? (<><span className="spinner-border spinner-border-sm me-2" role="status" />Generating...</>) : (<><i className="bi bi-gear-fill me-2"></i>Generate</>)}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="table-responsive position-relative" style={{ minHeight: '220px' }}>
+                      {(loadingCash || markingCash) && (
+                        <div className="d-flex flex-column align-items-center justify-content-center position-absolute top-0 start-0 w-100 h-100" style={{ background: 'rgba(0,0,0,0.03)' }}>
+                          <div className="spinner-border text-success" role="status"></div>
+                          <div className="mt-3 text-muted fw-medium">{markingCash ? 'Updating statuses...' : 'Loading leave cash conversion'}</div>
+                        </div>
+                      )}
+                      <table className="table data-table mb-0 align-middle">
+                        <thead>
+                          <tr>
+                            <th className="sortable" style={{ width: '12%' }} onClick={() => requestCashSort('employeeId')}>Employee ID {cashSortIcon('employeeId')}</th>
+                            <th className="sortable" style={{ width: '24%' }} onClick={() => requestCashSort('name')}>Employee Name {cashSortIcon('name')}</th>
+                            <th className="text-center sortable" style={{ width: '12%' }} onClick={() => requestCashSort('vacationDays')}>Vacation Days {cashSortIcon('vacationDays')}</th>
+                            <th className="text-center sortable" style={{ width: '12%' }} onClick={() => requestCashSort('sickDays')}>Sick Days {cashSortIcon('sickDays')}</th>
+                            <th className="text-end sortable" style={{ width: '14%' }} onClick={() => requestCashSort('conversionRate')}>Daily Rate {cashSortIcon('conversionRate')}</th>
+                            <th className="text-end sortable" style={{ width: '14%' }} onClick={() => requestCashSort('totalAmount')}>Total Amount {cashSortIcon('totalAmount')}</th>
+                            <th className="text-center" style={{ width: '12%' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredCashRecords.length > 0 ? filteredCashRecords.map(record => (
+                            <tr key={`${record.userId}-${record.year || cashYear}`}>
+                              <td>{record.employeeId}</td>
+                              <td>
+                                <div className="fw-bold">{record.name}</div>
+                                <div className="text-muted" style={{ fontSize: '0.8rem' }}>{record.position || '–'}</div>
+                              </td>
+                              <td className="text-center fw-semibold">{record.vacationDays}</td>
+                              <td className="text-center fw-semibold">{record.sickDays}</td>
+                              <td className="text-end">₱{Number(record.conversionRate || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="text-end text-success fw-bold">₱{Number(record.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="text-center">
+                                <select
+                                  className={`form-select form-select-sm status-select status-select-${(record.status || 'pending').toLowerCase()}`}
+                                  value={record.status || 'Pending'}
+                                  onChange={(e) => handleMarkCashStatus(e.target.value, record.id)}
+                                  disabled={!record.id || loadingCash || generatingCash || markingCash}
+                                >
+                                  <option value="Pending">Pending</option>
+                                  <option value="Paid">Paid</option>
+                                </select>
+                              </td>
+                            </tr>
+                          )) : (
+                            <tr>
+                              <td colSpan="7">
+                                <div className="text-center p-5">
+                                  <i className="bi bi-info-circle fs-1 text-muted mb-3 d-block"></i>
+                                  <h5 className="text-muted">{loadingCash ? 'Preparing leave cash conversion data...' : `No conversion records found for ${cashYear}.`}</h5>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               )}
               {activeTab === 'settings' && (
                 <div className="p-3">

@@ -12,6 +12,7 @@ use App\Models\PayrollEarning;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollStatutoryRequirement;
 use App\Models\ScheduleAssignment;
+use App\Services\StatutoryDeductionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,13 @@ use App\Traits\LogsActivity;
 class PayrollController extends Controller
 {
     use LogsActivity;
+    
+    private StatutoryDeductionService $deductionService;
+
+    public function __construct(StatutoryDeductionService $deductionService)
+    {
+        $this->deductionService = $deductionService;
+    }
     public function index()
     {
         // Lightweight summary endpoint - only basic period info
@@ -553,42 +561,59 @@ class PayrollController extends Controller
                 continue;
             }
 
-            $sssEe = 0.0;
-            if ($monthlySalary >= 5000) {
-                $msc = min($monthlySalary, 30000);
-                if ($msc < 30000) {
-                    $remainder = $msc % 500;
-                    $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
+            // Use dynamic deduction service
+            try {
+                $sssResult = $this->deductionService->calculateDeduction('SSS', $monthlySalary);
+                $sssEe = $sssResult['employeeShare'] / 2; // Semi-monthly
+
+                $philResult = $this->deductionService->calculateDeduction('PhilHealth', $monthlySalary);
+                $philEe = $philResult['employeeShare'] / 2; // Semi-monthly
+
+                $pagResult = $this->deductionService->calculateDeduction('Pag-IBIG', $monthlySalary);
+                $pagEe = $pagResult['employeeShare'] / 2; // Semi-monthly
+
+                $taxableSemi = max(0, (float) $payroll->gross_earning - ($sssEe + $philEe + $pagEe));
+                $taxResult = $this->deductionService->calculateDeduction('Tax', $taxableSemi, ['gross' => $taxableSemi]);
+                $tax = $taxResult['employeeShare'];
+            } catch (\Exception $e) {
+                // Fallback to legacy calculation if dynamic rules fail
+                $sssEe = 0.0;
+                if ($monthlySalary >= 5000) {
+                    $msc = min($monthlySalary, 30000);
+                    if ($msc < 30000) {
+                        $remainder = $msc % 500;
+                        $msc = $remainder < 250 ? $msc - $remainder : $msc - $remainder + 500;
+                    }
+                    $sssEe = ($msc * 0.045) / 2;
                 }
-                $sssEe = ($msc * 0.045) / 2;
-            }
 
-            $philEe = 0.0;
-            if ($monthlySalary >= 10000) {
-                $philBase = min($monthlySalary, 100000);
-                $philTotal = $philBase * 0.05;
-                $philEe = ($philTotal / 2) / 2;
-            }
+                $philEe = 0.0;
+                if ($monthlySalary >= 10000) {
+                    $philBase = min($monthlySalary, 100000);
+                    $philTotal = $philBase * 0.05;
+                    $philEe = ($philTotal / 2) / 2;
+                }
 
-            $pagEe = 0.0;
-            if ($monthlySalary >= 1500) {
-                $pagEe = 100.0 / 2;
-            }
+                $pagEe = 0.0;
+                if ($monthlySalary >= 1500) {
+                    $pagEe = 100.0 / 2;
+                }
 
-            $taxableSemi = max(0, (float) $payroll->gross_earning - ($sssEe + $philEe + $pagEe));
-            $tax = 0.0;
-            if ($taxableSemi <= 10417) {
+                $taxableSemi = max(0, (float) $payroll->gross_earning - ($sssEe + $philEe + $pagEe));
                 $tax = 0.0;
-            } elseif ($taxableSemi <= 16666) {
-                $tax = ($taxableSemi - 10417) * 0.15;
-            } elseif ($taxableSemi <= 33332) {
-                $tax = 937.50 + ($taxableSemi - 16667) * 0.20;
-            } elseif ($taxableSemi <= 83332) {
-                $tax = 4270.70 + ($taxableSemi - 33333) * 0.25;
-            } elseif ($taxableSemi <= 333332) {
-                $tax = 16770.70 + ($taxableSemi - 83333) * 0.30;
-            } else {
-                $tax = 91770.70 + ($taxableSemi - 333333) * 0.35;
+                if ($taxableSemi <= 10417) {
+                    $tax = 0.0;
+                } elseif ($taxableSemi <= 16666) {
+                    $tax = ($taxableSemi - 10417) * 0.15;
+                } elseif ($taxableSemi <= 33332) {
+                    $tax = 937.50 + ($taxableSemi - 16667) * 0.20;
+                } elseif ($taxableSemi <= 83332) {
+                    $tax = 4270.70 + ($taxableSemi - 33333) * 0.25;
+                } elseif ($taxableSemi <= 333332) {
+                    $tax = 16770.70 + ($taxableSemi - 83333) * 0.30;
+                } else {
+                    $tax = 91770.70 + ($taxableSemi - 333333) * 0.35;
+                }
             }
 
             $payroll->statutoryRequirements()->updateOrCreate(

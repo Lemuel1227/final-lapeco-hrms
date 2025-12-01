@@ -6,14 +6,22 @@ use App\Models\EmployeePayroll;
 use App\Models\PayrollPeriod;
 use App\Models\User;
 use App\Models\FinalizedContribution;
+use App\Services\StatutoryDeductionService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class ContributionController extends Controller
 {
+    private StatutoryDeductionService $deductionService;
+
+    public function __construct(StatutoryDeductionService $deductionService)
+    {
+        $this->deductionService = $deductionService;
+    }
+
     /**
-     * Calculate SSS contribution based on monthly salary
+     * Calculate SSS contribution based on monthly salary (legacy fallback)
      */
     private function calculateSssContribution($monthlySalary)
     {
@@ -35,7 +43,7 @@ class ContributionController extends Controller
     }
 
     /**
-     * Calculate PhilHealth contribution based on monthly salary
+     * Calculate PhilHealth contribution based on monthly salary (legacy fallback)
      */
     private function calculatePhilhealthContribution($monthlySalary)
     {
@@ -54,7 +62,7 @@ class ContributionController extends Controller
     }
 
     /**
-     * Calculate Pag-IBIG contribution based on monthly salary
+     * Calculate Pag-IBIG contribution based on monthly salary (legacy fallback)
      */
     private function calculatePagibigContribution($monthlySalary)
     {

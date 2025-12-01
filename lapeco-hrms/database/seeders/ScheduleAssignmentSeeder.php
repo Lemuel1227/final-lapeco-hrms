@@ -15,7 +15,7 @@ class ScheduleAssignmentSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get all users and create schedules for the last 30 days
+        // Get all users and create schedules covering the last three years up to shortly in the future
         $users = User::whereNotIn('employment_status', ['terminated', 'resigned'])
             ->get();
         
@@ -24,8 +24,8 @@ class ScheduleAssignmentSeeder extends Seeder
             return;
         }
 
-        // Create schedules for the last 60 days and next 7 days to match AttendanceSeeder
-        $startDate = now()->subDays(60);
+        // Create schedules for the last 3 years (weekdays only) and the next week to match AttendanceSeeder
+        $startDate = now()->subYears(3)->startOfMonth();
         $endDate = now()->addDays(7);
         
         for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {

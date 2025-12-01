@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Department;
 use App\Models\User;
 use App\Models\Position;
 use App\Models\Holiday;
@@ -20,7 +21,29 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed positions
+        // Seed departments
+        $departments = [
+            [
+                'name' => 'Human Resources',
+                'description' => 'Manages recruitment, payroll, and employee relations.',
+            ],
+            [
+                'name' => 'Warehouse Operations',
+                'description' => 'Oversees warehouse activities, order fulfillment, and materials handling.',
+            ],
+        ];
+
+        $departmentIds = [];
+        foreach ($departments as $departmentData) {
+            $department = Department::updateOrCreate(
+                ['name' => $departmentData['name']],
+                ['description' => $departmentData['description']]
+            );
+
+            $departmentIds[$departmentData['name']] = $department->id;
+        }
+
+        // Seed positions mapped to departments
         $positions = [
             [
                 'name' => 'HR Manager',
@@ -32,6 +55,19 @@ class DatabaseSeeder extends Seeder
                 'regular_holiday_ot_rate' => 397.72,
                 'night_diff_rate_per_hour' => 30.00,
                 'late_deduction_per_minute' => 5.00,
+                'department' => 'Human Resources',
+                'allowed_modules' => [
+                    'dashboard',
+                    'employee_data',
+                    'department_management',
+                    'leave_management',
+                    'attendance_management',
+                    'payroll_management',
+                    'performance_management',
+                    'training_and_development',
+                    'case_management',
+                    'reports',
+                ],
             ],
             [
                 'name' => 'Packer',
@@ -43,6 +79,14 @@ class DatabaseSeeder extends Seeder
                 'regular_holiday_ot_rate' => 204.54,
                 'night_diff_rate_per_hour' => 15.00,
                 'late_deduction_per_minute' => 2.50,
+                'department' => 'Warehouse Operations',
+                'allowed_modules' => [
+                    'dashboard',
+                    'attendance_management',
+                    'schedules',
+                    'my_attendance',
+                    'my_leave',
+                ],
             ],
             [
                 'name' => 'Lifter',
@@ -54,6 +98,13 @@ class DatabaseSeeder extends Seeder
                 'regular_holiday_ot_rate' => 250.00,
                 'night_diff_rate_per_hour' => 18.75,
                 'late_deduction_per_minute' => 3.00,
+                'department' => 'Warehouse Operations',
+                'allowed_modules' => [
+                    'dashboard',
+                    'attendance_management',
+                    'schedules',
+                    'my_attendance',
+                ],
             ],
             [
                 'name' => 'Picker',
@@ -65,6 +116,13 @@ class DatabaseSeeder extends Seeder
                 'regular_holiday_ot_rate' => 210.22,
                 'night_diff_rate_per_hour' => 15.77,
                 'late_deduction_per_minute' => 2.75,
+                'department' => 'Warehouse Operations',
+                'allowed_modules' => [
+                    'dashboard',
+                    'attendance_management',
+                    'schedules',
+                    'my_attendance',
+                ],
             ],
             [
                 'name' => 'Mover',
@@ -76,15 +134,28 @@ class DatabaseSeeder extends Seeder
                 'regular_holiday_ot_rate' => 216.90,
                 'night_diff_rate_per_hour' => 16.27,
                 'late_deduction_per_minute' => 2.80,
+                'department' => 'Warehouse Operations',
+                'allowed_modules' => [
+                    'dashboard',
+                    'attendance_management',
+                    'schedules',
+                    'my_attendance',
+                ],
             ],
         ];
         $positionIds = [];
-        foreach ($positions as $pos) {
-            $position = Position::firstOrCreate(
-                ['name' => $pos['name']],
-                $pos
+        foreach ($positions as $posData) {
+            $departmentName = Arr::pull($posData, 'department');
+            if ($departmentName && isset($departmentIds[$departmentName])) {
+                $posData['department_id'] = $departmentIds[$departmentName];
+            }
+
+            $position = Position::updateOrCreate(
+                ['name' => $posData['name']],
+                $posData
             );
-            $positionIds[$pos['name']] = $position->id;
+
+            $positionIds[$posData['name']] = $position->id;
         }
 
         // Seed users, at least one for each position
@@ -498,6 +569,9 @@ class DatabaseSeeder extends Seeder
 
         // Seed sample payroll periods and records for final pay display
         $this->call(PayrollSeeder::class);
+
+        // Seed leave credits (current year + historical)
+        $this->call(LeaveCreditSeeder::class);
     }
     
     /**

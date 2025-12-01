@@ -46,8 +46,8 @@ class TerminationSeeder extends Seeder
         ];
 
         foreach ($employees as $index => $employee) {
-            $terminationDate = Carbon::now()->subDays(rand(1, 90));
-            $lastWorkingDay = $terminationDate->copy()->subDays(rand(0, 14));
+            $terminationDate = Carbon::now()->subDays(rand(30, 365 * 3));
+            $lastWorkingDay = $terminationDate->copy()->subDays(rand(0, 21));
             $type = $terminationTypes[array_rand($terminationTypes)];
             
             $terminationData = [

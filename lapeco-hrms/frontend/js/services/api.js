@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = ('http://localhost:8000/api').replace(/\/$/, '');
+const API_BASE_URL = ('https://api.lapeco.org/api').replace(/\/$/, '');
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -25,6 +25,14 @@ const getCookie = (name) => {
   return null;
 };
 
+// Leave Cash Conversion API calls
+export const leaveCashConversionAPI = {
+  getSummary: (params = {}) => api.get('/leave-cash-conversions', { params }),
+  generate: (data) => api.post('/leave-cash-conversions/generate', data),
+  updateStatus: (id, status) => api.patch(`/leave-cash-conversions/${id}/status`, { status }),
+  markAll: (data) => api.post('/leave-cash-conversions/mark-all', data),
+};
+
 // Request interceptor to add auth token and CSRF token
 api.interceptors.request.use(
   async (config) => {
@@ -45,10 +53,10 @@ api.interceptors.request.use(
       const hasXsrf = document.cookie.split('; ').some(c => c.startsWith('XSRF-TOKEN='));
       if (!hasXsrf) {
         try {
-          await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+          await axios.get('https://api.lapeco.org/sanctum/csrf-cookie', { withCredentials: true });
         } catch (e) {
           // Fallback endpoint if Sanctum path differs
-          try { await axios.get('http://localhost:8000/csrf-cookie', { withCredentials: true }); } catch (_) {}
+          try { await axios.get('https://api.lapeco.org/csrf-cookie', { withCredentials: true }); } catch (_) {}
         }
       }
       // Add both header names for compatibility
@@ -81,7 +89,7 @@ api.interceptors.response.use(
     // Auto-refresh CSRF cookie on 419 and retry once
     if (error.response?.status === 419 && !error.config?._csrfRetried) {
       try {
-        await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
+        await axios.get('https://api.lapeco.org/sanctum/csrf-cookie', { withCredentials: true });
       } catch (_) {}
       const retryConfig = { ...error.config, _csrfRetried: true };
       return api.request(retryConfig);
@@ -220,9 +228,9 @@ export const leaveAPI = {
   delete: (id) => api.delete(`/leaves/${id}`),
   // Download/preview the main attachment for a leave request
   downloadAttachment: (leaveId) => api.get(`/leaves/${leaveId}/attachment`, { responseType: 'blob' }),
-  getAllLeaveCredits: () => api.get('/leave-credits/all'),
-  getLeaveCredits: (userId) => api.get(`/leave-credits/${userId}`),
-  updateLeaveCredits: (userId, data) => api.put(`/leave-credits/${userId}`, data),
+  getAllLeaveCredits: (params = {}) => api.get('/leave-credits/all', { params }),
+  getLeaveCredits: (userId, params = {}) => api.get(`/leave-credits/${userId}`, { params }),
+  updateLeaveCredits: (userId, data, params = {}) => api.put(`/leave-credits/${userId}`, data, { params }),
   bulkAddCredits: (data) => api.post('/leave-credits/bulk-add', data),
   resetUsedCredits: (data) => api.post('/leave-credits/reset', data),
   // Leave settings

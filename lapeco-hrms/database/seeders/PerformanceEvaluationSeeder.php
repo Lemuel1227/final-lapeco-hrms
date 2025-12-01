@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Carbon\Carbon;
 use App\Models\PerformanceEvaluation;
 use App\Models\PerformanceEvaluationPeriod;
@@ -13,200 +12,337 @@ use App\Models\User;
 
 class PerformanceEvaluationSeeder extends Seeder
 {
+    private const TIER_LOW = 'low';
+    private const TIER_NORMAL = 'normal';
+    private const TIER_HIGH = 'high';
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        // Create performance evaluation periods
-        $periods = [
-            [
-                'name' => 'Q1 2025 Performance Evaluation',
-                'evaluation_start' => '2025-01-01',
-                'evaluation_end' => '2025-03-31',
-                'open_date' => '2025-04-01',
-                'close_date' => '2025-04-15',
-                'overall_score' => 87.5,
-                'created_by' => 1, // Assuming user ID 1 exists (HR Admin)
-                'updated_by' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => 'Q2 2025 Performance Evaluation',
-                'evaluation_start' => '2025-04-01',
-                'evaluation_end' => '2025-06-30',
-                'open_date' => '2025-07-01',
-                'close_date' => '2025-07-15',
-                'overall_score' => 89.2,
-                'created_by' => 1,
-                'updated_by' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => 'Q3 2025 Performance Evaluation',
-                'evaluation_start' => '2025-07-01',
-                'evaluation_end' => '2025-09-30',
-                'open_date' => '2025-09-01',
-                'close_date' => '2025-09-30',
-                'overall_score' => null,
-                'created_by' => 1,
-                'updated_by' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => 'Q4 2025 Performance Evaluation',
-                'evaluation_start' => '2025-10-01',
-                'evaluation_end' => '2025-12-31',
-                'open_date' => '2026-01-05',
-                'close_date' => '2026-01-20',
-                'overall_score' => null,
-                'created_by' => 1,
-                'updated_by' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => 'Annual 2025 Performance Review',
-                'evaluation_start' => '2025-01-01',
-                'evaluation_end' => '2025-12-31',
-                'open_date' => '2026-01-10',
-                'close_date' => '2026-02-10',
-                'overall_score' => null,
-                'created_by' => 1,
-                'updated_by' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ];
-
-        DB::table('performance_evaluation_periods')->insert($periods);
-
-        $createdPeriods = PerformanceEvaluationPeriod::all();
-
-        $leaders = User::where('role', 'TEAM_LEADER')
+        $activeEmployees = User::query()
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
-            ->get(['id', 'position_id']);
+            ->whereIn('role', ['REGULAR_EMPLOYEE', 'TEAM_LEADER'])
+            ->get();
 
-        $members = User::where('role', 'REGULAR_EMPLOYEE')
+        if ($activeEmployees->isEmpty()) {
+            return;
+        }
+
+        $hrManager = User::query()
+            ->where('role', 'HR_MANAGER')
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
-            ->get(['id', 'position_id']);
+            ->first();
 
-        $leadersByPosition = $leaders->groupBy('position_id');
-        $membersByPosition = $members->groupBy('position_id');
+        $teamLeaders = User::query()
+            ->where('role', 'TEAM_LEADER')
+            ->whereNotIn('employment_status', ['terminated', 'resigned'])
+            ->get();
 
-        foreach ($createdPeriods as $period) {
-            // Leaders evaluating members
-            foreach ($leadersByPosition as $positionId => $positionLeaders) {
-                $positionMembers = $membersByPosition->get($positionId, collect());
+        $creatorUser = $hrManager ?? $teamLeaders->first() ?? $activeEmployees->first();
+        $evaluators = collect($hrManager ? [$hrManager] : [])->merge($teamLeaders);
 
-                foreach ($positionMembers as $member) {
-                    $evaluation = PerformanceEvaluation::firstOrCreate([
-                        'period_id' => $period->id,
-                        'employee_id' => $member->id,
-                    ]);
+        $periodDefinitions = $this->generatePeriodDefinitions();
+        $periods = [];
 
-                    if ($period->status === 'closed') {
-                        $this->seedResponsesForEvaluation($evaluation, $positionLeaders, $positionMembers, $period);
-                    }
-                }
-            }
+        foreach ($periodDefinitions as $definition) {
+            $period = PerformanceEvaluationPeriod::updateOrCreate(
+                ['name' => $definition['name']],
+                [
+                    'evaluation_start' => $definition['start']->toDateString(),
+                    'evaluation_end' => $definition['end']->toDateString(),
+                    'open_date' => $definition['open']->toDateString(),
+                    'close_date' => $definition['close']->toDateString(),
+                    'overall_score' => null,
+                    'created_by' => $creatorUser->id,
+                    'updated_by' => $creatorUser->id,
+                ]
+            );
 
-            // Members evaluating their leader
-            foreach ($membersByPosition as $positionId => $positionMembers) {
-                $leader = $leadersByPosition->get($positionId, collect())->first();
+            $periods[] = $period->refresh();
+        }
 
-                if (!$leader) {
-                    continue;
-                }
+        $employeeTiers = $this->assignEmployeeTiers($activeEmployees);
+        $evaluationAverages = [];
 
-                $evaluation = PerformanceEvaluation::firstOrCreate([
-                    'period_id' => $period->id,
-                    'employee_id' => $leader->id,
-                ]);
+        foreach ($periods as $period) {
+            foreach ($activeEmployees as $employee) {
+                $tier = $employeeTiers[$employee->id] ?? self::TIER_NORMAL;
+                $average = $this->seedEvaluationForEmployee($period, $employee, $tier, $evaluators, $creatorUser);
 
-                if ($period->status === 'closed') {
-                    $this->seedResponsesForEvaluation($evaluation, $positionMembers, collect([$leader]), $period, true);
+                if ($average !== null) {
+                    $evaluationAverages[] = $average;
                 }
             }
         }
 
-        // Update overall score per period based on seeded evaluations
-        foreach ($createdPeriods as $period) {
-            $average = PerformanceEvaluation::where('period_id', $period->id)
+        foreach ($periods as $period) {
+            $average = PerformanceEvaluation::query()
+                ->where('period_id', $period->id)
                 ->whereNotNull('average_score')
                 ->avg('average_score');
 
             $period->update([
-                'overall_score' => $average ? round($average, 2) : null,
+                'overall_score' => $average ? round($average * 20, 2) : null,
             ]);
         }
 
-        $this->command->info('Performance evaluation data seeded successfully!');
+        if (!empty($evaluationAverages) && isset($this->command)) {
+            $overallAverage = array_sum($evaluationAverages) / count($evaluationAverages);
+            $this->command->info(sprintf(
+                'Seeded performance evaluations with overall average score %.2f (%.2f%%).',
+                $overallAverage,
+                $overallAverage * 20
+            ));
+        }
     }
 
-    private function seedResponsesForEvaluation(
-        PerformanceEvaluation $evaluation,
-        $evaluatorCandidates,
-        $excludeCandidates,
+    private function seedEvaluationForEmployee(
         PerformanceEvaluationPeriod $period,
-        bool $membersEvaluatingLeader = false
-    ): void {
-        $usedEvaluators = collect();
-        $responseAverages = [];
+        User $employee,
+        string $tier,
+        Collection $evaluators,
+        User $fallbackEvaluator
+    ): ?float {
+        $evaluation = PerformanceEvaluation::updateOrCreate(
+            [
+                'period_id' => $period->id,
+                'employee_id' => $employee->id,
+            ],
+            []
+        );
 
-        foreach ($evaluatorCandidates as $candidate) {
-            if ($excludeCandidates->contains('id', $candidate->id)) {
-                continue;
-            }
+        PerformanceEvaluatorResponse::where('evaluation_id', $evaluation->id)->delete();
 
-            if ($membersEvaluatingLeader && $candidate->id === $evaluation->employee_id) {
-                continue;
-            }
+        $availableEvaluators = $evaluators
+            ->filter(fn (User $user) => $user->id !== $employee->id)
+            ->values();
 
-            $response = PerformanceEvaluatorResponse::create([
-                'evaluation_id' => $evaluation->id,
-                'evaluator_id' => $candidate->id,
-                'evaluated_on' => Carbon::parse($period->evaluation_end)->subDays(rand(1, 20)),
-                'attendance' => rand(1, 5),
-                'dedication' => rand(1, 5),
-                'performance_job_knowledge' => rand(1, 5),
-                'performance_work_efficiency_professionalism' => rand(1, 5),
-                'cooperation_task_acceptance' => rand(1, 5),
-                'cooperation_adaptability' => rand(1, 5),
-                'initiative_autonomy' => rand(1, 5),
-                'initiative_under_pressure' => rand(1, 5),
-                'communication' => rand(1, 5),
-                'teamwork' => rand(1, 5),
-                'character' => rand(1, 5),
-                'responsiveness' => rand(1, 5),
-                'personality' => rand(1, 5),
-                'appearance' => rand(1, 5),
-                'work_habits' => rand(1, 5),
-                'evaluators_comment_summary' => $this->getRandomSummaryComment(),
-                'evaluators_comment_development' => $this->getRandomDevelopmentComment(),
-            ]);
-
-            $usedEvaluators->push($response->id);
-
-            $scoreSum = 0;
-            $scoreCount = count(PerformanceEvaluatorResponse::SCORE_FIELDS);
-            foreach (PerformanceEvaluatorResponse::SCORE_FIELDS as $field) {
-                $scoreSum += $response->{$field};
-            }
-            $responseAverages[] = round($scoreSum / max($scoreCount, 1), 2);
+        if ($availableEvaluators->isEmpty() && $fallbackEvaluator->id !== $employee->id) {
+            $availableEvaluators = collect([$fallbackEvaluator]);
         }
 
-        $responsesCount = $usedEvaluators->count();
+        if ($availableEvaluators->isEmpty()) {
+            $evaluation->update([
+                'average_score' => null,
+                'responses_count' => 0,
+                'completed_at' => null,
+            ]);
+
+            return null;
+        }
+
+        $responsesToCreate = min($this->determineResponseCount($tier), $availableEvaluators->count());
+        $targetScore = $this->generateTargetScoreForTier($tier);
+        $responseAverages = [];
+
+        $evaluationStart = $period->evaluation_start instanceof Carbon
+            ? $period->evaluation_start->copy()
+            : Carbon::parse($period->evaluation_start);
+        $evaluationEnd = $period->evaluation_end instanceof Carbon
+            ? $period->evaluation_end->copy()
+            : Carbon::parse($period->evaluation_end);
+        $closeDate = $period->close_date instanceof Carbon
+            ? $period->close_date->copy()
+            : Carbon::parse((string) $period->close_date);
+
+        $selectedEvaluators = $availableEvaluators->shuffle()->take($responsesToCreate);
+
+        foreach ($selectedEvaluators as $evaluator) {
+            $scores = $this->generateScoresForTarget($targetScore, $tier);
+            $evaluatedOn = $this->randomEvaluationDate($evaluationStart, $evaluationEnd);
+
+            PerformanceEvaluatorResponse::create(array_merge($scores, [
+                'evaluation_id' => $evaluation->id,
+                'evaluator_id' => $evaluator->id,
+                'evaluated_on' => $evaluatedOn,
+                'evaluators_comment_summary' => $this->getRandomSummaryComment(),
+                'evaluators_comment_development' => $this->getRandomDevelopmentComment(),
+            ]));
+
+            $responseAverages[] = $this->calculateScoreAverage($scores);
+        }
+
+        $responsesCount = count($responseAverages);
+        $averageScore = $responsesCount > 0
+            ? round(array_sum($responseAverages) / $responsesCount, 2)
+            : null;
+
+        $completedAt = $responsesCount > 0
+            ? $evaluationEnd->copy()->addDays(rand(1, 14))
+            : null;
+
+        if ($completedAt && $closeDate && $completedAt->gt($closeDate)) {
+            $completedAt = $closeDate->copy();
+        }
+
         $evaluation->update([
+            'average_score' => $averageScore,
             'responses_count' => $responsesCount,
-            'average_score' => $responsesCount > 0 ? round(collect($responseAverages)->avg(), 2) : null,
-            'completed_at' => $responsesCount > 0
-                ? Carbon::parse($period->evaluation_end)->subDays(rand(1, 15))
-                : null,
+            'completed_at' => $completedAt,
         ]);
+
+        return $averageScore;
+    }
+
+    private function assignEmployeeTiers(Collection $employees): array
+    {
+        $count = $employees->count();
+
+        if ($count === 0) {
+            return [];
+        }
+
+        $lowTarget = (int) floor($count * 0.1);
+        $highTarget = (int) floor($count * 0.1);
+
+        if ($count >= 10) {
+            $lowTarget = max(1, $lowTarget);
+            $highTarget = max(1, $highTarget);
+        }
+
+        if ($lowTarget + $highTarget > $count) {
+            $overflow = ($lowTarget + $highTarget) - $count;
+
+            if ($highTarget >= $overflow) {
+                $highTarget -= $overflow;
+            } else {
+                $overflow -= $highTarget;
+                $highTarget = 0;
+                $lowTarget = max(0, $lowTarget - $overflow);
+            }
+        }
+
+        $shuffled = $employees->shuffle()->values();
+        $total = $shuffled->count();
+        $tiers = [];
+
+        foreach ($shuffled as $index => $employee) {
+            if ($index < $lowTarget) {
+                $tiers[$employee->id] = self::TIER_LOW;
+                continue;
+            }
+
+            if ($index >= $total - $highTarget) {
+                $tiers[$employee->id] = self::TIER_HIGH;
+                continue;
+            }
+
+            $tiers[$employee->id] = self::TIER_NORMAL;
+        }
+
+        return $tiers;
+    }
+
+    private function determineResponseCount(string $tier): int
+    {
+        return match ($tier) {
+            self::TIER_HIGH => 2,
+            self::TIER_LOW => 1,
+            default => rand(1, 2),
+        };
+    }
+
+    private function generateTargetScoreForTier(string $tier): float
+    {
+        $ranges = [
+            self::TIER_LOW => [3.3, 4.1],
+            self::TIER_NORMAL => [4.25, 4.55],
+            self::TIER_HIGH => [4.6, 4.9],
+        ];
+
+        [$min, $max] = $ranges[$tier] ?? $ranges[self::TIER_NORMAL];
+
+        $random = mt_rand() / mt_getrandmax();
+
+        if ($tier === self::TIER_HIGH) {
+            $random = sqrt($random);
+        } else {
+            $random = pow($random, 2);
+        }
+
+        return round($min + ($max - $min) * $random, 2);
+    }
+
+    private function generateScoresForTarget(float $targetScore, string $tier): array
+    {
+        $varianceByTier = [
+            self::TIER_LOW => 0.6,
+            self::TIER_NORMAL => 0.45,
+            self::TIER_HIGH => 0.35,
+        ];
+
+        $variance = $varianceByTier[$tier] ?? 0.45;
+
+        $scores = [];
+
+        foreach (PerformanceEvaluatorResponse::SCORE_FIELDS as $field) {
+            $scores[$field] = $this->generateFieldScore($targetScore, $variance);
+        }
+
+        return $scores;
+    }
+
+    private function generateFieldScore(float $targetScore, float $variance): int
+    {
+        $adjustment = (mt_rand(-100, 100) / 100) * $variance;
+        $score = $targetScore + $adjustment;
+
+        return (int) max(1, min(5, round($score)));
+    }
+
+    private function calculateScoreAverage(array $scores): float
+    {
+        if (empty($scores)) {
+            return 0.0;
+        }
+
+        return round(array_sum($scores) / count($scores), 2);
+    }
+
+    private function randomEvaluationDate(Carbon $start, Carbon $end): Carbon
+    {
+        $diff = max($end->diffInDays($start), 1);
+        $offset = rand((int) floor($diff * 0.4), $diff);
+
+        return $start->copy()->addDays($offset);
+    }
+
+    private function generatePeriodDefinitions(int $years = 3): array
+    {
+        $now = Carbon::now();
+        $start = $this->alignToHalfYearStart($now->copy()->subYears($years));
+        $periods = [];
+        $totalPeriods = ($years * 2) + 1;
+
+        for ($i = 0; $i < $totalPeriods; $i++) {
+            $periodStart = $start->copy()->addMonths(6 * $i);
+            $periodEnd = $periodStart->copy()->addMonths(6)->subDay();
+            $label = $periodStart->month <= 6 ? 'H1' : 'H2';
+            $year = $periodStart->year;
+
+            $periods[] = [
+                'name' => sprintf('%s %d Performance Evaluation', $label, $year),
+                'start' => $periodStart,
+                'end' => $periodEnd,
+                'open' => $periodEnd->copy()->addDay(),
+                'close' => $periodEnd->copy()->addDays(30),
+            ];
+        }
+
+        return $periods;
+    }
+
+    private function alignToHalfYearStart(Carbon $date): Carbon
+    {
+        $halfYearStart = $date->copy()->startOfYear();
+
+        if ($date->month > 6) {
+            $halfYearStart->addMonths(6);
+        }
+
+        return $halfYearStart;
     }
 
     private function getRandomSummaryComment(): string

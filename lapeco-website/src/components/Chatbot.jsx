@@ -21,7 +21,7 @@ export default function Chatbot({ onClose }) {
 
   const refreshQAs = async () => {
     try {
-      const base = 'http://localhost:8000/api/chatbot-qas/public';
+      const base = 'https://api.lapeco.org/api/chatbot-qas/public';
       const [recRes, faqRes] = await Promise.all([
         fetch(base + '?type=recruitment', { cache: 'no-store' }),
         fetch(base + '?type=faq', { cache: 'no-store' })

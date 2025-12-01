@@ -19,12 +19,15 @@ class AttendanceSeeder extends Seeder
         // Clear existing attendance records to avoid conflicts
         Attendance::truncate();
         
-        // Get all schedule assignments for the last 60 days
+        $historyStart = now()->subYears(3)->startOfMonth();
+        $historyEnd = now()->subDay();
+
+        // Get all schedule assignments covering the last three years
         $scheduleAssignments = ScheduleAssignment::with(['schedule', 'user'])
-            ->whereHas('schedule', function ($query) {
+            ->whereHas('schedule', function ($query) use ($historyStart, $historyEnd) {
                 $query->whereBetween('date', [
-                    now()->subDays(60),
-                    now()->subDay() // Don't include today, we'll handle it separately
+                    $historyStart,
+                    $historyEnd // Don't include today, we'll handle it separately
                 ]);
             })
             ->get();

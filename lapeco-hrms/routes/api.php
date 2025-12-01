@@ -13,6 +13,7 @@ use App\Http\Controllers\PositionController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\LeaveCashConversionController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ContributionController;
 use App\Http\Controllers\RecruitmentController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\MLPredictionController;
 use App\Http\Controllers\PredictiveAnalyticsController;
 use App\Http\Controllers\ChatbotQAController;
+use App\Http\Controllers\StatutoryDeductionRuleController;
 
 /*
 |--------------------------------------------------------------------------
@@ -196,6 +198,12 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:leave,update'])->post('/leave-credits/bulk-add', [LeaveController::class, 'bulkAddCredits']);
     Route::middleware(['role.access:leave,update'])->post('/leave-credits/reset', [LeaveController::class, 'resetUsedCredits']);
 
+    // Leave Cash Conversion Management
+    Route::middleware(['role.access:leave,index'])->get('/leave-cash-conversions', [LeaveCashConversionController::class, 'index']);
+    Route::middleware(['role.access:leave,update'])->post('/leave-cash-conversions/generate', [LeaveCashConversionController::class, 'generate']);
+    Route::middleware(['role.access:leave,update'])->patch('/leave-cash-conversions/{conversion}/status', [LeaveCashConversionController::class, 'updateStatus']);
+    Route::middleware(['role.access:leave,update'])->post('/leave-cash-conversions/mark-all', [LeaveCashConversionController::class, 'markAll']);
+
     // Payroll - with role-based access control
     Route::middleware(['role.access:payroll,index'])->get('/payroll', [PayrollController::class, 'index']);
     Route::middleware(['role.access:payroll,index'])->get('/payroll/periods/{periodId}/details', [PayrollController::class, 'showRunDetails']);
@@ -213,6 +221,17 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:payroll,index'])->get('/contributions/finalized', [ContributionController::class, 'getFinalizedContributions']);
     Route::middleware(['role.access:payroll,store'])->post('/contributions/finalize', [ContributionController::class, 'finalizeContribution']);
     Route::middleware(['role.access:payroll,destroy'])->delete('/contributions/finalized/{id}', [ContributionController::class, 'deleteFinalizedContribution']);
+
+    // Statutory Deduction Rules - with role-based access control
+    Route::get('/statutory-deduction-rules', [StatutoryDeductionRuleController::class, 'index']);
+    Route::get('/statutory-deduction-rules/active/summary', [StatutoryDeductionRuleController::class, 'getActiveRulesSummary']);
+    Route::get('/statutory-deduction-rules/{id}', [StatutoryDeductionRuleController::class, 'show']);
+    Route::post('/statutory-deduction-rules', [StatutoryDeductionRuleController::class, 'store']);
+    Route::put('/statutory-deduction-rules/{id}', [StatutoryDeductionRuleController::class, 'update']);
+    Route::delete('/statutory-deduction-rules/{id}', [StatutoryDeductionRuleController::class, 'destroy']);
+    Route::post('/statutory-deduction-rules/{id}/test', [StatutoryDeductionRuleController::class, 'testRule']);
+    Route::get('/statutory-deduction-rules/formula/documentation', [StatutoryDeductionRuleController::class, 'getFormulaDocumentation']);
+    Route::post('/statutory-deduction-rules/formula/validate', [StatutoryDeductionRuleController::class, 'validateFormulaEndpoint']);
 
     // Holiday Management - with role-based access control
     Route::middleware(['role.access:schedule,index'])->get('/holidays', [HolidayController::class, 'index']);

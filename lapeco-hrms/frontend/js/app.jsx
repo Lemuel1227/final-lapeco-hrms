@@ -40,6 +40,7 @@ const PayrollPage = lazy(() => import('./pages/Payroll-Management/PayrollPage'))
 const PayrollHistoryPage = lazy(() => import('./pages/Payroll-Management/PayrollHistoryPage'));
 const PayrollGenerationPage = lazy(() => import('./pages/Payroll-Management/PayrollGenerationPage'));
 const ThirteenthMonthPage = lazy(() => import('./pages/Payroll-Management/ThirteenthMonthPage'));
+const StatutoryDeductionRulesManager = lazy(() => import('./pages/Payroll-Management/StatutoryDeductionRulesManager'));
 const HolidayManagementPage = lazy(() => import('./pages/Holiday-Management/HolidayManagementPage'));
 const ContributionsManagementPage = lazy(() => import('./pages/Contributions-Management/ContributionsManagementPage'));
 const CaseManagementPage = lazy(() => import('./pages/Case-Management/CaseManagementPage'));
@@ -130,6 +131,7 @@ function App() {
               <Route path="history" element={<PayrollHistoryPage />} />
               <Route path="generate" element={<PayrollGenerationPage />} />
               <Route path="13th-month" element={<ThirteenthMonthPage />} />
+              <Route path="deduction-rules" element={<StatutoryDeductionRulesManager />} />
             </Route>
             <Route path="dashboard/holiday-management" element={<HolidayManagementPage />} />
             <Route path="dashboard/contributions-management" element={<ContributionsManagementPage />} />

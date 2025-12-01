@@ -369,7 +369,8 @@
         public function getLeaveCredits(Request $request, $userId = null)
         {
             $user = $request->user();
-            
+            $year = (int) $request->query('year', date('Y'));
+
             // If no userId provided, get current user's credits
             if (!$userId) {
                 $userId = $user->id;
@@ -381,7 +382,7 @@
             }
             
             $leaveCredits = LeaveCredit::where('user_id', $userId)
-                ->where('year', date('Y'))
+                ->where('year', $year)
                 ->get()
                 ->keyBy('leave_type');
             
@@ -393,18 +394,22 @@
                 if (isset($leaveCredits[$type])) {
                     $result[$type] = $leaveCredits[$type];
                 } else {
-                    $result[$type] = LeaveCredit::getOrCreateForUser($userId, $type);
+                    $result[$type] = LeaveCredit::getOrCreateForUser($userId, $type, $year);
                 }
             }
             
-            return response()->json($result);
+            return response()->json([
+                'year' => $year,
+                'data' => $result,
+            ]);
         }
 
         // Get all users' leave credits in bulk (HR only)
         public function getAllLeaveCredits(Request $request)
         {
             $user = $request->user();
-            
+            $year = (int) $request->query('year', date('Y'));
+
             // Only HR can access all users' leave credits
             if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
@@ -414,7 +419,7 @@
             $users = User::select('id', 'first_name', 'middle_name', 'last_name', 'email', 'gender')->get();
             
             // Get all leave credits for current year
-            $leaveCredits = LeaveCredit::where('year', date('Y'))
+            $leaveCredits = LeaveCredit::where('year', $year)
                 ->get()
                 ->groupBy('user_id');
             
@@ -433,7 +438,7 @@
                         $userCredits[$type] = $userLeaveCreditsKeyed[$type];
                     } else {
                         // Create default record if not exists
-                        $userCredits[$type] = LeaveCredit::getOrCreateForUser($userData->id, $type);
+                        $userCredits[$type] = LeaveCredit::getOrCreateForUser($userData->id, $type, $year);
                     }
                 }
                 
@@ -453,7 +458,8 @@
         public function updateLeaveCredits(Request $request, $userId)
         {
             $user = $request->user();
-            
+            $year = (int) $request->query('year', date('Y'));
+
             if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
@@ -463,9 +469,9 @@
                 'total_credits' => 'required|integer|min:0',
             ]);
             
-            $leaveCredit = LeaveCredit::getOrCreateForUser($userId, $validated['leave_type']);
+            $leaveCredit = LeaveCredit::getOrCreateForUser($userId, $validated['leave_type'], $year);
             $leaveCredit->update(['total_credits' => $validated['total_credits']]);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Leave credits updated successfully.',

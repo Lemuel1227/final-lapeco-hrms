@@ -17,8 +17,8 @@ class LeaveCreditSeeder extends Seeder
         $users = User::all();
         $currentYear = (int) date('Y');
         $baseLeaveTypes = [
-            'Vacation Leave' => 15,
-            'Sick Leave' => 10,
+            'Vacation Leave' => 5,
+            'Sick Leave' => 5,
             'Emergency Leave' => 5,
         ];
 
@@ -43,6 +43,24 @@ class LeaveCreditSeeder extends Seeder
                         'used_credits' => $approvedDays,
                     ]
                 );
+            }
+
+            // Seed historical credits for the past 3 years (excluding current year)
+            for ($offset = 1; $offset <= 3; $offset++) {
+                $year = $currentYear - $offset;
+                foreach (['Vacation Leave', 'Sick Leave'] as $historicalType) {
+                    LeaveCredit::updateOrCreate(
+                        [
+                            'user_id' => $user->id,
+                            'leave_type' => $historicalType,
+                            'year' => $year,
+                        ],
+                        [
+                            'total_credits' => 5,
+                            'used_credits' => 0,
+                        ]
+                    );
+                }
             }
         }
     }

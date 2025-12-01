@@ -69,6 +69,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
   const [editableEmployeeData, setEditableEmployeeData] = useState(null);
   const [statutoryDeductions, setStatutoryDeductions] = useState({});
   const [activeField, setActiveField] = useState(null);
+  const [activeRules, setActiveRules] = useState([]);
   
   const [showPayslipPreview, setShowPayslipPreview] = useState(false);
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator(theme);
@@ -108,6 +109,29 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
       hdmf: pagEligible ? `Original: ₱${formatCurrency(systemCalculatedDeductions.hdmf)}` : 'Not eligible (below threshold)'
     };
   }, [earnings, semiGrossFromPayroll, systemCalculatedDeductions]);
+
+  // Fetch active deduction rules
+  useEffect(() => {
+    if (show) {
+      const fetchActiveRules = async () => {
+        try {
+          const response = await fetch('/api/statutory-deduction-rules/active/summary', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+              'Content-Type': 'application/json',
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setActiveRules(data.data || []);
+          }
+        } catch (err) {
+          console.error('Failed to fetch active rules:', err);
+        }
+      };
+      fetchActiveRules();
+    }
+  }, [show]);
 
   useEffect(() => {
     if (payrollData && show) {
@@ -497,6 +521,20 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
       <div className="deductions-column">
         <h6 className="form-grid-title"><i className="bi bi-shield-check me-2"></i>Statutory Deductions</h6>
         <p className="text-muted small">Tax is calculated automatically. Other contributions can be overridden if necessary.</p>
+        
+        {activeRules.length > 0 && (
+          <div className="alert alert-info small mb-3">
+            <strong>Active Rules:</strong>
+            <ul className="mb-0 mt-2">
+              {activeRules.map(rule => (
+                <li key={rule.id}>
+                  <strong>{rule.deduction_type}:</strong> {rule.description}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
         <div className="form-grid">
           <StatutoryField label="Withholding Tax" fieldKey="tax" value={statutoryDeductions.tax} readOnly={true} />
           <StatutoryField label="SSS Contribution" fieldKey="sss" value={statutoryDeductions.sss} originalValue={systemCalculatedDeductions.sss} onChange={handleStatutoryChange} onFocus={(e) => setActiveField(e.target.name)} onBlur={() => setActiveField(null)} activeField={activeField} helperText={eligibilityHelperTexts.sss} />

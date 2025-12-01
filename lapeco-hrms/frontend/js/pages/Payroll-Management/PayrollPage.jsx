@@ -26,6 +26,11 @@ const PayrollPage = () => {
               <i className="bi bi-calendar-heart me-2"></i>13th Month Pay
             </NavLink>
           </li>
+          <li className="nav-item">
+            <NavLink to="/dashboard/payroll/deduction-rules" className="nav-link">
+              <i className="bi bi-sliders me-2"></i>Deduction Rules
+            </NavLink>
+          </li>
         </ul>
         
         <div className="payroll-tab-content">

@@ -20,22 +20,32 @@ class PayrollSeeder extends Seeder
     public function run(): void
     {
         $now = Carbon::now();
-        // Create two simple payroll periods (first and second half of current month)
-        $firstStart = $now->copy()->startOfMonth()->toDateString();
-        $firstEnd = $now->copy()->startOfMonth()->addDays(14)->toDateString();
-        $secondStart = $now->copy()->startOfMonth()->addDays(15)->toDateString();
-        $secondEnd = $now->copy()->endOfMonth()->toDateString();
 
-        $periods = [
-            PayrollPeriod::firstOrCreate(
-                ['period_start' => $firstStart, 'period_end' => $firstEnd],
-                ['period_year' => (int) $now->year]
-            ),
-            PayrollPeriod::firstOrCreate(
-                ['period_start' => $secondStart, 'period_end' => $secondEnd],
-                ['period_year' => (int) $now->year]
-            ),
-        ];
+        // Generate payroll periods for the last three years (two periods per month)
+        $periods = collect();
+        for ($monthOffset = 0; $monthOffset < 36; $monthOffset++) {
+            $baseDate = $now->copy()->subMonths($monthOffset)->startOfMonth();
+            $periodYear = (int) $baseDate->year;
+
+            $firstStart = $baseDate->copy()->toDateString();
+            $firstEnd = $baseDate->copy()->addDays(14)->toDateString();
+            $secondStart = $baseDate->copy()->addDays(15)->toDateString();
+            $secondEnd = $baseDate->copy()->endOfMonth()->toDateString();
+
+            $periods->push(
+                PayrollPeriod::firstOrCreate(
+                    ['period_start' => $firstStart, 'period_end' => $firstEnd],
+                    ['period_year' => $periodYear]
+                )
+            );
+
+            $periods->push(
+                PayrollPeriod::firstOrCreate(
+                    ['period_start' => $secondStart, 'period_end' => $secondEnd],
+                    ['period_year' => $periodYear]
+                )
+            );
+        }
 
         // Target employees with approved resignations effective today or earlier
         $resignedIds = Resignation::where('status', 'approved')
@@ -66,11 +76,13 @@ class PayrollSeeder extends Seeder
                 $statusOptions = ['Paid', 'Pending'];
                 $paidStatus = $statusOptions[array_rand($statusOptions)];
 
+                $payDate = Carbon::parse($period->period_end)->addDays(rand(0, 5));
+
                 $payroll = EmployeePayroll::create([
                     'period_id' => $period->id,
                     'employee_id' => $employee->id,
                     'paid_status' => $paidStatus,
-                    'pay_date' => $paidStatus === 'Paid' ? Carbon::now() : null,
+                    'pay_date' => $paidStatus === 'Paid' ? $payDate : null,
                     'gross_earning' => $estimatedGross,
                     'total_deductions' => 0, // will update after creating deductions
                     'absences_summary' => [],
