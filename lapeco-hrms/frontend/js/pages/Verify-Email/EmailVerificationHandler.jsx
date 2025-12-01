@@ -26,7 +26,7 @@ const EmailVerificationHandler = () => {
                 }
 
                 // Make API call to backend verification endpoint
-                const backendUrl = (import.meta?.env?.VITE_API_URL ?? import.meta?.env?.REACT_APP_API_URL ?? 'https://api.lapeco.org');
+                const backendUrl = (import.meta?.env?.VITE_API_URL ?? import.meta?.env?.REACT_APP_API_URL ?? 'http://localhost:8000');
                 const verificationUrl = `${backendUrl}/api/email/verify/${id}/${hash}?expires=${expires}&signature=${signature}`;
                 
                 const response = await fetch(verificationUrl, {
