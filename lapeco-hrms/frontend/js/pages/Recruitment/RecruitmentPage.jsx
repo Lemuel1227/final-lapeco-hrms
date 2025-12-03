@@ -109,7 +109,15 @@ const RecruitmentPage = () => {
   const [newlyGeneratedAccount, setNewlyGeneratedAccount] = useState(null);
   const [applicantToDelete, setApplicantToDelete] = useState(null);
   const [applicantToReject, setApplicantToReject] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
   const [hireValidationErrors, setHireValidationErrors] = useState(null);
+
+  // Reset rejection reason when modal opens
+  useEffect(() => {
+    if (applicantToReject) {
+      setRejectionReason('');
+    }
+  }, [applicantToReject]);
 
   // Handlers for applicant operations
   const handleSaveApplicant = async (applicantData) => {
@@ -321,7 +329,7 @@ const RecruitmentPage = () => {
     if (!applicantToReject) return;
 
     try {
-      const response = await applicantAPI.reject(applicantToReject.id, {});
+      const response = await applicantAPI.reject(applicantToReject.id, { notes: rejectionReason });
 
       setApplicants(prev =>
         prev.map(app =>
@@ -548,6 +556,29 @@ const RecruitmentPage = () => {
                          positionsMap.get(applicant.jobOpeningId || applicant.job_opening_id) ||
                          'Position TBD'}
                       </small>
+                      <div className="progress mt-2" style={{ height: '4px' }}>
+                        <div 
+                          className="progress-bar" 
+                          role="progressbar" 
+                          style={{ 
+                            width: (() => {
+                              const status = applicant.status || 'New Applicant';
+                              if (status === 'New Applicant') return '33%';
+                              if (status === 'Interview') return '66%';
+                              return '100%';
+                            })(), 
+                            backgroundColor: (() => {
+                              const status = applicant.status || 'New Applicant';
+                              if (status === 'New Applicant') return 'var(--pipeline-new)';
+                              if (status === 'Interview') return 'var(--pipeline-interview)';
+                              if (status === 'Hired') return 'var(--pipeline-hired)';
+                              if (status === 'Rejected') return 'var(--pipeline-rejected)';
+                              return 'var(--text-muted)';
+                            })(),
+                            transition: 'width 0.3s ease' 
+                          }} 
+                        ></div>
+                      </div>
                     </div>
                   </div>
                   
@@ -576,11 +607,11 @@ const RecruitmentPage = () => {
                       <i className="bi bi-eye"></i> View
                     </button>
                     <ActionsDropdown>
-                      {!['Interview', 'Hired', 'Rejected'].includes(applicant.status) && (
+                      {!['Interview', 'Hired'].includes(applicant.status) && (
                         <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setSelectedApplicant(applicant); setShowInterviewModal(true); }}>Schedule Interview</a>
                       )}
                       
-                      {!['Hired', 'Rejected'].includes(applicant.status) && (
+                      {!['Hired'].includes(applicant.status) && (
                         <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); setSelectedApplicant(applicant); setShowHireModal(true); }}>Hire</a>
                       )}
 
@@ -651,13 +682,13 @@ const RecruitmentPage = () => {
                   {/* THE FIX: Replace the old dropdown with our new portal-based component */}
                   <ActionsDropdown>
                     <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('view', applicant); }}>View Details</a>
-              {/* Schedule Interview - Show only if not already in Interview, Hired, or Rejected status */}
-              {!['Interview', 'Hired', 'Rejected'].includes(applicant.status) && (
+              {/* Schedule Interview - Show only if not already in Interview or Hired status */}
+              {!['Interview', 'Hired'].includes(applicant.status) && (
                 <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('scheduleInterview', applicant); }}>Schedule Interview</a>
               )}
                     <div className="dropdown-divider"></div>
-                    {/* Hire - Show only if not already Hired or Rejected */}
-                    {!['Hired', 'Rejected'].includes(applicant.status) && (
+                    {/* Hire - Show only if not already Hired */}
+                    {!['Hired'].includes(applicant.status) && (
                       <a className="dropdown-item text-success" href="#" onClick={(e) => { e.preventDefault(); handleAction('hire', applicant); }}>Hire</a>
                     )}
                     {/* Reject - Show only if not already Hired or Rejected */}
@@ -815,10 +846,23 @@ const RecruitmentPage = () => {
         onClose={() => setApplicantToReject(null)}
         onConfirm={handleConfirmReject}
         title="Reject Applicant"
-        message={`Are you sure you want to reject ${applicantToReject?.full_name || applicantToReject?.name || 'this applicant'}? This will move them to the Rejected stage.`}
         confirmText="Reject"
         confirmVariant="danger"
-      />
+      >
+        <p>Are you sure you want to reject <strong>{applicantToReject?.full_name || applicantToReject?.name || 'this applicant'}</strong>? This will move them to the Rejected stage.</p>
+        <div className="mb-3">
+          <label htmlFor="rejectionReason" className="form-label">Reason for Rejection (Optional)</label>
+          <textarea 
+            className="form-control" 
+            id="rejectionReason" 
+            rows="3" 
+            placeholder="Enter reason for rejection..."
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            style={{ resize: 'vertical' }}
+          ></textarea>
+        </div>
+      </ConfirmationModal>
 
       {toast.show && (
         <ToastNotification

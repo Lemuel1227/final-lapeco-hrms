@@ -293,6 +293,14 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                             <label className="form-label text-secondary small mb-1 d-block">Applied For</label>
                             <span className="fw-bold fs-5 text-primary">{jobTitle || displayData.applied_for || displayData.applied_position || 'N/A'}</span>
                           </div>
+                          {displayData.status === 'Rejected' && displayData.notes && (
+                            <div className="col-12 mt-3">
+                              <div className="alert alert-danger mb-0">
+                                <label className="form-label text-danger small mb-1 d-block fw-bold">Rejection Reason</label>
+                                <p className="mb-0" style={{ whiteSpace: 'pre-wrap' }}>{displayData.notes}</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 

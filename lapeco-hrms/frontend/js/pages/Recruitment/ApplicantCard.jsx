@@ -43,6 +43,19 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
     onAction(action, data);
   };
   
+
+  const getProgress = (status) => {
+    switch (status) {
+      case 'New Applicant': return { width: '33%', color: 'var(--pipeline-new)' };
+      case 'Interview': return { width: '66%', color: 'var(--pipeline-interview)' };
+      case 'Hired': return { width: '100%', color: 'var(--pipeline-hired)' };
+      case 'Rejected': return { width: '100%', color: 'var(--pipeline-rejected)' };
+      default: return { width: '0%', color: 'var(--text-muted)' };
+    }
+  };
+
+  const progress = getProgress(applicant.status);
+
   return (
     <div 
         ref={setNodeRef} 
@@ -86,6 +99,21 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
             </div>
 
             <p className="applicant-job-title">Applied for: {jobTitle || 'N/A'}</p>
+
+            <div className="progress mb-2" style={{ height: '4px' }}>
+                <div 
+                    className="progress-bar" 
+                    role="progressbar" 
+                    style={{ 
+                        width: progress.width, 
+                        backgroundColor: progress.color,
+                        transition: 'width 0.3s ease' 
+                    }} 
+                    aria-valuenow={parseInt(progress.width)} 
+                    aria-valuemin="0" 
+                    aria-valuemax="100"
+                ></div>
+            </div>
             
             <div className="applicant-card-details">
                 {applicant.interview_schedule && (
