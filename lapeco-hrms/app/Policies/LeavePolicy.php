@@ -14,7 +14,7 @@ class LeavePolicy
     public function viewAny(User $user): bool
     {
         // All authenticated users can view leaves (with restrictions applied in controller)
-        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+        return true;
     }
 
     /**
@@ -23,12 +23,12 @@ class LeavePolicy
     public function view(User $user, Leave $leave): bool
     {
         // HR can view any leave
-        if ($user->role === 'HR_MANAGER') {
+        if ($user->role === 'SUPER_ADMIN') {
             return true;
         }
 
         // Team leaders can view leaves from their team
-        if ($user->role === 'TEAM_LEADER') {
+        if ($user->is_team_leader) {
             return $leave->user->position_id === $user->position_id;
         }
 
@@ -56,9 +56,9 @@ class LeavePolicy
         }
 
         // HR and team leaders can update leave requests for approval/rejection
-        if (in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER'])) {
+        if ($user->role === 'SUPER_ADMIN' || $user->is_team_leader) {
             // Team leaders can only manage their team's leaves
-            if ($user->role === 'TEAM_LEADER') {
+            if ($user->is_team_leader) {
                 return $leave->user->position_id === $user->position_id;
             }
             return true;
@@ -73,7 +73,7 @@ class LeavePolicy
     public function delete(User $user, Leave $leave): bool
     {
         // HR can delete any leave
-        if ($user->role === 'HR_MANAGER') {
+        if ($user->role === 'SUPER_ADMIN') {
             return true;
         }
 
@@ -87,12 +87,12 @@ class LeavePolicy
     public function approve(User $user, Leave $leave): bool
     {
         // Only HR and team leaders can approve leaves
-        if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER'])) {
+        if ($user->role !== 'SUPER_ADMIN' && !$user->is_team_leader) {
             return false;
         }
 
         // Team leaders can only approve their team's leaves
-        if ($user->role === 'TEAM_LEADER') {
+        if ($user->is_team_leader) {
             return $leave->user->position_id === $user->position_id;
         }
 
@@ -106,7 +106,7 @@ class LeavePolicy
     public function viewStatistics(User $user): bool
     {
         // HR can view all statistics, team leaders can view their team's statistics
-        return in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']);
+        return $user->role === 'SUPER_ADMIN' || $user->is_team_leader;
     }
 
     /**
@@ -115,6 +115,6 @@ class LeavePolicy
     public function export(User $user): bool
     {
         // Only HR can export leave data
-        return $user->role === 'HR_MANAGER';
+        return $user->role === 'SUPER_ADMIN';
     }
 }

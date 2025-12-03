@@ -17,7 +17,7 @@ class ScheduleTemplateAssignmentSeeder extends Seeder
     public function run(): void
     {
         $templates = ScheduleTemplate::all();
-        $users = User::where('role', '!=', 'HR_MANAGER')->get();
+        $users = User::where('role', '!=', 'SUPER_ADMIN')->get();
 
         if ($templates->isEmpty() || $users->isEmpty()) {
             $this->command->warn('No templates or users found. Please run ScheduleTemplateSeeder and ensure users exist.');

@@ -21,7 +21,7 @@ const Header = ({ currentUser, notifications, appLevelHandlers, theme, isMobileV
 
   const formatRole = (role) => {
     const roleMap = {
-      'HR_MANAGER': 'HR Manager',
+      'SUPER_ADMIN': 'Super Admin',
       'TEAM_LEADER': 'Team Leader',
       'REGULAR_EMPLOYEE': 'Employee'
     };
@@ -31,6 +31,12 @@ const Header = ({ currentUser, notifications, appLevelHandlers, theme, isMobileV
   const avatarSrc = currentUser?.image_url || placeholderAvatar;
   const displayName = `${currentUser?.first_name || ''} ${currentUser?.middle_name || ''} ${currentUser?.last_name || ''}`.trim() || '—';
   const displayRole = formatRole(currentUser?.role) || '';
+  
+  // Determine what to display in the tag (Role for Super Admin, Position for others)
+  const displayTag = currentUser?.role === 'SUPER_ADMIN' 
+    ? displayRole 
+    : (currentUser?.position?.name || displayRole);
+
   const displayEmployeeId = currentUser?.id || '';
 
   return (
@@ -63,7 +69,7 @@ const Header = ({ currentUser, notifications, appLevelHandlers, theme, isMobileV
             />
             <div className="user-text-info">
               <span className="user-name">{displayName}</span>
-              <span className="user-position">{displayRole}</span>
+              <span className="user-position">{displayTag}</span>
             </div>
             <i className="bi bi-chevron-down dropdown-caret"></i>
           </div>

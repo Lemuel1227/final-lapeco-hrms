@@ -36,8 +36,16 @@ class RegisteredUserController extends Controller
             'username' => 'required|string|max:255|regex:/^[a-zA-Z0-9_]+$/|unique:users,username',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role' => ['sometimes', 'string', 'in:HR_MANAGER,TEAM_LEADER,REGULAR_EMPLOYEE'],
+            'role' => ['sometimes', 'string', 'in:SUPER_ADMIN,TEAM_LEADER,REGULAR_EMPLOYEE'],
         ]);
+
+        $role = $request->input('role', 'SUPER_ADMIN');
+        $isTeamLeader = false;
+
+        if ($role === 'TEAM_LEADER') {
+            $role = 'REGULAR_EMPLOYEE';
+            $isTeamLeader = true;
+        }
 
         $user = User::create([
             'first_name' => $request->first_name,
@@ -46,7 +54,8 @@ class RegisteredUserController extends Controller
             'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->input('role', 'HR_MANAGER'),
+            'role' => $role,
+            'is_team_leader' => $isTeamLeader,
         ]);
 
         event(new Registered($user));
@@ -56,3 +65,4 @@ class RegisteredUserController extends Controller
         return redirect(route('dashboard', absolute: false));
     }
 }
+

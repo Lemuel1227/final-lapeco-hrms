@@ -13,6 +13,12 @@ class UserProfileController extends Controller
     public function show(Request $request)
     {
         $user = $request->user();
+        
+        // Load position relationship to ensure consistent data structure with login response
+        if ($user) {
+            $user->load('position');
+        }
+
         $userData = $user?->toArray() ?? [];
 
         // Add position name if available

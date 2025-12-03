@@ -15,6 +15,8 @@ const PositionsPage = (props) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [positionEmployeeSearchTerm, setPositionEmployeeSearchTerm] = useState('');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
   const [positionEmployees, setPositionEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [positions, setPositions] = useState([]);
@@ -119,10 +121,55 @@ const PositionsPage = (props) => {
     );
   }, [searchTerm, positions]);
 
+  const requestSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return <i className="bi bi-arrow-down-up sort-icon ms-1"></i>;
+    return sortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
+  };
+
   const displayedEmployeesInPosition = useMemo(() => {
-    if (!positionEmployeeSearchTerm) return positionEmployees;
-    return positionEmployees.filter(emp => (emp.name || '').toLowerCase().includes(positionEmployeeSearchTerm.toLowerCase()));
-  }, [positionEmployeeSearchTerm, positionEmployees]);
+    let filtered = positionEmployees.filter(emp => {
+      const matchesSearch = (emp.name || '').toLowerCase().includes(positionEmployeeSearchTerm.toLowerCase()) ||
+        String(emp.employee_id || '').includes(positionEmployeeSearchTerm);
+      const matchesRole = selectedRoleFilter ? emp.role === selectedRoleFilter : true;
+      return matchesSearch && matchesRole;
+    });
+
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle specific keys
+        if (sortConfig.key === 'joining_date') {
+            aValue = new Date(aValue || 0);
+            bValue = new Date(bValue || 0);
+        } else if (sortConfig.key === 'employee_id') {
+            const aNum = parseFloat(aValue);
+            const bNum = parseFloat(bValue);
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                aValue = aNum;
+                bValue = bNum;
+            }
+        }
+        
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+        if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+        return 0;
+      });
+    }
+    return filtered;
+  }, [positionEmployees, positionEmployeeSearchTerm, selectedRoleFilter, sortConfig]);
 
   const refreshPositions = async () => {
     try {
@@ -135,7 +182,8 @@ const PositionsPage = (props) => {
   const refreshPositionEmployees = async (positionId) => {
     try {
       const res = await positionAPI.getEmployees(positionId);
-      setPositionEmployees(res.data?.employees || []);
+      const employees = res.data?.employees || [];
+      setPositionEmployees(employees.filter(emp => emp.role !== 'SUPER_ADMIN'));
     } catch {
       setPositionEmployees([]);
     }
@@ -148,6 +196,7 @@ const PositionsPage = (props) => {
       const payload = {
         name: formData.title,
         description: formData.description,
+        max_team_leaders: Number(formData.max_team_leaders ?? 1),
         base_rate_per_hour: Number(formData.base_rate_per_hour ?? 0),
         regular_day_ot_rate: Number(formData.regular_day_ot_rate ?? 0),
         special_ot_rate: Number(formData.special_ot_rate ?? 0),
@@ -160,6 +209,24 @@ const PositionsPage = (props) => {
       if (positionId) {
         await positionAPI.update(positionId, payload);
         setToast({ show: true, message: 'Position updated successfully!', type: 'success' });
+        
+        // Update selectedPosition if it's the one being edited
+        if (selectedPosition && selectedPosition.id === positionId) {
+          setSelectedPosition(prev => ({
+            ...prev,
+            ...formData,
+            name: formData.title,
+            max_team_leaders: Number(formData.max_team_leaders ?? 1),
+            base_rate_per_hour: Number(formData.base_rate_per_hour ?? 0),
+            regular_day_ot_rate: Number(formData.regular_day_ot_rate ?? 0),
+            special_ot_rate: Number(formData.special_ot_rate ?? 0),
+            regular_holiday_ot_rate: Number(formData.regular_holiday_ot_rate ?? 0),
+            night_diff_rate_per_hour: Number(formData.night_diff_rate_per_hour ?? 0),
+            late_deduction_per_minute: Number(formData.late_deduction_per_minute ?? 0),
+            monthly_salary: Number(formData.monthly_salary ?? 0),
+            allowed_modules: Array.isArray(formData.allowed_modules) ? formData.allowed_modules : [],
+          }));
+        }
       } else {
         await positionAPI.create(payload);
         setToast({ show: true, message: 'Position created successfully!', type: 'success' });
@@ -292,10 +359,10 @@ const PositionsPage = (props) => {
       if (roleChangeData.newRole === 'TEAM_LEADER' || roleChangeData.newRole === 'REGULAR_EMPLOYEE') {
         // Toggle between TEAM_LEADER and REGULAR_EMPLOYEE
         response = await employeeAPI.toggleTeamLeader(roleChangeData.employee.id);
-      } else if (roleChangeData.newRole === 'HR_MANAGER') {
-        // Set as HR_MANAGER
+      } else if (roleChangeData.newRole === 'SUPER_ADMIN') {
+        // Set as SUPER_ADMIN
         response = await employeeAPI.update(roleChangeData.employee.id, { 
-          role: 'HR_MANAGER' 
+          role: 'SUPER_ADMIN' 
         });
       }
       
@@ -327,9 +394,16 @@ const PositionsPage = (props) => {
     setSelectedPosition(position);
     setLoadingEmployees(true);
     try {
+      // Fetch latest position details to ensure we have max_team_leaders
+      const posRes = await positionAPI.getById(position.id);
+      if (posRes.data) {
+        setSelectedPosition(prev => ({ ...prev, ...posRes.data }));
+      }
+
       const res = await positionAPI.getEmployees(position.id);
       setPositionEmployees(res.data?.employees || []);
     } catch (e) {
+      console.error("Error fetching position details:", e);
       setPositionEmployees([]);
     }
     setLoadingEmployees(false);
@@ -344,7 +418,9 @@ const PositionsPage = (props) => {
       const res = await employeeAPI.getAll();
       const data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       // Normalize to { id, name, positionId }
-      const normalized = data.map(e => ({ id: e.id, name: e.name, positionId: e.position_id ?? e.positionId ?? null }));
+      const normalized = data
+        .filter(e => e.role !== 'SUPER_ADMIN')
+        .map(e => ({ id: e.id, name: e.name, positionId: e.position_id ?? e.positionId ?? null }));
       setAllEmployees(normalized);
       setShowAddEmployeeModal(true);
     } catch {
@@ -404,11 +480,34 @@ const PositionsPage = (props) => {
   if (selectedPosition) {
     return (
       <div className="container-fluid p-0 page-module-container">
-        <header className="page-header detail-view-header">
-          <button className="btn btn-light me-3 back-button" onClick={handleBackToPositionsList}>
-            <i className="bi bi-arrow-left"></i> Back to Departments List
+        <div className="detail-header-wrapper">
+          <div className="d-flex align-items-center">
+            <button className="btn btn-light me-3 shadow-sm border" onClick={handleBackToPositionsList}>
+              <i className="bi bi-arrow-left me-2"></i> Back
+            </button>
+            <div className="detail-title">
+              <h1>{selectedPosition.title}</h1>
+              <div className="d-flex align-items-center gap-3">
+                <p className="mb-0">{positionEmployees.length} Employee(s)</p>
+                <div className="vr"></div>
+                <div className="d-flex align-items-center">
+                  <span className="text-muted me-2">Max Leaders:</span>
+                  <span className="fw-bold">{selectedPosition.max_team_leaders}</span>
+                  <button 
+                    className="btn btn-link p-0 ms-2 text-decoration-none" 
+                    onClick={(e) => handleOpenEditPositionModal(e, selectedPosition)}
+                    title="Edit Position Limit"
+                  >
+                    <i className="bi bi-pencil-square"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button className="btn btn-success shadow-sm" onClick={handleOpenAddEmployeeModal} disabled={loadingAllEmployees}>
+            {loadingAllEmployees ? (<><span className="spinner-border spinner-border-sm me-2" role="status" />Loading...</>) : (<><i className="bi bi-person-plus-fill me-2"></i> Add Employee</>)}
           </button>
-        </header>
+        </div>
 
         {/* Role Change Confirmation Modal - Only shown in position details view */}
         <ConfirmationModal
@@ -421,107 +520,125 @@ const PositionsPage = (props) => {
         >
           Are you sure you want to change {roleChangeData.employee?.name}'s role from 
           {roleChangeData.currentRole === 'TEAM_LEADER' ? ' Team Leader ' : 
-           roleChangeData.currentRole === 'HR_MANAGER' ? ' HR Manager ' : ' Regular Employee '}
+           roleChangeData.currentRole === 'SUPER_ADMIN' ? ' HR Manager ' : ' Regular Employee '}
           to {roleChangeData.roleName}?
         </ConfirmationModal>
 
-        <div className="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 className="page-main-title mb-0">{selectedPosition.title}</h1>
-                <p className="page-subtitle text-muted mb-0">{positionEmployees.length} Employee(s)</p>
+        <div className="positions-controls d-flex flex-wrap gap-3 justify-content-between align-items-center mb-4">
+            <div className="search-wrapper flex-grow-1" style={{maxWidth: '400px'}}>
+                <div className="input-group">
+                    <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted"></i></span>
+                    <input 
+                      type="text" 
+                      className="form-control border-start-0 bg-light ps-0" 
+                      placeholder="Search employees by name or ID..." 
+                      value={positionEmployeeSearchTerm} 
+                      onChange={(e) => setPositionEmployeeSearchTerm(e.target.value)} 
+                    />
+                </div>
             </div>
-            <button className="btn btn-success" onClick={handleOpenAddEmployeeModal} disabled={loadingAllEmployees}>
-              {loadingAllEmployees ? (<><span className="spinner-border spinner-border-sm me-2" role="status" />Loading...</>) : (<><i className="bi bi-person-plus-fill me-2"></i> Add Employee</>)}
-            </button>
-        </div>
-
-        <div className="controls-bar d-flex justify-content-start mb-4">
-            <div className="input-group detail-view-search">
-                <span className="input-group-text"><i className="bi bi-search"></i></span>
-                <input type="text" className="form-control" placeholder="Search employees in this department..." value={positionEmployeeSearchTerm} onChange={(e) => setPositionEmployeeSearchTerm(e.target.value)} />
+            <div className="filter-wrapper">
+              <select 
+                className="form-select bg-light border-0" 
+                value={selectedRoleFilter} 
+                onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                style={{width: 'auto', minWidth: '150px'}}
+              >
+                <option value="">All Roles</option>
+                <option value="TEAM_LEADER">Team Leaders</option>
+                <option value="REGULAR_EMPLOYEE">Members</option>
+              </select>
             </div>
         </div>
 
         {loadingEmployees ? (
-          <div className="text-center p-5">Loading employees...</div>
+          <div className="text-center p-5">
+            <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-2 text-muted">Loading employees...</p>
+          </div>
         ) : (
-          <div className="card data-table-card shadow-sm">
+          <div className="card data-table-card shadow-sm border-0">
             <div className="table-responsive">
-              <table className="table data-table mb-0">
-                <thead><tr><th>Employee ID</th><th>Name</th><th>Role</th><th>Action</th></tr></thead>
+              <table className="table data-table mb-0 table-hover">
+                <thead className="bg-light">
+                  <tr>
+                    <th className="sortable ps-4" style={{width: '120px'}} onClick={() => requestSort('employee_id')}>
+                      ID {getSortIcon('employee_id')}
+                    </th>
+                    <th className="sortable" onClick={() => requestSort('name')}>
+                      Employee {getSortIcon('name')}
+                    </th>
+                    <th className="sortable" onClick={() => requestSort('role')}>
+                       Role {getSortIcon('role')}
+                     </th>
+                     <th className="sortable" onClick={() => requestSort('joining_date')}>
+                        Date Joined {getSortIcon('joining_date')}
+                      </th>
+                     <th className="text-end pe-4">Actions</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {displayedEmployeesInPosition.map(emp => {
+                  {displayedEmployeesInPosition.length > 0 ? displayedEmployeesInPosition.map(emp => {
                     const isTeamLeader = emp.role === 'TEAM_LEADER';
-                    const isHR = emp.role === 'HR_MANAGER';
                     
                     return (
                       <tr key={emp.id}>
-                        <td>{emp.employee_id || emp.id}</td>
-                        <td>{emp.name}</td>
+                        <td className="ps-4"><span className="font-monospace">{emp.employee_id || emp.id}</span></td>
                         <td>
-                          {isHR ? (
-                            <span className="badge bg-primary">HR Manager</span>
-                          ) : isTeamLeader ? (
-                            <span className="badge bg-success">Team Leader</span>
-                          ) : (
-                            <span className="text-muted">Member</span>
-                          )}
+                            <div className="d-flex align-items-center">
+                                <div className="rounded-circle bg-light d-flex align-items-center justify-content-center me-2" style={{width: '32px', height: '32px', fontSize: '0.8rem'}}>
+                                    {emp.name.charAt(0)}
+                                </div>
+                                {emp.name}
+                            </div>
                         </td>
                         <td>
+                          {isTeamLeader ? (
+                            <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">Team Leader</span>
+                          ) : (
+                            <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3">Member</span>
+                          )}
+                        </td>
+                        <td className="text-secondary">
+                           {emp.joining_date ? new Date(emp.joining_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="text-end pe-4">
                           <div className="dropdown">
-                            <button 
-                              className="btn btn-outline-secondary btn-sm" 
-                              type="button" 
-                              data-bs-toggle="dropdown"
-                              aria-expanded="false"
-                            >
-                              Manage <i className="bi bi-caret-down-fill"></i>
+                            <button className="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                              Actions
                             </button>
                             <ul className="dropdown-menu dropdown-menu-end">
-                              {!isHR && (
-                                <li>
-                                  <a 
-                                    className="dropdown-item" 
-                                    href="#" 
-                                    onClick={(e) => { 
-                                      e.preventDefault(); 
-                                      handleRoleChange(emp, 
-                                        isTeamLeader ? 'REGULAR_EMPLOYEE' : 'TEAM_LEADER',
-                                        isTeamLeader ? 'Regular Employee' : 'Team Leader'
-                                      ); 
-                                    }}
-                                  >
-                                    {isTeamLeader ? 'Unset as Leader' : 'Set as Leader'}
-                                  </a>
-                                </li>
-                              )}
-                              {!isHR && !isTeamLeader && (
-                                <li>
-                                  <a 
-                                    className="dropdown-item text-primary" 
-                                    href="#" 
-                                    onClick={(e) => { 
-                                      e.preventDefault();
-                                      handleRoleChange(emp, 'HR_MANAGER', 'HR Manager');
-                                  }}
-                                >
-                                    Set as HR Manager
-                                  </a>
-                                </li>
-                              )}
-                              {!isHR && (
-                                <li><hr className="dropdown-divider" /></li>
-                              )}
+                              <li>
+                                 <a 
+                                   className="dropdown-item" 
+                                   href="#" 
+                                   onClick={(e) => {
+                                     e.preventDefault();
+                                     e.stopPropagation();
+                                     handleRoleChange(emp, 
+                                       isTeamLeader ? 'REGULAR_EMPLOYEE' : 'TEAM_LEADER',
+                                       isTeamLeader ? 'Regular Employee' : 'Team Leader'
+                                     );
+                                   }}
+                                 >
+                                   <i className={`bi ${isTeamLeader ? 'bi-person-down' : 'bi-person-up'} me-2`}></i>
+                                   {isTeamLeader ? "Demote to Member" : "Promote to Team Leader"}
+                                 </a>
+                              </li>
+                              <li><hr className="dropdown-divider" /></li>
                               <li>
                                 <a 
                                   className="dropdown-item text-danger" 
                                   href="#" 
                                   onClick={(e) => { 
                                     e.preventDefault(); 
+                                    e.stopPropagation(); 
                                     handleRemoveFromPosition(emp); 
                                   }}
                                 >
-                                  Remove from Department
+                                  <i className="bi bi-trash me-2"></i>Remove from Position
                                 </a>
                               </li>
                             </ul>
@@ -529,26 +646,57 @@ const PositionsPage = (props) => {
                         </td>
                       </tr>
                     );
-                  })}
-                  {displayedEmployeesInPosition.length === 0 && (
-                    <tr><td colSpan="4" className="text-center p-5">No employees match your search in this department.</td></tr>
+                  }) : (
+                    <tr>
+                        <td colSpan="4" className="text-center p-5">
+                            <div className="text-muted opacity-50 mb-2"><i className="bi bi-people display-4"></i></div>
+                            <p className="mb-0 text-muted">No employees found in this position.</p>
+                        </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
-        
+
+        {/* Modals for detail view */}
         {showAddEmployeeModal && (
           <AddEmployeeToPositionModal
-            show={showAddEmployeeModal} onClose={handleCloseAddEmployeeModal}
-            onSave={handleSaveEmployeeToPosition} onConfirmReassignment={handleConfirmReassignment}
+            show={showAddEmployeeModal}
+            onClose={handleCloseAddEmployeeModal}
+            onSave={handleSaveEmployeeToPosition}
+            onConfirmReassignment={handleConfirmReassignment}
             currentPosition={selectedPosition}
-            allEmployees={allEmployees} allPositions={positions}
+            allEmployees={allEmployees}
+            allPositions={positions}
           />
         )}
 
-        {/* Reassignment Confirmation Modal */}
+        <ConfirmationModal
+          show={showRemoveEmployeeModal}
+          title="Remove Employee from Position"
+          onClose={cancelRemoveEmployee}
+          onConfirm={confirmRemoveEmployee}
+          confirmText="Remove"
+          confirmVariant="danger"
+        >
+          Are you sure you want to remove <strong>{employeeToRemove?.name}</strong> from <strong>{selectedPosition.title}</strong>?
+          <br />
+          <small className="text-muted">This action will set their position to Unassigned.</small>
+        </ConfirmationModal>
+
+        <ConfirmationModal
+          show={showAddEmployeeConfirmModal}
+          title="Confirm Assignment"
+          onClose={cancelAddEmployee}
+          onConfirm={confirmAddEmployee}
+          confirmText="Assign"
+          confirmVariant="success"
+        >
+           Are you sure you want to assign this employee to <strong>{selectedPosition.title}</strong>?
+        </ConfirmationModal>
+        
         <ConfirmationModal
           show={showReassignConfirmModal}
           title="Re-assign Employee"
@@ -566,167 +714,183 @@ const PositionsPage = (props) => {
           )}
         </ConfirmationModal>
 
-        {/* Add Employee Confirmation Modal */}
-        <ConfirmationModal
-          show={showAddEmployeeConfirmModal}
-          title="Add Employee to Department"
-          onClose={cancelAddEmployee}
-          onConfirm={confirmAddEmployee}
-          confirmText="Add Employee"
-          confirmVariant="success"
-        >
-          Are you sure you want to add this employee to the selected department?
-        </ConfirmationModal>
+        <AddEditPositionModal
+          show={showAddEditPositionModal}
+          onClose={handleCloseAddEditPositionModal}
+          onSave={handleSavePosition}
+          positionData={editingPosition}
+          submitting={submitting}
+        />
 
-        {/* Remove Employee Confirmation Modal */}
-        <ConfirmationModal
-          show={showRemoveEmployeeModal}
-          title="Remove Employee from Department"
-          onClose={cancelRemoveEmployee}
-          onConfirm={confirmRemoveEmployee}
-          confirmText={isRemovingEmployee ? 'Removing...' : 'Remove'}
-          confirmVariant="danger"
-          disabled={isRemovingEmployee}
-        >
-          Are you sure you want to remove "{employeeToRemove?.name}" from their current department?
-        </ConfirmationModal>
-
-        {/* Toast Notification */}
-        {toast.show && (
-          <ToastNotification
+        <ToastNotification
             show={toast.show}
             message={toast.message}
             type={toast.type}
-            onClose={() => setToast({ show: false, message: '', type: 'success' })}
-          />
-        )}
+            onClose={() => setToast({ ...toast, show: false })}
+        />
+
       </div>
     );
   }
 
+  // Default View (List of Positions)
   return (
-    <div className="container-fluid p-0 page-module-container">
-      <header className="page-header d-flex justify-content-between align-items-center mb-4">
-        <div className="d-flex align-items-center">
-            <h1 className="page-main-title me-3">Department Management</h1>
-            <span className="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
-                {positions.length} total departments
-            </span>
+    <Layout>
+      <div className="positions-container">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 className="page-title mb-1">Positions Management</h1>
+                <p className="text-muted mb-0">Manage job titles, descriptions, and salary grades.</p>
+            </div>
+            <div className="positions-header-actions">
+                {positions.length > 0 && (
+                    <button className="btn btn-outline-primary" onClick={handleGenerateReport} disabled={isLoading}>
+                        {isLoading ? <span className="spinner-border spinner-border-sm me-2"/> : <i className="bi bi-file-earmark-pdf me-2"></i>}
+                        Export Report
+                    </button>
+                )}
+                <button className="btn btn-success shadow-sm" onClick={handleOpenAddPositionModal}>
+                    <i className="bi bi-plus-lg me-2"></i> Add Position
+                </button>
+            </div>
         </div>
-        <div className="header-actions d-flex align-items-center gap-2">
-            <button className="btn btn-outline-secondary" onClick={handleGenerateReport} disabled={!positions || positions.length === 0}>
-                <i className="bi bi-file-earmark-text-fill"></i> Generate Departments Report
-            </button>
-            <button className="btn btn-success" onClick={handleOpenAddPositionModal}>
-                <i className="bi bi-plus-circle-fill me-2"></i> Add New Department
-            </button>
-        </div>
-      </header>
-      
-      <div className="controls-bar d-flex justify-content-start mb-4">
-        <div className="input-group">
-            <span className="input-group-text"><i className="bi bi-search"></i></span>
-            <input type="text" className="form-control" placeholder="Search departments by title or description..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-      </div>
 
-      {loadingPositions ? (
-        <div className="w-100 text-center p-5 bg-light rounded">
-          <div className="spinner-border text-success" role="status">
-            <span className="visually-hidden">Loading...</span>
+        <div className="positions-controls">
+            <div className="search-wrapper">
+                <div className="input-group">
+                    <span className="input-group-text bg-transparent border-end-0"><i className="bi bi-search"></i></span>
+                    <input 
+                        type="text" 
+                        className="form-control border-start-0 ps-0" 
+                        placeholder="Search positions..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                    />
+                </div>
+            </div>
+        </div>
+
+        {loadingPositions ? (
+          <div className="positions-grid">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="pos-card skeleton-card">
+                <div className="card-body p-4">
+                  <div className="skeleton skeleton-title mb-3"></div>
+                  <div className="skeleton skeleton-text w-75 mb-2"></div>
+                  <div className="skeleton skeleton-text w-50 mb-4"></div>
+                  <div className="skeleton skeleton-text w-100 mt-auto"></div>
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="mt-3 mb-0">Loading departments...</p>
-        </div>
-      ) : (
-        <div className="positions-grid-container">
-          {filteredPositions.length > 0 ? (
-              filteredPositions.map(pos => (
-              <div key={pos.id} className="position-card">
-                  <div className="position-card-header">
-                      <h5 className="position-title">{pos.title}</h5>
-                      <div className="dropdown">
-                      <button className="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i className="bi bi-three-dots-vertical"></i></button>
-                      <ul className="dropdown-menu dropdown-menu-end">
-                          <li><a className="dropdown-item" href="#" onClick={(e) => handleOpenEditPositionModal(e, pos)}>Edit</a></li>
-                          <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleDeletePosition(e, pos)}>Delete</a></li>
-                      </ul>
+        ) : (
+          <>
+            {filteredPositions.length > 0 ? (
+              <div className="positions-grid">
+                {filteredPositions.map(pos => (
+                  <div key={pos.id} className="pos-card">
+                    <div className="pos-card-header">
+                      <div className="pos-icon-wrapper">
+                        <i className="bi bi-briefcase"></i>
                       </div>
-                  </div>
-                  <div className="card-body">
-                      <p className="position-description">{pos.description}</p>
-                      <div className="info-row">
-                          <span className="label">Employee Count:</span>
-                          <span className="value">{employeeCounts[pos.id] || 0}</span>
-                      </div>
-                      <div className="info-row">
-                          <span className="label">Monthly Salary:</span>
-                          <span className="value salary">₱ {safeMonthlySalary(pos).toLocaleString()}</span>
-                      </div>
-                  </div>
-                  <div className="position-card-footer">
-                      <button className="btn btn-sm btn-outline-secondary" onClick={() => handleViewPositionDetails(pos)}>View Details</button>
-                  </div>
-              </div>
-              ))
-          ) : (
-              <div className="w-100 text-center p-5 bg-light rounded">
-                  <i className="bi bi-diagram-3-fill fs-1 text-muted mb-3 d-block"></i>
-                  <h4 className="text-muted">{positions.length > 0 ? "No departments match your search." : "No departments have been created yet."}</h4>
-              </div>
-          )}
-        </div>
-      )}
+                      <div className="pos-title-section">
+                        <h5 className="pos-title" title={pos.title || pos.name}>{pos.title || pos.name}</h5>
 
-      {showAddEditPositionModal && (
-        <AddEditPositionModal show={showAddEditPositionModal} onClose={handleCloseAddEditPositionModal} onSave={handleSavePosition} positionData={editingPosition} submitting={submitting} />
-      )}
+                      </div>
+                      <div className="pos-actions dropdown">
+                        <button className="btn btn-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                          <i className="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul className="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                          <li><a className="dropdown-item" href="#" onClick={(e) => handleOpenEditPositionModal(e, pos)}><i className="bi bi-pencil me-2"></i>Edit Details</a></li>
+                          <li><a className="dropdown-item" href="#" onClick={() => handleViewPositionDetails(pos)}><i className="bi bi-people me-2"></i>Manage Employees</a></li>
+                          <li><hr className="dropdown-divider" /></li>
+                          <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleDeletePosition(e, pos)}><i className="bi bi-trash me-2"></i>Delete</a></li>
+                        </ul>
+                      </div>
+                    </div>
+                    
+                    <div className="pos-card-body">
+                      <p className="pos-description">{pos.description || 'No description provided.'}</p>
+                      
+                      <div className="pos-stats">
+                        <div className="stat-item">
+                          <i className="bi bi-people"></i>
+                          <div className="stat-content">
+                            <span className="stat-label">Employees</span>
+                            <span className="stat-value">{employeeCounts[pos.id] || 0}</span>
+                          </div>
+                        </div>
+                        <div className="stat-item">
+                          <i className="bi bi-cash-stack"></i>
+                          <div className="stat-content">
+                            <span className="stat-label">Salary</span>
+                            <span className="stat-value">₱{safeMonthlySalary(pos).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="pos-card-footer">
+                      <button className="btn btn-outline-success btn-sm w-100" onClick={() => handleViewPositionDetails(pos)}>
+                        View Details <i className="bi bi-arrow-right ms-1"></i>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state-container">
+                <div className="empty-state-icon">
+                    <i className="bi bi-briefcase"></i>
+                </div>
+                <h3>No positions found</h3>
+                <p className="text-muted mb-4">Get started by adding a new job position to your organization.</p>
+                <button className="btn btn-success" onClick={handleOpenAddPositionModal}>
+                    <i className="bi bi-plus-lg me-2"></i> Create Position
+                </button>
+              </div>
+            )}
+          </>
+        )}
 
-     {(isLoading || pdfDataUri) && (
-        <ReportPreviewModal 
+        {/* Modals */}
+        <AddEditPositionModal
+          show={showAddEditPositionModal}
+          onClose={handleCloseAddEditPositionModal}
+          onSave={handleSavePosition}
+          positionData={editingPosition}
+          submitting={submitting}
+        />
+
+        <ConfirmationModal
+          show={showDeletePositionModal}
+          title="Delete Position"
+          onClose={cancelDeletePosition}
+          onConfirm={confirmDeletePosition}
+          confirmText="Delete"
+          confirmVariant="danger"
+        >
+          Are you sure you want to delete the position <strong>{positionToDelete?.title || positionToDelete?.name}</strong>?
+          <br />
+          <small className="text-danger"><i className="bi bi-exclamation-triangle me-1"></i> This action cannot be undone.</small>
+        </ConfirmationModal>
+
+        <ReportPreviewModal
             show={showReportPreview}
             onClose={handleCloseReportPreview}
             pdfDataUri={pdfDataUri}
-            reportTitle="Company Departments Report"
+            reportTitle="Positions Report"
         />
-      )}
-
-      {/* Delete Department Confirmation Modal */}
-      <ConfirmationModal
-        show={showDeletePositionModal}
-        title="Delete Department"
-        onClose={cancelDeletePosition}
-        onConfirm={confirmDeletePosition}
-        confirmText={isDeletingPosition ? 'Deleting...' : 'Delete'}
-        confirmVariant="danger"
-        disabled={isDeletingPosition}
-      >
-        Are you sure you want to delete the department "{positionToDelete?.title}"? This will unassign all employees from this department.
-      </ConfirmationModal>
-
-      {/* Remove Employee Confirmation Modal */}
-      <ConfirmationModal
-        show={showRemoveEmployeeModal}
-        title="Remove Employee from Department"
-        onClose={cancelRemoveEmployee}
-        onConfirm={confirmRemoveEmployee}
-        confirmText={isRemovingEmployee ? 'Removing...' : 'Remove'}
-        confirmVariant="danger"
-        disabled={isRemovingEmployee}
-      >
-        Are you sure you want to remove "{employeeToRemove?.name}" from their current department?
-      </ConfirmationModal>
-
-      {/* Toast Notification */}
-      {toast.show && (
+        
         <ToastNotification
-          show={toast.show}
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+            show={toast.show}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast({ ...toast, show: false })}
         />
-      )}
-
-    </div>
+      </div>
+    </Layout>
   );
 };
 

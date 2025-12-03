@@ -317,6 +317,30 @@ a:hover {
   background-color: var(--bs-table-hover-bg);
 }
 
+/* Sortable Table Headers */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.sortable:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.sort-icon {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  transition: all 0.2s ease;
+}
+.sortable:hover .sort-icon {
+  opacity: 1;
+}
+.sort-icon.active {
+  color: var(--app-success-color);
+  opacity: 1;
+}
+
 /* Button Overrides for Theme Adaptability */
 .dark-theme .btn-light {
   color: var(--text-primary);

@@ -15,7 +15,7 @@ class TeamLeaderDashboardController extends Controller
     {
         $leader = $request->user();
 
-        if (!$leader || $leader->role !== 'TEAM_LEADER' || !$leader->position_id) {
+        if (!$leader || !$leader->is_team_leader || !$leader->position_id) {
             return response()->json([
                 'message' => 'Only team leaders with an assigned position can access this endpoint.'
             ], 403);
@@ -150,7 +150,7 @@ class TeamLeaderDashboardController extends Controller
                 'name' => $displayName,
                 'email' => $member->email,
                 'contactNumber' => $member->contact_number,
-                'isTeamLeader' => $member->role === 'TEAM_LEADER',
+                'isTeamLeader' => $member->is_team_leader,
                 'avatarUrl' => $member->image_url ? asset('storage/' . $member->image_url) : null,
             ];
         })->values();

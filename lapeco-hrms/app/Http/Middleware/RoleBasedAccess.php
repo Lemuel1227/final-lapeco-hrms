@@ -43,11 +43,17 @@ class RoleBasedAccess
         $role = $user->role;
         $roleAliases = [
             'EMPLOYEE' => 'REGULAR_EMPLOYEE',
-            'HR_PERSONNEL' => 'HR_MANAGER',
+            'HR_PERSONNEL' => 'SUPER_ADMIN',
         ];
         $role = $roleAliases[$role] ?? $role;
+        
+        // Treat Team Leaders as having TEAM_LEADER role for permission checks
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
+
         $modules = $this->getPositionModules($user);
-        $isHr = $role === 'HR_MANAGER';
+        $isHr = $role === 'SUPER_ADMIN';
         
         switch ($resource) {
             case 'employee':
@@ -215,17 +221,20 @@ class RoleBasedAccess
     private function checkEmployeePermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
             case 'index':
                 // HR can view all, Team Leaders and Regular employees can view same position
-                return in_array($role, ['HR_MANAGER', 'HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['SUPER_ADMIN', 'HR_PERSONNEL', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'show':
                 // Check if user can view specific employee
                 $targetEmployee = $request->route('employee');
-                if (in_array($role, ['HR_MANAGER', 'HR_PERSONNEL'])) {
+                if (in_array($role, ['SUPER_ADMIN', 'HR_PERSONNEL'])) {
                     return true;
                 }
                 // Team leaders and regular employees can only view same position
@@ -234,12 +243,12 @@ class RoleBasedAccess
             case 'create':
             case 'store':
                 // Only HR can create employees
-                return in_array($role, ['HR_MANAGER', 'HR_PERSONNEL']);
+                return in_array($role, ['SUPER_ADMIN', 'HR_PERSONNEL']);
             
             case 'update':
                 // HR can update any employee, others can only update themselves
                 $targetEmployee = $request->route('employee');
-                if (in_array($role, ['HR_MANAGER', 'HR_PERSONNEL'])) {
+                if (in_array($role, ['SUPER_ADMIN', 'HR_PERSONNEL'])) {
                     return true;
                 }
                 return $targetEmployee && $targetEmployee->id === $user->id;
@@ -247,7 +256,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can delete employees
-                return in_array($role, ['HR_MANAGER', 'HR_PERSONNEL']);
+                return in_array($role, ['SUPER_ADMIN', 'HR_PERSONNEL']);
             
             default:
                 return false;
@@ -260,12 +269,15 @@ class RoleBasedAccess
     private function checkLeavePermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
             case 'index':
                 // HR can view all, Team Leaders can view team, Regular employees can view own
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'create':
             case 'store':
@@ -273,7 +285,7 @@ class RoleBasedAccess
                 return true;
             
             case 'update':
-                if (in_array($role, ['HR_MANAGER', 'TEAM_LEADER'])) {
+                if (in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER'])) {
                     return true;
                 }
 
@@ -290,7 +302,7 @@ class RoleBasedAccess
 
             case 'approve':
                 // HR can approve all, Team Leaders can approve team leaves
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
+                return in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER']);
             
             case 'delete':
             case 'destroy':
@@ -308,6 +320,9 @@ class RoleBasedAccess
     private function checkSchedulePermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
@@ -321,7 +336,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR and Team Leaders can manage schedules
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
+                return in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER']);
             
             default:
                 return false;
@@ -334,12 +349,15 @@ class RoleBasedAccess
     private function checkAttendancePermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
             case 'index':
                 // HR can view all, Team Leaders can view team, Regular employees can view own
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'create':
             case 'store':
@@ -350,7 +368,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can delete attendance records
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             default:
                 return false;
@@ -363,6 +381,9 @@ class RoleBasedAccess
     private function checkPositionPermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
@@ -376,7 +397,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage positions
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             default:
                 return false;
@@ -389,6 +410,9 @@ class RoleBasedAccess
     private function checkPayrollPermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
@@ -402,7 +426,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage payroll
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             default:
                 return false;
@@ -415,6 +439,9 @@ class RoleBasedAccess
     private function checkTrainingPermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
@@ -428,7 +455,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage training programs
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             case 'enroll':
                 // All can enroll in training
@@ -445,18 +472,21 @@ class RoleBasedAccess
     private function checkDisciplinaryPermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
             case 'index':
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
+                return in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER']);
             case 'create':
             case 'store':
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             case 'update':
             case 'delete':
             case 'destroy':
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             default:
                 return false;
@@ -469,6 +499,9 @@ class RoleBasedAccess
     private function checkRecruitmentPermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
@@ -479,7 +512,7 @@ class RoleBasedAccess
             case 'delete':
             case 'destroy':
                 // Only HR can manage recruitment
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             default:
                 return false;
@@ -492,12 +525,15 @@ class RoleBasedAccess
     private function checkPerformancePermission($user, string $action, Request $request): bool
     {
         $role = $user->role;
+        if ($user->is_team_leader && $role !== 'SUPER_ADMIN') {
+            $role = 'TEAM_LEADER';
+        }
         
         switch ($action) {
             case 'view':
             case 'index':
                 // All authenticated users can view performance data
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
+                return in_array($role, ['SUPER_ADMIN', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
             
             case 'evaluate':
                 // Team leaders can evaluate their team members
@@ -507,16 +543,16 @@ class RoleBasedAccess
             case 'create':
             case 'store':
                 // Only HR can create evaluation periods and evaluations
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             case 'update':
                 // Only HR can update evaluation periods and evaluations
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             case 'delete':
             case 'destroy':
                 // Only HR can delete evaluation periods
-                return $role === 'HR_MANAGER';
+                return $role === 'SUPER_ADMIN';
             
             default:
                 return false;
@@ -529,29 +565,29 @@ class RoleBasedAccess
     private function getAccessDeniedMessage(string $role, string $resource, string $action): string
     {
         $messages = [
-            'HR_MANAGER' => 'Access denied. This action is not available for your role.',
+            'SUPER_ADMIN' => 'Access denied. This action is not available for your role.',
         ];
 
         $specificMessages = [
             'employee' => [
-                'create' => 'Only HR managers can create new employee accounts.',
-                'update' => 'You can only update your own profile or contact an HR Manager for assistance.',
-                'delete' => 'Only HR managers can delete employee accounts.',
+                'create' => 'Only Super Admins can create new employee accounts.',
+                'update' => 'You can only update your own profile or contact a Super Admin for assistance.',
+                'delete' => 'Only Super Admins can delete employee accounts.',
             ],
             'leave' => [
-                'approve' => 'Only HR managers and team leaders can approve leave requests.',
+                'approve' => 'Only Super Admins and team leaders can approve leave requests.',
                 'delete' => 'You can only delete your own pending leave requests.',
             ],
             'schedule' => [
-                'create' => 'Only HR managers and team leaders can create schedules.',
-                'update' => 'Only HR managers and team leaders can modify schedules.',
-                'delete' => 'Only HR managers and team leaders can delete schedules.',
+                'create' => 'Only Super Admins and team leaders can create schedules.',
+                'update' => 'Only Super Admins and team leaders can modify schedules.',
+                'delete' => 'Only Super Admins and team leaders can delete schedules.',
             ],
             'payroll' => [
                 'view' => 'You can only view your own payroll information.',
-                'create' => 'Only HR managers can manage payroll.',
-                'update' => 'Only HR managers can modify payroll.',
-                'delete' => 'Only HR managers can delete payroll records.',
+                'create' => 'Only Super Admins can manage payroll.',
+                'update' => 'Only Super Admins can modify payroll.',
+                'delete' => 'Only Super Admins can delete payroll records.',
             ]
         ];
 
@@ -560,40 +596,6 @@ class RoleBasedAccess
             return $specificMessages[$resource][$action];
         }
 
-        // Return role-based generic message
         return $messages[$role] ?? 'Access denied.';
-    }
-
-    /**
-     * Check resignation-related permissions
-     */
-    private function checkResignationPermission($user, string $action, Request $request): bool
-    {
-        $role = $user->role;
-        
-        switch ($action) {
-            case 'view':
-            case 'index':
-                // HR can view all, Team Leaders can view team, Regular employees can view own
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE']);
-            
-            case 'create':
-            case 'store':
-                // All authenticated users can submit resignation requests
-                return true;
-            
-            case 'update':
-            case 'approve':
-                // HR can approve all, Team Leaders can approve team resignations
-                return in_array($role, ['HR_MANAGER', 'TEAM_LEADER']);
-            
-            case 'delete':
-            case 'destroy':
-                // HR can delete any, others can delete own pending requests
-                return true; // Additional logic needed in controller
-            
-            default:
-                return false;
-        }
     }
 }

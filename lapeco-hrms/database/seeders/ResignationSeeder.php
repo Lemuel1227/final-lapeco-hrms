@@ -16,11 +16,11 @@ class ResignationSeeder extends Seeder
     public function run(): void
     {
         // Get employees with IDs above 30 (excluding HR managers)
-        $employees = User::where('role', '!=', 'HR_MANAGER')
+        $employees = User::where('role', '!=', 'SUPER_ADMIN')
                         ->where('id', '>', 30)
                         ->take(20)
                         ->get();
-        $hrUsers = User::where('role', 'HR_MANAGER')->get();
+        $hrUsers = User::where('role', 'SUPER_ADMIN')->get();
         
         if ($employees->isEmpty() || $hrUsers->isEmpty()) {
             $this->command->info('No employees or HR managers found. Please seed users first.');
@@ -78,3 +78,4 @@ class ResignationSeeder extends Seeder
         }
     }
 }
+

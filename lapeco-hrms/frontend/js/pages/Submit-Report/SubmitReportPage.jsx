@@ -68,7 +68,11 @@ const SubmitReportPage = () => {
         setResolvedUser(normalizedUser);
 
         const resolvedRole = profile?.role || profile?.user_role || profile?.data?.role;
-        setUserRole(resolvedRole || null);
+        // Check is_team_leader flag from profile data
+        const isTeamLeader = Boolean(profileUserRaw?.is_team_leader || profileUserRaw?.isTeamLeader);
+        // If user is a team leader, force the role to TEAM_LEADER for frontend logic, otherwise use the returned role
+        const effectiveRole = isTeamLeader ? 'TEAM_LEADER' : (resolvedRole || null);
+        setUserRole(effectiveRole);
 
         const employeesResponse = await employeeAPI.getList();
         if (!isMounted) return;
@@ -192,8 +196,8 @@ const SubmitReportPage = () => {
     if (!resolvedUser) return [];
 
     if (normalizedRole === 'TEAM_LEADER') {
-      const teamMembers = employees.filter(emp => emp.positionId === resolvedUser.positionId && !emp.isTeamLeader);
-      // Team leader can report themselves or their members
+      // Team leader can report themselves or their members (anyone in their view)
+      const teamMembers = employees.filter(emp => emp.id !== resolvedUser.id);
       const reportableEmployees = [resolvedUser, ...teamMembers];
       return reportableEmployees.map(emp => ({ value: emp.id, label: `${emp.name} (${emp.id})` }));
     }
@@ -304,8 +308,8 @@ const SubmitReportPage = () => {
     <>
       <div className="container-fluid p-0 page-module-container">
         <header className="page-header mb-3">
-          <h1 className="page-main-title">Incedent Report</h1>
-          <p className="text-muted">Submit a new incedent report or view your submitted reports and interact via logs.</p>
+          <h1 className="page-main-title">Incident Report</h1>
+          <p className="text-muted">Submit a new incident report or view your submitted reports and interact via logs.</p>
         </header>
 
         <ul className="nav nav-tabs mb-4">

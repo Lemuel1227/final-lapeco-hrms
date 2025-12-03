@@ -24,7 +24,7 @@ class UserFactory extends Factory
     public function definition(): array
     {
         $genders = ['Male', 'Female'];
-        $roleOptions = ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'];
+        $roleOptions = ['SUPER_ADMIN', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'];
 
         $firstName = $this->faker->firstName();
         $middleName = $this->faker->optional(0.4)->firstName();
@@ -67,3 +67,4 @@ class UserFactory extends Factory
         ]);
     }
 }
+

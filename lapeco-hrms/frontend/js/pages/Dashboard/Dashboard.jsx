@@ -13,14 +13,14 @@ const Dashboard = (props) => {
   const storedUser = (() => {
     try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   })();
-  const rawRole = props?.userRole || storedUser?.role || USER_ROLES.HR_MANAGER;
+  const rawRole = props?.userRole || storedUser?.role || USER_ROLES.SUPER_ADMIN;
   const normalizedRole = String(rawRole || '').toUpperCase();
-  const roleAliases = { HR_PERSONNEL: USER_ROLES.HR_MANAGER };
+  const roleAliases = { HR_PERSONNEL: USER_ROLES.SUPER_ADMIN };
   const userRole = roleAliases[normalizedRole] || normalizedRole;
 
   const renderDashboardByRole = () => {
     switch (userRole) {
-      case USER_ROLES.HR_MANAGER:
+      case USER_ROLES.SUPER_ADMIN:
         return <HRDashboard {...props} userRole={userRole} />;
       case 'TEAM_LEADER':
         return <TeamLeaderDashboard {...props} userRole={userRole} />;

@@ -40,8 +40,8 @@ class NotifyUpcomingHolidays extends Command
             return 0;
         }
         
-        // Get all employees and team leaders
-        $users = User::whereIn('role', ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'])->get();
+        // Get all active employees and team leaders
+        $users = User::whereNotIn('employment_status', ['terminated', 'resigned'])->get();
         
         foreach ($upcomingHolidays as $holiday) {
             $this->info("Processing holiday: {$holiday->title} on {$holiday->date}");
@@ -75,7 +75,7 @@ class NotifyUpcomingHolidays extends Command
                 
                 if (!$existingNotification) {
                     // Set different action URLs based on user role
-                    $actionUrl = $user->role === 'HR_MANAGER' 
+                    $actionUrl = $user->role === 'SUPER_ADMIN' 
                         ? '/dashboard/holiday-management' 
                         : '/dashboard/my-attendance';
                     
@@ -103,3 +103,4 @@ class NotifyUpcomingHolidays extends Command
         return 0;
     }
 }
+

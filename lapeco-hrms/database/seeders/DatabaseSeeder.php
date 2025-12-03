@@ -31,6 +31,10 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Warehouse Operations',
                 'description' => 'Oversees warehouse activities, order fulfillment, and materials handling.',
             ],
+            [
+                'name' => 'Admin Department',
+                'description' => 'System Administration and default department.',
+            ],
         ];
 
         $departmentIds = [];
@@ -161,11 +165,11 @@ class DatabaseSeeder extends Seeder
         // Seed users, at least one for each position
         $seedUsers = [
             [
-                'first_name' => 'HR',
+                'first_name' => 'Sana',
                 'middle_name' => null,
-                'last_name' => 'Manager',
+                'last_name' => 'Pasado',
                 'email' => 'hr@example.com',
-                'role' => 'HR_MANAGER',
+                'role' => 'SUPER_ADMIN',
                 'position_id' => $positionIds['HR Manager'],
                 'account_status' => 'Active',
             ],
@@ -246,7 +250,7 @@ class DatabaseSeeder extends Seeder
                 'middle_name' => 'John',
                 'last_name' => 'Ellasus',
                 'email' => 'lemuelellasus1@gmail.com',
-                'role' => 'HR_MANAGER',
+                'role' => 'SUPER_ADMIN',
                 'position_id' => $positionIds['HR Manager'],
                 'account_status' => 'Active',
             ],
@@ -318,7 +322,7 @@ class DatabaseSeeder extends Seeder
         
         if ($employees->count() > 0) {
             $hrReporter = User::where('email', 'hr@example.com')->first()
-                ?? User::where('role', 'HR_MANAGER')->first();
+                ?? User::where('role', 'SUPER_ADMIN')->first();
             $reporterPool = collect([
                 $hrReporter,
                 User::where('email', 'packer.leader@example.com')->first(),
@@ -588,3 +592,4 @@ class DatabaseSeeder extends Seeder
 
     }
 }
+

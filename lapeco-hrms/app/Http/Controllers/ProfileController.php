@@ -39,6 +39,9 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
+        // Load position for consistent response
+        $request->user()->load('position');
+
         return response()->json([
             'message' => 'Profile updated successfully',
             'user' => $request->user()

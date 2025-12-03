@@ -15,15 +15,15 @@ class TerminationSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get employees with IDs above 30 (excluding HR managers and already resigned employees)
-        $employees = User::where('role', '!=', 'HR_MANAGER')
+        // Get employees with IDs above 30 (excluding Super Admins and already resigned employees)
+        $employees = User::where('role', '!=', 'SUPER_ADMIN')
                         ->where('employment_status', 'active')
                         ->where('id', '>', 30)
                         ->take(15)->get();
-        $hrUsers = User::where('role', 'HR_MANAGER')->get();
+        $hrUsers = User::where('role', 'SUPER_ADMIN')->get();
         
         if ($employees->isEmpty() || $hrUsers->isEmpty()) {
-            $this->command->info('No active employees or HR managers found for termination seeding.');
+            $this->command->info('No active employees or Super Admins found for termination seeding.');
             return;
         }
 

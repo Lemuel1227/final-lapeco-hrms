@@ -49,9 +49,9 @@
         public function index(Request $request)
         {
             $user = $request->user();
-            if ($user->role === 'HR_MANAGER') {
+            if ($user->role === 'SUPER_ADMIN') {
                 $leaves = Leave::with('user.position')->latest()->get();
-            } elseif ($user->role === 'TEAM_LEADER') {
+            } elseif ($user->is_team_leader) {
                 $leaves = Leave::with('user.position')->whereHas('user', function ($q) use ($user) {
                     $q->where('position_id', $user->position_id);
                 })->latest()->get();
@@ -206,7 +206,7 @@
                 $userName = $this->computeFullName($user);
                 
                 // Create notification for all HR personnel
-                $hrPersonnel = User::where('role', 'HR_MANAGER')->get();
+                $hrPersonnel = User::where('role', 'SUPER_ADMIN')->get();
                 foreach ($hrPersonnel as $hrUser) {
                     Notification::createForUser(
                         $hrUser->id,
@@ -268,14 +268,14 @@
                 $requestedStatus = $validated['status'];
 
                 if (in_array($requestedStatus, ['Approved', 'Declined', 'Pending'])) {
-                    if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+                    if (!($user->role === 'SUPER_ADMIN' || $user->is_team_leader) && !$this->hasModule($user, 'leave_management')) {
                         return response()->json([
                             'message' => 'Access denied. Only HR managers or team leaders can modify this leave status.',
                             'error_type' => 'authorization_error',
                         ], 403);
                     }
                 } elseif ($requestedStatus === 'Canceled') {
-                    if ($leave->user_id !== $user->id && !in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+                    if ($leave->user_id !== $user->id && !($user->role === 'SUPER_ADMIN' || $user->is_team_leader) && !$this->hasModule($user, 'leave_management')) {
                         return response()->json([
                             'message' => 'Access denied. You can only cancel your own leave requests.',
                             'error_type' => 'authorization_error',
@@ -283,7 +283,7 @@
                     }
 
                     // Regular employees can only change the status when cancelling
-                    if ($leave->user_id === $user->id && !in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+                    if ($leave->user_id === $user->id && !($user->role === 'SUPER_ADMIN' || $user->is_team_leader) && !$this->hasModule($user, 'leave_management')) {
                         $validated = ['status' => 'Canceled'];
                     }
                 } else {
@@ -351,7 +351,7 @@
         public function destroy(Request $request, Leave $leave)
         {
             $user = $request->user();
-            if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management') && $leave->user_id !== $user->id) {
+            if ($user->role !== 'SUPER_ADMIN' && !$this->hasModule($user, 'leave_management') && $leave->user_id !== $user->id) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -377,7 +377,7 @@
             }
             
             // Check permissions - only HR can view other users' credits
-            if ($userId != $user->id && $user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
+            if ($userId != $user->id && $user->role !== 'SUPER_ADMIN' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -411,7 +411,7 @@
             $year = (int) $request->query('year', date('Y'));
 
             // Only HR can access all users' leave credits
-            if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
+            if ($user->role !== 'SUPER_ADMIN' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -460,7 +460,7 @@
             $user = $request->user();
             $year = (int) $request->query('year', date('Y'));
 
-            if ($user->role !== 'HR_MANAGER' && !$this->hasModule($user, 'leave_management')) {
+            if ($user->role !== 'SUPER_ADMIN' && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -484,7 +484,7 @@
         {
             $user = $request->user();
             
-            if ($user->role !== 'HR_MANAGER') {
+            if ($user->role !== 'SUPER_ADMIN') {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -494,7 +494,7 @@
             ]);
             
             $updatedRecords = 0;
-            $users = User::whereIn('role', ['HR_MANAGER', 'TEAM_LEADER', 'REGULAR_EMPLOYEE'])->get();
+            $users = User::whereNotIn('employment_status', ['terminated', 'resigned'])->get();
             
             foreach ($users as $targetUser) {
                 if ($validated['vacation'] > 0) {
@@ -525,7 +525,7 @@
         {
             $user = $request->user();
             
-            if ($user->role !== 'HR_MANAGER') {
+            if ($user->role !== 'SUPER_ADMIN') {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             
@@ -576,8 +576,18 @@
         {
             $user = $request->user();
 
-            // Permission: HR can view any; otherwise only the owner
-            if ($user->role !== 'HR_MANAGER' && $leave->user_id !== $user->id) {
+            // Permission: HR can view any; Team Leaders can view team members; Owner can view own
+            $canView = false;
+
+            if ($user->role === 'SUPER_ADMIN') {
+                $canView = true;
+            } elseif ($leave->user_id === $user->id) {
+                $canView = true;
+            } elseif ($user->is_team_leader && $leave->user->position_id === $user->position_id) {
+                $canView = true;
+            }
+
+            if (!$canView) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
 
@@ -613,7 +623,7 @@
         public function getNoticeDays(Request $request)
         {
             $user = $request->user();
-            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+            if (!($user->role === 'SUPER_ADMIN' || $user->is_team_leader) && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             $policy = SystemSetting::getJson('leave_notice_days_map', []);
@@ -628,7 +638,7 @@
         public function updateNoticeDays(Request $request)
         {
             $user = $request->user();
-            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+            if (!($user->role === 'SUPER_ADMIN' || $user->is_team_leader) && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             $types = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Unpaid Leave', 'Maternity Leave', 'Paternity Leave'];
@@ -651,7 +661,7 @@
         public function getAutoDeclineDays(Request $request)
         {
             $user = $request->user();
-            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+            if (!($user->role === 'SUPER_ADMIN' || $user->is_team_leader) && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             $days = (int) (SystemSetting::getValue('leave_auto_decline_days', 0) ?? 0);
@@ -666,7 +676,7 @@
         public function updateAutoDeclineDays(Request $request)
         {
             $user = $request->user();
-            if (!in_array($user->role, ['HR_MANAGER', 'TEAM_LEADER']) && !$this->hasModule($user, 'leave_management')) {
+            if (!($user->role === 'SUPER_ADMIN' || $user->is_team_leader) && !$this->hasModule($user, 'leave_management')) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
             $incoming = $request->input('days');

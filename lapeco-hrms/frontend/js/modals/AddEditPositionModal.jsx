@@ -4,6 +4,7 @@ import './AddEditPositionModal.css';
 const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
   const initialFormState = { 
     title: '', 
+    max_team_leaders: 1,
     description: '', 
     base_rate_per_hour: '', 
     regular_day_ot_rate: '',
@@ -18,6 +19,7 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState('details');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isEditMode = Boolean(positionData && positionData.id);
 
@@ -48,6 +50,7 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
       if (isEditMode && positionData) {
         setFormData({
           title: positionData.title || positionData.name || '',
+          max_team_leaders: positionData.max_team_leaders || 1,
           description: positionData.description || '',
           base_rate_per_hour: positionData.base_rate_per_hour ?? positionData.hourlyRate ?? '',
           regular_day_ot_rate: positionData.regular_day_ot_rate ?? '',
@@ -64,6 +67,7 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
       }
       setActiveTab('details');
       setErrors({});
+      setSearchQuery('');
     }
   }, [positionData, show, isEditMode]); 
   
@@ -97,57 +101,114 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
     };
   }, [formData.base_rate_per_hour]);
 
-  const moduleOptions = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'leaderboards', label: 'Leaderboards' },
-    { key: 'employee_data', label: 'Employee Data' },
-    { key: 'department_management', label: 'Department Management' },
-    { key: 'attendance_management', label: 'Attendance Management' },
-    { key: 'schedules', label: 'Schedules' },
-    { key: 'leave_management', label: 'Leave Management' },
-    { key: 'payroll_management', label: 'Payroll Management' },
-    { key: 'holidays', label: 'Holidays' },
-    { key: 'contributions', label: 'Contributions' },
-    { key: 'performance_management', label: 'Performance Management' },
-    { key: 'training_and_development', label: 'Training and Development' },
-    { key: 'case_management', label: 'Case Management' },
-    { key: 'predictive_analytics', label: 'Predictive Analytics' },
-    { key: 'resignation_management', label: 'Resignation Management' },
-    { key: 'recruitment', label: 'Recruitment' },
-    { key: 'accounts_management', label: 'Accounts Management' },
-    { key: 'reports', label: 'Reports' },
-    { key: 'my_team', label: 'My Team' },
-    { key: 'submit_evaluation', label: 'Submit Evaluation' },
-    { key: 'my_leave', label: 'My Leave' },
-    { key: 'my_cases', label: 'My Cases' },
-    { key: 'submit_incident_report', label: 'Submit Incident Report' },
-    { key: 'my_attendance', label: 'My Attendance' },
-    { key: 'my_resignation', label: 'My Resignation' },
-    { key: 'my_payroll', label: 'My Payroll' },
-  ];
+  const moduleGroups = useMemo(() => [
+    {
+      title: 'Core HR & Administration',
+      modules: [
+        { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', desc: 'View system overview and stats' },
+        { key: 'employee_data', label: 'Employee Data', icon: 'bi-people', desc: 'Manage employee records' },
+        { key: 'department_management', label: 'Department Management', icon: 'bi-building', desc: 'Manage departments and positions' },
+        { key: 'schedules', label: 'Schedules', icon: 'bi-calendar-week', desc: 'Manage work schedules' },
+        { key: 'attendance_management', label: 'Attendance Management', icon: 'bi-clock', desc: 'Monitor employee attendance' },
+        { key: 'leave_management', label: 'Leave Management', icon: 'bi-calendar-check', desc: 'Manage leave requests' },
+        { key: 'holidays', label: 'Holidays', icon: 'bi-calendar-event', desc: 'Manage holiday calendar' },
+        { key: 'recruitment', label: 'Recruitment', icon: 'bi-person-plus', desc: 'Manage job applications' },
+      ]
+    },
+    {
+      title: 'Payroll & Finance',
+      modules: [
+        { key: 'payroll_management', label: 'Payroll Management', icon: 'bi-cash-stack', desc: 'Process payroll and payslips' },
+        { key: 'contributions', label: 'Contributions', icon: 'bi-bank', desc: 'Manage govt contributions' },
+        { key: 'accounts_management', label: 'Accounts Management', icon: 'bi-wallet2', desc: 'Manage financial accounts' },
+      ]
+    },
+    {
+      title: 'Performance & Development',
+      modules: [
+        { key: 'performance_management', label: 'Performance Management', icon: 'bi-graph-up-arrow', desc: 'Track employee performance' },
+        { key: 'training_and_development', label: 'Training & Development', icon: 'bi-book', desc: 'Manage training programs' },
+        { key: 'leaderboards', label: 'Leaderboards', icon: 'bi-trophy', desc: 'View top performers' },
+        { key: 'submit_evaluation', label: 'Submit Evaluation', icon: 'bi-clipboard-check', desc: 'Submit performance evaluations' },
+      ]
+    },
+    {
+      title: 'Case & Risk Management',
+      modules: [
+        { key: 'case_management', label: 'Case Management', icon: 'bi-briefcase', desc: 'Handle disciplinary cases' },
+        { key: 'resignation_management', label: 'Resignation Management', icon: 'bi-box-arrow-right', desc: 'Process resignations' },
+        { key: 'submit_incident_report', label: 'Submit Incident Report', icon: 'bi-exclamation-circle', desc: 'Report workplace incidents' },
+      ]
+    },
+    {
+      title: 'Employee Self-Service',
+      modules: [
+        { key: 'my_team', label: 'My Team', icon: 'bi-people-fill', desc: 'View team members' },
+        { key: 'my_leave', label: 'My Leave', icon: 'bi-calendar-plus', desc: 'View and file leaves' },
+        { key: 'my_attendance', label: 'My Attendance', icon: 'bi-clock-history', desc: 'View personal attendance' },
+        { key: 'my_resignation', label: 'My Resignation', icon: 'bi-file-earmark-x', desc: 'File resignation' },
+        { key: 'my_cases', label: 'My Cases', icon: 'bi-folder', desc: 'View personal cases' },
+        { key: 'my_payroll', label: 'My Payroll', icon: 'bi-receipt', desc: 'View personal payslips' },
+      ]
+    },
+    {
+      title: 'Analytics & Reports',
+      modules: [
+        { key: 'reports', label: 'Reports', icon: 'bi-file-earmark-bar-graph', desc: 'Generate system reports' },
+        { key: 'predictive_analytics', label: 'Predictive Analytics', icon: 'bi-graph-up', desc: 'View AI insights' },
+      ]
+    }
+  ], []);
+
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery) return moduleGroups;
+    const lowerQuery = searchQuery.toLowerCase();
+    
+    return moduleGroups.map(group => {
+      const filteredModules = group.modules.filter(m => 
+        m.label.toLowerCase().includes(lowerQuery) || 
+        m.desc.toLowerCase().includes(lowerQuery)
+      );
+      return filteredModules.length > 0 ? { ...group, modules: filteredModules } : null;
+    }).filter(Boolean);
+  }, [searchQuery, moduleGroups]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (name.startsWith('module_')) {
-      const key = name.replace('module_', '');
-      setFormData(prev => {
-        const set = new Set(prev.allowed_modules || []);
-        if (checked) set.add(key); else set.delete(key);
-        return { ...prev, allowed_modules: Array.from(set) };
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const toggleModule = (key) => {
+    setFormData(prev => {
+      const set = new Set(prev.allowed_modules || []);
+      if (set.has(key)) set.delete(key);
+      else set.add(key);
+      return { ...prev, allowed_modules: Array.from(set) };
+    });
+  };
+
+  const toggleGroup = (groupModules, shouldSelect) => {
+    setFormData(prev => {
+      const set = new Set(prev.allowed_modules || []);
+      groupModules.forEach(m => {
+        if (shouldSelect) set.add(m.key);
+        else set.delete(m.key);
       });
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+      return { ...prev, allowed_modules: Array.from(set) };
+    });
   };
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = 'Department name is required.';
+    if (!formData.title.trim()) newErrors.title = 'Position title is required.';
+    if (!formData.max_team_leaders || formData.max_team_leaders < 1) newErrors.max_team_leaders = 'At least 1 team leader is required.';
     if (!formData.description.trim()) newErrors.description = 'Description is required.';
     if (!formData.base_rate_per_hour || isNaN(formData.base_rate_per_hour) || Number(formData.base_rate_per_hour) <= 0) {
       newErrors.base_rate_per_hour = 'Base rate must be a valid positive number.';
     }
-    if (!Array.isArray(formData.allowed_modules)) newErrors.allowed_modules = 'Please select modules.';
+    if (!Array.isArray(formData.allowed_modules) || formData.allowed_modules.length === 0) {
+      newErrors.allowed_modules = 'Please select at least one module.';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -173,7 +234,7 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
 
   return (
     <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-      <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-dialog modal-dialog-centered modal-lg">
         <div className="modal-content position-form-modal">
           <form onSubmit={handleSubmit} noValidate>
             <div className="modal-header">
@@ -200,6 +261,21 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
                       <label htmlFor="title" className="form-label">Position Title*</label>
                       <input type="text" className={`form-control ${errors.title ? 'is-invalid' : ''}`} id="title" name="title" value={formData.title} onChange={handleChange} required />
                       {errors.title && <div className="invalid-feedback">{errors.title}</div>}
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="max_team_leaders" className="form-label">Max Team Leaders*</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        className={`form-control ${errors.max_team_leaders ? 'is-invalid' : ''}`} 
+                        id="max_team_leaders" 
+                        name="max_team_leaders" 
+                        value={formData.max_team_leaders} 
+                        onChange={handleChange} 
+                        required 
+                      />
+                      {errors.max_team_leaders && <div className="invalid-feedback">{errors.max_team_leaders}</div>}
+                      <div className="form-text text-muted">Maximum number of team leaders allowed for this position.</div>
                     </div>
                     <div className="mb-3">
                       <label htmlFor="description" className="form-label">Description*</label>
@@ -372,26 +448,110 @@ const AddEditPositionModal = ({ show, onClose, onSave, positionData }) => {
                 )}
 
                 {activeTab === 'access' && (
-                  <div className="mb-3">
-                    <label className="form-label">Granted System Modules</label>
-                    <div className="row">
-                      {moduleOptions.map(opt => (
-                        <div key={opt.key} className="col-md-6 mb-2">
-                          <div className="form-check">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id={`module_${opt.key}`}
-                              name={`module_${opt.key}`}
-                              checked={formData.allowed_modules.includes(opt.key)}
-                              onChange={handleChange}
+                  <div className="access-tab-container">
+                    <div className="access-controls">
+                      <div className="row align-items-center">
+                        <div className="col">
+                          <h6 className="mb-0">Module Access Control</h6>
+                          <small className="text-muted">Configure system access for this position</small>
+                        </div>
+                        <div className="col-auto">
+                          <div className="input-group" style={{ width: '250px' }}>
+                            <span className="input-group-text bg-white border-end-0">
+                              <i className="bi bi-search"></i>
+                            </span>
+                            <input 
+                              type="text" 
+                              className="form-control border-start-0 ps-0" 
+                              placeholder="Search modules..." 
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
                             />
-                            <label className="form-check-label" htmlFor={`module_${opt.key}`}>{opt.label}</label>
                           </div>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                    {errors.allowed_modules && <div className="invalid-feedback d-block">{errors.allowed_modules}</div>}
+
+                    {filteredGroups.length > 0 ? (
+                      filteredGroups.map((group, gIndex) => {
+                        const allSelected = group.modules.every(m => formData.allowed_modules.includes(m.key));
+                        const someSelected = group.modules.some(m => formData.allowed_modules.includes(m.key));
+                        
+                        return (
+                          <div key={gIndex} className="module-group">
+                            <div className="module-group-header">
+                              <h6 className="module-group-title">
+                                {group.title}
+                                <span className="badge bg-light text-secondary border ms-2">{group.modules.length}</span>
+                              </h6>
+                              <div className="form-check">
+                                <input 
+                                  className="form-check-input" 
+                                  type="checkbox" 
+                                  id={`group_${gIndex}`}
+                                  checked={allSelected}
+                                  ref={input => {
+                                    if (input) input.indeterminate = someSelected && !allSelected;
+                                  }}
+                                  onChange={(e) => toggleGroup(group.modules, e.target.checked)}
+                                />
+                                <label className="form-check-label small user-select-none" htmlFor={`group_${gIndex}`}>
+                                  Select All
+                                </label>
+                              </div>
+                            </div>
+                            <div className="module-group-body">
+                              <div className="row g-3">
+                                {group.modules.map(module => {
+                                  const isSelected = formData.allowed_modules.includes(module.key);
+                                  return (
+                                    <div key={module.key} className="col-md-6">
+                                      <div 
+                                        className={`module-item ${isSelected ? 'selected' : ''}`}
+                                        onClick={() => toggleModule(module.key)}
+                                      >
+                                        <div className="module-icon">
+                                          <i className={`bi ${module.icon}`}></i>
+                                        </div>
+                                        <div className="module-info">
+                                          <span className="module-label">{module.label}</span>
+                                          <span className="module-desc">{module.desc}</span>
+                                        </div>
+                                        <div className="module-checkbox ms-2">
+                                          <div className="form-check">
+                                            <input 
+                                              className="form-check-input" 
+                                              type="checkbox" 
+                                              checked={isSelected}
+                                              onChange={() => {}} // handled by parent div
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-5">
+                        <div className="text-muted mb-2">
+                          <i className="bi bi-search" style={{ fontSize: '2rem' }}></i>
+                        </div>
+                        <h6>No modules found</h6>
+                        <p className="text-muted small">Try adjusting your search query</p>
+                      </div>
+                    )}
+                    
+                    {errors.allowed_modules && (
+                      <div className="alert alert-danger d-flex align-items-center mt-3" role="alert">
+                        <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                        <div>{errors.allowed_modules}</div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

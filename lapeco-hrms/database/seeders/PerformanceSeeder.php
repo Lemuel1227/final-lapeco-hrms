@@ -13,7 +13,7 @@ class PerformanceSeeder extends Seeder
 {
     public function run(): void
     {
-        $hrUser = User::where('role', 'HR_MANAGER')->first();
+        $hrUser = User::where('role', 'SUPER_ADMIN')->first();
         $defaultUserId = $hrUser?->id ?? User::first()?->id;
 
         if (!$defaultUserId) {
@@ -133,3 +133,4 @@ class PerformanceSeeder extends Seeder
         }
     }
 }
+

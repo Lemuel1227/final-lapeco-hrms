@@ -15,7 +15,7 @@ const Layout = ({ onLogout = () => {}, userRole: userRoleProp, currentUser: curr
   const { theme, toggleTheme } = useTheme();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [currentUser, setCurrentUser] = useState(currentUserProp || null);
-  const [userRole, setUserRole] = useState(userRoleProp || 'HR_MANAGER');
+  const [userRole, setUserRole] = useState(userRoleProp || 'SUPER_ADMIN');
   const [notifications, setNotifications] = useState(notificationsProp);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
@@ -28,7 +28,7 @@ const Layout = ({ onLogout = () => {}, userRole: userRoleProp, currentUser: curr
         setCurrentUser(parsed);
         if (parsed?.role) {
           const r = String(parsed.role).toUpperCase();
-          const aliases = { HR_PERSONNEL: 'HR_MANAGER', EMPLOYEE: 'REGULAR_EMPLOYEE' };
+          const aliases = { HR_PERSONNEL: 'SUPER_ADMIN', EMPLOYEE: 'REGULAR_EMPLOYEE' };
           setUserRole(aliases[r] || r);
         }
       }

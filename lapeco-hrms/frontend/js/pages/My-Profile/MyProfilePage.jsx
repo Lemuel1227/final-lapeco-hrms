@@ -65,7 +65,7 @@ const MyProfilePage = () => {
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
     
     const fileInputRef = useRef(null);
-    const isHrUser = userRole === USER_ROLES.HR_MANAGER;
+    const isHrUser = userRole === USER_ROLES.SUPER_ADMIN;
 
     // Fetch current user data from API
     useEffect(() => {
@@ -74,7 +74,7 @@ const MyProfilePage = () => {
                 const response = await api.get('/user');
                 const userData = response.data;
                 setCurrentUser(userData);
-                setUserRole(userData.role || USER_ROLES.HR_MANAGER);
+                setUserRole(userData.role || USER_ROLES.SUPER_ADMIN);
                 
                 // Update localStorage with fresh data
                 localStorage.setItem('user', JSON.stringify(userData));
@@ -86,7 +86,7 @@ const MyProfilePage = () => {
                     if (storedUser) {
                         const userData = JSON.parse(storedUser);
                         setCurrentUser(userData);
-                        setUserRole(userData.role || USER_ROLES.HR_MANAGER);
+                        setUserRole(userData.role || USER_ROLES.SUPER_ADMIN);
                     }
                 } catch (err) {
                     console.error('Error parsing stored user:', err);

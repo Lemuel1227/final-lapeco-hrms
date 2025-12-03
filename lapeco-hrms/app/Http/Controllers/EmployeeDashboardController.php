@@ -60,7 +60,7 @@ class EmployeeDashboardController extends Controller
 
         $leader = User::query()
             ->where('position_id', $employee->position_id)
-            ->where('role', 'TEAM_LEADER')
+            ->where('is_team_leader', true)
             ->first(['id', 'first_name','last_name', 'image_url']);
 
         $leaderEvaluationDue = false;

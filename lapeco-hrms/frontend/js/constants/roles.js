@@ -1,5 +1,5 @@
 export const USER_ROLES = {
-  HR_MANAGER: 'HR_MANAGER',
+  SUPER_ADMIN: 'SUPER_ADMIN',
 };
 
 export const MODULE_ROUTES = {
@@ -34,7 +34,7 @@ export const MODULE_ROUTES = {
 };
 
 export const ROLE_ALLOWED_ROUTES = {
-  [USER_ROLES.HR_MANAGER]: [
+  [USER_ROLES.SUPER_ADMIN]: [
     '/dashboard',
     '/dashboard/employee-data',
     '/dashboard/leaderboards',

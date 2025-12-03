@@ -77,7 +77,7 @@ const ProtectedRoute = ({ children }) => {
     if (!rawRole || typeof rawRole !== 'string') return null;
     const normalized = rawRole.toUpperCase();
     const aliases = {
-      HR_PERSONNEL: 'HR_MANAGER',
+      HR_PERSONNEL: 'SUPER_ADMIN',
       EMPLOYEE: 'REGULAR_EMPLOYEE',
     };
     const resolved = aliases[normalized] || normalized;
@@ -110,7 +110,7 @@ const ProtectedRoute = ({ children }) => {
   const isRouteAllowedForRole = (role, path) => {
     if (!path) return false;
     let allowedRoutes = [];
-    if (role === USER_ROLES.HR_MANAGER) {
+    if (role === USER_ROLES.SUPER_ADMIN) {
       allowedRoutes = ROLE_ALLOWED_ROUTES[role] || [];
     } else {
       const user = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
@@ -137,7 +137,7 @@ const ProtectedRoute = ({ children }) => {
 
   const getDefaultRouteForRole = (role) => {
     const user = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
-    const allowedRoutes = role === USER_ROLES.HR_MANAGER
+    const allowedRoutes = role === USER_ROLES.SUPER_ADMIN
       ? ROLE_ALLOWED_ROUTES[role]
       : buildAllowedRoutesFromModules(user?.position_allowed_modules || []);
     if (Array.isArray(allowedRoutes) && allowedRoutes.length > 0) {

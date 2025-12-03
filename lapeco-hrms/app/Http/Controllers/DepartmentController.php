@@ -68,6 +68,13 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department)
     {
+        // Prevent deleting Admin Department
+        if ($department->name === 'Admin Department') {
+            return response()->json([
+                'message' => 'The Admin Department cannot be deleted as it is a system default.'
+            ], 403);
+        }
+
         // Optional: prevent deletion if positions exist
         $hasPositions = Position::where('department_id', $department->id)->exists();
         if ($hasPositions) {

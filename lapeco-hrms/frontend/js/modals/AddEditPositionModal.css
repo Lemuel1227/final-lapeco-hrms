@@ -206,6 +206,128 @@
     background-color: #f8f9fa;
 }
 
+/* --- Access Tab Enhancements --- */
+
+.access-tab-container {
+    max-height: 550px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.access-tab-container::-webkit-scrollbar {
+    width: 6px;
+}
+.access-tab-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+.access-tab-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+.access-controls {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 1.5rem;
+}
+
+.module-group {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.module-group-header {
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.module-group-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.module-group-body {
+    padding: 1rem;
+}
+
+.module-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.module-item:hover {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.module-item.selected {
+    background: rgba(13, 110, 253, 0.05);
+    border-color: rgba(13, 110, 253, 0.2);
+}
+
+.module-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    background: #e9ecef;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.module-item.selected .module-icon {
+    background: var(--app-primary-color, #0d6efd);
+    color: #fff;
+}
+
+.module-info {
+    flex: 1;
+}
+
+.module-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 0.1rem;
+    display: block;
+    color: var(--text-primary);
+}
+
+.module-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.module-checkbox .form-check-input {
+    width: 1.2em;
+    height: 1.2em;
+    cursor: pointer;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .pay-section-header {

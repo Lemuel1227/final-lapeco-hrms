@@ -35,9 +35,9 @@ const AccountSettingsPage = () => {
     }
   });
   
-  const userRole = currentUser?.role || 'HR_MANAGER';
+  const userRole = currentUser?.role || 'SUPER_ADMIN';
 
-  const isHrUser = userRole === USER_ROLES.HR_MANAGER;
+  const isHrUser = userRole === USER_ROLES.SUPER_ADMIN;
 
   const sections = {
     personal: [
@@ -92,3 +92,4 @@ const AccountSettingsPage = () => {
   };
 
 export default AccountSettingsPage;
+

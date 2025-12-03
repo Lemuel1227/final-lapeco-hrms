@@ -22,8 +22,8 @@ class PerformanceController extends Controller
             'updater:id,first_name,last_name,email',
             'evaluations' => function ($query) {
                 $query->with([
-                    'employee:id,first_name,middle_name,last_name,email,role,position_id',
-                    'responses.evaluator:id,first_name,middle_name,last_name,email,role,position_id',
+                    'employee:id,first_name,middle_name,last_name,email,role,is_team_leader,position_id',
+                    'responses.evaluator:id,first_name,middle_name,last_name,email,role,is_team_leader,position_id',
                 ])->orderBy('employee_id');
             },
         ])->orderByDesc('evaluation_start')->get();
@@ -43,11 +43,15 @@ class PerformanceController extends Controller
                 'createdAt' => $period->created_at?->toIso8601String(),
                 'updatedAt' => $period->updated_at?->toIso8601String(),
                 'evaluations' => $period->evaluations->map(function (PerformanceEvaluation $evaluation) {
+                    $role = $evaluation->employee ? ($evaluation->employee->is_team_leader ? 'TEAM_LEADER' : $evaluation->employee->role) : null;
                     return [
                         'id' => $evaluation->id,
                         'periodId' => $evaluation->period_id,
                         'employeeId' => $evaluation->employee_id,
-                        'employee' => $evaluation->employee?->only(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'position_id']),
+                        'employee' => $evaluation->employee ? array_merge(
+                            $evaluation->employee->only(['id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id']),
+                            ['role' => $role]
+                        ) : null,
                         'averageScore' => $evaluation->average_score ? (float) $evaluation->average_score : null,
                         'responsesCount' => $evaluation->responses_count,
                         'completedAt' => $evaluation->completed_at?->toIso8601String(),
@@ -56,7 +60,10 @@ class PerformanceController extends Controller
                                 'id' => $response->id,
                                 'evaluationId' => $response->evaluation_id,
                                 'evaluatorId' => $response->evaluator_id,
-                                'evaluator' => $response->evaluator?->only(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'position_id']),
+                                'evaluator' => $response->evaluator ? array_merge(
+                                    $response->evaluator->only(['id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id']),
+                                    ['role' => $response->evaluator->is_team_leader ? 'TEAM_LEADER' : $response->evaluator->role]
+                                ) : null,
                                 'evaluatedOn' => $response->evaluated_on?->toIso8601String(),
                                 'scores' => collect(PerformanceEvaluatorResponse::SCORE_FIELDS)
                                     ->mapWithKeys(fn ($field) => [$field => (int) $response->{$field}])
@@ -85,8 +92,8 @@ class PerformanceController extends Controller
             'updater:id,first_name,last_name,email',
             'evaluations' => function ($query) {
                 $query->with([
-                    'employee:id,first_name,middle_name,last_name,email,role,position_id,image_url',
-                    'responses.evaluator:id,first_name,middle_name,last_name,email,role,position_id,image_url',
+                    'employee:id,first_name,middle_name,last_name,email,role,is_team_leader,position_id,image_url',
+                    'responses.evaluator:id,first_name,middle_name,last_name,email,role,is_team_leader,position_id,image_url',
                 ])->orderBy('employee_id');
             },
         ]);
@@ -111,7 +118,7 @@ class PerformanceController extends Controller
                     'middleName' => $employee->middle_name,
                     'lastName' => $employee->last_name,
                     'email' => $employee->email,
-                    'role' => $employee->role,
+                    'role' => $employee->is_team_leader ? 'TEAM_LEADER' : $employee->role,
                     'positionId' => $employee->position_id,
                     'profilePictureUrl' => $employee->image_url ? asset('storage/' . $employee->image_url) : null,
                 ] : null,
@@ -137,7 +144,7 @@ class PerformanceController extends Controller
                             'middleName' => $evaluator->middle_name,
                             'lastName' => $evaluator->last_name,
                             'email' => $evaluator->email,
-                            'role' => $evaluator->role,
+                            'role' => $evaluator->is_team_leader ? 'TEAM_LEADER' : $evaluator->role,
                             'positionId' => $evaluator->position_id,
                             'profilePictureUrl' => $evaluator->image_url ? asset('storage/' . $evaluator->image_url) : null,
                         ] : null,
@@ -290,7 +297,7 @@ class PerformanceController extends Controller
             'period:id,name,evaluation_start,evaluation_end,open_date,close_date',
             'responses' => function ($query) {
                 $query->with([
-                    'evaluator:id,first_name,middle_name,last_name,email,role,position_id,image_url',
+                    'evaluator:id,first_name,middle_name,last_name,email,role,is_team_leader,position_id,image_url',
                     'evaluator.position:id,name'
                 ])->orderBy('evaluated_on');
             },
@@ -308,7 +315,7 @@ class PerformanceController extends Controller
                     'id' => $evaluatorUser->id,
                     'name' => trim(collect([$evaluatorUser->first_name, $evaluatorUser->middle_name, $evaluatorUser->last_name])->filter()->implode(' ')),
                     'email' => $evaluatorUser->email,
-                    'role' => $evaluatorUser->role,
+                    'role' => $evaluatorUser->is_team_leader ? 'TEAM_LEADER' : $evaluatorUser->role,
                     'position' => $positionName,
                     'profilePictureUrl' => $evaluatorUser->image_url ? asset('storage/' . $evaluatorUser->image_url) : null,
                 ];
@@ -358,7 +365,7 @@ class PerformanceController extends Controller
             'evaluation:id,employee_id,period_id,average_score',
             'evaluation.period:id,name,evaluation_start,evaluation_end,open_date,close_date',
             'evaluation.employee:id,first_name,middle_name,last_name,email,position_id,image_url',
-            'evaluator:id,first_name,middle_name,last_name,email,role,position_id,image_url',
+            'evaluator:id,first_name,middle_name,last_name,email,role,is_team_leader,position_id,image_url',
             'evaluator.position:id,name',
         ]);
 
@@ -370,16 +377,16 @@ class PerformanceController extends Controller
         $evaluatorData = null;
 
         if ($evaluatorUser) {
-            $evaluatorData = [
-                'id' => $evaluatorUser->id,
-                'name' => trim(collect([$evaluatorUser->first_name, $evaluatorUser->middle_name, $evaluatorUser->last_name])->filter()->implode(' ')),
-                'email' => $evaluatorUser->email,
-                'role' => $evaluatorUser->role,
-                'position' => $evaluatorUser->position?->name ?? 'Unassigned',
-                'positionId' => $evaluatorUser->position_id,
-                'profilePictureUrl' => $evaluatorUser->image_url ? asset('storage/' . $evaluatorUser->image_url) : null,
-            ];
-        }
+                $evaluatorData = [
+                    'id' => $evaluatorUser->id,
+                    'name' => trim(collect([$evaluatorUser->first_name, $evaluatorUser->middle_name, $evaluatorUser->last_name])->filter()->implode(' ')),
+                    'email' => $evaluatorUser->email,
+                    'role' => $evaluatorUser->is_team_leader ? 'TEAM_LEADER' : $evaluatorUser->role,
+                    'position' => $evaluatorUser->position?->name ?? 'Unassigned',
+                    'positionId' => $evaluatorUser->position_id,
+                    'profilePictureUrl' => $evaluatorUser->image_url ? asset('storage/' . $evaluatorUser->image_url) : null,
+                ];
+            }
 
         $scores = collect(PerformanceEvaluatorResponse::SCORE_FIELDS)
             ->mapWithKeys(fn ($field) => [$field => (int) $response->{$field}])
@@ -732,7 +739,7 @@ class PerformanceController extends Controller
             ], 403);
         }
 
-        if ($response->evaluator_id !== $user->id && $user->role !== 'HR_MANAGER') {
+        if ($response->evaluator_id !== $user->id && $user->role !== 'SUPER_ADMIN') {
             return response()->json([
                 'message' => 'You are not authorized to modify this evaluation response.',
                 'error_type' => 'authorization_error',
@@ -780,18 +787,18 @@ class PerformanceController extends Controller
     {
         $activeEmployees = User::query()
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
-            ->get(['id', 'role', 'position_id']);
+            ->get(['id', 'role', 'is_team_leader', 'position_id']);
 
         if ($activeEmployees->isEmpty()) {
             return;
         }
 
         $leadersByPosition = $activeEmployees
-            ->where('role', 'TEAM_LEADER')
+            ->where('is_team_leader', true)
             ->groupBy('position_id');
 
         $employeesByPosition = $activeEmployees
-            ->where('role', 'REGULAR_EMPLOYEE')
+            ->where('is_team_leader', false)
             ->groupBy('position_id');
 
         // Leaders evaluating members
@@ -857,14 +864,14 @@ class PerformanceController extends Controller
             ->where('position_id', $user->position_id)
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
             ->with(['position:id,name'])
-            ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'image_url', 'role');
+            ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'image_url', 'role', 'is_team_leader');
 
-        if ($user->role === 'TEAM_LEADER') {
+        if ($user->is_team_leader) {
             // Leaders evaluate regular employees
-            $query->where('role', 'REGULAR_EMPLOYEE');
+            $query->where('is_team_leader', false);
         } else {
             // Regular employees evaluate peers in same position (exclude self, exclude leaders)
-            $query->where('role', 'REGULAR_EMPLOYEE')->where('id', '!=', $user->id);
+            $query->where('is_team_leader', false)->where('id', '!=', $user->id);
         }
 
         $teamMembers = $query->get();
@@ -905,7 +912,7 @@ class PerformanceController extends Controller
                 'email' => $member->email,
                 'positionId' => $member->position_id,
                 'position' => $member->position?->name ?? 'Unassigned',
-                'role' => $member->role,
+                'role' => $member->is_team_leader ? 'TEAM_LEADER' : $member->role,
                 'profilePictureUrl' => $member->image_url ? asset('storage/' . $member->image_url) : null,
                 'currentEvaluation' => $activeEvaluation ? [
                     'id' => $activeEvaluation->id,
@@ -942,7 +949,7 @@ class PerformanceController extends Controller
         $user = $request->user();
 
         // Check if user is a regular employee
-        if ($user->role !== 'REGULAR_EMPLOYEE') {
+        if ($user->is_team_leader || $user->role === 'SUPER_ADMIN') {
             return response()->json([
                 'message' => 'Only team members can access this endpoint.',
                 'error_type' => 'authorization_error',
@@ -973,10 +980,10 @@ class PerformanceController extends Controller
         // Get team leader (same position, is team leader)
         $teamLeader = User::query()
             ->where('position_id', $user->position_id)
-            ->where('role', 'TEAM_LEADER')
+            ->where('is_team_leader', true)
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
             ->with(['position:id,name'])
-            ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'image_url', 'role')
+            ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'image_url', 'role', 'is_team_leader')
             ->first();
 
         if (!$teamLeader) {
@@ -1025,7 +1032,7 @@ class PerformanceController extends Controller
             'email' => $teamLeader->email,
             'positionId' => $teamLeader->position_id,
             'position' => $teamLeader->position?->name ?? 'Unassigned',
-            'role' => $teamLeader->role,
+            'role' => $teamLeader->is_team_leader ? 'TEAM_LEADER' : $teamLeader->role,
             'profilePictureUrl' => $teamLeader->image_url ? asset('storage/' . $teamLeader->image_url) : null,
             'currentEvaluation' => $activeEvaluation ? [
                 'id' => $activeEvaluation->id,
@@ -1055,21 +1062,21 @@ class PerformanceController extends Controller
 
     private function canEvaluate(User $evaluator, User $employee): bool
     {
-        if ($evaluator->role === 'HR_MANAGER') {
+        if ($evaluator->role === 'SUPER_ADMIN') {
             return true;
         }
 
         if ($evaluator->position_id && $evaluator->position_id === $employee->position_id) {
             // Team Leader can evaluate Regular Employee (existing)
-            if ($evaluator->role === 'TEAM_LEADER' && $employee->role === 'REGULAR_EMPLOYEE') {
+            if ($evaluator->is_team_leader && !$employee->is_team_leader) {
                 return true;
             }
             // Regular Employee can evaluate Team Leader (existing)
-            if ($evaluator->role === 'REGULAR_EMPLOYEE' && $employee->role === 'TEAM_LEADER') {
+            if (!$evaluator->is_team_leader && $employee->is_team_leader) {
                 return true;
             }
             // Regular Employee can evaluate peers in same position
-            if ($evaluator->role === 'REGULAR_EMPLOYEE' && $employee->role === 'REGULAR_EMPLOYEE' && $evaluator->id !== $employee->id) {
+            if (!$evaluator->is_team_leader && !$employee->is_team_leader && $evaluator->id !== $employee->id) {
                 return true;
             }
         }
@@ -1101,7 +1108,7 @@ class PerformanceController extends Controller
         }
 
         // Get all team leaders with their positions, grouped by position_id to avoid duplicates
-        $teamLeaders = User::where('role', 'TEAM_LEADER')
+        $teamLeaders = User::where('is_team_leader', true)
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
             ->with(['position:id,name'])
             ->get()
@@ -1113,7 +1120,7 @@ class PerformanceController extends Controller
             // Use the first leader for this position
             $leader = $leadersInPosition->first();
             // Get team members for this leader
-            $teamMembers = User::where('role', 'REGULAR_EMPLOYEE')
+            $teamMembers = User::where('is_team_leader', false)
                 ->where('position_id', $leader->position_id)
                 ->whereNotIn('employment_status', ['terminated', 'resigned'])
                 ->get();
@@ -1308,9 +1315,9 @@ class PerformanceController extends Controller
 
         foreach ($usersToNotify as $user) {
             $actionUrl = '/dashboard/performance-management'; // Default URL
-            if ($user->role === 'REGULAR_EMPLOYEE') {
+            if (!$user->is_team_leader) {
                 $actionUrl = '/dashboard/evaluate-leader';
-            } elseif ($user->role === 'TEAM_LEADER') {
+            } elseif ($user->is_team_leader) {
                 $actionUrl = '/dashboard/evaluate-team';
             }
 
@@ -1329,15 +1336,15 @@ class PerformanceController extends Controller
     private function getExpectedEvaluatorsFor(User $employee)
     {
         $evaluators = [];
-        if ($employee->role === 'REGULAR_EMPLOYEE') {
+        if (!$employee->is_team_leader) {
             // Team leader evaluates regular employee
-            $leader = User::where('position_id', $employee->position_id)->where('role', 'TEAM_LEADER')->first();
+            $leader = User::where('position_id', $employee->position_id)->where('is_team_leader', true)->first();
             if ($leader) {
                 $evaluators[] = $leader;
             }
-        } elseif ($employee->role === 'TEAM_LEADER') {
+        } elseif ($employee->is_team_leader) {
             // Regular employees evaluate team leader
-            $members = User::where('position_id', $employee->position_id)->where('role', 'REGULAR_EMPLOYEE')->get();
+            $members = User::where('position_id', $employee->position_id)->where('is_team_leader', false)->get();
             foreach ($members as $member) {
                 $evaluators[] = $member;
             }
@@ -1345,3 +1352,4 @@ class PerformanceController extends Controller
         return $evaluators;
     }
 }
+

@@ -31,7 +31,7 @@ class PerformanceEvaluationSeeder extends Seeder
         }
 
         $hrManager = User::query()
-            ->where('role', 'HR_MANAGER')
+            ->where('role', 'SUPER_ADMIN')
             ->whereNotIn('employment_status', ['terminated', 'resigned'])
             ->first();
 
@@ -371,3 +371,4 @@ class PerformanceEvaluationSeeder extends Seeder
         return $development[array_rand($development)];
     }
 }
+

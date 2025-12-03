@@ -27,7 +27,7 @@ class AuthenticatedSessionController extends Controller
         $loginField = filter_var($request->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
         
         // Find the user by email or username
-        $user = User::where($loginField, $request->login)->first();
+        $user = User::with('position')->where($loginField, $request->login)->first();
 
         // Check if user exists and if account is locked
         if ($user) {

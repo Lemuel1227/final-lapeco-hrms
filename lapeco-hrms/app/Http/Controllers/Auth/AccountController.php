@@ -17,7 +17,7 @@ class AccountController extends Controller
         $user = $request->user();
         
         // Only HR personnel can reset passwords
-        if ($user->role !== 'HR_MANAGER') {
+        if ($user->role !== 'SUPER_ADMIN') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         
@@ -45,7 +45,7 @@ class AccountController extends Controller
         $user = $request->user();
         
         // Only HR personnel can deactivate accounts
-        if ($user->role !== 'HR_MANAGER') {
+        if ($user->role !== 'SUPER_ADMIN') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         
@@ -70,7 +70,7 @@ class AccountController extends Controller
         $user = $request->user();
         
         // Only HR personnel can activate accounts
-        if ($user->role !== 'HR_MANAGER') {
+        if ($user->role !== 'SUPER_ADMIN') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         
@@ -82,3 +82,4 @@ class AccountController extends Controller
         ]);
     }
 }
+

@@ -655,7 +655,7 @@ class ApplicantController extends Controller
 
     protected function notifyHrOfNewApplicant(Applicant $applicant): void
     {
-        $hrUsers = User::where('role', 'HR_MANAGER')->get(['id', 'first_name', 'last_name']);
+        $hrUsers = User::where('role', 'SUPER_ADMIN')->get(['id', 'first_name', 'last_name']);
 
         foreach ($hrUsers as $hrUser) {
             try {
@@ -734,3 +734,4 @@ class ApplicantController extends Controller
         }
     }
 }
+

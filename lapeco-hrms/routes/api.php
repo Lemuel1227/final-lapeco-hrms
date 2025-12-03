@@ -111,7 +111,8 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     
     // Employee Data - with role-based access control
     Route::middleware(['role.access:employee,index'])->get('/employees', [EmployeeController::class, 'index']);
-    Route::middleware(['role.access:employee,index'])->get('/employees/list', [EmployeeController::class, 'getEmployeesList']);
+    // Allow authenticated users to access the employee list for dropdowns; controller handles filtering
+    Route::get('/employees/list', [EmployeeController::class, 'getEmployeesList']);
     Route::middleware(['role.access:employee,index'])->get('/employees/all', [EmployeeController::class, 'getAllEmployees']);
     Route::middleware(['role.access:employee,show'])->get('/employees/{employee}', [EmployeeController::class, 'show']);
     Route::middleware(['role.access:employee,store'])->post('/employees', [EmployeeController::class, 'store']);
@@ -131,6 +132,8 @@ Route::middleware(['auth:sanctum', 'check.account.status'])->group(function () {
     Route::middleware(['role.access:position,destroy'])->delete('/positions/{position}', [PositionController::class, 'destroy']);
     Route::middleware(['role.access:position,view'])->get('/positions/{position}/employees', [PositionController::class, 'employees']);
     Route::middleware(['role.access:position,update'])->post('/positions/{position}/employees/{employee}/remove', [PositionController::class, 'removeEmployee']);
+    Route::middleware(['role.access:position,update'])->post('/positions/{position}/employees/{employee}/assign-leader', [PositionController::class, 'assignTeamLeader']);
+    Route::middleware(['role.access:position,update'])->post('/positions/{position}/employees/{employee}/remove-leader', [PositionController::class, 'removeTeamLeader']);
 
     // Departments (authenticated routes)
     Route::middleware(['role.access:position,index'])->get('/departments/authenticated', [DepartmentController::class, 'index']);

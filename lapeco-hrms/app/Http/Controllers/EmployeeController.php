@@ -21,12 +21,12 @@ class EmployeeController extends Controller
         $role = $user->role;
         
         // Role-based filtering is now handled by middleware, but we still need to filter data based on role
-        if ($role === 'HR_MANAGER') {
+        if ($role === 'SUPER_ADMIN') {
             // HR can see all employees except terminated/resigned ones
             $employees = User::with('leaveCredits')
                 ->whereNotIn('employment_status', ['terminated', 'resigned'])
                 ->get();
-        } elseif ($role === 'TEAM_LEADER') {
+        } elseif ($user->is_team_leader) {
             // Team leaders can see employees with the same position_id, excluding terminated/resigned
             $employees = User::with('leaveCredits')
                 ->where('position_id', $user->position_id)
@@ -52,22 +52,22 @@ class EmployeeController extends Controller
         $role = $user->role;
         
         // Role-based filtering
-        if ($role === 'HR_MANAGER') {
+        if ($role === 'SUPER_ADMIN') {
             // HR can see all employees except terminated/resigned ones
             $employees = User::whereNotIn('employment_status', ['terminated', 'resigned'])
-                        ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'joining_date', 'attendance_status', 'image_url', 'account_status')
+                        ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'joining_date', 'attendance_status', 'image_url', 'account_status', 'role', 'is_team_leader')
                         ->get();
-        } elseif ($role === 'TEAM_LEADER') {
+        } elseif ($user->is_team_leader) {
             // Team leaders can see employees with the same position_id, excluding terminated/resigned
             $employees = User::where('position_id', $user->position_id)
-                        ->whereNotIn('employment_status', ['terminated', 'resigned'])
-                        ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'joining_date', 'attendance_status', 'image_url', 'account_status')
-                        ->get();
+                ->whereNotIn('employment_status', ['terminated', 'resigned'])
+                ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'joining_date', 'attendance_status', 'image_url', 'account_status', 'role', 'is_team_leader')
+                ->get();
         } else {
             // Regular employees can see employees in their position, excluding terminated/resigned
             $employees = User::where('position_id', $user->position_id)
                         ->whereNotIn('employment_status', ['terminated', 'resigned'])
-                        ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'joining_date', 'attendance_status', 'image_url', 'account_status')
+                        ->select('id', 'first_name', 'middle_name', 'last_name', 'email', 'position_id', 'joining_date', 'attendance_status', 'image_url', 'account_status', 'role', 'is_team_leader')
                         ->get();
         }
         
@@ -110,7 +110,7 @@ class EmployeeController extends Controller
         $role = $user->role;
         
         // Only HR personnel can access all employees including terminated/resigned
-        if ($role !== 'HR_MANAGER') {
+        if ($role !== 'SUPER_ADMIN') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         
@@ -150,7 +150,8 @@ class EmployeeController extends Controller
                 'id' => $employee->id,
                 'name' => $employee->name,
                 'email' => $employee->email,
-                'role' => $employee->role,
+                'role' => $employee->is_team_leader ? 'TEAM_LEADER' : $employee->role,
+                'is_team_leader' => $employee->is_team_leader,
                 'position_id' => $employee->position_id,
                 'position' => $positions[$employee->position_id] ?? 'Unassigned',
                 'joining_date' => $employee->joining_date,
@@ -167,7 +168,7 @@ class EmployeeController extends Controller
             ];
             
             // Only include sensitive data for HR personnel or if it's the user's own data
-            if ($role === 'HR_MANAGER' || $employee->id === $user->id) {
+            if ($role === 'SUPER_ADMIN' || $employee->id === $user->id) {
                 $data['sss_no'] = $employee->sss_no;
                 $data['tin_no'] = $employee->tin_no;
                 $data['pag_ibig_no'] = $employee->pag_ibig_no;
@@ -286,7 +287,7 @@ class EmployeeController extends Controller
                 'last_name' => 'required|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
                 'name' => 'sometimes|string|max:255',
                 'email' => 'required|email|max:255|unique:users,email',
-                'role' => 'required|string|in:HR_MANAGER,TEAM_LEADER,REGULAR_EMPLOYEE',
+                'role' => 'required|string|in:SUPER_ADMIN,REGULAR_EMPLOYEE,TEAM_LEADER',
                 'position_id' => 'nullable|exists:positions,id',
                 'joining_date' => 'required|date',
                 'birthday' => 'required|date|before:today|after:' . now()->subYears(100)->format('Y-m-d'),
@@ -508,6 +509,33 @@ class EmployeeController extends Controller
             $userData['password_changed'] = false;
             $userData['account_status'] = $userData['account_status'] ?? 'Active';
 
+            // Handle Team Leader role
+            if ($userData['role'] === 'TEAM_LEADER') {
+                $userData['is_team_leader'] = true;
+                $userData['role'] = 'REGULAR_EMPLOYEE';
+                
+                // Enforce max team leaders per position
+                if (!empty($userData['position_id'])) {
+                    $position = \App\Models\Position::find($userData['position_id']);
+                    $maxLeaders = $position->max_team_leaders ?? 1;
+                    
+                    if ($maxLeaders == 1) {
+                         User::where('position_id', $userData['position_id'])
+                            ->where('is_team_leader', true)
+                            ->update(['is_team_leader' => false]);
+                    } else {
+                        $currentCount = User::where('position_id', $userData['position_id'])
+                            ->where('is_team_leader', true)
+                            ->count();
+                        if ($currentCount >= $maxLeaders) {
+                             return response()->json(['message' => "Maximum number of team leaders ($maxLeaders) reached for this position."], 422);
+                        }
+                    }
+                }
+            } else {
+                $userData['is_team_leader'] = false;
+            }
+
             // Add resume file path if it was uploaded
             if ($resumeFile) {
                 $userData['resume_file'] = $resumeFile;
@@ -595,7 +623,7 @@ class EmployeeController extends Controller
                 'last_name' => 'sometimes|string|min:2|max:50|regex:/^[a-zA-Z\s.\-]+$/',
                 'name' => 'sometimes|string|max:255',
                 'email' => 'sometimes|email|max:255|unique:users,email,' . $employee->id,
-                'role' => 'sometimes|string|in:HR_MANAGER,TEAM_LEADER,REGULAR_EMPLOYEE',
+                'role' => 'sometimes|string|in:SUPER_ADMIN,TEAM_LEADER,REGULAR_EMPLOYEE',
                 'position_id' => 'sometimes|nullable|exists:positions,id',
                 'birthday' => 'sometimes|required|date|before:today|after:' . now()->subYears(100)->format('Y-m-d'),
                 'gender' => 'sometimes|required|string|in:Male,Female',
@@ -793,6 +821,7 @@ class EmployeeController extends Controller
             
             // Store original values for comparison
             $originalRole = $employee->role;
+            $originalIsTeamLeader = $employee->is_team_leader;
             $originalPositionId = $employee->position_id;
             
             $nameData = [];
@@ -823,25 +852,72 @@ class EmployeeController extends Controller
                 $employee->fillNameComponents($nameData);
             }
 
+            // Handle Team Leader role update
+            if (isset($validated['role'])) {
+                if ($validated['role'] === 'TEAM_LEADER') {
+                    $validated['is_team_leader'] = true;
+                    $validated['role'] = 'REGULAR_EMPLOYEE';
+                } elseif ($validated['role'] === 'REGULAR_EMPLOYEE') {
+                    $validated['is_team_leader'] = false;
+                } elseif ($validated['role'] === 'SUPER_ADMIN') {
+                    $validated['is_team_leader'] = false;
+                }
+            }
+
+            // Enforce max team leaders per position if becoming a team leader or changing position as a team leader
+            $willBeTeamLeader = isset($validated['is_team_leader']) ? $validated['is_team_leader'] : $employee->is_team_leader;
+            $newPositionId = isset($validated['position_id']) ? $validated['position_id'] : $employee->position_id;
+            
+            if ($willBeTeamLeader && $newPositionId) {
+                 $position = \App\Models\Position::find($newPositionId);
+                 $maxLeaders = $position->max_team_leaders ?? 1;
+                 
+                 if ($maxLeaders == 1) {
+                     User::where('position_id', $newPositionId)
+                        ->where('is_team_leader', true)
+                        ->where('id', '!=', $employee->id)
+                        ->update(['is_team_leader' => false]);
+                 } else {
+                     $currentCount = User::where('position_id', $newPositionId)
+                        ->where('is_team_leader', true)
+                        ->where('id', '!=', $employee->id)
+                        ->count();
+                     if ($currentCount >= $maxLeaders) {
+                         return response()->json(['message' => "Maximum number of team leaders ($maxLeaders) reached for this position."], 422);
+                     }
+                 }
+            }
+
             $employee->update($validated);
             
             // Check if role or position changed and create notifications
             $updatedEmployee = $employee->fresh();
             
-            // Create notification for role change
-            if (isset($validated['role']) && $originalRole !== $validated['role']) {
-                $roleChangeMessage = $originalRole === 'TEAM_LEADER' 
-                    ? "Your role has been changed from Team Leader to Regular Employee."
-                    : ($validated['role'] === 'TEAM_LEADER' 
-                        ? "You have been promoted to Team Leader." 
-                        : "Your role has been updated to {$validated['role']}.");
+            // Create notification for role/status change
+            $roleChanged = (isset($validated['role']) && $originalRole !== $validated['role']);
+            $leaderStatusChanged = ($originalIsTeamLeader !== $employee->is_team_leader);
+
+            if ($roleChanged || $leaderStatusChanged) {
+                $roleChangeMessage = '';
                 
-                Notification::createForUser(
-                    $employee->id,
-                    'role_change',
-                    'Role Updated',
-                    $roleChangeMessage
-                );
+                if ($leaderStatusChanged) {
+                    if ($employee->is_team_leader) {
+                        $roleChangeMessage = "You have been promoted to Team Leader.";
+                    } else {
+                        $roleChangeMessage = "Your role has been changed from Team Leader to Regular Employee.";
+                    }
+                } elseif ($roleChanged) {
+                    $roleChangeMessage = "Your role has been updated to {$validated['role']}.";
+                }
+                
+                if ($roleChangeMessage) {
+                    Notification::createForUser(
+                        $employee->id,
+                        'role_change',
+                        'Role Updated',
+                        $roleChangeMessage
+                    );
+                }
             }
             
             // Create notification for position change
@@ -1004,7 +1080,7 @@ class EmployeeController extends Controller
         }
         
         // Only HR personnel or the employee themselves can access the resume
-        if ($user->role !== 'HR_MANAGER' && $user->id !== $employee->id) {
+        if ($user->role !== 'SUPER_ADMIN' && $user->id !== $employee->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         
@@ -1053,7 +1129,7 @@ class EmployeeController extends Controller
         $user = $request->user();
         
         // Only HR personnel can rehire employees
-        if ($user->role !== 'HR_MANAGER') {
+        if ($user->role !== 'SUPER_ADMIN') {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
         
@@ -1079,7 +1155,7 @@ class EmployeeController extends Controller
         $user = $request->user();
         
         // Only HR personnel can toggle team leader status
-        if ($user->role !== 'HR_MANAGER') {
+        if ($user->role !== 'SUPER_ADMIN') {
             return response()->json([
                 'message' => 'Access denied. Only HR managers can change team leader status.',
                 'error_type' => 'authorization_error'
@@ -1087,18 +1163,42 @@ class EmployeeController extends Controller
         }
 
         try {
-            // Toggle between TEAM_LEADER and REGULAR_EMPLOYEE roles
-            $oldRole = $employee->role;
-            $newRole = $employee->role === 'TEAM_LEADER' ? 'REGULAR_EMPLOYEE' : 'TEAM_LEADER';
+            // Toggle is_team_leader flag
+            $newStatus = !$employee->is_team_leader;
+
+            // Enforce max team leaders per position if becoming a team leader
+            if ($newStatus && $employee->position_id) {
+                 $position = \App\Models\Position::find($employee->position_id);
+                 $maxLeaders = $position->max_team_leaders ?? 1;
+                 
+                 if ($maxLeaders == 1) {
+                     User::where('position_id', $employee->position_id)
+                        ->where('is_team_leader', true)
+                        ->where('id', '!=', $employee->id)
+                        ->update(['is_team_leader' => false]);
+                 } else {
+                     $currentCount = User::where('position_id', $employee->position_id)
+                        ->where('is_team_leader', true)
+                        ->where('id', '!=', $employee->id)
+                        ->count();
+                     if ($currentCount >= $maxLeaders) {
+                         return response()->json(['message' => "Maximum number of team leaders ($maxLeaders) reached for this position."], 422);
+                     }
+                 }
+            }
             
-            $employee->update(['role' => $newRole]);
+            $employee->update([
+                'is_team_leader' => $newStatus,
+                // Ensure role is REGULAR_EMPLOYEE if becoming team leader (unless they are SUPER_ADMIN, but usually they are not)
+                'role' => ($employee->role === 'SUPER_ADMIN') ? 'SUPER_ADMIN' : 'REGULAR_EMPLOYEE'
+            ]);
             
-            $statusMessage = $newRole === 'TEAM_LEADER' 
+            $statusMessage = $newStatus 
                 ? "Employee '{$employee->name}' has been promoted to Team Leader."
                 : "Employee '{$employee->name}' has been changed to Regular Employee.";
             
             // Create notification for the employee about their role change
-            $notificationMessage = $newRole === 'TEAM_LEADER' 
+            $notificationMessage = $newStatus 
                 ? "You have been promoted to Team Leader."
                 : "Your role has been changed from Team Leader to Regular Employee.";
             
@@ -1112,7 +1212,8 @@ class EmployeeController extends Controller
             return response()->json([
                 'message' => $statusMessage,
                 'employee' => $employee->fresh(),
-                'new_role' => $newRole
+                'new_role' => $newStatus ? 'TEAM_LEADER' : 'REGULAR_EMPLOYEE',
+                'is_team_leader' => $newStatus
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -1128,7 +1229,7 @@ class EmployeeController extends Controller
         $user = $request->user();
         
         // Only HR personnel can delete employees
-        if ($user->role !== 'HR_MANAGER') {
+        if ($user->role !== 'SUPER_ADMIN') {
             return response()->json([
                 'message' => 'Access denied. Only HR managers can delete employee records.',
                 'error_type' => 'authorization_error'

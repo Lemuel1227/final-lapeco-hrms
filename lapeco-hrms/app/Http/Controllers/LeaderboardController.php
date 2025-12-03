@@ -55,6 +55,7 @@ class LeaderboardController extends Controller
             'email',
             'position_id',
             'role',
+            'is_team_leader',
             'employment_status',
             'image_url',
         ]);
@@ -108,7 +109,7 @@ class LeaderboardController extends Controller
                 'attendanceScore' => 0,
                 'overallScore' => 0,
                 'avatarUrl' => $avatarUrl,
-                'isTeamLeader' => $employee->role === 'TEAM_LEADER',
+                'isTeamLeader' => $employee->is_team_leader,
                 'position_id' => $employee->position_id,
             ];
         }
@@ -301,7 +302,7 @@ class LeaderboardController extends Controller
 
     private function buildTeamLeaderLeaderboard($employees, array $stats)
     {
-        $leaders = $employees->filter(fn ($employee) => $employee->role === 'TEAM_LEADER');
+        $leaders = $employees->filter(fn ($employee) => $employee->is_team_leader);
 
         $entries = [];
         foreach ($leaders as $leader) {
@@ -310,7 +311,7 @@ class LeaderboardController extends Controller
                     return false;
                 }
 
-                return $employee->position_id === $leader->position_id && $employee->role !== 'TEAM_LEADER';
+                return $employee->position_id === $leader->position_id && !$employee->is_team_leader;
             });
 
             if ($teamMembers->isEmpty()) {

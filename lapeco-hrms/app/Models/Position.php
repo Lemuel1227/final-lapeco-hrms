@@ -11,6 +11,7 @@ class Position extends Model
 
     protected $fillable = [
         'name',
+        'max_team_leaders',
         'description',
         'monthly_salary',
         'base_rate_per_hour',

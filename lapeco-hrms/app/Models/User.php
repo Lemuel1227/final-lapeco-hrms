@@ -44,6 +44,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'role',
+        'is_team_leader',
         'position_id',
         'joining_date',
         'birthday',
@@ -87,6 +88,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'last_failed_login' => 'datetime',
         'locked_until' => 'datetime',
         'login_attempts' => 'integer',
+        'is_team_leader' => 'boolean',
     ];
 
 

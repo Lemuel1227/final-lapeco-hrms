@@ -61,9 +61,9 @@
              $reportedById = $user->id;
          }
  
-         $approvalStatus = $validated['approval_status'] ?? (($user && $user->role === 'HR_MANAGER') ? 'approved' : 'pending');
+         $approvalStatus = $validated['approval_status'] ?? (($user && $user->role === 'SUPER_ADMIN') ? 'approved' : 'pending');
          $status = $validated['status'] ?? null;
-         if ($user && $user->role !== 'HR_MANAGER') {
+         if ($user && $user->role !== 'SUPER_ADMIN') {
              $status = 'Ongoing';
          } else {
              $status = $status ?? 'Ongoing';
@@ -348,3 +348,4 @@
          return response()->json(['message' => 'Attachment deleted successfully']);
      }
  }
+

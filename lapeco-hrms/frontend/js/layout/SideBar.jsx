@@ -75,7 +75,7 @@ const navItemsForModules = (modules = []) => {
 };
 
 const navItemsConfig = {
-  [USER_ROLES.HR_MANAGER]: [
+  [USER_ROLES.SUPER_ADMIN]: [
     { path: '/dashboard', icon: 'bi-grid-1x2-fill', label: 'Dashboard', exact: true },
     { path: '/dashboard/leaderboards', icon: 'bi-bar-chart-line-fill', label: 'Leaderboards' }, 
     { path: '/dashboard/employee-data', icon: 'bi-people-fill', label: 'Employee Data' },
@@ -120,7 +120,7 @@ const navItemsConfig = {
 };
 
 const SideBar = ({ userRole, currentUser, isCollapsed, isMobileVisible, onMobileNavItemClick }) => {
-  const navItems = userRole === USER_ROLES.HR_MANAGER
+  const navItems = userRole === USER_ROLES.SUPER_ADMIN
     ? navItemsConfig[userRole] || []
     : navItemsForModules(currentUser?.position_allowed_modules || []);
   const sidebarRef = useRef(null);

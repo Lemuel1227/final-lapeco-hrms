@@ -23,6 +23,7 @@ class PositionController extends Controller
                 'title' => $pos->name,
                 'name' => $pos->name,
                 'description' => $pos->description,
+                'max_team_leaders' => $pos->max_team_leaders,
                 'monthly_salary' => $pos->monthly_salary,
                 'base_rate_per_hour' => $pos->base_rate_per_hour,
                 'overtime_rate_per_hour' => $pos->overtime_rate_per_hour,
@@ -51,6 +52,7 @@ class PositionController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'max_team_leaders' => 'nullable|integer|min:1',
             'description' => 'nullable|string',
             'monthly_salary' => 'nullable|numeric|min:0',
             'base_rate_per_hour' => 'required|numeric|min:0',
@@ -77,6 +79,7 @@ class PositionController extends Controller
     {
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
+            'max_team_leaders' => 'sometimes|integer|min:1',
             'description' => 'sometimes|nullable|string',
             'monthly_salary' => 'sometimes|nullable|numeric|min:0',
             'base_rate_per_hour' => 'sometimes|numeric|min:0',
@@ -120,9 +123,11 @@ class PositionController extends Controller
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
-                    'role' => $user->role,
-                    'isTeamLeader' => $user->role === 'TEAM_LEADER',
+                    'role' => $user->is_team_leader ? 'TEAM_LEADER' : $user->role,
+                    'isTeamLeader' => $user->is_team_leader,
                     'employee_id' => $user->employee_id,
+                    'joining_date' => $user->joining_date,
+                    'image_url' => $user->image_url,
                 ];
             });
         return response()->json(['employees' => $employees]);
@@ -138,8 +143,8 @@ class PositionController extends Controller
 
         $employee->position_id = null;
 
-        if ($employee->role === 'TEAM_LEADER') {
-            $employee->role = 'REGULAR_EMPLOYEE';
+        if ($employee->is_team_leader) {
+            $employee->is_team_leader = false;
         }
 
         $employee->save();
@@ -158,7 +163,98 @@ class PositionController extends Controller
             'employee' => [
                 'id' => $employee->id,
                 'name' => $employee->name,
+                'role' => $employee->is_team_leader ? 'TEAM_LEADER' : $employee->role,
+                'position_id' => $employee->position_id,
+            ],
+        ]);
+    }
+
+    public function assignTeamLeader(Position $position, User $employee)
+    {
+        if ($employee->position_id !== $position->id) {
+            return response()->json([
+                'message' => 'Employee is not assigned to the specified position.',
+            ], 422);
+        }
+
+        // Check limits
+        $maxLeaders = $position->max_team_leaders ?? 1;
+        $currentLeadersCount = User::where('position_id', $position->id)
+            ->where('is_team_leader', true)
+            ->where('id', '!=', $employee->id) // Exclude self if already leader (though we are assigning)
+            ->count();
+
+        if ($maxLeaders == 1) {
+            // Default behavior: Single leader mode - Demote others
+            User::where('position_id', $position->id)
+                ->where('is_team_leader', true)
+                ->where('id', '!=', $employee->id)
+                ->update(['is_team_leader' => false]);
+        } else {
+            // Multiple leaders mode
+            if ($currentLeadersCount >= $maxLeaders) {
+                return response()->json([
+                    'message' => "Maximum number of team leaders ($maxLeaders) reached for this position. Please remove a team leader first.",
+                ], 422);
+            }
+        }
+
+        $employee->is_team_leader = true;
+        // Ensure role is REGULAR_EMPLOYEE if it was something else (unless SUPER_ADMIN?)
+        // Actually, we agreed to keep role as is but use flag.
+        // But usually we want to make sure they are not just a regular employee in role name if we were using role column.
+        // Since we migrated to flag, we just set the flag.
+        
+        $employee->save();
+
+        Notification::createForUser(
+            $employee->id,
+            'role_change',
+            'Promoted to Team Leader',
+            "You have been assigned as a Team Leader for the position {$position->name}."
+        );
+
+        $this->logUpdate('employee', $employee->id, "Assigned as Team Leader for {$position->name}");
+
+        return response()->json([
+            'message' => 'Employee assigned as Team Leader successfully.',
+            'employee' => [
+                'id' => $employee->id,
+                'name' => $employee->name,
+                'role' => 'TEAM_LEADER', // For display consistency
+                'isTeamLeader' => true,
+                'position_id' => $employee->position_id,
+            ],
+        ]);
+    }
+
+    public function removeTeamLeader(Position $position, User $employee)
+    {
+        if ($employee->position_id !== $position->id) {
+            return response()->json([
+                'message' => 'Employee is not assigned to the specified position.',
+            ], 422);
+        }
+
+        $employee->is_team_leader = false;
+        $employee->save();
+
+        Notification::createForUser(
+            $employee->id,
+            'role_change',
+            'Team Leader Status Removed',
+            "You are no longer a Team Leader for the position {$position->name}."
+        );
+
+        $this->logUpdate('employee', $employee->id, "Removed as Team Leader for {$position->name}");
+
+        return response()->json([
+            'message' => 'Team Leader status removed successfully.',
+            'employee' => [
+                'id' => $employee->id,
+                'name' => $employee->name,
                 'role' => $employee->role,
+                'isTeamLeader' => false,
                 'position_id' => $employee->position_id,
             ],
         ]);
