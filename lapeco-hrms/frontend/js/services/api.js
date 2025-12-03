@@ -251,6 +251,7 @@ export const payrollAPI = {
   update: (id, data) => api.put(`/payroll/${id}`, data),
   markPeriodAsPaid: (periodId) => api.post(`/payroll/periods/${periodId}/mark-as-paid`),
   deletePeriod: (periodId) => api.delete(`/payroll/periods/${periodId}`),
+  getActiveDeductionRulesSummary: () => api.get('/statutory-deduction-rules/active/summary'),
 };
 
 // Contributions API calls

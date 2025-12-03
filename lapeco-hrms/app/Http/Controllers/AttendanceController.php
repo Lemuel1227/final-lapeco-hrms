@@ -377,14 +377,26 @@ class AttendanceController extends Controller
      */
     public function getAttendanceHistory(Request $request): JsonResponse
     {
-        // If no date range is provided, get all available historical data
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date', Carbon::now()->toDateString());
+        // Check if month and year filters are provided
+        $month = $request->get('month');
+        $year = $request->get('year');
         
-        // If no start date is provided, find the earliest schedule date
-        if (!$startDate) {
-            $earliestSchedule = Schedule::orderBy('date', 'asc')->first();
-            $startDate = $earliestSchedule ? $earliestSchedule->date : Carbon::now()->subDays(90)->toDateString();
+        // If both month and year are provided (non-empty), use them to set date range
+        if (!empty($month) && !empty($year)) {
+            $monthNum = intval($month);
+            $yearNum = intval($year);
+            $startDate = Carbon::createFromDate($yearNum, $monthNum, 1)->toDateString();
+            $endDate = Carbon::createFromDate($yearNum, $monthNum, 1)->endOfMonth()->toDateString();
+        } else {
+            // Otherwise use start_date and end_date parameters
+            $startDate = $request->get('start_date');
+            $endDate = $request->get('end_date', Carbon::now()->toDateString());
+            
+            // If no start date is provided, find the earliest schedule date
+            if (!$startDate) {
+                $earliestSchedule = Schedule::orderBy('date', 'asc')->first();
+                $startDate = $earliestSchedule ? $earliestSchedule->date : Carbon::now()->subDays(90)->toDateString();
+            }
         }
 
         // Get schedules within the date range and their assignments (this ensures only existing schedules)
