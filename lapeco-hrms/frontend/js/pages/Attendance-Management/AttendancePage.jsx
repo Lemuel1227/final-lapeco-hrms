@@ -52,6 +52,11 @@ const AttendancePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // History list filters - default to current month and year
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historyMonthFilter, setHistoryMonthFilter] = useState(() => String(new Date().getMonth() + 1)); // Default to current month (1..12)
+  const [historyYearFilter, setHistoryYearFilter] = useState(() => String(new Date().getFullYear()));   // Default to current year
+  
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const fileInputRef = useRef(null);
   const excelImportRef = useRef(null);
@@ -81,7 +86,10 @@ const AttendancePage = () => {
           const dailyResponse = await attendanceAPI.getDaily({ date: currentDate });
           setDailyAttendanceData(dailyResponse.data || []);
         } else if (activeView === 'historyList') {
-          const historyResponse = await attendanceAPI.getHistory();
+          const historyResponse = await attendanceAPI.getHistory({
+            month: historyMonthFilter,
+            year: historyYearFilter
+          });
           setAttendanceHistory(historyResponse.data || []);
         } else if (activeView === 'employee') {
           const employeesResponse = await attendanceAPI.getEmployeeNameID();
@@ -97,7 +105,7 @@ const AttendancePage = () => {
     };
     
     fetchData();
-  }, [currentDate, activeView]);
+  }, [currentDate, activeView, historyMonthFilter, historyYearFilter]);
 
   // Fetch specific employee attendance records
   const normalizeAttendanceRecord = (record = {}) => {
@@ -198,11 +206,6 @@ const AttendancePage = () => {
     
     return list;
   }, [dailyAttendanceList, positionFilter, statusFilter, sortConfig]);
-
-  // History list filters
-  const [historySearchTerm, setHistorySearchTerm] = useState('');
-  const [historyMonthFilter, setHistoryMonthFilter] = useState(''); // '': All, otherwise 1..12
-  const [historyYearFilter, setHistoryYearFilter] = useState('');   // '': All, otherwise year number
 
   const availableHistoryYears = useMemo(() => {
     if (!attendanceHistory) return [];

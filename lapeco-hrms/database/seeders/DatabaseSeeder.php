@@ -404,6 +404,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call(PerformanceEvaluationSeeder::class);
         $this->call(ChatbotQASeeder::class);
+        $this->call(StatutoryDeductionRulesSeeder::class);
 
 
 

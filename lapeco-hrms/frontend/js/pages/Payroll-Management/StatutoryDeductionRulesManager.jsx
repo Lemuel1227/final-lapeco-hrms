@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './StatutoryDeductionRulesManager.css';
 import ConfirmationModal from '../../modals/ConfirmationModal';
+import api from '../../services/api';
 
 const StatutoryDeductionRulesManager = () => {
   const [rules, setRules] = useState([]);
@@ -41,32 +42,8 @@ const StatutoryDeductionRulesManager = () => {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('auth_token');
-      
-      const response = await fetch('/api/statutory-deduction-rules', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        }
-      });
-      
-      const contentType = response.headers.get('content-type');
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
-      
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON Response:', text);
-        throw new Error('Server returned non-JSON response');
-      }
-      
-      const data = await response.json();
-      setRules(data.data || []);
+      const response = await api.get('/statutory-deduction-rules');
+      setRules(response.data?.data || []);
     } catch (err) {
       console.error('Error fetching rules:', err);
       setError(`Failed to load deduction rules: ${err.message}`);
@@ -158,26 +135,16 @@ const StatutoryDeductionRulesManager = () => {
   const executeSaveRule = async () => {
     try {
       setLoading(true);
-      const url = selectedRule 
-        ? `/api/statutory-deduction-rules/${selectedRule.id}` 
-        : '/api/statutory-deduction-rules';
-      const method = selectedRule ? 'PUT' : 'POST';
-
       const payload = {
         ...formData,
         formula: formData.formula ? JSON.parse(formData.formula) : null,
       };
 
-      const response = await fetch(url, {
-        method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error('Failed to save rule');
+      if (selectedRule) {
+        await api.put(`/statutory-deduction-rules/${selectedRule.id}`, payload);
+      } else {
+        await api.post('/statutory-deduction-rules', payload);
+      }
       
       await fetchRules();
       setShowForm(false);
@@ -193,17 +160,8 @@ const StatutoryDeductionRulesManager = () => {
   const handleTestRule = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/statutory-deduction-rules/${selectedRule.id}/test`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify(testData),
-      });
-
-      const data = await response.json();
-      setTestResult(data);
+      const response = await api.post(`/statutory-deduction-rules/${selectedRule.id}/test`, testData);
+      setTestResult(response.data);
     } catch (err) {
       setError('Failed to test rule');
     } finally {
@@ -225,15 +183,7 @@ const StatutoryDeductionRulesManager = () => {
   const executeDeleteRule = async (ruleId) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/statutory-deduction-rules/${ruleId}`, {
-        method: 'DELETE',
-        headers: { 
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to delete rule');
-      
+      await api.delete(`/statutory-deduction-rules/${ruleId}`);
       await fetchRules();
       setShowForm(false);
       setSelectedRule(null);
@@ -370,7 +320,7 @@ const StatutoryDeductionRulesManager = () => {
                     checked={formData.is_default}
                     onChange={handleInputChange}
                   />
-                  <span>Set as default rule for this deduction type</span>
+                  <span> Set as default rule for this deduction type</span>
                 </label>
               </div>
 
@@ -390,50 +340,74 @@ const StatutoryDeductionRulesManager = () => {
               {formData.rule_type === 'salary_bracket' && (
                 <div className="sdrm-brackets">
                   <h4>Salary Brackets</h4>
+                  <div className={`sdrm-bracket-header ${formData.deduction_type === 'SSS' ? 'sdrm-bracket-header-with-employer' : 'sdrm-bracket-header-no-employer'}`}>
+                    <div className="sdrm-bracket-col">Salary From</div>
+                    <div className="sdrm-bracket-col">Salary To</div>
+                    <div className="sdrm-bracket-col">Employee Rate (%)</div>
+                    {formData.deduction_type === 'SSS' && (
+                      <div className="sdrm-bracket-col">Employer Rate (%)</div>
+                    )}
+                    <div className="sdrm-bracket-col">Fixed Amount</div>
+                    <div className="sdrm-bracket-col">Action</div>
+                  </div>
                   {formData.brackets.map((bracket, index) => (
-                    <div key={index} className="sdrm-bracket-row">
-                      <input
-                        type="number"
-                        placeholder="From"
-                        value={bracket.salary_from}
-                        onChange={(e) => handleBracketChange(index, 'salary_from', e.target.value)}
-                        step="0.01"
-                      />
-                      <input
-                        type="number"
-                        placeholder="To (optional)"
-                        value={bracket.salary_to || ''}
-                        onChange={(e) => handleBracketChange(index, 'salary_to', e.target.value)}
-                        step="0.01"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Employee Rate (%)"
-                        value={bracket.employee_rate || ''}
-                        onChange={(e) => handleBracketChange(index, 'employee_rate', e.target.value)}
-                        step="0.01"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Employer Rate (%)"
-                        value={bracket.employer_rate || ''}
-                        onChange={(e) => handleBracketChange(index, 'employer_rate', e.target.value)}
-                        step="0.01"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Fixed Amount"
-                        value={bracket.fixed_amount || ''}
-                        onChange={(e) => handleBracketChange(index, 'fixed_amount', e.target.value)}
-                        step="0.01"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveBracket(index)}
-                        className="sdrm-btn sdrm-btn-sm sdrm-btn-danger"
-                      >
-                        Remove
-                      </button>
+                    <div key={index} className={`sdrm-bracket-row ${formData.deduction_type === 'SSS' ? 'sdrm-bracket-with-employer' : 'sdrm-bracket-no-employer'}`}>
+                      <div className="sdrm-bracket-field">
+                        <label>From</label>
+                        <input
+                          type="number"
+                          value={bracket.salary_from}
+                          onChange={(e) => handleBracketChange(index, 'salary_from', e.target.value)}
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="sdrm-bracket-field">
+                        <label>To</label>
+                        <input
+                          type="number"
+                          value={bracket.salary_to || ''}
+                          onChange={(e) => handleBracketChange(index, 'salary_to', e.target.value)}
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="sdrm-bracket-field">
+                        <label>Employee %</label>
+                        <input
+                          type="number"
+                          value={bracket.employee_rate || ''}
+                          onChange={(e) => handleBracketChange(index, 'employee_rate', e.target.value)}
+                          step="0.01"
+                        />
+                      </div>
+                      {formData.deduction_type === 'SSS' && (
+                        <div className="sdrm-bracket-field">
+                          <label>Employer %</label>
+                          <input
+                            type="number"
+                            value={bracket.employer_rate || ''}
+                            onChange={(e) => handleBracketChange(index, 'employer_rate', e.target.value)}
+                            step="0.01"
+                          />
+                        </div>
+                      )}
+                      <div className="sdrm-bracket-field">
+                        <label>Fixed Amt</label>
+                        <input
+                          type="number"
+                          value={bracket.fixed_amount || ''}
+                          onChange={(e) => handleBracketChange(index, 'fixed_amount', e.target.value)}
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="sdrm-bracket-field sdrm-bracket-action">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBracket(index)}
+                          className="sdrm-btn sdrm-btn-sm sdrm-btn-danger"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
                   <button

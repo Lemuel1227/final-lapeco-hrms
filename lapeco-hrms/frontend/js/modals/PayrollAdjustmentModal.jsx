@@ -5,6 +5,7 @@ import './PayrollAdjustmentModal.css';
 import ReportPreviewModal from './ReportPreviewModal';
 import useReportGenerator from '../hooks/useReportGenerator';
 import { calculateSssContribution, calculatePhilhealthContribution, calculatePagibigContribution, calculateTin } from '../hooks/contributionUtils';
+import { payrollAPI } from '../services/api';
 
 const formatCurrency = (value) => Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -115,18 +116,10 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
     if (show) {
       const fetchActiveRules = async () => {
         try {
-          const response = await fetch('/api/statutory-deduction-rules/active/summary', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-              'Content-Type': 'application/json',
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setActiveRules(data.data || []);
-          }
+          const response = await payrollAPI.getActiveDeductionRulesSummary();
+          setActiveRules(response.data?.data || []);
         } catch (err) {
-          console.error('Failed to fetch active rules:', err);
+          console.error('Failed to load deduction rules:', err);
         }
       };
       fetchActiveRules();

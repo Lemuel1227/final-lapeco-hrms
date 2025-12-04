@@ -20,18 +20,9 @@ const MONTHS = [
     { value: 9, label: 'October' }, { value: 10, label: 'November' }, { value: 11, label: 'December' },
 ];
 
-const PERIODS = [
-    { value: '1', label: '1st Half (26th - 10th)' },
-    { value: '2', label: '2nd Half (11th - 25th)' },
-];
-
 const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], attendanceLogs=[], holidays=[], onGenerate, payrolls=[] }) => {
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedPeriod, setSelectedPeriod] = useState(() => {
-    const day = new Date().getDate();
-    return day >= 11 && day <= 25 ? '2' : '1';
-  });
+  const [inputStartDate, setInputStartDate] = useState('');
+  const [inputEndDate, setInputEndDate] = useState('');
 
   const [showBreakdownModal, setShowBreakdownModal] = useState(false);
   const [selectedEmployeeData, setSelectedEmployeeData] = useState(null);
@@ -45,21 +36,15 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
   const activeFetchRef = useRef(null);
 
   const { startDate, endDate, cutOffString } = useMemo(() => {
-    const year = selectedYear;
-    const month = selectedMonth;
-
-    if (selectedPeriod === '1') {
-        const prevMonth = month === 0 ? 11 : month - 1;
-        const prevMonthYear = month === 0 ? year - 1 : year;
-        const start = new Date(Date.UTC(prevMonthYear, prevMonth, 26)).toISOString().split('T')[0];
-        const end = new Date(Date.UTC(year, month, 10)).toISOString().split('T')[0];
-        return { startDate: start, endDate: end, cutOffString: `${start} to ${end}` };
-    } else { // 2nd Half
-        const start = new Date(Date.UTC(year, month, 11)).toISOString().split('T')[0];
-        const end = new Date(Date.UTC(year, month, 25)).toISOString().split('T')[0];
-        return { startDate: start, endDate: end, cutOffString: `${start} to ${end}` };
+    if (inputStartDate && inputEndDate) {
+      return { 
+        startDate: inputStartDate, 
+        endDate: inputEndDate, 
+        cutOffString: `${inputStartDate} to ${inputEndDate}` 
+      };
     }
-  }, [selectedYear, selectedMonth, selectedPeriod]);
+    return { startDate: '', endDate: '', cutOffString: '' };
+  }, [inputStartDate, inputEndDate]);
 
   // Keep a local cache of existing runs to ensure up-to-date checks
   const [existingRuns, setExistingRuns] = useState([]);
@@ -261,12 +246,31 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
       <div className="card shadow-sm mb-4">
         <div className="card-body p-4">
           <h5 className="card-title payroll-projection-title">Step 1: Select Pay Period</h5>
-          <p className="card-text text-muted">Select a year, month, and period to calculate payroll.</p>
+          <p className="card-text text-muted">Enter the start and end dates for the payroll period.</p>
+          
           <div className="row g-3 align-items-end">
-            <div className="col-md-3"><label htmlFor="year" className="form-label fw-bold">Year</label><select id="year" className="form-select" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>{getYears().map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-            <div className="col-md-4"><label htmlFor="month" className="form-label fw-bold">Month</label><select id="month" className="form-select" value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>{MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}</select></div>
-            <div className="col-md-5"><label htmlFor="period" className="form-label fw-bold">Period</label><select id="period" className="form-select" value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>{PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
+            <div className="col-md-6">
+              <label htmlFor="startDate" className="form-label fw-bold">Start Date</label>
+              <input 
+                type="date" 
+                id="startDate" 
+                className="form-control" 
+                value={inputStartDate} 
+                onChange={e => setInputStartDate(e.target.value)}
+              />
+            </div>
+            <div className="col-md-6">
+              <label htmlFor="endDate" className="form-label fw-bold">End Date</label>
+              <input 
+                type="date" 
+                id="endDate" 
+                className="form-control" 
+                value={inputEndDate} 
+                onChange={e => setInputEndDate(e.target.value)}
+              />
+            </div>
           </div>
+          
           {isPeriodGenerated && (
             <div className="alert alert-warning mt-3">
               A payroll run for this period (<strong>{cutOffString}</strong>) already exists. Delete the period to generate again.
