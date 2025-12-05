@@ -109,6 +109,7 @@ const RecruitmentPage = () => {
   const [newlyGeneratedAccount, setNewlyGeneratedAccount] = useState(null);
   const [applicantToDelete, setApplicantToDelete] = useState(null);
   const [applicantToReject, setApplicantToReject] = useState(null);
+  const [applicantToViewReason, setApplicantToViewReason] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [hireValidationErrors, setHireValidationErrors] = useState(null);
 
@@ -419,6 +420,7 @@ const RecruitmentPage = () => {
       case 'scheduleInterview': setSelectedApplicant(data); setShowInterviewModal(true); break;
       case 'hire': setSelectedApplicant(data); setShowHireModal(true); break;
       case 'reject': setApplicantToReject(data); break;
+      case 'viewReason': setApplicantToViewReason(data); break;
       case 'delete': setApplicantToDelete(data); break;
       default: break;
     }
@@ -546,9 +548,6 @@ const RecruitmentPage = () => {
               .map(applicant => (
                 <div key={applicant.id} className="applicant-grid-card">
                   <div className="card-header-section">
-                    <div className="applicant-avatar">
-                      <i className="bi bi-person-circle"></i>
-                    </div>
                     <div className="applicant-header-info">
                       <h5 className="applicant-name">{applicant.full_name || applicant.name}</h5>
                       <small className="applicant-position">
@@ -556,28 +555,40 @@ const RecruitmentPage = () => {
                          positionsMap.get(applicant.jobOpeningId || applicant.job_opening_id) ||
                          'Position TBD'}
                       </small>
-                      <div className="progress mt-2" style={{ height: '4px' }}>
-                        <div 
-                          className="progress-bar" 
-                          role="progressbar" 
-                          style={{ 
-                            width: (() => {
-                              const status = applicant.status || 'New Applicant';
-                              if (status === 'New Applicant') return '33%';
-                              if (status === 'Interview') return '66%';
-                              return '100%';
-                            })(), 
-                            backgroundColor: (() => {
-                              const status = applicant.status || 'New Applicant';
-                              if (status === 'New Applicant') return 'var(--pipeline-new)';
-                              if (status === 'Interview') return 'var(--pipeline-interview)';
-                              if (status === 'Hired') return 'var(--pipeline-hired)';
-                              if (status === 'Rejected') return 'var(--pipeline-rejected)';
-                              return 'var(--text-muted)';
-                            })(),
-                            transition: 'width 0.3s ease' 
-                          }} 
-                        ></div>
+                      <div className="d-flex align-items-center mt-2">
+                        <div className="progress flex-grow-1 me-2" style={{ height: '6px' }}>
+                          <div 
+                            className="progress-bar" 
+                            role="progressbar" 
+                            style={{ 
+                              width: (() => {
+                                const status = applicant.status || 'New Applicant';
+                                if (status === 'Rejected') return applicant.interview_schedule ? '66%' : '33%';
+                                if (status === 'New Applicant') return '33%';
+                                if (status === 'Interview') return '66%';
+                                return '100%';
+                              })(), 
+                              backgroundColor: (() => {
+                                const status = applicant.status || 'New Applicant';
+                                if (status === 'New Applicant') return 'var(--pipeline-new)';
+                                if (status === 'Interview') return 'var(--pipeline-interview)';
+                                if (status === 'Hired') return 'var(--pipeline-hired)';
+                                if (status === 'Rejected') return 'var(--pipeline-rejected)';
+                                return 'var(--text-muted)';
+                              })(),
+                              transition: 'width 0.3s ease' 
+                            }} 
+                          ></div>
+                        </div>
+                        <small className="text-muted" style={{fontSize: '0.75rem', minWidth: '35px', textAlign: 'right'}}>
+                          {(() => {
+                             const status = applicant.status || 'New Applicant';
+                             if (status === 'Rejected') return applicant.interview_schedule ? '66%' : '33%';
+                             if (status === 'New Applicant') return '33%';
+                             if (status === 'Interview') return '66%';
+                             return '100%';
+                          })()}
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -617,6 +628,10 @@ const RecruitmentPage = () => {
 
                       {!['Hired', 'Rejected'].includes(applicant.status) && (
                         <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); setApplicantToReject(applicant); }}>Reject</a>
+                      )}
+                      
+                      {applicant.status === 'Rejected' && (
+                        <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); setApplicantToViewReason(applicant); }}>View Reason</a>
                       )}
 
                       <div className="dropdown-divider"></div>
@@ -694,6 +709,9 @@ const RecruitmentPage = () => {
                     {/* Reject - Show only if not already Hired or Rejected */}
                     {!['Hired', 'Rejected'].includes(applicant.status) && (
                       <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleAction('reject', applicant); }}>Reject</a>
+                    )}
+                    {applicant.status === 'Rejected' && (
+                      <a className="dropdown-item" href="#" onClick={(e) => { e.preventDefault(); handleAction('viewReason', applicant); }}>View Reason</a>
                     )}
                     <div className="dropdown-divider"></div>
                     <a className="dropdown-item text-danger" href="#" onClick={(e) => { e.preventDefault(); handleAction('delete', applicant); }}>Delete Applicant</a>
@@ -861,6 +879,20 @@ const RecruitmentPage = () => {
             onChange={(e) => setRejectionReason(e.target.value)}
             style={{ resize: 'vertical' }}
           ></textarea>
+        </div>
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        show={!!applicantToViewReason}
+        onClose={() => setApplicantToViewReason(null)}
+        onConfirm={() => setApplicantToViewReason(null)}
+        title="Rejection Reason"
+        confirmText="Close"
+        confirmVariant="secondary"
+      >
+        <p><strong>Reason for rejection:</strong></p>
+        <div className="p-3 bg-light rounded border">
+            {applicantToViewReason?.notes || <span className="text-muted font-italic">No reason provided.</span>}
         </div>
       </ConfirmationModal>
 

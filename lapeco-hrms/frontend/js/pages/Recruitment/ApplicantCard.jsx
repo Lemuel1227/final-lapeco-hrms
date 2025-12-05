@@ -45,11 +45,16 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
   
 
   const getProgress = (status) => {
+    if (status === 'Rejected') {
+       return { 
+           width: applicant.interview_schedule ? '66%' : '33%', 
+           color: 'var(--pipeline-rejected)' 
+       };
+    }
     switch (status) {
       case 'New Applicant': return { width: '33%', color: 'var(--pipeline-new)' };
       case 'Interview': return { width: '66%', color: 'var(--pipeline-interview)' };
       case 'Hired': return { width: '100%', color: 'var(--pipeline-hired)' };
-      case 'Rejected': return { width: '100%', color: 'var(--pipeline-rejected)' };
       default: return { width: '0%', color: 'var(--text-muted)' };
     }
   };
@@ -92,6 +97,10 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
                         {!['Hired', 'Rejected'].includes(applicant.status) && (
                             <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleActionClick(e, 'reject', applicant)}>Reject</a></li>
                         )}
+                        {/* View Reason - Show only if Rejected */}
+                        {applicant.status === 'Rejected' && (
+                            <li><a className="dropdown-item" href="#" onClick={(e) => handleActionClick(e, 'viewReason', applicant)}>View Reason</a></li>
+                        )}
                         <li><hr className="dropdown-divider" /></li>
                         <li><a className="dropdown-item text-danger" href="#" onClick={(e) => handleActionClick(e, 'delete', applicant)}>Delete Applicant</a></li>
                     </ul>
@@ -100,19 +109,24 @@ const ApplicantCard = ({ applicant, jobTitle, onAction }) => {
 
             <p className="applicant-job-title">Applied for: {jobTitle || 'N/A'}</p>
 
-            <div className="progress mb-2" style={{ height: '4px' }}>
-                <div 
-                    className="progress-bar" 
-                    role="progressbar" 
-                    style={{ 
-                        width: progress.width, 
-                        backgroundColor: progress.color,
-                        transition: 'width 0.3s ease' 
-                    }} 
-                    aria-valuenow={parseInt(progress.width)} 
-                    aria-valuemin="0" 
-                    aria-valuemax="100"
-                ></div>
+            <div className="d-flex align-items-center mb-2">
+                <div className="progress flex-grow-1 me-2" style={{ height: '6px' }}>
+                    <div 
+                        className="progress-bar" 
+                        role="progressbar" 
+                        style={{ 
+                            width: progress.width, 
+                            backgroundColor: progress.color,
+                            transition: 'width 0.3s ease' 
+                        }} 
+                        aria-valuenow={parseInt(progress.width)} 
+                        aria-valuemin="0" 
+                        aria-valuemax="100"
+                    ></div>
+                </div>
+                <small className="text-muted" style={{fontSize: '0.75rem', minWidth: '35px', textAlign: 'right'}}>
+                    {parseInt(progress.width)}%
+                </small>
             </div>
             
             <div className="applicant-card-details">
