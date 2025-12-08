@@ -6,6 +6,7 @@ const generatorLoaders = {
   disciplinary_cases: () => import('./disciplinaryCasesReport').then(m => m.generateDisciplinaryCasesReport),
   employee_masterlist: () => import('./employeeMasterlistReport').then(m => m.generateEmployeeMasterlistReport),
   leave_requests_report: () => import('./leaveRequestsReport').then(m => m.generateLeaveRequestsReport),
+  leave_cash_conversion_report: () => import('./leaveCashConversionReport').then(m => m.generateLeaveCashConversionReport),
   payroll_run_summary: () => import('./payrollRunSummaryReport').then(m => m.generatePayrollRunSummaryReport),
   payslip: () => import('./payslipReport').then(m => m.generatePayslipReport),
   performance_summary: () => import('./performanceSummaryReport').then(m => m.generatePerformanceSummaryReport),

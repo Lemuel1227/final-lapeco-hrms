@@ -55,6 +55,16 @@ export const reportsConfig = [
       { id: 'date_range_4', type: 'date-range', labels: { start: 'Start Date', end: 'End Date' } },
     ],
   },
+  {
+    id: 'leave_cash_conversion_report',
+    title: 'Leave Cash Conversion Report',
+    description: 'Generates a report of leave cash conversion requests and payouts for a specific year.',
+    icon: 'bi-cash-coin',
+    category: reportCategories.LEAVE,
+    parameters: [
+      { id: 'year_selector_cash', type: 'year-selector', label: 'Select Year' }
+    ],
+  },
   
   // --- Performance Management ---
   {

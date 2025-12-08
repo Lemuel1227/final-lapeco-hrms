@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { leaveAPI } from '../../services/api';
+import { leaveAPI, leaveCashConversionAPI } from '../../services/api';
 import { getUserProfile } from '../../services/accountService';
 import RequestLeaveModal from '../../modals/RequestLeaveModal';
 import LeaveHistoryModal from '../../modals/LeaveHistoryModal';
@@ -21,6 +21,73 @@ const MyLeavePage = () => {
   const [leaveBalances, setLeaveBalances] = useState({ vacation: 0, sick: 0 });
   const [requestToCancel, setRequestToCancel] = useState(null);
 
+  // Cash Conversion State
+  const [activeTab, setActiveTab] = useState('requests');
+  const [cashYear, setCashYear] = useState(new Date().getFullYear());
+  const [cashRecord, setCashRecord] = useState(null);
+  const [loadingCash, setLoadingCash] = useState(false);
+  const [generatingCash, setGeneratingCash] = useState(false);
+  const [markingCash, setMarkingCash] = useState(false);
+
+  const loadCashConversion = async (year) => {
+    try {
+      setLoadingCash(true);
+      const res = await leaveCashConversionAPI.getSummary({ year, scope: 'self' });
+      const data = res?.data || {};
+      const records = Array.isArray(data.records) ? data.records : [];
+      setCashRecord(records.length > 0 ? records[0] : null);
+    } catch (err) {
+      console.error('Failed to load leave cash conversions:', err);
+      setToast({ show: true, message: 'Failed to load leave cash conversions.', type: 'error' });
+      setCashRecord(null);
+    } finally {
+      setLoadingCash(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'cash-conversion') {
+      loadCashConversion(cashYear);
+    }
+  }, [activeTab, cashYear]);
+
+  const handleGenerateCash = async () => {
+    try {
+      setGeneratingCash(true);
+      const res = await leaveCashConversionAPI.generate({ year: cashYear, scope: 'self' });
+      if (res?.data?.records) {
+         const records = res.data.records;
+         setCashRecord(records.length > 0 ? records[0] : null);
+         setToast({ show: true, message: 'Cash conversion request generated successfully.', type: 'success' });
+      } else {
+         setToast({ show: true, message: 'No eligible credits for cash conversion.', type: 'warning' });
+         setCashRecord(null);
+      }
+    } catch (err) {
+      console.error('Failed to generate cash conversion:', err);
+      setToast({ show: true, message: 'Failed to generate cash conversion request.', type: 'error' });
+    } finally {
+      setGeneratingCash(false);
+    }
+  };
+
+  const handleCashStatusUpdate = async (newStatus) => {
+    if (!cashRecord) return;
+    try {
+      setMarkingCash(true);
+      const res = await leaveCashConversionAPI.updateStatus(cashRecord.id, newStatus);
+      if (res?.data) {
+        setCashRecord(prev => ({ ...prev, status: res.data.status }));
+        setToast({ show: true, message: `Request ${newStatus === 'Submitted' ? 'submitted' : 'reverted'} successfully.`, type: 'success' });
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      setToast({ show: true, message: 'Failed to update request status.', type: 'error' });
+    } finally {
+      setMarkingCash(false);
+    }
+  };
+
   // Load user's leave requests and user profile from API
   useEffect(() => {
     (async () => {
@@ -38,10 +105,11 @@ const MyLeavePage = () => {
         let creditsRes = null;
         // getUserProfile returns direct JSON, leaveAPI returns { data: ... }
         const userId = userRes.id || userRes.data?.id;
+        const currentYear = new Date().getFullYear();
         
         if (userId) {
           try {
-            creditsRes = await leaveAPI.getLeaveCredits(userId);
+            creditsRes = await leaveAPI.getLeaveCredits(userId, { year: currentYear });
           } catch (creditsError) {
             console.warn('Failed to load leave credits:', creditsError);
           }
@@ -73,11 +141,26 @@ const MyLeavePage = () => {
         setCurrentUser(userRes);
         
         // Calculate leave balances from credits (if available)
-        if (creditsRes && creditsRes.data) {
-          const credits = creditsRes.data;
+        if (creditsRes && creditsRes.data && creditsRes.data.data) {
+          const credits = creditsRes.data.data;
+          
+          // Calculate pending leaves for the current year to deduct from available balance
+          // Emergency Leave uses Vacation Leave credits
+          const pendingVacation = mapped
+            .filter(r => r.status === 'Pending' && 
+                        (r.leaveType === 'Vacation Leave' || r.leaveType === 'Emergency Leave') && 
+                        new Date(r.dateFrom).getFullYear() === currentYear)
+            .reduce((sum, r) => sum + Number(r.days || 0), 0);
+            
+          const pendingSick = mapped
+            .filter(r => r.status === 'Pending' && 
+                        r.leaveType === 'Sick Leave' && 
+                        new Date(r.dateFrom).getFullYear() === currentYear)
+            .reduce((sum, r) => sum + Number(r.days || 0), 0);
+
           const balances = {
-            vacation: (credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0),
-            sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0)
+            vacation: Math.max(0, ((credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0)) - pendingVacation),
+            sick: Math.max(0, ((credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0)) - pendingSick)
           };
           setLeaveBalances(balances);
         } else {
@@ -132,10 +215,11 @@ const MyLeavePage = () => {
       // Refresh the data and leave balances
       const res = await leaveAPI.getAll();
       let creditsRes = null;
+      const currentYear = new Date().getFullYear();
       
       if (currentUser && currentUser.id) {
         try {
-          creditsRes = await leaveAPI.getLeaveCredits(currentUser.id);
+          creditsRes = await leaveAPI.getLeaveCredits(currentUser.id, { year: currentYear });
         } catch (creditsError) {
           console.warn('Failed to refresh leave credits:', creditsError);
         }
@@ -156,11 +240,24 @@ const MyLeavePage = () => {
       }));
       
       // Update leave balances (if credits were loaded)
-      if (creditsRes && creditsRes.data) {
-        const credits = creditsRes.data;
+      if (creditsRes && creditsRes.data && creditsRes.data.data) {
+        const credits = creditsRes.data.data;
+        
+        const pendingVacation = mapped
+            .filter(r => r.status === 'Pending' && 
+                        (r.leaveType === 'Vacation Leave' || r.leaveType === 'Emergency Leave') && 
+                        new Date(r.dateFrom).getFullYear() === currentYear)
+            .reduce((sum, r) => sum + Number(r.days || 0), 0);
+            
+        const pendingSick = mapped
+            .filter(r => r.status === 'Pending' && 
+                        r.leaveType === 'Sick Leave' && 
+                        new Date(r.dateFrom).getFullYear() === currentYear)
+            .reduce((sum, r) => sum + Number(r.days || 0), 0);
+
         const balances = {
-          vacation: (credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0),
-          sick: (credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0)
+          vacation: Math.max(0, ((credits['Vacation Leave']?.total_credits || 0) - (credits['Vacation Leave']?.used_credits || 0)) - pendingVacation),
+          sick: Math.max(0, ((credits['Sick Leave']?.total_credits || 0) - (credits['Sick Leave']?.used_credits || 0)) - pendingSick)
         };
         setLeaveBalances(balances);
       }
@@ -272,6 +369,19 @@ const MyLeavePage = () => {
         </div>
       </header>
 
+      <ul className="nav nav-tabs mb-4">
+        <li className="nav-item">
+          <button className={`nav-link ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+            <i className="bi bi-card-list me-2"></i>My Requests
+          </button>
+        </li>
+        <li className="nav-item">
+          <button className={`nav-link ${activeTab === 'cash-conversion' ? 'active' : ''}`} onClick={() => setActiveTab('cash-conversion')}>
+            <i className="bi bi-cash-coin me-2"></i>Leave Cash Conversion
+          </button>
+        </li>
+      </ul>
+
       {loading && (
         <div className="w-100 text-center p-5 bg-light rounded">
           <div className="spinner-border text-success" role="status">
@@ -293,7 +403,7 @@ const MyLeavePage = () => {
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && activeTab === 'requests' && (
         <>
 
       <div className="my-leave-dashboard">
@@ -377,6 +487,141 @@ const MyLeavePage = () => {
         <p className="text-muted mb-0">This will update the status to Canceled.</p>
       </ConfirmationModal>
         </>
+      )}
+
+      {!loading && !error && activeTab === 'cash-conversion' && (
+        <div className="card shadow-sm">
+          <div className="card-header d-flex justify-content-between align-items-center">
+             <h5 className="mb-0">Leave Cash Conversion</h5>
+             <div style={{ width: '150px' }}>
+                <select 
+                  className="form-select form-select-sm" 
+                  value={cashYear} 
+                  onChange={(e) => setCashYear(parseInt(e.target.value))}
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+             </div>
+          </div>
+          <div className="card-body">
+            {loadingCash ? (
+              <div className="text-center p-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-2 text-muted">Loading cash conversion data...</p>
+              </div>
+            ) : !cashRecord ? (
+               <div className="text-center p-5 bg-light rounded">
+                 <i className="bi bi-cash-stack fs-1 text-muted mb-3 d-block"></i>
+                 <h5 className="text-muted">No Record Found</h5>
+                 <p className="text-muted mb-4">You have no cash conversion record for {cashYear}.</p>
+                 <button 
+                   className="btn btn-primary" 
+                   onClick={handleGenerateCash}
+                   disabled={generatingCash}
+                 >
+                   {generatingCash ? (
+                     <>
+                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                       Generating...
+                     </>
+                   ) : (
+                     <>
+                       <i className="bi bi-calculator me-2"></i>Generate Request
+                     </>
+                   )}
+                 </button>
+               </div>
+            ) : (
+              <div className="row g-4">
+                 <div className="col-md-8">
+                    <div className="card h-100 border-0 bg-light">
+                      <div className="card-body">
+                        <h6 className="card-title text-muted mb-3">CONVERSION DETAILS</h6>
+                        <div className="row mb-3">
+                          <div className="col-6">
+                             <small className="text-muted d-block">Vacation Leave</small>
+                             <span className="fs-5 fw-bold">{cashRecord.vacationDays} days</span>
+                             <div className="text-success small">₱ {cashRecord.details?.vacation?.amount?.toLocaleString()}</div>
+                          </div>
+                          <div className="col-6">
+                             <small className="text-muted d-block">Sick Leave</small>
+                             <span className="fs-5 fw-bold">{cashRecord.sickDays} days</span>
+                             <div className="text-success small">₱ {cashRecord.details?.sick?.amount?.toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <hr />
+                        <div className="d-flex justify-content-between align-items-center">
+                           <div>
+                             <small className="text-muted d-block">Total Days</small>
+                             <span className="fw-bold">{cashRecord.totalDays} days</span>
+                           </div>
+                           <div className="text-end">
+                             <small className="text-muted d-block">Total Amount</small>
+                             <span className="fs-4 fw-bold text-success">₱ {cashRecord.totalAmount?.toLocaleString()}</span>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+                 </div>
+                 <div className="col-md-4">
+                    <div className="card h-100 border-0">
+                      <div className="card-body d-flex flex-column justify-content-center text-center">
+                         <h6 className="text-muted mb-4">STATUS</h6>
+                         <div className="mb-4">
+                           <span className={`badge rounded-pill fs-6 px-3 py-2 bg-${
+                             cashRecord.status === 'Paid' ? 'success' :
+                             cashRecord.status === 'Approved' ? 'primary' :
+                             cashRecord.status === 'Declined' ? 'danger' :
+                             cashRecord.status === 'Submitted' ? 'info' : 'secondary'
+                           }`}>
+                             {cashRecord.status.toUpperCase()}
+                           </span>
+                         </div>
+                         
+                         {cashRecord.status === 'Pending' && (
+                           <button 
+                             className="btn btn-success w-100"
+                             onClick={() => handleCashStatusUpdate('Submitted')}
+                             disabled={markingCash}
+                           >
+                             {markingCash ? 'Submitting...' : 'Submit Request'}
+                           </button>
+                         )}
+
+                         {cashRecord.status === 'Submitted' && (
+                           <button 
+                             className="btn btn-outline-secondary w-100"
+                             onClick={() => handleCashStatusUpdate('Pending')}
+                             disabled={markingCash}
+                           >
+                             {markingCash ? 'Reverting...' : 'Revert to Pending'}
+                           </button>
+                         )}
+
+                         {['Approved', 'Paid'].includes(cashRecord.status) && (
+                           <div className="alert alert-success py-2 small">
+                             <i className="bi bi-check-circle-fill me-2"></i>
+                             Request {cashRecord.status.toLowerCase()}.
+                           </div>
+                         )}
+                         
+                         {cashRecord.status === 'Declined' && (
+                           <div className="alert alert-danger py-2 small">
+                             <i className="bi bi-x-circle-fill me-2"></i>
+                             Request declined.
+                           </div>
+                         )}
+                      </div>
+                    </div>
+                 </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <LeaveHistoryModal
