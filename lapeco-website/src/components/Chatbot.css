@@ -1,4 +1,4 @@
-﻿/* --- CSS Variables for Easy Theming --- */
+/* --- CSS Variables for Easy Theming --- */
 :root {
   --chatbot-primary-color: #198754;
   --chatbot-primary-dark: #157347;
@@ -308,6 +308,16 @@
 }
 .option-button:active {
   transform: scale(0.98);
+}
+
+/* --- Chatbot List Styling --- */
+.chatbot-list {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.2rem;
+}
+.chatbot-list li {
+  margin-bottom: 0.25rem;
+  list-style-type: disc;
 }
 
 /* --- Responsive Positioning --- */

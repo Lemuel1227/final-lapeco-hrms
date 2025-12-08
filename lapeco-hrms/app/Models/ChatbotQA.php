@@ -12,9 +12,10 @@ class ChatbotQA extends Model
     protected $table = 'chatbot_qas';
 
     protected $fillable = [
-        'type', // recruitment | faq
+        'type',
         'question',
         'answer',
+        'dynamic_handler',
         'tags',
         'active',
         'created_by',

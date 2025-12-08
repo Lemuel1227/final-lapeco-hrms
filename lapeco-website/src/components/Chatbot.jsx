@@ -145,7 +145,13 @@ export default function Chatbot({ onClose }) {
             <span className="avatar">
               {msg.sender === 'bot' ? <i className="bi bi-robot"></i> : <i className="bi bi-person"></i>}
             </span>
-            <div className="message-content">{msg.text}</div>
+            <div className="message-content">
+              {msg.sender === 'bot' ? (
+                <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+              ) : (
+                msg.text
+              )}
+            </div>
           </div>
         ))}
         {isTyping && (
