@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ChatbotQA;
+use App\Models\Position;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -12,8 +13,43 @@ class ChatbotQAController extends Controller
     {
         $type = $request->query('type');
         $query = ChatbotQA::query()->where('active', true);
-        if ($type) { $query->where('type', $type); }
-        return response()->json(['data' => $query->orderBy('id', 'desc')->get()]);
+
+        if ($type) {
+            $query->where('type', $type);
+        }
+
+        $qas = $query->orderBy('id', 'desc')->get();
+
+        // Process dynamic answers
+        $qas->transform(function ($qa) {
+            if ($qa->dynamic_handler) {
+                $qa->answer = $this->resolveDynamicAnswer($qa->dynamic_handler, $qa->answer);
+            }
+            return $qa;
+        });
+
+        return response()->json(['data' => $qas]);
+    }
+
+    private function resolveDynamicAnswer($handler, $defaultAnswer)
+    {
+        switch ($handler) {
+            case 'available_positions':
+                $positions = Position::orderBy('name')->pluck('name');
+                
+                if ($positions->isEmpty()) {
+                    return "Currently, there are no open positions available.";
+                }
+                
+                $list = $positions->map(function($name) {
+                    return "<li>" . e($name) . "</li>";
+                })->implode("");
+                
+                return "Here are the current available positions:<ul class='chatbot-list'>" . $list . "</ul>";
+                
+            default:
+                return $defaultAnswer;
+        }
     }
 
     public function index(Request $request)
@@ -30,6 +66,7 @@ class ChatbotQAController extends Controller
             'type' => ['required', Rule::in(['recruitment','faq'])],
             'question' => ['required','string','min:3'],
             'answer' => ['required','string','min:1'],
+            'dynamic_handler' => ['nullable', 'string'],
             'tags' => ['nullable','array'],
             'active' => ['sometimes','boolean'],
         ]);
@@ -46,6 +83,7 @@ class ChatbotQAController extends Controller
             'type' => [Rule::in(['recruitment','faq'])],
             'question' => ['sometimes','string','min:3'],
             'answer' => ['sometimes','string','min:1'],
+            'dynamic_handler' => ['nullable', 'string'],
             'tags' => ['nullable','array'],
             'active' => ['sometimes','boolean'],
         ]);

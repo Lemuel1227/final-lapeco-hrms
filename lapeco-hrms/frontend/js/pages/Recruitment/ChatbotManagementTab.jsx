@@ -277,7 +277,14 @@ const ChatbotManagementTab = () => {
                         <td colSpan="5">
                           <div className="answer-expanded">
                             <div className="answer-label">Answer:</div>
-                            <div className="answer-content">{item.answer}</div>
+                            {item.dynamic_handler ? (
+                              <div className="text-muted fst-italic">
+                                <i className="bi bi-lightning-charge me-1"></i>
+                                Dynamic content: {item.dynamic_handler} (System generated)
+                              </div>
+                            ) : (
+                              <div className="answer-content">{item.answer}</div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -287,7 +294,14 @@ const ChatbotManagementTab = () => {
                         <td colSpan="5">
                           <div className="answer-expanded">
                             <div className="answer-label">Answer:</div>
-                            <textarea className="form-control form-control-sm" rows={3} value={item.answer || ''} onChange={e => updateField(item.id, 'answer', e.target.value)} />
+                            {item.dynamic_handler ? (
+                              <div className="alert alert-info py-2 mb-0">
+                                <i className="bi bi-info-circle me-2"></i>
+                                This answer is dynamically generated based on system data ({item.dynamic_handler}) and cannot be manually edited.
+                              </div>
+                            ) : (
+                              <textarea className="form-control form-control-sm" rows={3} value={item.answer || ''} onChange={e => updateField(item.id, 'answer', e.target.value)} />
+                            )}
                           </div>
                         </td>
                       </tr>
