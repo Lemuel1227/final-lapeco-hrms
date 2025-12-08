@@ -7,6 +7,7 @@ import useReportGenerator from '../../hooks/useReportGenerator';
 import { leaveAPI, employeeAPI, leaveCashConversionAPI } from '../../services/api';
 import './LeaveManagementPage.css';
 import NotificationToast from '../../common/ToastNotification';
+import ConfirmationModal from '../../modals/ConfirmationModal';
 
 const LeaveManagementPage = () => {
   const [activeTab, setActiveTab] = useState('requests');
@@ -31,13 +32,35 @@ const LeaveManagementPage = () => {
   const [cashSummary, setCashSummary] = useState({ totalPayout: 0 });
   const [cashRecords, setCashRecords] = useState([]);
   const [cashSearchTerm, setCashSearchTerm] = useState('');
+  const [cashStatusFilter, setCashStatusFilter] = useState('All');
   const [cashSortConfig, setCashSortConfig] = useState({ key: 'name', direction: 'ascending' });
   const [loadingCash, setLoadingCash] = useState(false);
   const [generatingCash, setGeneratingCash] = useState(false);
   const [markingCash, setMarkingCash] = useState(false);
+  // Track IDs of records that have been interacted with to keep them visible even if status becomes Pending
+  const [interactedIds, setInteractedIds] = useState(new Set());
+  const [currentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [showReportPreview, setShowReportPreview] = useState(false);
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    title: '',
+    message: '',
+    action: null,
+    variant: 'primary',
+    confirmText: 'Confirm'
+  });
 
   // Load leave requests from API
   useEffect(() => {
@@ -280,6 +303,14 @@ const LeaveManagementPage = () => {
       if (id) {
         const response = await leaveCashConversionAPI.updateStatus(id, status);
         const payload = response?.data || {};
+        
+        // Add to interacted IDs to keep visible
+        setInteractedIds(prev => {
+            const next = new Set(prev);
+            next.add(id);
+            return next;
+        });
+
         setCashRecords(prev => prev.map(record => {
           if (record.id !== id) return record;
           return {
@@ -293,8 +324,22 @@ const LeaveManagementPage = () => {
       } else {
         setMarkingCash(true);
         await leaveCashConversionAPI.markAll({ year: cashYear, status });
+
+        // Add all current records to interacted IDs for bulk update
+        setInteractedIds(prev => {
+            const next = new Set(prev);
+            cashRecords.forEach(r => {
+                if (r.id) next.add(r.id);
+            });
+            return next;
+        });
+
         setCashRecords(prev => prev.map(record => record.id ? { ...record, status } : record));
-        const bulkMessage = status === 'Pending' ? 'Statuses reset to Pending.' : 'All records marked as Paid.';
+        const bulkMessage = status === 'Pending' ? 'Statuses reset to Pending.' : 
+                           status === 'Submitted' ? 'All records submitted.' :
+                           status === 'Approved' ? 'All records approved.' :
+                           status === 'Paid' ? 'All records marked as Paid.' :
+                           'Status updated.';
         showToast({ message: bulkMessage, type: 'success' });
       }
       await loadCashConversion(cashYear);
@@ -311,6 +356,19 @@ const LeaveManagementPage = () => {
   const filteredCashRecords = useMemo(() => {
     const term = cashSearchTerm.toLowerCase();
     const filtered = cashRecords.filter(record => {
+      // Status Filter
+      if (cashStatusFilter !== 'All' && (record.status || 'Pending') !== cashStatusFilter) {
+        return false;
+      }
+
+      // Show if:
+      // 1. Not Super Admin
+      // 2. OR Status is NOT Pending
+      // 3. OR ID is in interactedIds (recently acted upon)
+      // 4. OR Explicitly filtering for 'Pending'
+      if (cashStatusFilter === 'All' && isSuperAdmin && (record.status || 'Pending') === 'Pending' && !interactedIds.has(record.id)) {
+        return false;
+      }
       return (
         (record.name || '').toLowerCase().includes(term) ||
         String(record.employeeId || '').toLowerCase().includes(term)
@@ -328,7 +386,7 @@ const LeaveManagementPage = () => {
       }
       return (Number(valA) - Number(valB)) * direction;
     });
-  }, [cashRecords, cashSearchTerm, cashSortConfig]);
+  }, [cashRecords, cashSearchTerm, cashSortConfig, isSuperAdmin, interactedIds, cashStatusFilter]);
 
   const hasPersistedRecords = useMemo(() => cashRecords.some(record => record.id), [cashRecords]);
 
@@ -346,13 +404,40 @@ const LeaveManagementPage = () => {
     return cashSortConfig.direction === 'ascending' ? <i className="bi bi-sort-up sort-icon active ms-1"></i> : <i className="bi bi-sort-down sort-icon active ms-1"></i>;
   };
 
-  const handleGenerateReport = (params) => {
+  const handleGenerateReport = async (params) => {
     setShowReportModal(false);
-    generateReport(
+
+    if (params.reportType === 'leave_cash_conversion') {
+      let reportData = [];
+      
+      // Use existing data if year matches
+      if (params.year === cashYear && cashRecords.length > 0) {
+        reportData = cashRecords;
+      } else {
+        try {
+          const res = await leaveCashConversionAPI.getSummary({ year: params.year });
+          const data = res.data || {};
+          reportData = Array.isArray(data.records) ? data.records : [];
+        } catch (error) {
+          console.error('Failed to fetch cash conversion data for report:', error);
+          showToast({ message: 'Failed to fetch data for the selected year.', type: 'danger' });
+          return;
+        }
+      }
+
+      generateReport(
+        'leave_cash_conversion_report',
+        { year: params.year },
+        { cashRecords: reportData }
+      );
+    } else {
+      generateReport(
         'leave_requests_report', 
         { startDate: params.startDate, endDate: params.endDate }, 
         { leaveRequests }
-    );
+      );
+    }
+    
     setShowReportPreview(true);
   };
 
@@ -360,6 +445,24 @@ const LeaveManagementPage = () => {
     setShowReportPreview(false);
     if(pdfDataUri) URL.revokeObjectURL(pdfDataUri);
     setPdfDataUri('');
+  };
+
+  const initiateConfirmation = (action, title, message, variant = 'primary', confirmText = 'Confirm') => {
+    setConfirmModal({
+      show: true,
+      title,
+      message,
+      action,
+      variant,
+      confirmText
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    if (confirmModal.action) {
+      setConfirmModal(prev => ({ ...prev, show: false }));
+      await confirmModal.action();
+    }
   };
 
   return (
@@ -470,6 +573,22 @@ const LeaveManagementPage = () => {
                             disabled={loadingCash || generatingCash || markingCash}
                           />
                         </div>
+                        <div className="status-filter-group ms-2">
+                          <select
+                            className="form-select"
+                            value={cashStatusFilter}
+                            onChange={(e) => setCashStatusFilter(e.target.value)}
+                            disabled={loadingCash || generatingCash || markingCash}
+                            style={{ width: '150px' }}
+                          >
+                            <option value="All">All Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Submitted">Submitted</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Declined">Declined</option>
+                          </select>
+                        </div>
                         <div className="year-selector-group">
                           <label htmlFor="cash-year-select" className="form-label">Year:</label>
                           <select
@@ -487,15 +606,20 @@ const LeaveManagementPage = () => {
                         </div>
                       </div>
                       <div className="controls-right d-flex gap-2">
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => handleMarkCashStatus('Pending')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => initiateConfirmation(() => handleMarkCashStatus('Pending'), 'Reset Status', 'Are you sure you want to reset all statuses to Pending?', 'warning', 'Reset')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
                           <i className="bi bi-arrow-counterclockwise me-2"></i>Reset Status
                         </button>
-                        <button className="btn btn-sm btn-success" onClick={() => handleMarkCashStatus('Paid')} disabled={!hasPersistedRecords || loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
-                          <i className="bi bi-cash-coin me-2"></i>Mark All as Paid
-                        </button>
-                        <button className="btn btn-sm btn-outline-success" onClick={handleGenerateCash} disabled={loadingCash || generatingCash || markingCash}>
-                          {generatingCash ? (<><span className="spinner-border spinner-border-sm me-2" role="status" />Generating...</>) : (<><i className="bi bi-gear-fill me-2"></i>Generate</>)}
-                        </button>
+                        {!isSuperAdmin ? (
+                          <button className="btn btn-sm btn-primary" onClick={() => initiateConfirmation(() => handleMarkCashStatus('Submitted'), 'Submit All Requests', 'Are you sure you want to submit all pending requests?', 'primary', 'Submit All')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
+                            <i className="bi bi-send me-2"></i>Submit All
+                          </button>
+                        ) : (
+                          <>
+                            <button className="btn btn-sm btn-primary" onClick={() => initiateConfirmation(() => handleMarkCashStatus('Approved'), 'Approve All Requests', 'Are you sure you want to approve all submitted requests?', 'success', 'Approve All')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
+                              <i className="bi bi-check-circle me-2"></i>Approve All
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="table-responsive position-relative" style={{ minHeight: '220px' }}>
@@ -509,12 +633,14 @@ const LeaveManagementPage = () => {
                         <thead>
                           <tr>
                             <th className="sortable" style={{ width: '12%' }} onClick={() => requestCashSort('employeeId')}>Employee ID {cashSortIcon('employeeId')}</th>
-                            <th className="sortable" style={{ width: '24%' }} onClick={() => requestCashSort('name')}>Employee Name {cashSortIcon('name')}</th>
-                            <th className="text-center sortable" style={{ width: '12%' }} onClick={() => requestCashSort('vacationDays')}>Vacation Days {cashSortIcon('vacationDays')}</th>
-                            <th className="text-center sortable" style={{ width: '12%' }} onClick={() => requestCashSort('sickDays')}>Sick Days {cashSortIcon('sickDays')}</th>
-                            <th className="text-end sortable" style={{ width: '14%' }} onClick={() => requestCashSort('conversionRate')}>Daily Rate {cashSortIcon('conversionRate')}</th>
-                            <th className="text-end sortable" style={{ width: '14%' }} onClick={() => requestCashSort('totalAmount')}>Total Amount {cashSortIcon('totalAmount')}</th>
-                            <th className="text-center" style={{ width: '12%' }}>Status</th>
+                            <th className="sortable" style={{ width: '20%' }} onClick={() => requestCashSort('name')}>Employee Name {cashSortIcon('name')}</th>
+                            <th className="text-center sortable" style={{ width: '10%' }} onClick={() => requestCashSort('vacationDays')}>Vacation Days {cashSortIcon('vacationDays')}</th>
+                            <th className="text-center sortable" style={{ width: '10%' }} onClick={() => requestCashSort('sickDays')}>Sick Days {cashSortIcon('sickDays')}</th>
+                            <th className="text-end sortable" style={{ width: '12%' }} onClick={() => requestCashSort('conversionRate')}>Daily Rate {cashSortIcon('conversionRate')}</th>
+                            <th className="text-end sortable" style={{ width: '12%' }} onClick={() => requestCashSort('totalAmount')}>Total Amount {cashSortIcon('totalAmount')}</th>
+                            <th className="text-center" style={{ width: '10%' }}>Status</th>
+                            <th className="text-center" style={{ width: '10%' }}>Payment Status</th>
+                            <th className="text-center" style={{ width: '15%' }}>Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -530,20 +656,110 @@ const LeaveManagementPage = () => {
                               <td className="text-end">₱{Number(record.conversionRate || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                               <td className="text-end text-success fw-bold">₱{Number(record.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                               <td className="text-center">
-                                <select
-                                  className={`form-select form-select-sm status-select status-select-${(record.status || 'pending').toLowerCase()}`}
-                                  value={record.status || 'Pending'}
-                                  onChange={(e) => handleMarkCashStatus(e.target.value, record.id)}
-                                  disabled={!record.id || loadingCash || generatingCash || markingCash}
-                                >
-                                  <option value="Pending">Pending</option>
-                                  <option value="Paid">Paid</option>
-                                </select>
+                                <span className={`badge bg-${
+                                  record.status === 'Approved' ? 'success' :
+                                  record.status === 'Paid' ? 'success' :
+                                  record.status === 'Declined' ? 'danger' :
+                                  record.status === 'Submitted' ? (isSuperAdmin ? 'warning text-dark' : 'primary') :
+                                  'secondary'
+                                }`}>
+                                  {record.status === 'Paid' ? 'Approved' : 
+                                   (isSuperAdmin && record.status === 'Submitted') ? 'Pending' :
+                                   record.status || 'Pending'}
+                                </span>
+                              </td>
+                              <td className="text-center">
+                                  {record.status === 'Paid' ? (
+                                      <span className="badge bg-success">Paid</span>
+                                  ) : record.status === 'Approved' ? (
+                                      <span className="badge bg-warning text-dark">Pending</span>
+                                  ) : (
+                                      <span className="text-muted">–</span>
+                                  )}
+                              </td>
+                              <td className="text-center">
+                                <div className="d-flex justify-content-center gap-1">
+                                  {isSuperAdmin ? (
+                                    <>
+                                      {(record.status === 'Submitted' || record.status === 'Pending') && (
+                                        <>
+                                          <button 
+                                            className="btn btn-sm btn-outline-success" 
+                                            title="Approve"
+                                            onClick={() => initiateConfirmation(() => handleMarkCashStatus('Approved', record.id), 'Approve Request', `Approve cash conversion for ${record.name}?`, 'success', 'Approve')}
+                                            disabled={loadingCash || markingCash}
+                                          >
+                                            <i className="bi bi-check-lg"></i>
+                                          </button>
+                                          <button 
+                                            className="btn btn-sm btn-outline-danger" 
+                                            title="Decline"
+                                            onClick={() => initiateConfirmation(() => handleMarkCashStatus('Declined', record.id), 'Decline Request', `Decline cash conversion for ${record.name}?`, 'danger', 'Decline')}
+                                            disabled={loadingCash || markingCash}
+                                          >
+                                            <i className="bi bi-x-lg"></i>
+                                          </button>
+                                        </>
+                                      )}
+                                      {(record.status === 'Approved' || record.status === 'Declined') && record.status !== 'Paid' && (
+                                         <button 
+                                            className="btn btn-sm btn-outline-secondary ms-1" 
+                                            title="Reset to Pending"
+                                            onClick={() => initiateConfirmation(() => handleMarkCashStatus('Pending', record.id), 'Reset Status', `Reset status for ${record.name} to Pending?`, 'warning', 'Reset')}
+                                            disabled={loadingCash || markingCash}
+                                          >
+                                            <i className="bi bi-arrow-counterclockwise"></i>
+                                          </button>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {((record.status || 'Pending') === 'Pending') && (
+                                        <button 
+                                          className="btn btn-sm btn-primary"
+                                          onClick={() => initiateConfirmation(() => handleMarkCashStatus('Submitted', record.id), 'Submit Request', 'Submit your leave cash conversion request?', 'primary', 'Submit')}
+                                          disabled={loadingCash || markingCash}
+                                        >
+                                          Submit
+                                        </button>
+                                      )}
+                                      {record.status === 'Submitted' && (
+                                        <button 
+                                          className="btn btn-sm btn-outline-secondary"
+                                          onClick={() => initiateConfirmation(() => handleMarkCashStatus('Pending', record.id), 'Revert Submission', 'Revert your submission to Pending?', 'warning', 'Revert')}
+                                          disabled={loadingCash || markingCash}
+                                        >
+                                          Revert
+                                        </button>
+                                      )}
+                                      {record.status === 'Approved' && (
+                                        <button 
+                                          className="btn btn-sm btn-success"
+                                          title="Mark Paid"
+                                          onClick={() => initiateConfirmation(() => handleMarkCashStatus('Paid', record.id), 'Mark as Paid', 'Mark this request as Paid? This action will record the payment date.', 'success', 'Mark Paid')}
+                                          disabled={loadingCash || markingCash}
+                                        >
+                                          <i className="bi bi-check-lg"></i>
+                                        </button>
+                                      )}
+                                      {record.status === 'Paid' && (
+                                        <button 
+                                          className="btn btn-sm btn-outline-warning text-dark"
+                                          title="Revert Payment"
+                                          onClick={() => initiateConfirmation(() => handleMarkCashStatus('Approved', record.id), 'Revert Payment', 'Revert payment status to Approved? This will clear the payment record.', 'warning', 'Revert Payment')}
+                                          disabled={loadingCash || markingCash}
+                                        >
+                                          <i className="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           )) : (
                             <tr>
-                              <td colSpan="7">
+                              <td colSpan={9}>
                                 <div className="text-center p-5">
                                   <i className="bi bi-info-circle fs-1 text-muted mb-3 d-block"></i>
                                   <h5 className="text-muted">{loadingCash ? 'Preparing leave cash conversion data...' : `No conversion records found for ${cashYear}.`}</h5>
@@ -618,6 +834,17 @@ const LeaveManagementPage = () => {
           reportTitle="Leave Requests Report"
         />
       )}
+
+      <ConfirmationModal
+        show={confirmModal.show}
+        onClose={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+        onConfirm={handleConfirmAction}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmVariant={confirmModal.variant}
+        confirmText={confirmModal.confirmText}
+        confirmLoading={loadingCash || markingCash || generatingCash}
+      />
 
       {toast.show && (
         <NotificationToast

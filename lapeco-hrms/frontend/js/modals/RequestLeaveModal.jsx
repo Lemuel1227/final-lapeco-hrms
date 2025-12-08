@@ -156,8 +156,9 @@ const RequestLeaveModal = ({ show, onClose, onSave, currentUser, editingRequest 
       setCreditsLoading(true);
       setCreditsError(null);
       try {
-        const res = await leaveAPI.getLeaveCredits(currentUser.id);
-        setLeaveCredits(res.data || null);
+        const currentYear = new Date().getFullYear();
+        const res = await leaveAPI.getLeaveCredits(currentUser.id, { year: currentYear });
+        setLeaveCredits(res.data?.data || null);
       } catch (err) {
         console.warn('Failed to fetch leave credits:', err);
         setCreditsError('Unable to load leave credits right now.');
