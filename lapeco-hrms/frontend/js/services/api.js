@@ -39,6 +39,8 @@ api.interceptors.request.use(
     const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn('No auth token found in localStorage');
     }
     
     // If the data is FormData, remove the Content-Type header to let the browser set it
@@ -79,8 +81,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Log authorization errors for debugging
+    if (error.response?.status === 403) {
+      console.error('Authorization error (403):', error.response?.data);
+    }
+    
     // Handle authentication errors
     if (error.response?.status === 401) {
+      console.warn('Unauthenticated (401) - redirecting to login');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       window.location.href = '/login';

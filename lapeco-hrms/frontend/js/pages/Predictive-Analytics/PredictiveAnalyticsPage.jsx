@@ -62,6 +62,7 @@ const PredictiveAnalyticsPage = () => {
   const [prefillCaseData, setPrefillCaseData] = useState(null);
   const [programForEnrollment, setProgramForEnrollment] = useState(null);
   const [isProfileEditMode, setIsProfileEditMode] = useState(false);
+  const [trainingRecommendationType, setTrainingRecommendationType] = useState(null);
   
   const { generateReport, pdfDataUri, isLoading, setPdfDataUri } = useReportGenerator();
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -450,7 +451,7 @@ const PredictiveAnalyticsPage = () => {
     }
   };
 
-  const handleRecommendedAction = async (actionType, employee) => {
+  const handleRecommendedAction = async (actionType, employee, trainingType = null) => {
     setSelectedEmployeeForAction(employee);
     
     switch (actionType) {
@@ -485,6 +486,7 @@ const PredictiveAnalyticsPage = () => {
       case 'nominateForTraining':
         // Load training data before showing program selection
         await loadTrainingData();
+        setTrainingRecommendationType(trainingType || 'high_potential');
         setModalState({ selectProgram: true });
         break;
       default:
@@ -504,6 +506,7 @@ const PredictiveAnalyticsPage = () => {
     setPrefillCaseData(null);
     setProgramForEnrollment(null);
     setIsProfileEditMode(false);
+    setTrainingRecommendationType(null);
   };
   
   const handleGenerateReport = () => {
@@ -710,6 +713,7 @@ const PredictiveAnalyticsPage = () => {
         employee={selectedEmployeeForAction} 
         enrollments={enrollments}
         loading={loadingTraining}
+        recommendationType={trainingRecommendationType}
       />
       
       {modalState.viewProfile && (

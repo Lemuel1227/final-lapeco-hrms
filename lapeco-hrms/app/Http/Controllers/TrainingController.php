@@ -76,7 +76,9 @@ class TrainingController extends Controller
             'max_participants' => 'nullable|integer|min:1',
             'requirements' => 'nullable|string',
             'positions_allowed' => 'nullable|array',
-            'positions_allowed.*' => 'integer|exists:positions,id'
+            'positions_allowed.*' => 'integer|exists:positions,id',
+            'is_recommended' => 'nullable|boolean',
+            'training_category' => ['nullable', Rule::in(['high_potential', 'turnover_risk', 'general'])]
         ]);
 
         // Create program without trusting provided status
@@ -155,7 +157,9 @@ class TrainingController extends Controller
             'max_participants' => 'nullable|integer|min:1',
             'requirements' => 'nullable|string',
             'positions_allowed' => 'nullable|array',
-            'positions_allowed.*' => 'integer|exists:positions,id'
+            'positions_allowed.*' => 'integer|exists:positions,id',
+            'is_recommended' => 'nullable|boolean',
+            'training_category' => ['nullable', Rule::in(['high_potential', 'turnover_risk', 'general'])]
         ]);
 
         // Update program without trusting provided status

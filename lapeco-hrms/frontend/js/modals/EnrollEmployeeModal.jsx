@@ -97,7 +97,15 @@ const EnrollEmployeeModal = ({ show, onClose, onEnroll, program, allEmployees, e
             </div>
             <div className="modal-body">
               {isNominationMode ? (
-                <p>Confirm nomination of <strong>{employeeToEnroll.name}</strong> for the training program: <strong>"{program.title}"</strong>?</p>
+                <>
+                  <p>Confirm nomination of <strong>{employeeToEnroll.name}</strong> for the training program: <strong>"{program.title}"</strong>?</p>
+                  {(program.is_recommended || program.isRecommended) && (
+                    <div className="alert alert-info mt-3">
+                      <i className="bi bi-star-fill me-2" style={{ color: '#ffc107' }}></i>
+                      <strong>Recommended Training:</strong> This is a recommended training program for this employee.
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <p>Select employees to enroll in this program. Employees already enrolled are not shown.</p>
