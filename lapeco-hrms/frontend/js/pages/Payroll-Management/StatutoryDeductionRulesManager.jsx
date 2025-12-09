@@ -12,6 +12,8 @@ const StatutoryDeductionRulesManager = () => {
     rule_name: '',
     rule_type: 'fixed_percentage',
     fixed_percentage: '',
+    employee_rate: '',
+    employer_rate: '',
     minimum_salary: '',
     maximum_salary: '',
     is_default: false,
@@ -118,6 +120,8 @@ const StatutoryDeductionRulesManager = () => {
       rule_name: rule.rule_name || '',
       rule_type: rule.rule_type,
       fixed_percentage: rule.fixed_percentage || '',
+      employee_rate: rule.employee_rate || '',
+      employer_rate: rule.employer_rate || '',
       minimum_salary: rule.minimum_salary || '',
       maximum_salary: rule.maximum_salary || '',
       is_default: rule.is_default || false,
@@ -136,6 +140,8 @@ const StatutoryDeductionRulesManager = () => {
       rule_name: '',
       rule_type: 'fixed_percentage',
       fixed_percentage: '',
+      employee_rate: '',
+      employer_rate: '',
       minimum_salary: '',
       maximum_salary: '',
       is_default: false,
@@ -149,7 +155,19 @@ const StatutoryDeductionRulesManager = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    if (name === 'deduction_type' && value === 'SSS') {
+    if (name === 'employee_rate' || name === 'employer_rate') {
+        const otherRate = name === 'employee_rate' 
+            ? parseFloat(formData.employer_rate || 0) 
+            : parseFloat(formData.employee_rate || 0);
+        const currentRate = parseFloat(value || 0);
+        const total = (currentRate + otherRate).toFixed(2);
+        
+        setFormData(prev => ({ 
+            ...prev, 
+            [name]: value,
+            fixed_percentage: total
+        }));
+    } else if (name === 'deduction_type' && value === 'SSS') {
       // Generate default SSS brackets (2025 Table Structure)
       // Source: RA 11199 - 15% Contribution Rate (10% ER, 5% EE)
       // Min MSC: 5,000 | Max MSC: 35,000
@@ -209,6 +227,16 @@ const StatutoryDeductionRulesManager = () => {
         [name]: value,
         rule_type: 'salary_bracket', // SSS uses salary bracket table
         brackets: brackets
+      }));
+    } else if (name === 'deduction_type' && value === 'PhilHealth') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        rule_type: 'fixed_percentage',
+        fixed_percentage: '5',
+        employee_rate: '2.5',
+        employer_rate: '2.5',
+        brackets: []
       }));
     } else {
       setFormData(prev => ({ 
@@ -691,14 +719,14 @@ const StatutoryDeductionRulesManager = () => {
               <div className="d-flex align-items-center justify-content-between border-bottom px-3 bg-light">
                   <div className="d-flex">
                       <button 
-                          className={`btn rounded-0 py-3 px-4 ${activeTab === 'settings' ? 'border-bottom border-primary border-3 text-primary fw-bold bg-white' : 'text-muted'}`}
+                          className={`btn rounded-0 py-3 px-4 ${activeTab === 'settings' ? 'text-primary fw-bold bg-white' : 'text-muted'}`}
                           onClick={() => setActiveTab('settings')}
                       >
                           <i className="bi bi-sliders me-2"></i>Settings
                       </button>
                       {selectedRule && (
                           <button 
-                              className={`btn rounded-0 py-3 px-4 ${activeTab === 'history' ? 'border-bottom border-primary border-3 text-primary fw-bold bg-white' : 'text-muted'}`}
+                              className={`btn rounded-0 py-3 px-4 ${activeTab === 'history' ? 'text-primary fw-bold bg-white' : 'text-muted'}`}
                               onClick={() => setActiveTab('history')}
                           >
                               <i className="bi bi-clock-history me-2"></i>History
@@ -805,21 +833,41 @@ const StatutoryDeductionRulesManager = () => {
                     </div>
                     
                     {formData.rule_type === 'fixed_percentage' && (
-                      <div className="col-md-6">
-                        <div className="sdrm-form-group">
-                          <label>Percentage Rate (%)</label>
-                          <input
-                            type="number"
-                            name="fixed_percentage"
-                            value={formData.fixed_percentage}
-                            onChange={handleInputChange}
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            className="form-control"
-                          />
+                      <>
+                        <div className="w-100"></div>
+                        <div className="col-md-6">
+                          <div className="sdrm-form-group">
+                            <label>Employee Share (%)</label>
+                            <input
+                              type="number"
+                              name="employee_rate"
+                              value={formData.employee_rate}
+                              onChange={handleInputChange}
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              className="form-control"
+                              placeholder="e.g. 2.5"
+                            />
+                          </div>
                         </div>
-                      </div>
+                        <div className="col-md-6">
+                          <div className="sdrm-form-group">
+                            <label>Employer Share (%)</label>
+                            <input
+                              type="number"
+                              name="employer_rate"
+                              value={formData.employer_rate}
+                              onChange={handleInputChange}
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              className="form-control"
+                              placeholder="e.g. 2.5"
+                            />
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
 
@@ -1134,13 +1182,13 @@ const StatutoryDeductionRulesManager = () => {
                     
                     {loadingHistory ? (
                       [1, 2, 3].map(n => (
-                        <div key={n} className="card mb-3 border-start border-light border-4 shadow-sm history-log-card skeleton-card">
+                        <div key={n} className="card mb-3 border-0 shadow-sm history-log-card skeleton-card">
                            <div className="card-body">
                              <div className="d-flex justify-content-between align-items-start mb-2">
                                 <div className="skeleton-text" style={{width: '150px'}}></div>
                                 <div className="skeleton-text" style={{width: '100px'}}></div>
                              </div>
-                             <div className="history-changes bg-light p-3 rounded mt-2 border">
+                             <div className="history-changes bg-light p-3 rounded mt-2">
                                 <div className="skeleton-text mb-1" style={{width: '80%'}}></div>
                                 <div className="skeleton-text" style={{width: '60%'}}></div>
                              </div>
@@ -1148,7 +1196,7 @@ const StatutoryDeductionRulesManager = () => {
                         </div>
                       ))
                     ) : historyLogs.length === 0 ? (
-                      <div className="text-center py-5 text-muted border rounded bg-light">
+                      <div className="text-center py-5 text-muted rounded bg-light">
                         <i className="bi bi-info-circle fs-1 mb-2"></i>
                         <p>No changes recorded for this rule yet.</p>
                       </div>
@@ -1157,7 +1205,7 @@ const StatutoryDeductionRulesManager = () => {
                         {historyLogs.map((log) => (
                           <div 
                             key={log.id} 
-                            className="card mb-3 border-start border-primary border-4 shadow-sm history-log-card"
+                            className="card mb-3 border-0 shadow-sm history-log-card"
                             onClick={() => {
                               setSelectedLog(log);
                               setModalTab('attributes');
@@ -1179,7 +1227,7 @@ const StatutoryDeductionRulesManager = () => {
                                 </small>
                               </div>
                               
-                              <div className="history-changes bg-light p-3 rounded mt-2 border">
+                              <div className="history-changes bg-light p-3 rounded mt-2">
                                 {formatChanges(log.changes)}
                               </div>
                               <div className="text-center mt-2">

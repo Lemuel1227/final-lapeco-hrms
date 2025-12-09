@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 import './GeneratePayrollModal.css';
 
 const GeneratePayrollModal = ({ show, onClose, onGenerate, allEmployees, existingPayrolls }) => {
@@ -7,6 +9,46 @@ const GeneratePayrollModal = ({ show, onClose, onGenerate, allEmployees, existin
   const [endDate, setEndDate] = useState('');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [error, setError] = useState('');
+
+  // Helper to parse YYYY-MM-DD to local Date object to avoid timezone issues
+  const parseLocalDate = (dateStr) => {
+      if (!dateStr) return null;
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+  };
+
+  const forbiddenRanges = React.useMemo(() => {
+    return existingPayrolls.map(run => {
+         if (run.cutOff) {
+             const parts = run.cutOff.split(' to ');
+             if (parts.length === 2) {
+                 return { start: parseLocalDate(parts[0]), end: parseLocalDate(parts[1]) };
+             }
+         }
+         return null;
+    }).filter(Boolean);
+  }, [existingPayrolls]);
+
+  const isDateDisabled = (date) => {
+      if (!date) return false;
+      return forbiddenRanges.some(range => date >= range.start && date <= range.end);
+  };
+
+  const handleDateChange = (isStart, date) => {
+      if (!date) {
+        if (isStart) setStartDate('');
+        else setEndDate('');
+        return;
+      }
+      if (isDateDisabled(date)) {
+          setError('This date is part of an already generated payroll period.');
+          return;
+      }
+      setError(''); // Clear error if valid
+      const dateString = date.toLocaleDateString('en-CA');
+      if (isStart) setStartDate(dateString);
+      else setEndDate(dateString);
+  };
 
   useEffect(() => {
     if (show) {
@@ -92,11 +134,39 @@ const GeneratePayrollModal = ({ show, onClose, onGenerate, allEmployees, existin
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label htmlFor="startDate" className="form-label">Start Date</label>
-                    <input type="date" id="startDate" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    <div className="d-block position-relative">
+                        <DatePicker
+                            id="startDate"
+                            selected={parseLocalDate(startDate)}
+                            onChange={date => handleDateChange(true, date)}
+                            className="form-control"
+                            dateFormat="yyyy-MM-dd"
+                            excludeDateIntervals={forbiddenRanges}
+                            placeholderText="YYYY-MM-DD"
+                            wrapperClassName="w-100"
+                            onKeyDown={(e) => e.preventDefault()}
+                            calendarClassName="payroll-datepicker"
+                        />
+                        <i className="bi bi-calendar-event position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#6c757d' }}></i>
+                    </div>
                   </div>
                   <div className="col-md-6">
                     <label htmlFor="endDate" className="form-label">End Date</label>
-                    <input type="date" id="endDate" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    <div className="d-block position-relative">
+                        <DatePicker
+                            id="endDate"
+                            selected={parseLocalDate(endDate)}
+                            onChange={date => handleDateChange(false, date)}
+                            className="form-control"
+                            dateFormat="yyyy-MM-dd"
+                            excludeDateIntervals={forbiddenRanges}
+                            placeholderText="YYYY-MM-DD"
+                            wrapperClassName="w-100"
+                            onKeyDown={(e) => e.preventDefault()}
+                            calendarClassName="payroll-datepicker"
+                        />
+                        <i className="bi bi-calendar-event position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#6c757d' }}></i>
+                    </div>
                   </div>
                 </div>
               </div>

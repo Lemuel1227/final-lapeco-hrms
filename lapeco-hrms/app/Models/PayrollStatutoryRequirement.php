@@ -25,6 +25,8 @@ class PayrollStatutoryRequirement extends Model
         'requirement_type',
         'requirement_amount',
         'employer_amount',
+        'rule_name',
+        'rule_id',
     ];
 
     protected $casts = [
@@ -34,5 +36,10 @@ class PayrollStatutoryRequirement extends Model
     public function employeePayroll()
     {
         return $this->belongsTo(EmployeePayroll::class, 'employees_payroll_id');
+    }
+
+    public function rule()
+    {
+        return $this->belongsTo(StatutoryDeductionRule::class, 'rule_id');
     }
 }

@@ -16,6 +16,8 @@ class StatutoryDeductionRule extends Model
         'rule_type',
         'formula',
         'fixed_percentage',
+        'employee_rate',
+        'employer_rate',
         'minimum_salary',
         'maximum_salary',
         'is_active',
@@ -25,6 +27,8 @@ class StatutoryDeductionRule extends Model
 
     protected $casts = [
         'fixed_percentage' => 'decimal:2',
+        'employee_rate' => 'decimal:2',
+        'employer_rate' => 'decimal:2',
         'minimum_salary' => 'decimal:2',
         'maximum_salary' => 'decimal:2',
         'is_active' => 'boolean',

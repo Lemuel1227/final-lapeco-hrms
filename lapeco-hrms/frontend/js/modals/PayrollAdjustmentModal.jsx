@@ -58,7 +58,7 @@ const StatutoryField = ({ label, fieldKey, value, originalValue, onChange, onFoc
             />
         </div>
         <small className="form-text text-muted">
-          {readOnly ? 'System Calculated' : (helperText ? helperText : `Original: ₱${formatCurrency(originalValue)}`)}
+          {readOnly ? `Original: ₱${formatCurrency(value)}` : (helperText ? helperText : `Original: ₱${formatCurrency(originalValue)}`)}
         </small>
     </div>
 );
@@ -89,20 +89,64 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
   }, [payrollData]);
 
   const systemCalculatedDeductions = useMemo(() => {
-    // Use historical deductions from payroll data (database source of truth)
-    if (payrollData?.deductions) {
+    // PREFER SAVED DATA: Use the actual calculated values saved with the payroll record
+    // This ensures "Original" matches what was actually used at the time of generation
+    if (payrollData?.statutoryDetails) {
+        const details = payrollData.statutoryDetails;
+        
+        // Helper to recalculate using saved rule and saved gross (for consistency with UI)
+        const recalculateIfRuleExists = (type, savedAmount) => {
+            const detail = details[type.toLowerCase()] || details[type];
+            if (detail?.rule && semiGrossFromPayroll > 0) {
+                 const result = calculateDeductionFromRule(semiGrossFromPayroll, detail.rule, true);
+                 return result.employeeShare;
+            }
+            return parseFloat(savedAmount || 0);
+        };
+
         return {
-            sss: parseFloat(payrollData.deductions.sss || 0),
-            philhealth: parseFloat(payrollData.deductions.philhealth || 0),
-            hdmf: parseFloat(payrollData.deductions.pagibig || 0)
+            sss: recalculateIfRuleExists('sss', details.sss?.amount),
+            philhealth: recalculateIfRuleExists('philhealth', details.philhealth?.amount),
+            hdmf: recalculateIfRuleExists('pag-ibig', details['pag-ibig']?.amount)
         };
     }
-    return {
-      sss: 0,
-      philhealth: 0,
-      hdmf: 0,
+
+    // FALLBACK: Only recalculate if no details exist (e.g. brand new unsaved record)
+    if (!activeRules.length || !payrollData) return { sss: 0, philhealth: 0, hdmf: 0 };
+
+    const getRule = (type) => {
+        const rulesOfType = activeRules.filter(r => r.deduction_type === type);
+        return rulesOfType.find(r => r.is_default) || rulesOfType[0];
     };
-  }, [payrollData]);
+
+    const sssRule = getRule('SSS');
+    const philHealthRule = getRule('PhilHealth');
+    const pagIbigRule = getRule('Pag-IBIG');
+
+    const calculateOriginalShare = (rule) => {
+        if (!rule) return 0;
+        
+        // Prioritize semiGrossFromPayroll (actual gross from saved record)
+        if (semiGrossFromPayroll > 0) {
+             const result = calculateDeductionFromRule(semiGrossFromPayroll, rule, true);
+             return result.employeeShare;
+        }
+        
+        // Fallback to monthly salary
+        const monthlySalary = Number(employeeDetails?.monthlySalary || 0);
+        if (monthlySalary > 0) {
+            const result = calculateDeductionFromRule(monthlySalary, rule, false);
+            return parseFloat((result.employeeShare / 2).toFixed(2));
+        }
+        return 0;
+    };
+
+    return {
+        sss: calculateOriginalShare(sssRule),
+        philhealth: calculateOriginalShare(philHealthRule),
+        hdmf: calculateOriginalShare(pagIbigRule)
+    };
+  }, [payrollData, activeRules, semiGrossFromPayroll, employeeDetails]);
 
   const eligibilityHelperTexts = useMemo(() => {
     return {
@@ -215,9 +259,21 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
     if (!show || !earnings.length) return;
     const totalGrossPay = earnings.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-    const sssRule = activeRules.find(r => r.deduction_type === 'SSS');
-    const philHealthRule = activeRules.find(r => r.deduction_type === 'PhilHealth');
-    const pagIbigRule = activeRules.find(r => r.deduction_type === 'Pag-IBIG');
+    const getRule = (type) => {
+        // First try to find the rule saved with the payroll record
+        const key = type.toLowerCase();
+        if (payrollData?.statutoryDetails?.[key]?.rule) {
+             return payrollData.statutoryDetails[key].rule;
+        }
+
+        const rulesOfType = activeRules.filter(r => r.deduction_type === type);
+        // Prioritize default rule, otherwise take the first one
+        return rulesOfType.find(r => r.is_default) || rulesOfType[0];
+    };
+
+    const sssRule = getRule('SSS');
+    const philHealthRule = getRule('PhilHealth');
+    const pagIbigRule = getRule('Pag-IBIG');
 
     const monthlySalary = Number(employeeDetails?.monthlySalary || 0);
 
@@ -257,7 +313,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
       philhealth: activeField === 'philhealth' ? prev.philhealth : parseFloat(nextPhil.toFixed(2)),
       hdmf: activeField === 'hdmf' ? prev.hdmf : parseFloat(nextPag.toFixed(2)),
     }));
-  }, [earnings, activeField, show, activeRules, employeeDetails]);
+  }, [earnings, activeField, show, activeRules, employeeDetails, payrollData]);
 
   const totals = useMemo(() => {
     const totalGrossPay = earnings.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -471,6 +527,18 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
     );
   };
 
+  const getPersistedRuleName = (type, key) => {
+    // Try to get from persisted details first
+    if (payrollData?.statutoryDetails?.[key]?.rule_name) {
+        return payrollData.statutoryDetails[key].rule_name;
+    }
+    
+    // For legacy records (no saved rule name), return null.
+    // We explicitly do NOT fallback to the current active rule, 
+    // because that would misleadingly suggest the new rule was used.
+    return null;
+  };
+
   return (
     <>
       <div className={`modal fade show d-block ${showPayslipPreview ? 'modal-behind' : ''}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
@@ -571,7 +639,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
             fieldKey="tax" 
             value={statutoryDeductions.tax} 
             readOnly={true} 
-            ruleName={activeRules.find(r => r.deduction_type === 'Tax')?.rule_name}
+            ruleName={getPersistedRuleName('Tax', 'tax')}
           />
           <StatutoryField 
             label="SSS Contribution" 
@@ -583,7 +651,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
             onBlur={() => setActiveField(null)} 
             activeField={activeField} 
             helperText={eligibilityHelperTexts.sss}
-            ruleName={activeRules.find(r => r.deduction_type === 'SSS')?.rule_name}
+            ruleName={getPersistedRuleName('SSS', 'sss')}
           />
           <StatutoryField 
             label="PhilHealth Contribution" 
@@ -595,7 +663,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
             onBlur={() => setActiveField(null)} 
             activeField={activeField} 
             helperText={eligibilityHelperTexts.philhealth}
-            ruleName={activeRules.find(r => r.deduction_type === 'PhilHealth')?.rule_name}
+            ruleName={getPersistedRuleName('PhilHealth', 'philhealth')}
           />
           <StatutoryField 
             label="Pag-IBIG Contribution" 
@@ -607,7 +675,7 @@ const PayrollAdjustmentModal = ({ show, onClose, onSave, payrollData, employeeDe
             onBlur={() => setActiveField(null)} 
             activeField={activeField} 
             helperText={eligibilityHelperTexts.hdmf}
-            ruleName={activeRules.find(r => r.deduction_type === 'Pag-IBIG')?.rule_name}
+            ruleName={getPersistedRuleName('Pag-IBIG', 'pag-ibig')}
           />
         </div>
       </div>

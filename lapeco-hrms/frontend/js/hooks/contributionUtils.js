@@ -72,7 +72,21 @@ export const calculateDeductionFromRule = (salary, rule, isProvisional = false) 
             applicableSalary = rule.maximum_salary;
         }
 
-        employeeShare = (applicableSalary * (rule.fixed_percentage / 100));
+        // Employee Share
+        if (rule.employee_rate !== undefined && rule.employee_rate !== null) {
+            employeeShare = (applicableSalary * (rule.employee_rate / 100));
+        } else {
+            employeeShare = (applicableSalary * (rule.fixed_percentage / 100));
+        }
+
+        // Employer Share
+        if (rule.employer_rate !== undefined && rule.employer_rate !== null) {
+            employerShare = (applicableSalary * (rule.employer_rate / 100));
+        } else {
+            // Default behavior if employer rate is missing (assumes 0 or handled by fixed_percentage splitting if logic existed, 
+            // but previous code only calculated employeeShare from fixed_percentage and employerShare was 0 implicitly)
+            employerShare = 0;
+        }
     }
 
     // 2. Salary Bracket

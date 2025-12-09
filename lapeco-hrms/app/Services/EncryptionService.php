@@ -21,7 +21,7 @@ class EncryptionService
         try {
             return Crypt::encryptString($value);
         } catch (\Exception $e) {
-            \Log::error('Encryption failed: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Encryption failed: ' . $e->getMessage());
             return null;
         }
     }
@@ -41,7 +41,7 @@ class EncryptionService
         try {
             return Crypt::decryptString($value);
         } catch (\Exception $e) {
-            \Log::error('Decryption failed: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Decryption failed: ' . $e->getMessage());
             return null;
         }
     }

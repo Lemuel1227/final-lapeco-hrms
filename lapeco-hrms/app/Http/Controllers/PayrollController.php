@@ -203,7 +203,7 @@ class PayrollController extends Controller
             'employee.position',
             'earnings',
             'deductions',
-            'statutoryRequirements',
+            'statutoryRequirements.rule.brackets',
         ])->findOrFail($payrollId);
 
         $employee = $payroll->employee;
@@ -229,20 +229,31 @@ class PayrollController extends Controller
             'tax' => 0,
         ];
         
+        $statutoryDetails = [];
+        
         $otherDeductions = [];
         
         // Get statutory requirements
         foreach ($payroll->statutoryRequirements as $requirement) {
             $type = strtolower($requirement->requirement_type);
+            $amount = (float) $requirement->requirement_amount;
+            
             if ($type === 'sss') {
-                $statutoryDeductions['sss'] = (float) $requirement->requirement_amount;
+                $statutoryDeductions['sss'] = $amount;
             } elseif ($type === 'philhealth') {
-                $statutoryDeductions['philhealth'] = (float) $requirement->requirement_amount;
+                $statutoryDeductions['philhealth'] = $amount;
             } elseif ($type === 'pag-ibig') {
-                $statutoryDeductions['pagibig'] = (float) $requirement->requirement_amount;
+                $statutoryDeductions['pagibig'] = $amount;
             } elseif ($type === 'tax') {
-                $statutoryDeductions['tax'] = (float) $requirement->requirement_amount;
+                $statutoryDeductions['tax'] = $amount;
             }
+            
+            $statutoryDetails[$type] = [
+                'amount' => $amount,
+                'employer_amount' => (float) $requirement->employer_amount,
+                'rule_name' => $requirement->rule_name,
+                'rule' => $requirement->rule,
+            ];
         }
         
         // Get other deductions (non-statutory)
@@ -267,6 +278,7 @@ class PayrollController extends Controller
             'positionId' => $employee?->position_id,
             'earnings' => $earnings,
             'deductions' => $statutoryDeductions,
+            'statutoryDetails' => $statutoryDetails,
             'otherDeductions' => $otherDeductions,
             'status' => $payroll->paid_status,
             'paymentDate' => $payroll->pay_date?->toDateString(),
@@ -582,19 +594,23 @@ class PayrollController extends Controller
                 $sssResult = $this->deductionService->calculateDeduction('SSS', $monthlySalary);
                 $sssEe = $sssResult['employeeShare'] / 2; // Semi-monthly
                 $sssEr = $sssResult['employerShare'] / 2; // Semi-monthly
+                $sssRuleName = $sssResult['rule_name'] ?? null;
 
                 $philResult = $this->deductionService->calculateDeduction('PhilHealth', $monthlySalary);
                 $philEe = $philResult['employeeShare'] / 2; // Semi-monthly
                 $philEr = $philResult['employerShare'] / 2; // Semi-monthly
+                $philRuleName = $philResult['rule_name'] ?? null;
 
                 $pagResult = $this->deductionService->calculateDeduction('Pag-IBIG', $monthlySalary);
                 $pagEe = $pagResult['employeeShare'] / 2; // Semi-monthly
                 $pagEr = $pagResult['employerShare'] / 2; // Semi-monthly
+                $pagRuleName = $pagResult['rule_name'] ?? null;
 
                 $taxableSemi = max(0, (float) $payroll->gross_earning - ($sssEe + $philEe + $pagEe));
                 // Tax is calculated on the semi-monthly taxable income directly
                 $taxResult = $this->deductionService->calculateDeduction('Tax', $taxableSemi);
                 $tax = $taxResult['employeeShare'];
+                $taxRuleName = $taxResult['rule_name'] ?? null;
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("Failed to backfill statutory deductions for payroll {$payroll->id}: " . $e->getMessage());
                 $sssEe = 0;
@@ -604,23 +620,27 @@ class PayrollController extends Controller
                 $pagEe = 0;
                 $pagEr = 0;
                 $tax = 0;
+                $sssRuleName = null;
+                $philRuleName = null;
+                $pagRuleName = null;
+                $taxRuleName = null;
             }
 
             $payroll->statutoryRequirements()->updateOrCreate(
                 ['requirement_type' => 'SSS'],
-                ['requirement_amount' => round($sssEe, 2), 'employer_amount' => round($sssEr, 2)]
+                ['requirement_amount' => round($sssEe, 2), 'employer_amount' => round($sssEr, 2), 'rule_name' => $sssRuleName]
             );
             $payroll->statutoryRequirements()->updateOrCreate(
                 ['requirement_type' => 'PhilHealth'],
-                ['requirement_amount' => round($philEe, 2), 'employer_amount' => round($philEr, 2)]
+                ['requirement_amount' => round($philEe, 2), 'employer_amount' => round($philEr, 2), 'rule_name' => $philRuleName]
             );
             $payroll->statutoryRequirements()->updateOrCreate(
                 ['requirement_type' => 'Pag-IBIG'],
-                ['requirement_amount' => round($pagEe, 2), 'employer_amount' => round($pagEr, 2)]
+                ['requirement_amount' => round($pagEe, 2), 'employer_amount' => round($pagEr, 2), 'rule_name' => $pagRuleName]
             );
             $payroll->statutoryRequirements()->updateOrCreate(
                 ['requirement_type' => 'Tax'],
-                ['requirement_amount' => round(max(0, $tax), 2), 'employer_amount' => 0]
+                ['requirement_amount' => round(max(0, $tax), 2), 'employer_amount' => 0, 'rule_name' => $taxRuleName]
             );
 
             $other = $payroll->deductions()->get()->sum(function ($d) {
@@ -1352,14 +1372,20 @@ class PayrollController extends Controller
                 $sssResult = $this->deductionService->calculateDeduction('SSS', $monthlySalary);
                 $sssEe = $sssResult['employeeShare'] / 2;
                 $sssEr = $sssResult['employerShare'] / 2;
+                $sssRuleName = $sssResult['rule_name'] ?? null;
+                $sssRuleId = $sssResult['rule_id'] ?? null;
 
                 $philResult = $this->deductionService->calculateDeduction('PhilHealth', $monthlySalary);
                 $philEe = $philResult['employeeShare'] / 2;
                 $philEr = $philResult['employerShare'] / 2;
+                $philRuleName = $philResult['rule_name'] ?? null;
+                $philRuleId = $philResult['rule_id'] ?? null;
 
                 $pagResult = $this->deductionService->calculateDeduction('Pag-IBIG', $monthlySalary);
                 $pagEe = $pagResult['employeeShare'] / 2;
                 $pagEr = $pagResult['employerShare'] / 2;
+                $pagRuleName = $pagResult['rule_name'] ?? null;
+                $pagRuleId = $pagResult['rule_id'] ?? null;
 
                 // Tax Calculation
                 // Tax is based on taxable income (Gross - Deductions)
@@ -1371,6 +1397,8 @@ class PayrollController extends Controller
                 // So we pass the semi-monthly taxable income directly.
                 $taxResult = $this->deductionService->calculateDeduction('Tax', $taxableIncome);
                 $tax = $taxResult['employeeShare'];
+                $taxRuleName = $taxResult['rule_name'] ?? null;
+                $taxRuleId = $taxResult['rule_id'] ?? null;
                 
             } catch (\Exception $e) {
                 // Log error and default to 0 to prevent crash
@@ -1382,23 +1410,31 @@ class PayrollController extends Controller
                 $pagEe = 0;
                 $pagEr = 0;
                 $tax = 0;
+                $sssRuleName = null;
+                $philRuleName = null;
+                $pagRuleName = null;
+                $taxRuleName = null;
+                $sssRuleId = null;
+                $philRuleId = null;
+                $pagRuleId = null;
+                $taxRuleId = null;
             }
 
             PayrollStatutoryRequirement::updateOrCreate(
                 ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'SSS'],
-                ['requirement_amount' => round($sssEe, 2), 'employer_amount' => round($sssEr, 2)]
+                ['requirement_amount' => round($sssEe, 2), 'employer_amount' => round($sssEr, 2), 'rule_name' => $sssRuleName, 'rule_id' => $sssRuleId]
             );
             PayrollStatutoryRequirement::updateOrCreate(
                 ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'PhilHealth'],
-                ['requirement_amount' => round($philEe, 2), 'employer_amount' => round($philEr, 2)]
+                ['requirement_amount' => round($philEe, 2), 'employer_amount' => round($philEr, 2), 'rule_name' => $philRuleName, 'rule_id' => $philRuleId]
             );
             PayrollStatutoryRequirement::updateOrCreate(
                 ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'Pag-IBIG'],
-                ['requirement_amount' => round($pagEe, 2), 'employer_amount' => round($pagEr, 2)]
+                ['requirement_amount' => round($pagEe, 2), 'employer_amount' => round($pagEr, 2), 'rule_name' => $pagRuleName, 'rule_id' => $pagRuleId]
             );
             PayrollStatutoryRequirement::updateOrCreate(
                 ['employees_payroll_id' => $employeePayroll->id, 'requirement_type' => 'Tax'],
-                ['requirement_amount' => round(max(0, $tax), 2), 'employer_amount' => 0]
+                ['requirement_amount' => round(max(0, $tax), 2), 'employer_amount' => 0, 'rule_name' => $taxRuleName, 'rule_id' => $taxRuleId]
             );
             $totalDeductions += round($sssEe + $philEe + $pagEe + max(0, $tax), 2);
             $employeePayroll->total_deductions = round($totalDeductions, 2);

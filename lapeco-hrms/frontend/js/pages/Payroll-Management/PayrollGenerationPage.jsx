@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 import IncomeBreakdownModal from '../../modals/IncomeBreakdownModal';
 import { calculateLatenessDeductions } from '../../hooks/payrollUtils';
 import { payrollAPI } from '../../services/api';
@@ -45,6 +47,13 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
     return { startDate: '', endDate: '', cutOffString: '' };
   }, [inputStartDate, inputEndDate]);
 
+  // Helper to parse YYYY-MM-DD to local Date object to avoid timezone issues
+  const parseLocalDate = (dateStr) => {
+      if (!dateStr) return null;
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+  };
+
   // Keep a local cache of existing runs to ensure up-to-date checks
   const [existingRuns, setExistingRuns] = useState([]);
   useEffect(() => {
@@ -62,6 +71,45 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
     checkExisting();
     return () => { cancelled = true; };
   }, [cutOffString]);
+
+  const forbiddenRanges = useMemo(() => {
+    const sourceRuns = (existingRuns && existingRuns.length > 0) ? existingRuns : (payrolls || []);
+    return sourceRuns.map(run => {
+         if (run.cutOff) {
+             const parts = run.cutOff.split(' to ');
+             if (parts.length === 2) {
+                 return { start: parseLocalDate(parts[0]), end: parseLocalDate(parts[1]) };
+             }
+         }
+         return null;
+    }).filter(Boolean);
+  }, [existingRuns, payrolls]);
+
+  const isDateDisabled = (date) => {
+      if (!date) return false;
+      return forbiddenRanges.some(range => date >= range.start && date <= range.end);
+  };
+
+  const handleDateChange = (isStart, date) => {
+      // DatePicker passes a Date object
+      if (!date) {
+        if (isStart) setInputStartDate('');
+        else setInputEndDate('');
+        return;
+      }
+      
+      // Check if date is disabled (react-datepicker handles visual disabling, but good to keep check)
+      if (isDateDisabled(date)) {
+          setToast({ show: true, message: 'This date is part of an already generated payroll period.', type: 'error' });
+          return;
+      }
+      
+      // Convert to YYYY-MM-DD for state
+      const dateString = date.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+      
+      if (isStart) setInputStartDate(dateString);
+      else setInputEndDate(dateString);
+  };
 
   const isPeriodGenerated = useMemo(() => {
     const sourceRuns = (existingRuns && existingRuns.length > 0) ? existingRuns : (payrolls || []);
@@ -250,23 +298,39 @@ const PayrollGenerationPage = ({ employees=[], positions=[], schedules=[], atten
           <div className="row g-3 align-items-end">
             <div className="col-md-6">
               <label htmlFor="startDate" className="form-label fw-bold">Start Date</label>
-              <input 
-                type="date" 
-                id="startDate" 
-                className="form-control" 
-                value={inputStartDate} 
-                onChange={e => setInputStartDate(e.target.value)}
-              />
+              <div className="d-block position-relative">
+                <DatePicker
+                    id="startDate"
+                    selected={parseLocalDate(inputStartDate)}
+                    onChange={date => handleDateChange(true, date)}
+                    className="form-control"
+                    dateFormat="yyyy-MM-dd"
+                    excludeDateIntervals={forbiddenRanges}
+                    placeholderText="YYYY-MM-DD"
+                    wrapperClassName="w-100"
+                    onKeyDown={(e) => e.preventDefault()}
+                    calendarClassName="payroll-datepicker"
+                />
+                <i className="bi bi-calendar-event position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#6c757d' }}></i>
+              </div>
             </div>
             <div className="col-md-6">
               <label htmlFor="endDate" className="form-label fw-bold">End Date</label>
-              <input 
-                type="date" 
-                id="endDate" 
-                className="form-control" 
-                value={inputEndDate} 
-                onChange={e => setInputEndDate(e.target.value)}
-              />
+              <div className="d-block position-relative">
+                 <DatePicker
+                    id="endDate"
+                    selected={parseLocalDate(inputEndDate)}
+                    onChange={date => handleDateChange(false, date)}
+                    className="form-control"
+                    dateFormat="yyyy-MM-dd"
+                    excludeDateIntervals={forbiddenRanges}
+                    placeholderText="YYYY-MM-DD"
+                    wrapperClassName="w-100"
+                    onKeyDown={(e) => e.preventDefault()}
+                    calendarClassName="payroll-datepicker"
+                />
+                <i className="bi bi-calendar-event position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#6c757d' }}></i>
+              </div>
             </div>
           </div>
           

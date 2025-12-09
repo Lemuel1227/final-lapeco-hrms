@@ -34,12 +34,17 @@ class StatutoryDeductionService
             'semi_gross' => $salary,
         ], $context);
 
-        return match ($rule->rule_type) {
+        $result = match ($rule->rule_type) {
             'fixed_percentage' => $this->calculateFixedPercentage($rule, $salary, $variables),
             'salary_bracket' => $this->calculateSalaryBracket($rule, $salary, $variables),
             'custom_formula' => $this->calculateCustomFormula($rule, $salary, $variables),
             default => throw new Exception("Unknown rule type: {$rule->rule_type}"),
         };
+
+        $result['rule_name'] = $rule->rule_name;
+        $result['rule_id'] = $rule->id;
+
+        return $result;
     }
 
     /**
@@ -47,8 +52,6 @@ class StatutoryDeductionService
      */
     private function calculateFixedPercentage(StatutoryDeductionRule $rule, float $salary, array $variables): array
     {
-        $percentage = (float) $rule->fixed_percentage;
-
         // Apply minimum salary threshold if set
         if ($rule->minimum_salary && $salary < (float) $rule->minimum_salary) {
             return ['employeeShare' => 0.0, 'employerShare' => 0.0, 'total' => 0.0];
@@ -60,13 +63,16 @@ class StatutoryDeductionService
             $applicableSalary = (float) $rule->maximum_salary;
         }
 
-        $employeeShare = round($applicableSalary * ($percentage / 100), 2);
-        $employerShare = 0.0;
+        $employeeRate = $rule->employee_rate ?? $rule->fixed_percentage ?? 0;
+        $employerRate = $rule->employer_rate ?? 0;
+
+        $employeeShare = round($applicableSalary * ((float) $employeeRate / 100), 2);
+        $employerShare = round($applicableSalary * ((float) $employerRate / 100), 2);
 
         return [
             'employeeShare' => $employeeShare,
             'employerShare' => $employerShare,
-            'total' => $employeeShare,
+            'total' => $employeeShare + $employerShare,
         ];
     }
 
@@ -220,31 +226,49 @@ class StatutoryDeductionService
      */
     public function saveRule(array $data, ?int $ruleId = null): StatutoryDeductionRule
     {
-        $rule = $ruleId 
-            ? StatutoryDeductionRule::with('brackets')->findOrFail($ruleId) 
-            : new StatutoryDeductionRule();
-
-        // Capture original state for logging
-        $originalAttributes = $ruleId ? $rule->getAttributes() : [];
+        // Versioning Logic:
+        // When updating a rule, we do NOT modify the existing record.
+        // Instead, we mark the old record as inactive (preserving it for historical payrolls)
+        // and create a new record with the updated values.
         
-        $originalBrackets = $ruleId ? $rule->brackets->map(function ($bracket) {
-            return $bracket->only([
-                'salary_from', 'salary_to', 'regular_ss', 'employee_rate', 'employer_rate', 
-                'fixed_amount', 'fixed_employer_amount', 'sort_order'
+        $originalAttributes = [];
+        $originalBrackets = [];
+        
+        if ($ruleId) {
+            $oldRule = StatutoryDeductionRule::with('brackets')->findOrFail($ruleId);
+            $originalAttributes = $oldRule->getAttributes();
+            $originalBrackets = $oldRule->brackets->map(function ($bracket) {
+                return $bracket->only([
+                    'salary_from', 'salary_to', 'regular_ss', 'employee_rate', 'employer_rate', 
+                    'fixed_amount', 'fixed_employer_amount', 'sort_order'
+                ]);
+            })->toArray();
+
+            // Deactivate the old rule
+            $oldRule->update(['is_active' => false]);
+            
+            // Log that it was superseded
+            $oldRule->auditLogs()->create([
+                'action' => 'superseded',
+                'changes' => ['note' => 'Superseded by new version due to update'],
+                'user_id' => optional(auth()->guard()->user())->id,
             ]);
-        })->toArray() : [];
+        }
+
+        // Always create a new rule instance
+        $rule = new StatutoryDeductionRule();
 
         $rule->fill($data);
+        // Ensure is_active is true for the new rule (unless explicitly set to false in data, which usually isn't for updates)
+        if (!isset($data['is_active'])) {
+            $rule->is_active = true;
+        }
         $rule->save();
 
-        $bracketsChanged = false;
         $newBrackets = [];
 
         // Handle brackets if provided in data
         if (isset($data['brackets'])) {
-            // Delete existing brackets
-            $rule->brackets()->delete();
-            
             // Create new brackets
             foreach ($data['brackets'] as $index => $bracketData) {
                 // Ensure sort_order is set
@@ -257,26 +281,28 @@ class StatutoryDeductionService
                     'fixed_amount', 'fixed_employer_amount', 'sort_order'
                 ]));
             }
-            $bracketsChanged = true;
         }
 
-        // Calculate changes
+        // Calculate changes for the log
         $changes = [];
         
         // Rule attribute changes
         if ($ruleId) {
-            // Get changes from the last save
-            $dirty = $rule->getChanges();
+            // Compare new rule attributes with old rule attributes
+            $newAttributes = $rule->getAttributes();
             $attributeChanges = [];
             
-            foreach ($dirty as $key => $newValue) {
-                // Skip updated_at timestamp
-                if ($key === 'updated_at') continue;
+            foreach ($newAttributes as $key => $newValue) {
+                // Skip timestamps and id
+                if (in_array($key, ['created_at', 'updated_at', 'id'])) continue;
                 
-                $attributeChanges[$key] = [
-                    'old' => $originalAttributes[$key] ?? null,
-                    'new' => $newValue
-                ];
+                $oldValue = $originalAttributes[$key] ?? null;
+                if ($oldValue != $newValue) {
+                     $attributeChanges[$key] = [
+                        'old' => $oldValue,
+                        'new' => $newValue
+                    ];
+                }
             }
             
             if (!empty($attributeChanges)) {
@@ -287,28 +313,23 @@ class StatutoryDeductionService
         }
 
         // Bracket changes
-        if ($bracketsChanged) {
-            // Compare serialized arrays to check for actual changes
-            // We only log brackets if they actually changed or if it's a new rule
-            if (!$ruleId || json_encode($originalBrackets) !== json_encode($newBrackets)) {
+        if ($ruleId) {
+             if (json_encode($originalBrackets) !== json_encode($newBrackets)) {
                 $changes['brackets'] = [
                     'old' => $originalBrackets,
                     'new' => $newBrackets
                 ];
             }
+        } elseif (!empty($newBrackets)) {
+             $changes['brackets'] = $newBrackets;
         }
 
-        // Log the change if anything changed
-        if (!empty($changes)) {
-            $action = $ruleId ? 'updated' : 'created';
-            
-            StatutoryDeductionAuditLog::create([
-                'rule_id' => $rule->id,
-                'action' => $action,
-                'changes' => $changes,
-                'user_id' => optional(auth()->guard()->user())->id,
-            ]);
-        }
+        // Log the action on the NEW rule
+        $rule->auditLogs()->create([
+            'action' => $ruleId ? 'updated' : 'created', // We say 'updated' to indicate continuity of intent, even though it's a new ID
+            'changes' => $changes,
+            'user_id' => optional(auth()->guard()->user())->id,
+        ]);
 
         return $rule;
     }
