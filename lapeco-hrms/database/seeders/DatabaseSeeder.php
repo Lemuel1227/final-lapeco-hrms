@@ -410,9 +410,10 @@ class DatabaseSeeder extends Seeder
 
         // Seed training programs (normalized duration: "<hours/minutes> per day; Required Days: <N>")
         $trainingPrograms = [
+            // GENERAL TRAININGS - Available to all positions
             [
-                'title' => 'Workplace Safety Training',
-                'description' => 'Comprehensive safety training covering warehouse operations, equipment handling, and emergency procedures.',
+                'title' => 'Workplace Safety & Compliance',
+                'description' => 'Comprehensive safety training covering warehouse operations, equipment handling, emergency procedures, and company compliance standards.',
                 'provider' => 'SafeWork Philippines',
                 'duration' => '8 hours per day; Required Days: 1',
                 'start_date' => now()->addDays(7)->format('Y-m-d'),
@@ -422,11 +423,15 @@ class DatabaseSeeder extends Seeder
                 'location' => 'Training Room A',
                 'type' => 'In-person',
                 'max_participants' => 25,
-                'requirements' => 'All warehouse employees must attend'
+                'requirements' => 'All warehouse and HR employees',
+                'is_recommended' => false,
+                'training_category' => 'general'
             ],
+            
+            // HIGH POTENTIAL TRAININGS - For development and advancement
             [
-                'title' => 'Leadership Development Program',
-                'description' => 'Advanced leadership skills training for team leaders and supervisors.',
+                'title' => 'Strategic Leadership & Management',
+                'description' => 'Advanced leadership development program designed for high-performing employees and supervisors. Covers strategic decision-making, team management, and organizational development.',
                 'provider' => 'Leadership Institute Manila',
                 'duration' => '8 hours per day; Required Days: 2',
                 'start_date' => now()->addDays(14)->format('Y-m-d'),
@@ -436,11 +441,47 @@ class DatabaseSeeder extends Seeder
                 'location' => 'Conference Room',
                 'type' => 'In-person',
                 'max_participants' => 15,
-                'requirements' => 'Team leaders and supervisory roles'
+                'requirements' => 'Team leaders, supervisors, and high-potential employees',
+                'is_recommended' => true,
+                'training_category' => 'high_potential'
             ],
             [
-                'title' => 'Forklift Operation Certification',
-                'description' => 'Certified training for forklift operation and maintenance.',
+                'title' => 'Advanced Project Management & Execution',
+                'description' => 'In-depth training on project management methodologies, tools, and best practices. Ideal for employees with leadership potential and career advancement goals.',
+                'provider' => 'Project Excellence Academy',
+                'duration' => '8 hours per day; Required Days: 3',
+                'start_date' => now()->addDays(28)->format('Y-m-d'),
+                'end_date' => now()->addDays(30)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 12000.00,
+                'location' => 'Conference Room',
+                'type' => 'Hybrid',
+                'max_participants' => 12,
+                'requirements' => 'Team leaders and high-potential staff',
+                'is_recommended' => true,
+                'training_category' => 'high_potential'
+            ],
+            [
+                'title' => 'Digital Transformation & Innovation',
+                'description' => 'Training on digital tools, automation, and innovative approaches to improve operational efficiency. Designed for employees with growth potential.',
+                'provider' => 'TechSkills Philippines',
+                'duration' => '6 hours per day; Required Days: 2',
+                'start_date' => now()->addDays(35)->format('Y-m-d'),
+                'end_date' => now()->addDays(36)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 5500.00,
+                'location' => 'Computer Lab',
+                'type' => 'Hybrid',
+                'max_participants' => 20,
+                'requirements' => 'High-potential employees and supervisors',
+                'is_recommended' => true,
+                'training_category' => 'high_potential'
+            ],
+            
+            // TURNOVER RISK TRAININGS - For retention and engagement
+            [
+                'title' => 'Forklift & Heavy Equipment Operation Certification',
+                'description' => 'Certified training for safe forklift operation, maintenance, and warehouse equipment handling. Enhances job skills and career prospects for warehouse staff.',
                 'provider' => 'Heavy Equipment Training Center',
                 'duration' => '6 hours per day; Required Days: 2',
                 'start_date' => now()->addDays(21)->format('Y-m-d'),
@@ -450,35 +491,57 @@ class DatabaseSeeder extends Seeder
                 'location' => 'Warehouse Floor',
                 'type' => 'In-person',
                 'max_participants' => 10,
-                'requirements' => 'Valid driver\'s license required'
+                'requirements' => 'Lifters, Pickers, and Movers with valid driver\'s license',
+                'is_recommended' => true,
+                'training_category' => 'turnover_risk'
             ],
             [
-                'title' => 'Customer Service Excellence',
-                'description' => 'Training focused on improving customer interaction and service quality.',
-                'provider' => 'Service Excellence Academy',
+                'title' => 'Conflict Resolution & Workplace Communication',
+                'description' => 'Training focused on effective communication, conflict resolution, and building positive workplace relationships. Improves employee engagement and retention.',
+                'provider' => 'HR Development Institute',
                 'duration' => '6 hours per day; Required Days: 1',
-                'start_date' => now()->subDays(30)->format('Y-m-d'),
-                'end_date' => now()->subDays(30)->format('Y-m-d'),
-                'status' => 'Completed',
-                'cost' => 3200.00,
+                'start_date' => now()->addDays(10)->format('Y-m-d'),
+                'end_date' => now()->addDays(10)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 3500.00,
+                'location' => 'Training Room C',
+                'type' => 'In-person',
+                'max_participants' => 25,
+                'requirements' => 'All warehouse and operations staff',
+                'is_recommended' => true,
+                'training_category' => 'turnover_risk'
+            ],
+            [
+                'title' => 'Career Development & Skills Enhancement',
+                'description' => 'Program designed to help employees develop new skills, understand career pathways, and increase job satisfaction. Focuses on personal growth and professional development.',
+                'provider' => 'Career Development Center',
+                'duration' => '5 hours per day; Required Days: 2',
+                'start_date' => now()->addDays(17)->format('Y-m-d'),
+                'end_date' => now()->addDays(18)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 4000.00,
                 'location' => 'Training Room B',
                 'type' => 'In-person',
                 'max_participants' => 20,
-                'requirements' => 'Customer-facing employees'
+                'requirements' => 'Warehouse operations staff and team leaders',
+                'is_recommended' => true,
+                'training_category' => 'turnover_risk'
             ],
             [
-                'title' => 'Digital Literacy Workshop',
-                'description' => 'Basic computer skills and digital tools training for all employees.',
-                'provider' => 'TechSkills Philippines',
+                'title' => 'Work-Life Balance & Stress Management',
+                'description' => 'Training on managing workplace stress, maintaining work-life balance, and improving mental wellness. Helps reduce burnout and increase employee retention.',
+                'provider' => 'Wellness Institute',
                 'duration' => '4 hours per day; Required Days: 1',
-                'start_date' => now()->subDays(15)->format('Y-m-d'),
-                'end_date' => now()->subDays(15)->format('Y-m-d'),
-                'status' => 'Completed',
-                'cost' => 1800.00,
-                'location' => 'Computer Lab',
-                'type' => 'Online',
+                'start_date' => now()->addDays(24)->format('Y-m-d'),
+                'end_date' => now()->addDays(24)->format('Y-m-d'),
+                'status' => 'Active',
+                'cost' => 2800.00,
+                'location' => 'Training Room A',
+                'type' => 'In-person',
                 'max_participants' => 30,
-                'requirements' => 'Open to all employees'
+                'requirements' => 'All employees experiencing high workload or stress',
+                'is_recommended' => true,
+                'training_category' => 'turnover_risk'
             ]
         ];
 
@@ -598,4 +661,3 @@ class DatabaseSeeder extends Seeder
 
     }
 }
-

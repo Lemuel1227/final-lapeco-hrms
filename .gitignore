@@ -23,6 +23,7 @@ Thumbs.db
 /.phpunit.cache
 /.vscode
 /.zed
+*.zip
 
 # --- lapeco-hrms (Laravel app) ---
 lapeco-hrms/.env

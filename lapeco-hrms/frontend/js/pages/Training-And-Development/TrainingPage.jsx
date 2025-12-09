@@ -90,9 +90,17 @@ const TrainingPage = () => {
       const completionRate = prog.status === 'Completed'
         ? 100
         : (enrolledCount > 0 ? (completedCount / enrolledCount) * 100 : 0);
-      return { ...prog, enrolledCount, completionRate };
+      return { ...prog, enrolledCount, completionRate, isRecommended: prog.is_recommended || prog.isRecommended || false };
     });
   }, [trainingPrograms, enrollments]);
+
+  const recommendedPrograms = useMemo(() => {
+    return programsWithStats.filter(p => p.isRecommended);
+  }, [programsWithStats]);
+
+  const regularPrograms = useMemo(() => {
+    return programsWithStats.filter(p => !p.isRecommended);
+  }, [programsWithStats]);
 
   const filteredPrograms = useMemo(() => {
     if (!searchTerm) return programsWithStats;
@@ -257,6 +265,72 @@ const TrainingPage = () => {
         <div className="training-stat-card"><div className="stat-icon total-enrolled"><i className="bi bi-people-fill"></i></div><div><span className="stat-value">{programStats.totalEnrolled}</span><span className="stat-label">Total Enrolled</span></div></div>
       </div>
       
+      {recommendedPrograms.length > 0 && (
+        <div className="card data-table-card shadow-sm mb-4">
+          <div className="card-header d-flex justify-content-between align-items-center">
+              <span><i className="bi bi-star-fill me-2" style={{ color: '#ffc107' }}></i>Recommended Training Programs</span>
+          </div>
+          <div className="table-responsive">
+            <table className="table data-table mb-0">
+              <thead>
+                <tr>
+                  <th>Program Title</th>
+                  <th>Status</th>
+                  <th>Enrolled</th>
+                  <th style={{ width: '20%' }}>Completion</th>
+                  <th className="text-center" style={{ width: '200px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recommendedPrograms.map(prog => (
+                  <tr key={prog.id}>
+                    <td>
+                      <div className="d-flex align-items-center gap-2">
+                        <span>{prog.title}</span>
+                        <span className="badge bg-warning text-dark">Recommended</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${prog.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>
+                        {prog.status || 'N/A'}
+                      </span>
+                    </td>
+                    <td>{prog.enrolledCount}</td>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        <div className="progress-bar-container"><div className="progress-bar-fill" style={{ width: `${prog.completionRate}%` }}></div></div>
+                        <span className="progress-text">{prog.completionRate.toFixed(0)}%</span>
+                      </div>
+                    </td>
+                    <td className="text-center">
+                      <div className="btn-group" role="group">
+                        <Link to={`/dashboard/training/${prog.id}`} className="btn btn-sm btn-outline-primary">
+                          <i className="bi bi-eye me-1"></i>
+                        </Link>
+                        <button 
+                          className="btn btn-sm btn-outline-secondary" 
+                          onClick={() => handleOpenProgramModal(prog)}
+                          title="Edit Program"
+                        >
+                          <i className="bi bi-pencil me-1"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-danger" 
+                          onClick={() => handleDeleteProgram(prog)}
+                          title="Delete Program"
+                        >
+                          <i className="bi bi-trash me-1"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="card data-table-card shadow-sm">
         <div className="card-header d-flex justify-content-between align-items-center">
             <span>All Programs</span>
@@ -279,7 +353,12 @@ const TrainingPage = () => {
             <tbody>
               {filteredPrograms.map(prog => (
                 <tr key={prog.id}>
-                  <td>{prog.title}</td>
+                  <td>
+                    <div className="d-flex align-items-center gap-2">
+                      <span>{prog.title}</span>
+                      {prog.isRecommended && <span className="badge bg-warning text-dark">Recommended</span>}
+                    </div>
+                  </td>
                   <td>
                     <span className={`badge ${prog.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>
                       {prog.status || 'N/A'}

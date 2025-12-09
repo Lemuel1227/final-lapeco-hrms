@@ -13,7 +13,9 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
     location: '',
     type: 'Online',
     max_participants: '',
-    requirements: ''
+    requirements: '',
+    is_recommended: false,
+    training_category: 'general'
   };
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
@@ -298,6 +300,44 @@ const AddEditProgramModal = ({ show, onClose, onSave, programData }) => {
               <label htmlFor="requirements" className="form-label">Requirements*</label>
               <textarea className={`form-control ${errors.requirements ? 'is-invalid' : ''}`} id="requirements" name="requirements" rows="3" value={formData.requirements} onChange={handleChange} placeholder="Prerequisites, materials needed, etc." required></textarea>
               {errors.requirements && <div className="invalid-feedback d-block">{errors.requirements}</div>}
+            </div>
+
+            {/* Recommendation & Category */}
+            <div className="form-section">
+              <div className="section-title">Recommendation & Category</div>
+              <p className="section-subtitle">Mark this program as recommended and select its category.</p>
+              <div className="form-check mb-3">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="is_recommended"
+                  name="is_recommended"
+                  checked={formData.is_recommended || false}
+                  onChange={(e) => setFormData(prev => ({ ...prev, is_recommended: e.target.checked }))}
+                />
+                <label className="form-check-label" htmlFor="is_recommended">
+                  <i className="bi bi-star-fill me-2" style={{ color: '#ffc107' }}></i>
+                  Mark as Recommended Training
+                </label>
+              </div>
+              <div className="helper-text mb-3">Recommended trainings will appear in a dedicated section and be highlighted when nominating employees.</div>
+              
+              <label htmlFor="training_category" className="form-label">Training Category</label>
+              <div className="input-group">
+                <span className="input-group-text"><i className="bi bi-tag"></i></span>
+                <select
+                  className="form-select"
+                  id="training_category"
+                  name="training_category"
+                  value={formData.training_category || 'general'}
+                  onChange={handleChange}
+                >
+                  <option value="general">General Training</option>
+                  <option value="high_potential">High Potential Development</option>
+                  <option value="turnover_risk">Retention & Skill Development</option>
+                </select>
+              </div>
+              <div className="helper-text mt-2">Select the appropriate category for this training program to ensure it appears for the right employees.</div>
             </div>
 
             {/* Eligibility: Allowed Positions */}

@@ -60,14 +60,24 @@ const RecommendedActions = ({ employee, onAction }) => {
             <i className="bi bi-calendar-x me-2"></i>Initiate Attendance Review
           </button>
         )}
+        {employee.isTurnoverRisk && (
+          <button 
+            className="btn btn-warning w-100 action-button-primary"
+            onClick={() => onAction('nominateForTraining', employee, 'turnover_risk')}
+            data-bs-toggle="tooltip"
+            title="Nominate for retention and skill development training."
+          >
+            <i className="bi bi-book me-2"></i>Nominate for Retention Training
+          </button>
+        )}
         {employee.isHighPotential && (
           <button 
             className="btn btn-info w-100 action-button-primary"
-            onClick={() => onAction('nominateForTraining', employee)}
+            onClick={() => onAction('nominateForTraining', employee, 'high_potential')}
             data-bs-toggle="tooltip"
             title="Enroll this employee in a relevant training program."
           >
-            <i className="bi bi-award me-2"></i>Nominate for Training
+            <i className="bi bi-award me-2"></i>Nominate for Development Training
           </button>
         )}
         <button className="btn btn-outline-secondary w-100 action-button-secondary" onClick={() => onAction('viewProfile', employee)}>
