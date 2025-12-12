@@ -617,17 +617,6 @@ class ApplicantController extends Controller
         ]);
     }
 
-    public function downloadDocumentByQuery(Request $request, Applicant $applicant)
-    {
-        $filename = $request->query('filename');
-
-        if (!is_string($filename) || trim($filename) === '') {
-            return response()->json(['message' => 'Filename is required'], 422);
-        }
-
-        return $this->downloadDocument($request, $applicant, $filename);
-    }
-
     public function downloadDocument(Request $request, Applicant $applicant, string $filename)
     {
         if (!$request->user()) {

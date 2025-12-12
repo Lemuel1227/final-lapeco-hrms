@@ -319,17 +319,11 @@ export const applicantAPI = {
   },
   listDocuments: (id) => api.get(`/applicants/${id}/documents`),
   viewDocument: async (id, filename) => {
-    const response = await api.get(`/applicants/${id}/documents/view`, {
-      params: { filename },
-      responseType: 'blob',
-    });
+    const response = await api.get(`/applicants/${id}/documents/view/${encodeURIComponent(filename)}`, { responseType: 'blob' });
     return response.data;
   },
   downloadDocument: async (id, filename) => {
-    const response = await api.get(`/applicants/${id}/documents/download`, {
-      params: { filename },
-      responseType: 'blob',
-    });
+    const response = await api.get(`/applicants/${id}/documents/download/${encodeURIComponent(filename)}`, { responseType: 'blob' });
     const url = window.URL.createObjectURL(response.data);
     const a = document.createElement('a');
     a.href = url;
