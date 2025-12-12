@@ -155,7 +155,7 @@ const EvaluationFormPage = () => {
       setSubmitting(true);
       
       // Get CSRF cookie first (required for stateful authentication)
-      await fetch('https://api.lapeco.org/sanctum/csrf-cookie', {
+      await fetch('http://localhost:8000/sanctum/csrf-cookie', {
         credentials: 'include'
       });
       

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = ('https://api.lapeco.org/api').replace(/\/$/, '');
+const API_BASE_URL = ('http://localhost:8000/api').replace(/\/$/, '');
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -53,10 +53,10 @@ api.interceptors.request.use(
       const hasXsrf = document.cookie.split('; ').some(c => c.startsWith('XSRF-TOKEN='));
       if (!hasXsrf) {
         try {
-          await axios.get('https://api.lapeco.org/sanctum/csrf-cookie', { withCredentials: true });
+          await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
         } catch (e) {
           // Fallback endpoint if Sanctum path differs
-          try { await axios.get('https://api.lapeco.org/csrf-cookie', { withCredentials: true }); } catch (_) {}
+          try { await axios.get('http://localhost:8000/csrf-cookie', { withCredentials: true }); } catch (_) {}
         }
       }
       // Add both header names for compatibility
@@ -89,7 +89,7 @@ api.interceptors.response.use(
     // Auto-refresh CSRF cookie on 419 and retry once
     if (error.response?.status === 419 && !error.config?._csrfRetried) {
       try {
-        await axios.get('https://api.lapeco.org/sanctum/csrf-cookie', { withCredentials: true });
+        await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true });
       } catch (_) {}
       const retryConfig = { ...error.config, _csrfRetried: true };
       return api.request(retryConfig);
