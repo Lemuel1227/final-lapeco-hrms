@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { chatbotData } from '../data/chatbotData';
 import { faqData } from '../data/faqData';
 import './Chatbot.css';
 
@@ -52,7 +51,7 @@ export default function Chatbot({ onClose }) {
           text: "Hello! Welcome to LAPECO's recruitment portal. How can I help you today? Please choose from the options below:",
         },
       ]);
-      const source = recruitmentItems && recruitmentItems.length ? recruitmentItems : chatbotData;
+      const source = recruitmentItems && recruitmentItems.length ? recruitmentItems : [];
       const initialOpts = source.slice(0, 8).map((qa, idx) => ({
         id: qa.id ?? idx,
         question: qa.question,
