@@ -343,8 +343,8 @@ class LeaveCashConversionController extends Controller
         }
 
         if (!$isSuperAdmin && $hasModule) {
-            if ($status !== 'Submitted' && $status !== 'Pending') {
-                return response()->json(['message' => 'You can only submit requests.'], 403);
+            if ($status !== 'Submitted' && $status !== 'Pending' && $status !== 'Paid') {
+                return response()->json(['message' => 'You can only submit or pay requests.'], 403);
             }
         }
 
@@ -360,14 +360,19 @@ class LeaveCashConversionController extends Controller
         } elseif ($status === 'Paid') {
             $updates['paid_by'] = $user->id;
             $updates['paid_at'] = Carbon::now();
-            $updates['processed_by'] = $user->id;
-            $updates['processed_at'] = Carbon::now();
+            // Ensure processed fields are set if missing (legacy/edge case)
+            // Ideally should be set during Approval
         } else { // Approved, Declined
             $updates['processed_by'] = $user->id;
             $updates['processed_at'] = Carbon::now();
         }
 
         $query = LeaveCashConversion::where('year', $year);
+
+        // Safety: When marking as Paid, only affect Approved records
+        if ($status === 'Paid') {
+            $query->where('status', 'Approved');
+        }
 
         if (!$isSuperAdmin && !$hasModule) {
             $query->where('user_id', $user->id);
@@ -377,8 +382,11 @@ class LeaveCashConversionController extends Controller
                  $query->where('status', 'Submitted');
             }
         }
-        elseif (!$isSuperAdmin && $hasModule && $status === 'Submitted') {
-             $query->where('status', 'Pending');
+        elseif (!$isSuperAdmin && $hasModule) {
+             if ($status === 'Submitted') {
+                 $query->where('status', 'Pending');
+             }
+             // For Paid, we already added the Approved filter above
         }
 
         $query->update($updates);

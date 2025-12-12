@@ -659,9 +659,14 @@ const LeaveManagementPage = () => {
                           <i className="bi bi-arrow-counterclockwise me-2"></i>Reset Status
                         </button>
                         {!isSuperAdmin ? (
-                          <button className="btn btn-sm btn-primary" onClick={() => initiateConfirmation(() => handleMarkCashStatus('Submitted'), 'Submit All Requests', 'Are you sure you want to submit all pending requests?', 'primary', 'Submit All')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
-                            <i className="bi bi-send me-2"></i>Submit All
-                          </button>
+                          <>
+                            <button className="btn btn-sm btn-primary" onClick={() => initiateConfirmation(() => handleMarkCashStatus('Submitted'), 'Submit All Requests', 'Are you sure you want to submit all pending requests?', 'primary', 'Submit All')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
+                              <i className="bi bi-send me-2"></i>Submit All
+                            </button>
+                            <button className="btn btn-sm btn-success" onClick={() => initiateConfirmation(() => handleMarkCashStatus('Paid'), 'Mark All as Paid', 'Are you sure you want to mark all APPROVED requests as Paid?', 'success', 'Mark All Paid')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
+                              <i className="bi bi-check-all me-2"></i>Mark All Paid
+                            </button>
+                          </>
                         ) : (
                           <>
                             <button className="btn btn-sm btn-primary" onClick={() => initiateConfirmation(() => handleMarkCashStatus('Approved'), 'Approve All Requests', 'Are you sure you want to approve all submitted requests?', 'success', 'Approve All')} disabled={loadingCash || markingCash || generatingCash || filteredCashRecords.length === 0}>
