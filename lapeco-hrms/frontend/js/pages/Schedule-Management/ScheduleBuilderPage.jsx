@@ -162,7 +162,11 @@ const ScheduleBuilderPage = (props) => {
     ];
 
     if (method === 'copy' && sourceData && Array.isArray(sourceData)) {
-      initialName = `Copy of ${sourceData[0]?.name || `Schedule for ${sourceData[0]?.date}`}`;
+      // Try to get the original schedule name from sourceScheduleInfo or use a default
+      const sourceScheduleName = location.state?.sourceScheduleInfo?.name || 
+                                sourceData[0]?.name || 
+                                `Schedule for ${location.state?.sourceScheduleInfo?.date || 'selected date'}`;
+      initialName = `Copy of ${sourceScheduleName}`;
       // ... (Copy logic simplified for brevity, keeping existing logic if complex)
        const formatTimeForInput = (timeStr) => {
         if (!timeStr) return '';

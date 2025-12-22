@@ -31,6 +31,9 @@ const DepartmentsPage = lazy(() => import('./pages/Departments/DepartmentsPage')
 const AttendancePage = lazy(() => import('./pages/Attendance-Management/AttendancePage'));
 const ScheduleManagementPage = lazy(() => import('./pages/Schedule-Management/ScheduleManagementPage'));
 const ScheduleBuilderPage = lazy(() => import('./pages/Schedule-Management/ScheduleBuilderPage'));
+const DailyScheduleView = lazy(() => import('./pages/Schedule-Management/DailyScheduleView'));
+const ScheduleListView = lazy(() => import('./pages/Schedule-Management/ScheduleListView'));
+const ScheduleTemplatesView = lazy(() => import('./pages/Schedule-Management/ScheduleTemplatesView'));
 const LeaveManagementPage = lazy(() => import('./pages/Leave-Management/LeaveManagementPage'));
 const PayrollPage = lazy(() => import('./pages/Payroll-Management/PayrollPage'));
 const PayrollHistoryPage = lazy(() => import('./pages/Payroll-Management/PayrollHistoryPage'));
@@ -117,7 +120,12 @@ function App() {
                 <Route path="dashboard/positions" element={<PositionsPage />} />
                 <Route path="dashboard/departments" element={<DepartmentsPage />} />
                 <Route path="dashboard/attendance-management" element={<AttendancePage />} />
-                <Route path="dashboard/schedule-management" element={<ScheduleManagementPage />} />
+                <Route path="dashboard/schedule-management" element={<ScheduleManagementPage />}>
+                  <Route index element={<Navigate to="daily-view" replace />} />
+                  <Route path="daily-view" element={<DailyScheduleView />} />
+                  <Route path="schedule-list" element={<ScheduleListView />} />
+                  <Route path="templates" element={<ScheduleTemplatesView />} />
+                </Route>
                 <Route path="dashboard/schedule-management/create" element={<ScheduleBuilderPage />} />
                 <Route path="dashboard/leave-management" element={<LeaveManagementPage />} />
                 <Route path="dashboard/payroll" element={<PayrollPage />}>
