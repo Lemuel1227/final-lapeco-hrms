@@ -55,6 +55,7 @@ lapeco-website/.pnp
 lapeco-website/.pnp.js
 lapeco-website/coverage/
 lapeco-website/build/
+lapeco-website/dist/
 lapeco-website/.env.local
 lapeco-website/.env.development.local
 lapeco-website/.env.test.local

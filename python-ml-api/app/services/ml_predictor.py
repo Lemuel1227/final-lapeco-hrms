@@ -368,11 +368,17 @@ class MLPredictorService:
         try:
             # Process employee data
             df = self.process_employee_data(employees)
-            
-            # If no model is available, return basic predictions
+
+            # If no model is available, attempt on-demand training
             if self.model is None:
-                self.logger.warning("No trained model available, returning basic predictions")
-                return self._generate_basic_predictions(df)
+                self.logger.info("No trained model loaded. Attempting on-demand training from provided data.")
+                trained = await self.train_model(employees)
+
+                if not trained or self.model is None:
+                    self.logger.warning("On-demand training unavailable; returning baseline predictions")
+                    return self._generate_basic_predictions(df)
+
+                self.logger.info("On-demand training succeeded; generating predictions with fresh model")
             
             # Generate predictions
             df['potential'] = self.predict_potential(df)

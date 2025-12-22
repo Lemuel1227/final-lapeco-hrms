@@ -42,7 +42,7 @@ class MLPredictionController extends Controller
 
     public function __construct(MLDataService $mlDataService)
     {
-        $this->mlApiUrl = config('services.ml_api.url', 'http://localhost:8000');
+        $this->mlApiUrl = config('services.ml_api.url', 'http://localhost:8010');
         $this->mlDataService = $mlDataService;
     }
 

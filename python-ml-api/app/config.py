@@ -19,12 +19,12 @@ class Settings(BaseSettings):
     
     # API Configuration
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8000
+    API_PORT: int = 8010
     API_DEBUG: bool = False
     
     # CORS Configuration
     allowed_origins_raw: str = Field(
-        default="http://localhost,http://localhost:3000,http://localhost:8000,https://yourdomain.com,*",
+        default="http://localhost,http://localhost:3000,http://localhost:5173,http://localhost:8000,https://yourdomain.com,*",
         alias="ALLOWED_ORIGINS",
     )
     

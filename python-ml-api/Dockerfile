@@ -14,14 +14,14 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout=600 -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/
 COPY start.py .
 
-# Create models directory
-RUN mkdir -p models
+# Copy models
+COPY models/ ./models/
 
 # Expose port
 EXPOSE 8000
