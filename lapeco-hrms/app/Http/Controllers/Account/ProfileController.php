@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Account;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -122,7 +121,7 @@ class ProfileController extends Controller
     private function verificationResponse($message, $verified, $type)
     {
         $color = $type === 'success' ? '#28a745' : ($type === 'error' ? '#dc3545' : '#17a2b8');
-        $icon = $type === 'success' ? '✓' : ($type === 'error' ? '✗' : 'ℹ');
+        $icon = $type === 'success' ? 'âœ“' : ($type === 'error' ? 'âœ—' : 'â„¹');
         
         $html = "
         <!DOCTYPE html>
@@ -235,3 +234,7 @@ class ProfileController extends Controller
         return Redirect::to('/');
     }
 }
+
+
+
+

@@ -1,7 +1,7 @@
 <?php
+namespace App\Http\Controllers\HR;
 
-namespace App\Http\Controllers;
-
+use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Position;
 use App\Models\User;
@@ -116,3 +116,6 @@ class DepartmentController extends Controller
         return response()->json($positions);
     }
 }
+
+
+

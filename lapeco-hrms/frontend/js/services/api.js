@@ -25,6 +25,13 @@ const getCookie = (name) => {
   return null;
 };
 
+const pruneParams = (params = {}) => {
+  if (!params || typeof params !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  );
+};
+
 // Leave Cash Conversion API calls
 export const leaveCashConversionAPI = {
   getSummary: (params = {}) => api.get('/leave-cash-conversions', { params }),
@@ -495,6 +502,131 @@ export const systemSettingAPI = {
   get: (key) => api.get(`/system-settings/${key}`),
   getAll: () => api.get('/system-settings'),
   update: (key, value) => api.post('/system-settings', { key, value }),
+};
+
+export const attendanceAPI = {
+  // Get all attendance records
+  getAll: (params = {}) => {
+    return api.get('/attendance', { params });
+  },
+
+  // Get attendance logs
+  getLogs: (params = {}) => {
+    return api.get('/attendance-logs', { params });
+  },
+
+  // Get attendance history with statistics
+  getHistory: (params = {}) => {
+    return api.get('/attendance-history', { params });
+  },
+
+  // Get daily attendance data
+  getDaily: (params = {}) => {
+    return api.get('/attendance-daily', { params });
+  },
+
+  // Create new attendance record
+  create: (data) => {
+    return api.post('/attendance', data);
+  },
+
+  // Update attendance record
+  update: (id, data) => {
+    return api.put(`/attendance/${id}`, data);
+  },
+
+  // Delete attendance record
+  delete: (id) => {
+    return api.delete(`/attendance/${id}`);
+  },
+
+  // Get attendance record by ID
+  getById: (id) => {
+    return api.get(`/attendance/${id}`);
+  },
+
+  // Clock in/out action
+  clockAction: (data) => {
+    return api.post('/attendance/clock', data);
+  },
+
+  // Get all employees (name and ID only) for attendance management
+  getEmployeeNameID: (params = {}) => {
+    return api.get('/attendance/employees', { params });
+  },
+
+  // Get all attendance records for a specific employee (including scheduled/absent)
+  getEmployeeAttendance: (employeeId, params = {}) => {
+    return api.get(`/attendance/employee/${employeeId}`, { params });
+  },
+
+  // Import attendance records from Excel/CSV
+  import: (data) => {
+    return api.post('/attendance/import', data);
+  }
+};
+
+export const changePassword = async (currentPassword, newPassword, confirmPassword) => {
+  const response = await api.put('/password', {
+    current_password: currentPassword,
+    password: newPassword,
+    password_confirmation: confirmPassword,
+  });
+  return response.data;
+};
+
+export const updateThemePreference = async (theme) => {
+  const response = await api.put('/user/theme-preference', { theme });
+  return response.data;
+};
+
+export const getUserProfile = async () => {
+  const response = await api.get('/user');
+  return response.data;
+};
+
+export const updateUserProfile = async (profileData) => {
+  const response = await api.patch('/profile', profileData);
+  return response.data;
+};
+
+export const getLoginSessions = async () => {
+  const response = await api.get('/sessions');
+  return response.data;
+};
+
+export const checkEmailVerificationStatus = async () => {
+  return getUserProfile();
+};
+
+export const resendEmailVerification = async () => {
+  const response = await api.post('/email/verification-notification');
+  return response.data;
+};
+
+export const revokeSession = async (sessionId) => {
+  const response = await api.delete(`/sessions/${sessionId}`);
+  return response.data;
+};
+
+export const getActivityLogs = async (params = {}) => {
+  const response = await api.get('/activity-logs', { params: pruneParams(params) });
+  return response.data;
+};
+
+export const getAllActivityLogs = async (params = {}) => {
+  const response = await api.get('/activity-logs/all', { params: pruneParams(params) });
+  return response.data;
+};
+
+export const getActionTypes = async () => {
+  const response = await api.get('/activity-logs/action-types');
+  return response.data;
+};
+
+export const getEntityTypes = async () => {
+  const response = await api.get('/activity-logs/entity-types');
+  return response.data;
 };
 
 export default api;

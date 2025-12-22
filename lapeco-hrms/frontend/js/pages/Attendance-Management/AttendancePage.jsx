@@ -7,8 +7,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import EditAttendanceModal from '../../modals/EditAttendanceModal';
 import ImportPreviewModal from '../../modals/ImportPreviewModal';
 import useReportGenerator from '../../hooks/useReportGenerator';
-import attendanceAPI from '../../services/attendanceAPI';
-import { scheduleAPI } from '../../services/api';
+import { attendanceAPI, scheduleAPI } from '../../services/api';
 import ToastNotification from '../../common/ToastNotification';
 
 // Import the new view components

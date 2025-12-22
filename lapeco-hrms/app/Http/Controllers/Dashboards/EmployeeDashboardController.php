@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Dashboards;
+use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Holiday;
 use App\Models\Leave;
@@ -219,3 +218,7 @@ class EmployeeDashboardController extends Controller
         return (int) $remaining;
     }
 }
+
+
+
+

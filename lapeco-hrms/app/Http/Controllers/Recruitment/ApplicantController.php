@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Recruitment;
+use App\Http\Controllers\Controller;
 use App\Models\Applicant;
 use App\Models\User;
 use App\Models\Position;
@@ -746,4 +745,8 @@ class ApplicantController extends Controller
         }
     }
 }
+
+
+
+
 

@@ -1,7 +1,6 @@
 <?php
- 
- namespace App\Http\Controllers;
- 
+namespace App\Http\Controllers\Disciplinary;
+use App\Http\Controllers\Controller;
  use App\Models\DisciplinaryCase;
  use App\Models\User;
  use Illuminate\Http\Request;
@@ -348,4 +347,6 @@
          return response()->json(['message' => 'Attachment deleted successfully']);
      }
  }
+
+
 

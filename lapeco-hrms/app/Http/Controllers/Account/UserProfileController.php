@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Account;
+use App\Http\Controllers\Controller;
 use App\Models\Position;
 use Illuminate\Http\Request;
 
@@ -39,3 +38,7 @@ class UserProfileController extends Controller
         return response()->json($userData);
     }
 }
+
+
+
+

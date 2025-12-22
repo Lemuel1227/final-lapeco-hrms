@@ -3,7 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './MyAttendancePage.css';
-import attendanceAPI from '../../services/attendanceAPI';
+import { attendanceAPI } from '../../services/api';
 
 const calculateHoursWorked = (signIn, signOut, breakOut, breakIn) => {
   if (!signIn || !signOut) return '0h 0m';

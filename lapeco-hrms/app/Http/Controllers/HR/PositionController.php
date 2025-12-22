@@ -1,7 +1,7 @@
 <?php
+namespace App\Http\Controllers\HR;
 
-namespace App\Http\Controllers;
-
+use App\Http\Controllers\Controller;
 use App\Models\Position;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -250,3 +250,6 @@ class PositionController extends Controller
         ]);
     }
 }
+
+
+

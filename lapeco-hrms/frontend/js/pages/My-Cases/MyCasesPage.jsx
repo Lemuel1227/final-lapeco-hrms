@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import EmployeeCaseCard from './EmployeeCaseCard';
 import EmployeeCaseDetailView from './EmployeeCaseDetailView';
 import './MyCasesPage.css';
-import { disciplinaryCaseAPI } from '../../services/api';
-import { getUserProfile } from '../../services/accountService';
+import { disciplinaryCaseAPI, getUserProfile } from '../../services/api';
 
 const MyCasesPage = ({ currentUser: currentUserProp = null, cases: casesProp }) => {
     const initialCases = useMemo(() => (Array.isArray(casesProp) ? casesProp : []), [casesProp]);

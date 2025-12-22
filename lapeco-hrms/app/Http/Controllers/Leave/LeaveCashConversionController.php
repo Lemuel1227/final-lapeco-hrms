@@ -1,7 +1,7 @@
 <?php
+namespace App\Http\Controllers\Leave;
 
-namespace App\Http\Controllers;
-
+use App\Http\Controllers\Controller;
 use App\Models\LeaveCashConversion;
 use App\Models\LeaveCredit;
 use App\Models\User;
@@ -573,3 +573,7 @@ class LeaveCashConversionController extends Controller
         ];
     }
 }
+
+
+
+

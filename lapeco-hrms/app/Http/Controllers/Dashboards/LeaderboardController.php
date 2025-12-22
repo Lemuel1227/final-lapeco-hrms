@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Dashboards;
+use App\Http\Controllers\Controller;
 use App\Models\Leave;
 use App\Models\Position;
 use App\Models\ScheduleAssignment;
@@ -352,3 +351,7 @@ class LeaderboardController extends Controller
         return $entries;
     }
 }
+
+
+
+

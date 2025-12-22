@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Dashboards;
+use App\Http\Controllers\Controller;
 use App\Models\Leave;
 use App\Models\ScheduleAssignment;
 use App\Models\User;
@@ -167,3 +166,7 @@ class TeamLeaderDashboardController extends Controller
         ]);
     }
 }
+
+
+
+

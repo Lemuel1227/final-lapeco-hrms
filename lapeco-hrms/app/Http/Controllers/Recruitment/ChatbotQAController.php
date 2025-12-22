@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Recruitment;
+use App\Http\Controllers\Controller;
 use App\Models\ChatbotQA;
 use App\Models\Position;
 use Illuminate\Http\Request;
@@ -99,3 +98,6 @@ class ChatbotQAController extends Controller
         return response()->json(['deleted' => true]);
     }
 }
+
+
+

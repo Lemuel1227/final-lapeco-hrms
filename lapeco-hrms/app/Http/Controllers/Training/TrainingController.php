@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Training;
+use App\Http\Controllers\Controller;
 use App\Models\TrainingProgram;
 use App\Models\TrainingEnrollment;
 use App\Models\User;
@@ -440,3 +439,7 @@ class TrainingController extends Controller
         ]);
     }
 }
+
+
+
+

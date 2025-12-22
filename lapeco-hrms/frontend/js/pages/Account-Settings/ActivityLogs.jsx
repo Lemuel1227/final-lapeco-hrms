@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getActivityLogs, getActionTypes, getEntityTypes } from '../../services/accountService';
+import { getActivityLogs, getActionTypes, getEntityTypes } from '../../services/api';
 import { formatDistanceToNow, format, parseISO, isToday, isYesterday, startOfDay } from 'date-fns';
 import { formatDate as formatMDY } from '../../utils/dateUtils';
 import './ActivityLogs.css';

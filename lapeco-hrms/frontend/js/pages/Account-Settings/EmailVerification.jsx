@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { resendEmailVerification, checkEmailVerificationStatus } from '../../services/accountService';
+import { resendEmailVerification, checkEmailVerificationStatus } from '../../services/api';
 
 const EmailVerification = ({ currentUser }) => {
     const [verificationStatus, setVerificationStatus] = useState({

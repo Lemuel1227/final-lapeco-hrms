@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\System;
+use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -115,3 +114,6 @@ class NotificationController extends Controller
         return response()->json($notification, 201);
     }
 }
+
+
+

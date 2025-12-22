@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Offboarding;
+use App\Http\Controllers\Controller;
 use App\Models\Termination;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -221,3 +220,6 @@ class TerminationController extends Controller
         return response()->json($stats);
     }
 }
+
+
+

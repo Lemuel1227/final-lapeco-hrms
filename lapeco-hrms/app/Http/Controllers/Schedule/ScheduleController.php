@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Schedule;
+use App\Http\Controllers\Controller;
 use App\Models\Schedule;
 use App\Models\ScheduleAssignment;
 use Illuminate\Http\Request;
@@ -710,3 +709,6 @@ class ScheduleController extends Controller
         return response()->json(['message' => 'Template deleted successfully!']);
     }
 }
+
+
+

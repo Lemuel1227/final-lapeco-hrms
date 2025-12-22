@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Payroll;
+use App\Http\Controllers\Controller;
 use App\Models\EmployeePayroll;
 use App\Models\PayrollPeriod;
 use App\Models\User;
@@ -308,3 +307,7 @@ class ContributionController extends Controller
         ]);
     }
 }
+
+
+
+

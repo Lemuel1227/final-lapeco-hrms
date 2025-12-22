@@ -1,8 +1,7 @@
 <?php
-
-    namespace App\Http\Controllers;
-
-    use Illuminate\Http\Request;
+namespace App\Http\Controllers\Leave;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
     use App\Models\Leave;
     use App\Models\User;
     use App\Models\LeaveCredit;
@@ -687,3 +686,7 @@
             return response()->json(['success' => true, 'message' => 'Auto-decline policy updated.', 'days' => $v]);
         }
     }
+
+
+
+

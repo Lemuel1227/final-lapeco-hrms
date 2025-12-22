@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Offboarding;
+use App\Http\Controllers\Controller;
 use App\Models\Resignation;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -353,3 +352,7 @@ class ResignationController extends Controller
         ];
     }
 }
+
+
+
+

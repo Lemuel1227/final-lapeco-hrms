@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Disciplinary;
+use App\Http\Controllers\Controller;
 use App\Models\ActionLog;
 use App\Models\DisciplinaryCase;
 use Illuminate\Http\Request;
@@ -65,3 +64,5 @@ class ActionLogController extends Controller
         ]);
     }
 }
+
+

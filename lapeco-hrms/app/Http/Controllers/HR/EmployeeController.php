@@ -1,7 +1,7 @@
 <?php
+namespace App\Http\Controllers\HR;
 
-namespace App\Http\Controllers;
-
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Models\Position;
@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 use App\Traits\LogsActivity;
 
 class EmployeeController extends Controller
@@ -1008,7 +1009,7 @@ class EmployeeController extends Controller
         </head>
         <body>
             <div class="error-container">
-                <div class="error-icon">⚠️</div>
+                <div class="error-icon">âš ï¸</div>
                 <h2 class="error-title">' . htmlspecialchars($title) . '</h2>
                 <p class="error-message">' . htmlspecialchars($message) . '</p>
             </div>
@@ -1043,7 +1044,7 @@ class EmployeeController extends Controller
                     'token_start' => substr($token, 0, 10)
                 ]);
                 
-                $personalAccessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                $personalAccessToken = PersonalAccessToken::findToken($token);
                 if ($personalAccessToken) {
                     Log::info('Token found:', [
                         'token_id' => $personalAccessToken->id,
@@ -1264,3 +1265,7 @@ class EmployeeController extends Controller
         }
     }
 }
+
+
+
+

@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\ML;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Position;
@@ -150,3 +149,7 @@ class PredictiveAnalyticsController extends Controller
         }
     }
 }
+
+
+
+

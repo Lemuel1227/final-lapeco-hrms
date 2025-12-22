@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Schedule;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Holiday;
 use App\Models\User;
@@ -147,4 +146,8 @@ class HolidayController extends Controller
         ]);
     }
 }
+
+
+
+
 

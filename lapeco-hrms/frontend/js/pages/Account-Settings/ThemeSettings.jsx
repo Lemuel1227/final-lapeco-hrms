@@ -1,5 +1,5 @@
 import React from 'react';
-import { updateThemePreference } from '../../services/accountService';
+import { updateThemePreference } from '../../services/api';
 
 const ThemeSettings = ({ theme, onToggleTheme }) => {
   const handleThemeChange = async () => {

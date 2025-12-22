@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Recruitment;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Applicant;
@@ -106,3 +105,7 @@ class RecruitmentController extends Controller
         return response()->json(null, 204);
     }
 }
+
+
+
+

@@ -5,8 +5,7 @@ import ReportPreviewModal from '../../modals/ReportPreviewModal';
 import ToastNotification from '../../common/ToastNotification';
 import useReportGenerator from '../../hooks/useReportGenerator';
 import { reportsConfig, reportCategories } from '../../config/reports.config';
-import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI, disciplinaryCaseAPI, contributionAPI, predictiveAnalyticsAPI, mlAPI } from '../../services/api';
-import attendanceAPI from '../../services/attendanceAPI';
+import { employeeAPI, positionAPI, resignationAPI, terminationAPI, offboardingAPI, trainingAPI, performanceAPI, payrollAPI, leaveAPI, recruitmentAPI, applicantAPI, disciplinaryCaseAPI, contributionAPI, predictiveAnalyticsAPI, mlAPI, attendanceAPI } from '../../services/api';
 import './ReportsPage.css';
 
 const RISK_WEIGHTS = { performance: 0.7, attendance: 0.3 };

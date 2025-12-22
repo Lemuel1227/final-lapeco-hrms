@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Payroll;
+use App\Http\Controllers\Controller;
 use App\Models\DisciplinaryCase;
 use App\Models\EmployeePayroll;
 use App\Models\Holiday;
@@ -1459,7 +1458,7 @@ class PayrollController extends Controller
             'payroll_generated',
             'Payroll Generated',
             sprintf(
-                'Your payroll for the period %s to %s has been generated. Net Pay: ₱%s',
+                'Your payroll for the period %s to %s has been generated. Net Pay: â‚±%s',
                 $period->period_start->format('M d, Y'),
                 $period->period_end->format('M d, Y'),
                 number_format($netPay, 2)
@@ -1663,3 +1662,7 @@ class PayrollController extends Controller
         }
     }
 }
+
+
+
+

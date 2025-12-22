@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { leaveAPI, leaveCashConversionAPI } from '../../services/api';
-import { getUserProfile } from '../../services/accountService';
+import { leaveAPI, leaveCashConversionAPI, getUserProfile } from '../../services/api';
 import RequestLeaveModal from '../../modals/RequestLeaveModal';
 import LeaveHistoryModal from '../../modals/LeaveHistoryModal';
 import LeaveRequestCard from './LeaveRequestCard';

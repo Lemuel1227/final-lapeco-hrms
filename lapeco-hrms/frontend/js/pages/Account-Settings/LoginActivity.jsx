@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getLoginSessions, revokeSession } from '../../services/accountService';
+import { getLoginSessions, revokeSession } from '../../services/api';
 
 const LoginActivity = () => {
   const [sessions, setSessions] = useState([]);

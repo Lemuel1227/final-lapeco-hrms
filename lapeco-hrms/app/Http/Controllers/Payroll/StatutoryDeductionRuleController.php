@@ -1,7 +1,6 @@
 <?php
-
-namespace App\Http\Controllers;
-
+namespace App\Http\Controllers\Payroll;
+use App\Http\Controllers\Controller;
 use App\Models\StatutoryDeductionRule;
 use App\Models\StatutoryDeductionBracket;
 use App\Models\PayrollStatutoryRequirement;
@@ -436,3 +435,7 @@ class StatutoryDeductionRuleController extends Controller
         ]);
     }
 }
+
+
+
+
