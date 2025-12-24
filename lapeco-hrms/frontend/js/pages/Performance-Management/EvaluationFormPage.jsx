@@ -154,11 +154,6 @@ const EvaluationFormPage = () => {
     try {
       setSubmitting(true);
       
-      // Get CSRF cookie first (required for stateful authentication)
-      await fetch('http://localhost:8000/sanctum/csrf-cookie', {
-        credentials: 'include'
-      });
-      
       // Convert factorScores to flat field format expected by backend
       const payload = {};
       

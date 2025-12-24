@@ -6,6 +6,6 @@ export default defineConfig({
    server: {
     port: 5173,
     strictPort: true, // Prevent automatic port switching
-    open: true // Automatically open browser
+    open: false // Disable automatic browser opening for Docker
   },
 })

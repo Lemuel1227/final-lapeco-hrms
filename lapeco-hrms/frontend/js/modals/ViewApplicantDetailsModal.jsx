@@ -537,7 +537,7 @@ const ViewApplicantDetailsModal = ({ applicant, show, onClose, jobTitle, onViewR
                             </div>
                           )}
                           {!resumeLoading && !resumeError && (
-                            <ResumeIframe resumeUrl={resumeBlobUrl || `http://localhost:8000/api/applicants/${displayData.id}/resume/view`} />
+                            <ResumeIframe resumeUrl={resumeBlobUrl || `${import.meta.env.VITE_API_URL || ''}/applicants/${displayData.id}/resume/view`} />
                           )}
                         </div>
                       ) : (

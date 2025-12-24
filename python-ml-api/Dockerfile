@@ -1,14 +1,23 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+# Use Python 3.12 slim image
+FROM python:3.12-slim
+
+# Install locale and system dependencies
+RUN apt-get update && apt-get install -y \
+    locales \
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && locale-gen C.UTF-8 \
+    && update-locale C.UTF-8
+
+# Set locale environment variables
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV PYTHONIOENCODING=UTF-8
 
 # Set working directory
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (for better Docker layer caching)
 COPY requirements.txt .
@@ -24,15 +33,10 @@ COPY start.py .
 COPY models/ ./models/
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8010
 
 # Set environment variables
 ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
 CMD ["python", "start.py"]

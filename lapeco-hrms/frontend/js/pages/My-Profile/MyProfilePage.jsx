@@ -112,7 +112,7 @@ const MyProfilePage = () => {
             });
             // Set resume URL - if user has resume_file, create API URL
             if (currentUser.resume_file) {
-                setResumePreview(`http://localhost:8000/api/employees/${currentUser.id}/resume`);
+                setResumePreview(`${import.meta.env.VITE_API_URL || ''}/employees/${currentUser.id}/resume`);
             } else {
                 setResumePreview(null);
             }
@@ -341,7 +341,7 @@ const MyProfilePage = () => {
             if (hasNewResumeFile) {
                 updatedUser.resume_file = 'uploaded'; // Indicate file was uploaded
                 // Update preview to show new file
-                setResumePreview(`http://localhost:8000/api/employees/${currentUser.id}/resume`);
+                setResumePreview(`${import.meta.env.VITE_API_URL || ''}/employees/${currentUser.id}/resume`);
             }
             
             localStorage.setItem('user', JSON.stringify(updatedUser));

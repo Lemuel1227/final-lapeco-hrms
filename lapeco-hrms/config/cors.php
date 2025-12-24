@@ -19,7 +19,10 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://hr.lapeco.org', 'https://lapeco.org', 'http://localhost:3000', 'http://localhost:3010', 'http://localhost:8000', 'http://localhost:5174', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173'],
+    'allowed_origins' => [
+        env('FRONTEND_HRMS_URL'),
+        env('FRONTEND_RECRUITMENT_URL')
+    ],
 
     'allowed_origins_patterns' => [],
 

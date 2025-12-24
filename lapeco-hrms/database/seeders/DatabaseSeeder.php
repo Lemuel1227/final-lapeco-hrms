@@ -314,7 +314,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($phHolidays as [$title, $date, $type]) {
-            Holiday::create([
+            Holiday::firstOrCreate([
                 'title' => $title,
                 'date' => $date,
                 'type' => $type,

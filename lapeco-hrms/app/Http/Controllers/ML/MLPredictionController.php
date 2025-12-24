@@ -1,5 +1,6 @@
 <?php
-namespace App\Http\Controllers\ML;
+namespace App\Http\Controllers\ML;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +42,7 @@ class MLPredictionController extends Controller
 
     public function __construct(MLDataService $mlDataService)
     {
-        $this->mlApiUrl = config('services.ml_api.url', 'http://localhost:8010');
+        $this->mlApiUrl = config('services.ml_api.url');
         $this->mlDataService = $mlDataService;
     }
 
@@ -115,6 +116,8 @@ class MLPredictionController extends Controller
             $employeeData = $this->mlDataService->prepareEmployeeData();
             
             Log::info('Sending ML API request for ' . count($employeeData) . ' employees');
+            Log::info('ML API URL: ' . $this->mlApiUrl);
+            Log::info('Full request URL: ' . $this->mlApiUrl . '/predict');
             
             // Send request to Python ML API
             $response = Http::timeout(300) // 5 minute timeout for ML processing

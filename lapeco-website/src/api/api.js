@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL?.replace(/\/$/, '') || '') + '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -19,6 +19,15 @@ export const applicantApi = {
       },
       ...config
     })
+};
+
+export const chatbotApi = {
+  getPublicQAs: (type, config = {}) => {
+    const params = type ? { params: { type } } : {};
+    return api.get('/chatbot-qas/public', { ...config, ...params });
+  },
+  getRecruitmentQAs: (config = {}) => chatbotApi.getPublicQAs('recruitment', config),
+  getFAQs: (config = {}) => chatbotApi.getPublicQAs('faq', config)
 };
 
 export default api;

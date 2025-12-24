@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { faqData } from '../data/faqData';
+import { chatbotApi } from '../api/api';
 import './Chatbot.css';
 
 export default function Chatbot({ onClose }) {
@@ -20,15 +21,12 @@ export default function Chatbot({ onClose }) {
 
   const refreshQAs = async () => {
     try {
-      const base = 'http://localhost:8000/api/chatbot-qas/public';
       const [recRes, faqRes] = await Promise.all([
-        fetch(base + '?type=recruitment', { cache: 'no-store' }),
-        fetch(base + '?type=faq', { cache: 'no-store' })
+        chatbotApi.getRecruitmentQAs({ cache: 'no-store' }),
+        chatbotApi.getFAQs({ cache: 'no-store' })
       ]);
-      const recJson = await recRes.json().catch(() => ({}));
-      const faqJson = await faqRes.json().catch(() => ({}));
-      const recData = Array.isArray(recJson.data) ? recJson.data.filter(i => i.active) : [];
-      const faqDataArr = Array.isArray(faqJson.data) ? faqJson.data.filter(i => i.active) : [];
+      const recData = Array.isArray(recRes.data?.data) ? recRes.data.data.filter(i => i.active) : [];
+      const faqDataArr = Array.isArray(faqRes.data?.data) ? faqRes.data.data.filter(i => i.active) : [];
       setRecruitmentItems(recData);
       setFaqItems(faqDataArr);
     } catch (_) {
