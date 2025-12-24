@@ -34,6 +34,8 @@ lapeco-hrms/node_modules/
 lapeco-hrms/public/build
 lapeco-hrms/public/hot
 lapeco-hrms/public/storage
+lapeco-hrms/storage/*.bootstrap_done
+lapeco-hrms/storage/*.seeded
 lapeco-hrms/storage/*.key
 lapeco-hrms/storage/pail
 lapeco-hrms/vendor/
