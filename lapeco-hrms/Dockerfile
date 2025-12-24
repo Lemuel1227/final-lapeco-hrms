@@ -1,54 +1,46 @@
-FROM php:8.2.12-fpm
+# ---- Base image ----
+FROM php:8.2-fpm
 
-# Install system dependencies
+# ---- System dependencies ----
 RUN apt-get update && apt-get install -y \
     git \
     curl \
-    libpng-dev \
+    unzip \
     libonig-dev \
     libxml2-dev \
-    zip \
-    unzip \
     libzip-dev \
-    libpq-dev \
     default-libmysqlclient-dev \
-    && docker-php-ext-install pdo_mysql \
-    && docker-php-ext-install mysqli \
-    && docker-php-ext-install zip \
-    && docker-php-ext-install bcmath \
-    && docker-php-ext-install mbstring \
-    && docker-php-ext-install xml \
-    && docker-php-ext-install ctype
+    && docker-php-ext-install \
+        pdo_mysql \
+        zip \
+        bcmath \
+        mbstring \
+        xml \
+        ctype \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
+# ---- Install Composer ----
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
+# ---- Set working directory ----
 WORKDIR /var/www/html
 
-# Copy existing application directory permissions
+# ---- Copy application code ----
 COPY --chown=www-data:www-data . /var/www/html
 
-# Install PHP dependencies
+# ---- Install PHP dependencies ----
 RUN composer install --no-dev --optimize-autoloader
 
-# Create storage directories and set permissions
+# ---- Permissions for storage and cache ----
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
-    && chmod -R 775 storage \
-    && chmod -R 775 bootstrap/cache
+    && chmod -R 775 storage bootstrap/cache
 
-# Copy environment file
-RUN cp .env.example .env
-
-# Generate application key
-RUN php artisan key:generate
-
-# Copy startup script
+# ---- Copy startup script ----
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# Expose port
+# ---- Expose port for artisan serve ----
 EXPOSE 8000
 
-# Start the application
+# ---- Start application ----
 CMD ["/start.sh"]

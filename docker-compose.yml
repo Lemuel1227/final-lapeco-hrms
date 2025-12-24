@@ -1,118 +1,112 @@
-services:
-  # MySQL Database
-  mysql:
-    image: mysql:8.0
-    container_name: lapeco-mysql
-    ports:
-      - "3326:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: lapeco_hrms
-      MYSQL_USER: lapeco_user
-      MYSQL_PASSWORD: lapeco_password
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - lapeco-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+  services:
+    # MySQL Database
+    mysql:
+      image: mysql:8.0
+      container_name: lapeco-mysql
+      ports:
+        - "3326:3306"
+      environment:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: lapeco_hrms
+        MYSQL_USER: lapeco_user
+        MYSQL_PASSWORD: lapeco_password
+      volumes:
+        - mysql_data:/var/lib/mysql
+      networks:
+        - lapeco-network
+      healthcheck:
+        test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+        timeout: 20s
+        retries: 10
 
-  # Laravel Backend (with integrated scheduler)
-  laravel-backend:
-    build:
-      context: ./lapeco-hrms
-      dockerfile: Dockerfile
-    container_name: lapeco-laravel
-    ports:
-      - "8020:8000"
-    volumes:
-      - ./lapeco-hrms:/var/www/html
-    environment:
-      - APP_ENV=local
-      - APP_DEBUG=true
-      - DB_CONNECTION=mysql
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_DATABASE=lapeco_hrms
-      - DB_USERNAME=lapeco_user
-      - DB_PASSWORD=lapeco_password
-      - ML_API_URL=http://python-ml-api:8010
-      - FRONTEND_HRMS_URL=http://localhost:3020
-      - FRONTEND_RECRUITMENT_URL=http://localhost:5193
-    networks:
-      - lapeco-network
-    depends_on:
-      mysql:
-        condition: service_healthy
-    command: >
-      sh -c "
-      php artisan serve --host=0.0.0.0 --port=8000 --no-reload &
-      while true; do
-        php artisan schedule:run;
-      done
-      "
+    # Laravel Backend (with integrated scheduler)
+    laravel-backend:
+      build:
+        context: ./lapeco-hrms
+        dockerfile: Dockerfile
+      container_name: lapeco-laravel
+      ports:
+        - "8020:8000"
+      volumes:
+        - ./lapeco-hrms:/var/www/html
+      environment:
+        - APP_ENV=local
+        - APP_DEBUG=true
+        - DB_CONNECTION=mysql
+        - DB_HOST=mysql
+        - DB_PORT=3306
+        - DB_DATABASE=lapeco_hrms
+        - DB_USERNAME=lapeco_user
+        - DB_PASSWORD=lapeco_password
+        - ML_API_URL=http://python-ml-api:8010
+        - FRONTEND_HRMS_URL=http://localhost:3020
+        - FRONTEND_RECRUITMENT_URL=http://localhost:5193
+      networks:
+        - lapeco-network
+      depends_on:
+        mysql:
+          condition: service_healthy
+      command: ["/start.sh"]
 
-  # React Frontend 1 (HRMS)
-  react-hrms:
-    build:
-      context: ./lapeco-hrms/frontend
-      dockerfile: Dockerfile
-    container_name: lapeco-react-hrms
-    ports:
-      - "3020:3000"
-    volumes:
-      - ./lapeco-hrms/frontend:/app
-      - hrms-node-modules:/app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8020
-    networks:
-      - lapeco-network
-    depends_on:
-      - laravel-backend
+    # React Frontend 1 (HRMS)
+    react-hrms:
+      build:
+        context: ./lapeco-hrms/frontend
+        dockerfile: Dockerfile
+      container_name: lapeco-react-hrms
+      ports:
+        - "3020:3000"
+      volumes:
+        - ./lapeco-hrms/frontend:/app
+        - hrms-node-modules:/app/node_modules
+      environment:
+        - VITE_API_URL=http://localhost:8020
+      networks:
+        - lapeco-network
+      depends_on:
+        - laravel-backend
 
-  # React Frontend 2 (Recruitment)
-  react-recruitment:
-    build:
-      context: ./lapeco-website
-      dockerfile: Dockerfile
-    container_name: lapeco-react-recruitment
-    ports:
-      - "5193:5173"
-    volumes:
-      - ./lapeco-website:/app
-      - recruitment-node-modules:/app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8020
-    networks:
-      - lapeco-network
-    depends_on:
-      - laravel-backend
+    # React Frontend 2 (Recruitment)
+    react-recruitment:
+      build:
+        context: ./lapeco-website
+        dockerfile: Dockerfile
+      container_name: lapeco-react-recruitment
+      ports:
+        - "5193:5173"
+      volumes:
+        - ./lapeco-website:/app
+        - recruitment-node-modules:/app/node_modules
+      environment:
+        - VITE_API_URL=http://localhost:8020
+      networks:
+        - lapeco-network
+      depends_on:
+        - laravel-backend
 
-  # Python ML API
-  python-ml-api:
-    build:
-      context: ./python-ml-api
-      dockerfile: Dockerfile
-    container_name: lapeco-ml-api
-    ports:
-      - "8030:8010"
-    volumes:
-      - ./python-ml-api:/app
-    environment:
-      - API_HOST=0.0.0.0
-      - API_PORT=8010
-      - API_DEBUG=true
-      - LOG_LEVEL=info
-    networks:
-      - lapeco-network
+    # Python ML API
+    python-ml-api:
+      build:
+        context: ./python-ml-api
+        dockerfile: Dockerfile
+      container_name: lapeco-ml-api
+      ports:
+        - "8030:8010"
+      volumes:
+        - ./python-ml-api:/app
+      environment:
+        - API_HOST=0.0.0.0
+        - API_PORT=8010
+        - API_DEBUG=true
+        - LOG_LEVEL=info
+      networks:
+        - lapeco-network
 
-networks:
-  lapeco-network:
-    driver: bridge
+  networks:
+    lapeco-network:
+      driver: bridge
 
-volumes:
-  mysql_data:
-  hrms-node-modules:
-  recruitment-node-modules:
+  volumes:
+    mysql_data:
+    hrms-node-modules:
+    recruitment-node-modules:
